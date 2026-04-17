@@ -1,4 +1,4 @@
-import { MessageCircle, PhoneCall, UserRound } from 'lucide-react';
+import { ChevronLeft, MessageCircle, PhoneCall, UserRound } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { getMessageResponseOptions, getResponseCopy } from '../systems/messageSystem';
 import { S } from './styles';
@@ -9,9 +9,21 @@ const responseLabels = {
   ferme: 'Ferme',
 };
 
+const URGENT_TYPES = ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning', 'staff_dialogue'];
+
 export default function Messages({ messages, onRespond, focusThreadKey = null }) {
   const [filter, setFilter] = useState('all');
   const [selectedThreadKey, setSelectedThreadKey] = useState(null);
+  const [mobileScreen, setMobileScreen] = useState('list');
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
+  const [visibleCounts, setVisibleCounts] = useState({});
+
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 780);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   const threads = useMemo(() => {
     const grouped = messages.reduce((acc, message) => {
@@ -48,7 +60,7 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
       })
       .filter((thread) => {
         if (filter === 'all') return true;
-        if (filter === 'urgent') return thread.items.some((item) => !item.resolved && ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning', 'staff_dialogue'].includes(item.type));
+        if (filter === 'urgent') return thread.items.some((item) => !item.resolved && URGENT_TYPES.includes(item.type));
         if (filter === 'unread') return thread.hasUnread;
         if (filter === 'staff') return thread.isStaff;
         if (filter === 'players') return !thread.isStaff;
@@ -60,18 +72,27 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
   useEffect(() => {
     if (!threads.length) {
       setSelectedThreadKey(null);
+      setMobileScreen('list');
       return;
     }
 
-    const visibleThread = threads.find((thread) => thread.key === focusThreadKey) ?? threads[0];
+    if (focusThreadKey && threads.some((thread) => thread.key === focusThreadKey)) {
+      setSelectedThreadKey(focusThreadKey);
+      setMobileScreen('thread');
+      return;
+    }
+
     setSelectedThreadKey((current) => {
-      if (focusThreadKey && threads.some((thread) => thread.key === focusThreadKey)) return focusThreadKey;
       if (current && threads.some((thread) => thread.key === current)) return current;
-      return visibleThread.key;
+      return threads[0].key;
     });
   }, [focusThreadKey, threads]);
 
-  const selectedThread = threads.find((thread) => thread.key === selectedThreadKey) ?? threads[0] ?? null;
+  const selectedThread = threads.find((thread) => thread.key === selectedThreadKey) ?? null;
+  const threadLimit = selectedThread ? (visibleCounts[selectedThread.key] ?? 5) : 5;
+  const visibleThreadItems = selectedThread ? selectedThread.items.slice(Math.max(0, selectedThread.items.length - threadLimit)) : [];
+  const showList = !isMobile || mobileScreen === 'list';
+  const showThread = !isMobile || mobileScreen === 'thread';
 
   const getDisplayedResponse = (message) => {
     if (message.responseText && !message.responseText.startsWith('Réponse envoyée')) return message.responseText;
@@ -109,87 +130,117 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
       </div>
 
       <div style={S.messagesLayout}>
-        <aside style={S.threadListPane}>
-          {threads.map((thread) => {
-            const active = thread.key === selectedThreadKey;
-            return (
-              <button
-                key={thread.key}
-                onClick={() => setSelectedThreadKey(thread.key)}
-                style={{
-                  ...S.threadContact,
-                  borderColor: active ? '#00a676' : '#e5eaf0',
-                  boxShadow: active ? '0 12px 28px rgba(0,166,118,.14)' : '0 10px 24px rgba(15,23,32,.06)',
-                }}
-              >
-                <div style={S.threadContactTop}>
-                  <div style={S.threadContactIcon}>
-                    {thread.isStaff ? <PhoneCall size={14} /> : <UserRound size={14} />}
-                  </div>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={S.threadContactTitle}>{thread.label}</div>
-                    <div style={S.threadContactSub}>{thread.contextLabel || thread.playerName}</div>
-                  </div>
-                  {thread.unresolvedCount > 0 && <span style={S.threadBadge}>{thread.unresolvedCount}</span>}
-                </div>
-                <div style={S.threadContactMeta}>{thread.latestLabel}</div>
-              </button>
-            );
-          })}
-          {!threads.length && <div style={S.emptySmall}>Aucun message dans ce filtre.</div>}
-        </aside>
-
-        <section style={S.threadPane}>
-          {selectedThread ? (
-            <>
-              <div style={S.chatHeader}>
-                <div>
-                  <div style={S.chatTitle}>{selectedThread.label}</div>
-                  <div style={S.chatSub}>{selectedThread.contextLabel || selectedThread.playerName}</div>
-                </div>
-                <div style={S.chatTag}>{selectedThread.isStaff ? 'Staff' : 'Joueur'}</div>
-              </div>
-              <div style={S.chatTimeline}>
-                {selectedThread.items.map((message) => (
-                  <div key={message.id} style={S.chatBlock}>
-                    <div style={S.chatBubbleLeft}>
-                      <div style={S.chatMeta}>{message.senderName ?? message.playerName} · S{message.week}</div>
-                      <div style={S.chatSubject}>{message.subject}</div>
-                      <div style={S.chatBody}>{message.body}</div>
+        {showList && (
+          <aside style={S.threadListPane}>
+            {threads.map((thread) => {
+              const active = thread.key === selectedThreadKey;
+              return (
+                <button
+                  key={thread.key}
+                  onClick={() => {
+                    setSelectedThreadKey(thread.key);
+                    setMobileScreen('thread');
+                  }}
+                  style={{
+                    ...S.threadContact,
+                    borderColor: active ? '#00a676' : '#e5eaf0',
+                    boxShadow: active ? '0 12px 28px rgba(0,166,118,.14)' : '0 10px 24px rgba(15,23,32,.06)',
+                  }}
+                >
+                  <div style={S.threadContactTop}>
+                    <div style={S.threadContactIcon}>
+                      {thread.isStaff ? <PhoneCall size={14} /> : <UserRound size={14} />}
                     </div>
-                    {message.resolved ? (
-                      <div style={S.chatBubbleRight}>
-                        {getDisplayedResponse(message)}
-                      </div>
-                    ) : (
-                      <>
-                        {['transfer_request', 'raise_request', 'complaint', 'role_frustration', 'staff_dialogue'].includes(message.type) && (
-                          <div style={S.msgHint}>Une réponse concrète peut déclencher une suite dans le jeu.</div>
-                        )}
-                        <div style={S.msgActions}>
-                          {Object.entries(getMessageResponseOptions(message)).map(([type, label]) => (
-                            <button key={type} onClick={() => onRespond(message.id, type)} style={S.msgBtn}>
-                              {label || responseLabels[type]}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={S.threadContactTitle}>{thread.label}</div>
+                      <div style={S.threadContactSub}>{thread.contextLabel || thread.playerName}</div>
+                    </div>
+                    {thread.unresolvedCount > 0 && <span style={S.threadBadge}>{thread.unresolvedCount}</span>}
                   </div>
-                ))}
+                  <div style={S.threadContactMeta}>{thread.latestLabel}</div>
+                </button>
+              );
+            })}
+            {!threads.length && <div style={S.emptySmall}>Aucun message dans ce filtre.</div>}
+          </aside>
+        )}
+
+        {showThread && (
+          <section style={S.threadPane}>
+            {selectedThread ? (
+              <>
+                <div style={S.chatHeader}>
+                  <div>
+                    {isMobile && mobileScreen === 'thread' && (
+                      <button
+                        onClick={() => setMobileScreen('list')}
+                        style={S.backBtn}
+                      >
+                        <ChevronLeft size={16} />
+                        Retour
+                      </button>
+                    )}
+                    <div style={S.chatTitle}>{selectedThread.label}</div>
+                    <div style={S.chatSub}>{selectedThread.contextLabel || selectedThread.playerName}</div>
+                  </div>
+                  <div style={S.chatTag}>{selectedThread.isStaff ? 'Staff' : 'Joueur'}</div>
+                </div>
+
+                <div style={S.chatTimeline}>
+                  {visibleThreadItems.map((message) => (
+                    <div key={message.id} style={S.chatBlock}>
+                      <div style={S.chatBubbleLeft}>
+                        <div style={S.chatMeta}>{message.senderName ?? message.playerName} · S{message.week}</div>
+                        <div style={S.chatSubject}>{message.subject}</div>
+                        <div style={S.chatBody}>{message.body}</div>
+                      </div>
+                      {message.resolved ? (
+                        <div style={S.chatBubbleRight}>
+                          {getDisplayedResponse(message)}
+                        </div>
+                      ) : (
+                        <>
+                          {URGENT_TYPES.includes(message.type) && (
+                            <div style={S.msgHint}>Une réponse concrète peut déclencher une suite dans le jeu.</div>
+                          )}
+                          <div style={S.msgActions}>
+                            {Object.entries(getMessageResponseOptions(message)).map(([type, label]) => (
+                              <button key={type} onClick={() => onRespond(message.id, type)} style={S.msgBtn}>
+                                {label || responseLabels[type]}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {selectedThread.items.length > visibleThreadItems.length && (
+                  <button
+                    onClick={() => setVisibleCounts((current) => ({
+                      ...current,
+                      [selectedThread.key]: (current[selectedThread.key] ?? 5) + 5,
+                    }))}
+                    style={S.loadOlderBtn}
+                  >
+                    Charger les anciens messages
+                  </button>
+                )}
+
+                <div style={S.emptySmall}>
+                  La conversation garde le contexte. Les réponses poussent des effets réels sur la confiance, le club et le mercato.
+                </div>
+              </>
+            ) : (
+              <div style={S.chatEmpty}>
+                <MessageCircle size={26} />
+                <div style={S.chatEmptyTitle}>Aucune conversation</div>
+                <div style={S.chatEmptySub}>Les contacts et les échanges apparaissent ici quand un joueur, un coach ou un DS écrit.</div>
               </div>
-              <div style={S.emptySmall}>
-                La conversation garde le contexte. Les réponses poussent des effets réels sur la confiance, le club et le mercato.
-              </div>
-            </>
-          ) : (
-            <div style={S.chatEmpty}>
-              <MessageCircle size={26} />
-              <div style={S.chatEmptyTitle}>Aucune conversation</div>
-              <div style={S.chatEmptySub}>Les contacts et les échanges apparaissent ici quand un joueur, un coach ou un DS écrit.</div>
-            </div>
-          )}
-        </section>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );
