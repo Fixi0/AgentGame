@@ -19,6 +19,7 @@ import { evaluatePromises, resolvePromisesForPlayer } from '../systems/promiseSy
 import { buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getSeasonContext } from '../systems/seasonSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
+import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/consequenceSystem';
 import {
   addDecisionHistory,
   applyCredibilityChange,
@@ -453,6 +454,7 @@ export const createFreshState = () => ({
   playerSegmentReputation: createDefaultPlayerSegmentReputation(),
   rivalAgents: createDefaultRivalAgents(),
   decisionHistory: [],
+  activeNarratives: [],
   staff: createDefaultStaff(),
   promises: [],
   clubOffers: [],
@@ -501,6 +503,7 @@ export const migrateState = (state) => {
     playerSegmentReputation: { ...createDefaultPlayerSegmentReputation(), ...(state.playerSegmentReputation ?? {}) },
     rivalAgents: state.rivalAgents ?? createDefaultRivalAgents(),
     decisionHistory: state.decisionHistory ?? [],
+    activeNarratives: state.activeNarratives ?? [],
     staff: { ...createDefaultStaff(), ...(state.staff ?? {}) },
     promises: state.promises ?? [],
     clubOffers: state.clubOffers ?? [],
@@ -1208,6 +1211,14 @@ export const playWeek = (state) => {
   generatedNews.push(...livingWeek.news);
   generatedMessages.push(...livingWeek.messages);
 
+  const narrativeFollowups = generateNarrativeFollowups({
+    state,
+    roster: finalRoster,
+    week: state.week + 1,
+  });
+  events.push(...narrativeFollowups.events);
+  generatedMessages.push(...narrativeFollowups.messages);
+
   const activeOffers = (state.clubOffers ?? []).filter((offer) => offer.expiresWeek >= state.week && offer.status === 'open');
   const expiredOffers = (state.clubOffers ?? []).map((offer) =>
     offer.status === 'open' && offer.expiresWeek < state.week + 1 ? { ...offer, status: 'expired' } : offer,
@@ -1248,6 +1259,50 @@ export const playWeek = (state) => {
       resolved: false,
     });
   }
+
+  const offerNews = newClubOffers.map((offer) =>
+    createManualNewsPost({
+      type: 'transfert',
+      player: finalRoster.find((player) => player.id === offer.playerId),
+      week: state.week + 1,
+      text: offer.isSurprise
+        ? `FLASH — ${offer.club} formule une offre d'urgence pour ${offer.playerName} hors mercato.`
+        : offer.isHotWeek
+          ? `FRÉNÉSIE — ${offer.club} s'emballe pour ${offer.playerName}. Plusieurs clubs en lice.`
+          : `${offer.club} prépare une offre pour ${offer.playerName}. Le mercato ${offer.window} s'anime.`,
+      reputationImpact: offer.isSurprise ? 2 : 1,
+      account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
+    }),
+  );
+  const worldNews = worldSummary.map((item) => createManualNewsPost({
+    type: item.type === 'rumor' ? 'transfert' : 'media',
+    week: state.week + 1,
+    text: item.text,
+    reputationImpact: 0,
+    account: { name: 'World Football Wire', kind: 'journal', icon: 'WF', color: '#172026' },
+  }));
+  const consequenceState = {
+    ...state,
+    credibility: livingWeek.statePatch.credibility ?? state.credibility,
+    mediaRelations: livingWeek.statePatch.mediaRelations ?? state.mediaRelations,
+    countryReputation: livingWeek.statePatch.countryReputation ?? state.countryReputation,
+    playerSegmentReputation: livingWeek.statePatch.playerSegmentReputation ?? state.playerSegmentReputation,
+    rivalAgents: livingWeek.statePatch.rivalAgents ?? state.rivalAgents,
+    decisionHistory: livingWeek.statePatch.decisionHistory ?? state.decisionHistory,
+    clubRelations: livingWeek.statePatch.clubRelations ?? state.clubRelations,
+    leagueReputation: state.leagueReputation,
+    activeNarratives: state.activeNarratives ?? [],
+  };
+  const socialConsequences = applyNewsConsequences({
+    state: consequenceState,
+    roster: finalRoster,
+    posts: [...offerNews, ...worldNews, ...generatedNews],
+    week: state.week + 1,
+  });
+  finalRoster = socialConsequences.roster;
+  events.push(...socialConsequences.events);
+  generatedMessages.push(...socialConsequences.messages);
+
   const deliveredMessages = generatedMessages.slice(0, 3);
   // Supprimer les chaînes déjà traitées ou expirées et ajouter les nouvelles
   const processedChainIds = new Set([
@@ -1262,15 +1317,17 @@ export const playWeek = (state) => {
   const nextState = {
     ...state,
     money: state.money + net + bonusMoney,
-    reputation: applyReputationChange(state.reputation, reputationChange + bonusReputation),
-    credibility: livingWeek.statePatch.credibility ?? state.credibility ?? 50,
+    reputation: applyReputationChange(state.reputation, reputationChange + bonusReputation + (socialConsequences.patch.reputationDelta ?? 0)),
+    credibility: socialConsequences.patch.credibility ?? livingWeek.statePatch.credibility ?? state.credibility ?? 50,
     segmentReputation,
-    mediaRelations: livingWeek.statePatch.mediaRelations ?? state.mediaRelations,
-    countryReputation: livingWeek.statePatch.countryReputation ?? state.countryReputation,
-    playerSegmentReputation: livingWeek.statePatch.playerSegmentReputation ?? state.playerSegmentReputation,
+    mediaRelations: socialConsequences.patch.mediaRelations ?? livingWeek.statePatch.mediaRelations ?? state.mediaRelations,
+    countryReputation: socialConsequences.patch.countryReputation ?? livingWeek.statePatch.countryReputation ?? state.countryReputation,
+    playerSegmentReputation: socialConsequences.patch.playerSegmentReputation ?? livingWeek.statePatch.playerSegmentReputation ?? state.playerSegmentReputation,
     rivalAgents: livingWeek.statePatch.rivalAgents ?? state.rivalAgents,
-    decisionHistory: livingWeek.statePatch.decisionHistory ?? state.decisionHistory ?? [],
-    clubRelations: livingWeek.statePatch.clubRelations ?? state.clubRelations,
+    decisionHistory: socialConsequences.patch.decisionHistory ?? livingWeek.statePatch.decisionHistory ?? state.decisionHistory ?? [],
+    clubRelations: socialConsequences.patch.clubRelations ?? livingWeek.statePatch.clubRelations ?? state.clubRelations,
+    leagueReputation: socialConsequences.patch.leagueReputation ?? state.leagueReputation,
+    activeNarratives: socialConsequences.patch.activeNarratives ?? state.activeNarratives ?? [],
     week: state.week + 1,
     worldState: nextWorldState,
     pendingChainedEvents: updatedPendingChains,
@@ -1285,27 +1342,8 @@ export const playWeek = (state) => {
     objectives,
     history: [...state.history.slice(-20), { week: state.week, net, rep: applyReputationChange(state.reputation, reputationChange) }],
     news: [
-      ...newClubOffers.map((offer) =>
-        createManualNewsPost({
-          type: 'transfert',
-          player: finalRoster.find((player) => player.id === offer.playerId),
-          week: state.week + 1,
-          text: offer.isSurprise
-            ? `FLASH — ${offer.club} formule une offre d'urgence pour ${offer.playerName} hors mercato.`
-            : offer.isHotWeek
-              ? `FRÉNÉSIE — ${offer.club} s'emballe pour ${offer.playerName}. Plusieurs clubs en lice.`
-              : `${offer.club} prépare une offre pour ${offer.playerName}. Le mercato ${offer.window} s'anime.`,
-          reputationImpact: offer.isSurprise ? 2 : 1,
-          account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
-        }),
-      ),
-      ...worldSummary.map((item) => createManualNewsPost({
-        type: item.type === 'rumor' ? 'transfert' : 'media',
-        week: state.week + 1,
-        text: item.text,
-        reputationImpact: 0,
-        account: { name: 'World Football Wire', kind: 'journal', icon: 'WF', color: '#172026' },
-      })),
+      ...offerNews,
+      ...worldNews,
       ...generatedNews,
       ...state.news,
     ].slice(0, 60),

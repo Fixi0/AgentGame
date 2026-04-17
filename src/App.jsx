@@ -43,7 +43,8 @@ import {
   updateAgencyProfile,
 } from './game/gameLogic';
 import { getAgencyCapacity } from './systems/agencySystem';
-import { getNegotiationContextModifier } from './systems/agencyReputationSystem';
+import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, getNegotiationContextModifier } from './systems/agencyReputationSystem';
+import { applyClubRelation } from './systems/clubSystem';
 import { applyReputationChange } from './systems/reputationSystem';
 import { createMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage } from './systems/promiseSystem';
@@ -301,22 +302,54 @@ export default function FootballAgentGame() {
       if (!message) return current;
       const promise = createPromiseFromMessage({ message, week: current.week, responseType });
       const responseAction = getMessageResponseAction(message, responseType);
+      const responseText = getResponseCopy(message, responseType);
+      const targetPlayer = current.roster.find((player) => player.id === message.playerId);
+      const actionType = responseAction?.type;
+      const extraPlayerEffect = {
+        moral: actionType === 'voice_call' ? 3 : actionType === 'press_release' ? 1 : 0,
+        trust: actionType === 'voice_call' ? 3 : actionType === 'coach_talk' ? 2 : actionType === 'market_watch' ? 1 : 0,
+        pressure: actionType === 'press_release' ? -8 : actionType === 'coach_talk' ? -4 : responseType === 'ferme' ? 3 : -1,
+      };
+      const nextClubRelations = actionType === 'coach_talk' && targetPlayer?.club
+        ? applyClubRelation(current.clubRelations, targetPlayer.club, responseType === 'ferme' ? -1 : 2)
+        : actionType === 'salary_case' && targetPlayer?.club
+          ? applyClubRelation(current.clubRelations, targetPlayer.club, -1)
+          : current.clubRelations;
+      const nextMediaRelations = actionType === 'press_release'
+        ? applyMediaRelation(current.mediaRelations, 'canal_football_desk', responseType === 'professionnel' ? 3 : 1)
+        : current.mediaRelations;
+      const nextCredibility = actionType === 'press_release' || actionType === 'club_check'
+        ? applyCredibilityChange(current.credibility, responseType === 'ferme' ? 1 : 2)
+        : responseType === 'ferme'
+          ? applyCredibilityChange(current.credibility, 1)
+          : current.credibility;
+      const nextDecisionHistory = addDecisionHistory(current.decisionHistory, {
+        week: current.week,
+        type: `message_${message.type}`,
+        label: `${message.playerName}: ${responseAction?.label ?? responseText.split('\n')[0]}`,
+        impact: effects.trust + effects.moral,
+      });
 
       return {
         ...current,
         reputation: applyReputationChange(current.reputation, effects.reputation),
+        credibility: nextCredibility,
+        mediaRelations: nextMediaRelations,
+        clubRelations: nextClubRelations,
+        decisionHistory: nextDecisionHistory,
         roster: current.roster.map((player) =>
           player.id === message.playerId
             ? {
                 ...player,
-                moral: clamp(player.moral + effects.moral),
-                trust: clamp((player.trust ?? 50) + effects.trust),
+                moral: clamp(player.moral + effects.moral + extraPlayerEffect.moral),
+                trust: clamp((player.trust ?? 50) + effects.trust + extraPlayerEffect.trust),
+                pressure: clamp((player.pressure ?? 30) + extraPlayerEffect.pressure),
                 activeActions: responseAction ? [responseAction, ...(player.activeActions ?? [])].slice(0, 5) : player.activeActions ?? [],
                 timeline: responseAction ? [{ week: current.week, type: 'appel', label: responseAction.label }, ...(player.timeline ?? [])].slice(0, 18) : player.timeline,
               }
             : player,
         ),
-        messages: current.messages.map((item) => (item.id === messageId ? { ...item, resolved: true, responseType, responseAction, responseText: getResponseCopy(message, responseType) } : item)),
+        messages: current.messages.map((item) => (item.id === messageId ? { ...item, resolved: true, responseType, responseAction, responseText } : item)),
         promises: [...(promise ? [promise] : []), ...(current.promises ?? [])].slice(0, 30),
       };
     });
