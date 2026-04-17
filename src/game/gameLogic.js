@@ -1,0 +1,1516 @@
+import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
+import { COUNTRY_NAME_POOLS, FIRST_NAMES, LAST_NAMES, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
+import { calculateWeeklyPlayerEconomy, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS } from './economy';
+import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
+import { getAgencyCapacity, getAgencyUpgradeCost } from '../systems/agencySystem';
+import { applyReputationChange, applySegmentReputationChange, createDefaultSegmentReputation, getSegmentDeltaForEvent } from '../systems/reputationSystem';
+import { getDepartureRisk, getInitialTrust } from '../systems/relationshipSystem';
+import { createManualNewsPost, createNewsPost } from '../systems/newsSystem';
+import { createMessage, maybeCreateContextualMessage } from '../systems/messageSystem';
+import { createDefaultStaff, getStaffEffect, getStaffWeeklyCost, upgradeStaff as upgradeStaffMember } from '../systems/staffSystem';
+import { createInitialLeagueTables, mergeWithInitialLeagueTables, updateLeagueTables } from '../systems/leagueSystem';
+import { applyClubRelation, createDefaultClubRelations } from '../systems/clubSystem';
+import { applyLeagueReputation, createDefaultLeagueReputation } from '../systems/leagueReputationSystem';
+import { createAgentContract, tickAgentContract } from '../systems/agentContractSystem';
+import { rollCompetitorThreat } from '../systems/competitorSystem';
+import { createLongTermAgencyGoals } from '../systems/agencyGoalsSystem';
+import { createCareerGoal, createScoutReport, updateSeasonStats } from '../systems/playerDevelopmentSystem';
+import { evaluatePromises, resolvePromisesForPlayer } from '../systems/promiseSystem';
+import { buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
+import { generateClubOffers, generateSurpriseOffer, getSeasonContext } from '../systems/seasonSystem';
+import { generateWorldState } from '../systems/worldStateSystem';
+import {
+  addDecisionHistory,
+  applyCredibilityChange,
+  applyPlayerSegmentReputation,
+  applyStartingProfileToState,
+  createDefaultCountryReputation,
+  createDefaultMediaRelations,
+  createDefaultPlayerSegmentReputation,
+  createDefaultRivalAgents,
+  getNegotiationContextModifier,
+  getPlayerSegment,
+} from '../systems/agencyReputationSystem';
+import { generateLivingWeek } from '../systems/livingEventSystem';
+import { clamp, makeId, pick, rand } from '../utils/helpers';
+import { formatMoney } from '../utils/format';
+
+export const STORAGE_KEY = 'agent_fc_v4';
+
+const DEFAULT_AGENCY_PROFILE = {
+  name: 'Agent FC',
+  ownerName: 'Directeur sportif',
+  countryCode: 'FR',
+  city: 'Paris',
+  color: '#d4a574',
+  style: 'equilibre',
+  difficulty: 'realiste',
+  startProfile: 'ancien_joueur',
+  onboarded: false,
+};
+
+const SPECIALIZATION_EFFECTS = {
+  equilibre: { marketBonus: 0, negotiationRep: 0, mediaBoost: 0 },
+  business: { marketBonus: 2, negotiationRep: 2, mediaBoost: -1 },
+  formation: { marketBonus: 1, youthProgress: 0.05, mediaBoost: 0 },
+  prestige: { marketBonus: 1, negotiationRep: 1, mediaBoost: 2 },
+};
+
+const getWeightedCountry = (reputation) => {
+  const unlocked = getUnlockedCountries(reputation);
+  const weightedPool = unlocked.flatMap((country) => Array.from({ length: country.marketWeight }, () => country));
+  return pick(weightedPool);
+};
+
+const getClubForCountry = (countryCode) => {
+  const matchingClubs = CLUBS.filter((club) => club.countryCode === countryCode);
+  return pick(matchingClubs.length ? matchingClubs : CLUBS);
+};
+
+const LEGACY_CLUB_ALIASES = {
+  'FC Barcelona': 'Barcelona',
+  'Man United': 'Man United',
+  'Bayern Munich': 'Bayern',
+  'Inter Milan': 'Inter',
+};
+
+const getClubByName = (name) => CLUBS.find((club) => club.name === (LEGACY_CLUB_ALIASES[name] ?? name));
+
+const normalizeClubForPlayer = (player, fallbackCountryCode = 'FR') => {
+  const legacyName = LEGACY_CLUB_ALIASES[player.club] ?? player.club;
+  const currentClub = getClubByName(legacyName);
+  if (currentClub) return currentClub;
+  if (legacyName === 'Libre') {
+    return {
+      name: 'Libre',
+      tier: 4,
+      countryCode: player.countryCode ?? fallbackCountryCode,
+      city: '-',
+    };
+  }
+  return getClubForCountry(player.clubCountryCode ?? player.countryCode ?? fallbackCountryCode);
+};
+
+const getGeneratedName = (countryCode) => {
+  const pool = COUNTRY_NAME_POOLS[countryCode];
+  return {
+    firstName: pick(pool?.first ?? FIRST_NAMES),
+    lastName: pick(pool?.last ?? LAST_NAMES),
+  };
+};
+
+const normalizeRoleProfile = (player) => {
+  const role = (POSITION_ROLES[player.position] ?? POSITION_ROLES.ATT).find((item) => item.id === player.roleId)
+    ?? pick(POSITION_ROLES[player.position] ?? POSITION_ROLES.ATT);
+  return {
+    roleId: player.roleId ?? role.id,
+    roleLabel: player.roleLabel ?? role.label,
+    roleShort: player.roleShort ?? role.short,
+  };
+};
+
+const createDeepPlayerProfile = (player, countryCode, club) => {
+  const ambitionBase = player.personality === 'ambitieux' ? 70 : player.personality === 'mercenaire' ? 62 : rand(28, 68);
+  const loyaltyBase = player.personality === 'loyal' ? 78 : player.personality === 'mercenaire' ? 25 : rand(30, 72);
+  const pressureBase = player.personality === 'leader' || player.personality === 'professionnel' ? rand(62, 88) : rand(30, 74);
+  const benchFear = player.age <= 22 ? rand(58, 88) : player.rating >= 82 ? rand(45, 72) : rand(22, 65);
+  const familyInfluence = rand(15, 85);
+  const possibleCities = [...new Set(CLUBS.filter((item) => item.countryCode === countryCode).map((item) => item.city))];
+
+  return {
+    hiddenAmbition: clamp(ambitionBase + rand(-8, 8), 0, 100),
+    loyalty: clamp(loyaltyBase + rand(-10, 10), 0, 100),
+    benchFear: clamp(benchFear, 0, 100),
+    pressureTolerance: clamp(pressureBase, 0, 100),
+    familyInfluence,
+    recurringInjuryRisk: rand(4, 28),
+    entourage: pick(['famille très présente', 'conseiller discret', 'ami influenceur', 'avocat familial', 'entourage calme']),
+    preferredCountries: [countryCode, ...(Math.random() < 0.35 ? [pick(['FR', 'GB', 'ES', 'IT', 'DE'])] : [])],
+    preferredCities: [...new Set([club.city, pick(possibleCities.length ? possibleCities : [club.city])])],
+    dreamClub: pick(CLUBS.filter((item) => item.tier <= 2)).name,
+    pressure: rand(25, 65),
+  };
+};
+
+const ensureDeepPlayerProfile = (player, countryCode, club) => ({
+  ...Object.fromEntries(
+    Object.entries(createDeepPlayerProfile(player, countryCode, club)).map(([key, value]) => [key, player[key] ?? value]),
+  ),
+});
+
+export const generatePlayer = (reputation, scoutLevel = 0, young = false, forcedCountryCode = null) => {
+  const country = forcedCountryCode ? getCountry(forcedCountryCode) : getWeightedCountry(reputation + scoutLevel * 6);
+  const club = getClubForCountry(country.code);
+  const rating = clamp(58 + Math.floor(reputation / 5) + scoutLevel * 2 + rand(-6, 10), 55, 95);
+  const age = young ? rand(17, 20) : rand(17, 32);
+  const potential = clamp(rating + rand(0, 15 - Math.min(14, Math.max(0, age - 18))), rating, 99);
+  const value = Math.floor((rating / 60) ** 5 * rand(650000, 4200000));
+  const personality = pick(PERSONALITIES);
+  const position = pick(POSITIONS);
+  const roleProfile = pick(POSITION_ROLES[position] ?? POSITION_ROLES.ATT);
+  const name = getGeneratedName(country.code);
+  const basePlayer = { personality, age, rating, potential };
+  const deepProfile = createDeepPlayerProfile(basePlayer, country.code, club);
+
+  return {
+    id: makeId('p'),
+    firstName: name.firstName,
+    lastName: name.lastName,
+    position,
+    roleId: roleProfile.id,
+    roleLabel: roleProfile.label,
+    roleShort: roleProfile.short,
+    countryCode: country.code,
+    countryLabel: country.label,
+    countryFlag: country.flag,
+    personality,
+    ...deepProfile,
+    age,
+    rating,
+    potential,
+    value,
+    weeklySalary: Math.floor(value / rand(95, 155)),
+    signingCost: Math.floor(value * 0.012 + 1500),
+    club: club.name,
+    clubTier: club.tier,
+    clubCountry: country.flag,
+    clubCountryCode: club.countryCode,
+    clubCity: club.city,
+    form: 70 + rand(-15, 20),
+    brandValue: rand(8, 35),
+    fatigue: rand(12, 36),
+    injured: 0,
+    moral: rand(60, 85),
+    trust: getInitialTrust(personality),
+    contractWeeksLeft: rand(20, 100),
+    commission: 0.1,
+    agentContract: null,
+    timeline: [],
+    careerGoal: null,
+    scoutReport: null,
+    seasonStats: { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
+  };
+};
+
+export const generateMarket = (reputation, scoutLevel, size = 6) =>
+  Array.from({ length: size }, () => {
+    const player = generatePlayer(reputation, scoutLevel);
+    return { ...player, careerGoal: createCareerGoal(player), scoutReport: scoutLevel > 0 ? createScoutReport(player, scoutLevel) : null };
+  });
+
+export const generateFreeAgents = (reputation, size = 4) =>
+  Array.from({ length: size }, () => {
+    const player = generatePlayer(reputation - 4, 0);
+    return {
+      ...player,
+      club: 'Libre',
+      clubTier: 4,
+      clubCountryCode: player.countryCode,
+      clubCity: '-',
+      signingCost: Math.floor(player.weeklySalary * 1.8),
+      contractWeeksLeft: 0,
+      freeAgent: true,
+    };
+  });
+
+export const getPhase = (week) => {
+  return getSeasonContext(week);
+};
+
+export const generateObjectives = (season) => [
+  { id: 'earn', label: `Gagner ${formatMoney(100000 * season)}`, target: 100000 * season, reward: 30000, type: 'money' },
+  { id: 'rep', label: `Réputation ${20 + season * 10}+`, target: 20 + season * 10, reward: 20000, type: 'rep' },
+  { id: 'trans', label: `${season + 1} transferts`, target: season + 1, reward: 25000, type: 'transfers' },
+];
+
+const getSeasonAwardMemory = (seasonAwards, season) => ({
+  ...(seasonAwards?.[season] ?? {}),
+});
+
+const scoreAwardCandidate = (player) => {
+  const averageRating = player.seasonStats?.averageRating ?? 6.6;
+  const appearances = player.seasonStats?.appearances ?? 0;
+  const goalImpact = (player.seasonStats?.goals ?? 0) * 4 + (player.seasonStats?.assists ?? 0) * 2;
+  return player.rating * 1.2 + player.form + averageRating * 12 + goalImpact + (player.brandValue ?? 10) + Math.min(appearances, 20);
+};
+
+const getBallonDorWinner = (roster) => {
+  const eligible = roster
+    .filter((player) => player.injured <= 0)
+    .filter((player) => player.rating >= 78 || (player.seasonStats?.averageRating ?? 0) >= 7.4 || (player.brandValue ?? 0) >= 55)
+    .sort((a, b) => scoreAwardCandidate(b) - scoreAwardCandidate(a));
+
+  return eligible[0] ?? null;
+};
+
+const getChampionsLeagueWinner = (leagueTables) => {
+  const rows = Object.values(leagueTables ?? {}).flat();
+  const topClubs = rows
+    .filter((row) => row.played >= 8)
+    .sort((a, b) => (b.points + b.goalDiff * 0.35 + b.goalsFor * 0.08) - (a.points + a.goalDiff * 0.35 + a.goalsFor * 0.08))
+    .slice(0, 12);
+
+  return pick(topClubs.length ? topClubs : rows)?.club ?? pick(CLUBS).name;
+};
+
+const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seasonAwards, week }) => {
+  let nextRoster = roster;
+  const events = [];
+  const news = [];
+  let income = 0;
+  let reputation = 0;
+  const seasonMemory = getSeasonAwardMemory(seasonAwards, phase.season);
+  const nextSeasonMemory = { ...seasonMemory };
+
+  if (phase.seasonWeek === 9 && !seasonMemory.ballonDorShortlist) {
+    const shortlist = getBallonDorWinner(nextRoster);
+    nextSeasonMemory.ballonDorShortlist = shortlist?.id ?? 'world_shortlist';
+    news.push(createManualNewsPost({
+      type: 'media',
+      player: shortlist,
+      week,
+      text: shortlist
+        ? `${shortlist.firstName} ${shortlist.lastName} apparaît dans la liste officielle du Ballon d'Or. La campagne médiatique commence.`
+        : "La liste du Ballon d'Or tombe, mais aucun joueur de l'agence n'est encore assez haut dans la hiérarchie.",
+      reputationImpact: shortlist ? 6 : 0,
+      account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
+    }));
+    if (shortlist) {
+      reputation += 6;
+      income += 12000;
+      events.push({ player: `${shortlist.firstName} ${shortlist.lastName}`, playerId: shortlist.id, label: "Nominé Ballon d'Or", good: true, money: 12000, rep: 6, calendar: true });
+    }
+  }
+
+  if (phase.seasonWeek === 10 && !seasonMemory.ballonDorWinner) {
+    const winner = getBallonDorWinner(nextRoster);
+    const playerWins = winner && scoreAwardCandidate(winner) >= 235;
+    nextSeasonMemory.ballonDorWinner = playerWins ? winner.id : 'world_winner';
+    if (playerWins) {
+      nextRoster = nextRoster.map((player) =>
+        player.id === winner.id
+          ? {
+              ...player,
+              value: Math.floor(player.value * 1.55),
+              moral: clamp(player.moral + 25),
+              trust: clamp((player.trust ?? 50) + 5),
+              brandValue: clamp((player.brandValue ?? 10) + 25, 0, 100),
+              timeline: [
+                { week, type: 'trophee', label: "Ballon d'Or" },
+                ...(player.timeline ?? []),
+              ],
+            }
+          : player,
+      );
+      income += 80000;
+      reputation += 35;
+      events.push({ player: `${winner.firstName} ${winner.lastName}`, playerId: winner.id, label: "Remporte le Ballon d'Or", good: true, money: 80000, rep: 35, calendar: true });
+    }
+    news.push(createManualNewsPost({
+      type: 'media',
+      player: playerWins ? winner : null,
+      week,
+      text: playerWins
+        ? `${winner.firstName} ${winner.lastName} remporte le Ballon d'Or. L'agence change de dimension.`
+        : "Le Ballon d'Or est attribué hors de l'agence. Les standards mondiaux restent très élevés.",
+      reputationImpact: playerWins ? 35 : 0,
+      account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
+    }));
+  }
+
+  if (phase.seasonWeek === 36 && !seasonMemory.championsLeagueWinner) {
+    const club = getChampionsLeagueWinner(leagueTables);
+    nextSeasonMemory.championsLeagueWinner = club;
+    const clubPlayer = nextRoster
+      .filter((player) => player.club === club && player.injured <= 0)
+      .sort((a, b) => scoreAwardCandidate(b) - scoreAwardCandidate(a))[0];
+
+    if (clubPlayer) {
+      nextRoster = nextRoster.map((player) =>
+        player.id === clubPlayer.id
+          ? {
+              ...player,
+              value: Math.floor(player.value * 1.25),
+              moral: clamp(player.moral + 18),
+              brandValue: clamp((player.brandValue ?? 10) + 12, 0, 100),
+              timeline: [
+                { week, type: 'trophee', label: `Ligue des Champions avec ${club}` },
+                ...(player.timeline ?? []),
+              ],
+            }
+          : player,
+      );
+      income += 30000;
+      reputation += 12;
+      events.push({ player: `${clubPlayer.firstName} ${clubPlayer.lastName}`, playerId: clubPlayer.id, label: `Vainqueur de la LDC avec ${club}`, good: true, money: 30000, rep: 12, calendar: true });
+    }
+
+    news.push(createManualNewsPost({
+      type: 'performance',
+      player: clubPlayer,
+      week,
+      text: clubPlayer
+        ? `${club} remporte la Ligue des Champions avec ${clubPlayer.firstName} ${clubPlayer.lastName} dans le groupe.`
+        : `${club} remporte la Ligue des Champions. Une seule équipe soulève le trophée cette saison.`,
+      reputationImpact: clubPlayer ? 12 : 0,
+      account: { name: 'UEFA Match Centre', kind: 'club', icon: 'UC', color: '#2f80ed' },
+    }));
+  }
+
+  return {
+    roster: nextRoster,
+    events,
+    news,
+    income,
+    reputation,
+    seasonAwards: {
+      ...(seasonAwards ?? {}),
+      [phase.season]: nextSeasonMemory,
+    },
+  };
+};
+
+const MATCH_INCIDENT_EVENTS = {
+  clean_sheet: { label: 'Clean sheet', type: 'performance', good: true, rep: 2, money: 1500 },
+  distribution_error: { label: 'Erreur de relance', type: 'performance', good: false, rep: -1, money: -500 },
+  penalty_saved: { label: 'Penalty arrêté', type: 'performance', good: true, rep: 4, money: 2500 },
+  goalkeeper_blunder: { label: 'Boulette du gardien', type: 'performance', good: false, rep: -4, money: -2000 },
+  line_clearance: { label: 'Sauvetage sur la ligne', type: 'performance', good: true, rep: 3, money: 1500 },
+  lost_duel: { label: 'Duel clé perdu', type: 'performance', good: false, rep: -2, money: -1000 },
+  defensive_masterclass: { label: 'Match patron en défense', type: 'performance', good: true, rep: 4, money: 2500 },
+  tempo_control: { label: 'Contrôle du tempo', type: 'performance', good: true, rep: 3, money: 1500 },
+  dangerous_turnover: { label: 'Perte de balle dangereuse', type: 'performance', good: false, rep: -2, money: -1000 },
+  wasteful_finishing: { label: 'Manque de réalisme', type: 'performance', good: false, rep: -2, money: -1000 },
+  disallowed_goal: { label: 'But refusé', type: 'performance', good: false, rep: -1, money: 0 },
+};
+
+const generateWorldSummary = ({ week, phase, worldState }) => {
+  const calmWeek = Math.random() < 0.25 && !phase.mercato && !phase.deadlineDay;
+  if (calmWeek) {
+    return [{
+      type: 'calm',
+      title: 'Semaine calme',
+      text: 'Peu de mouvements majeurs dans le monde du foot. Les clubs observent, les agents préparent leurs dossiers.',
+    }];
+  }
+
+  const pool = [
+    { type: 'match', title: 'Choc européen', text: 'Un grand club européen perd un match important. Plusieurs cadres sont critiqués dans la presse.' },
+    { type: 'injury', title: 'Blessure star', text: 'Une star du continent se blesse. Son club pourrait chercher une solution rapide au mercato.' },
+    { type: 'rumor', title: 'Rumeur marché', text: 'Un insider annonce que plusieurs clubs préparent déjà leur prochain numéro 9.' },
+    { type: 'media', title: 'Débat agents', text: 'Les médias débattent du rôle des agents dans les carrières des jeunes talents.' },
+    { type: 'club', title: 'Président sous pression', text: 'Un président promet de recruter après une série de mauvais résultats.' },
+  ];
+
+  const summary = [pick(pool)];
+  if (phase.mercato) summary.push({ type: 'mercato', title: 'Marché actif', text: `Le mercato ${phase.window} accélère. Les clubs testent plusieurs dossiers avant de formuler des offres.` });
+  if (worldState?.scandal_media) summary.push({ type: 'media', title: 'Presse agressive', text: 'Les journalistes cherchent les histoires sensibles. Les petites phrases peuvent devenir des crises.' });
+  return summary.slice(0, 3).map((item) => ({ ...item, week }));
+};
+
+export const createFreshState = () => ({
+  money: 35000,
+  reputation: 12,
+  credibility: 52,
+  difficulty: 'realiste',
+  startProfile: 'ancien_joueur',
+  week: 1,
+  agencyLevel: 1,
+  agencyProfile: DEFAULT_AGENCY_PROFILE,
+  segmentReputation: createDefaultSegmentReputation(),
+  countryReputation: createDefaultCountryReputation(DEFAULT_AGENCY_PROFILE.countryCode, 12),
+  mediaRelations: createDefaultMediaRelations(),
+  playerSegmentReputation: createDefaultPlayerSegmentReputation(),
+  rivalAgents: createDefaultRivalAgents(),
+  decisionHistory: [],
+  staff: createDefaultStaff(),
+  promises: [],
+  clubOffers: [],
+  pendingChainedEvents: [],
+  seasonAwards: {},
+  worldState: generateWorldState(1),
+  roster: [],
+  market: generateMarket(12, 0),
+  freeAgents: generateFreeAgents(12),
+  leagueTables: createInitialLeagueTables(),
+  leagueReputation: createDefaultLeagueReputation(DEFAULT_AGENCY_PROFILE.countryCode),
+  clubRelations: createDefaultClubRelations(),
+  scoutingMissions: [],
+  competitorThreats: [],
+  lastFixtures: [],
+  nextFixtures: [],
+  office: { scoutLevel: 0, lawyerLevel: 0, mediaLevel: 0 },
+  objectives: generateObjectives(1),
+  agencyGoals: createLongTermAgencyGoals(),
+  history: [],
+  news: [
+    createManualNewsPost({
+      week: 1,
+      type: 'media',
+      text: "L'agence Agent FC ouvre ses portes. Les premiers recrutements sont attendus.",
+      reputationImpact: 0,
+      account: { name: 'Le Vestiaire', kind: 'media' },
+    }),
+  ],
+  messages: [],
+  stats: { totalEarned: 0, playersSigned: 0, transfersDone: 0, seasonsPlayed: 0 },
+});
+
+export const migrateState = (state) => {
+  if (!state) return createFreshState();
+
+  return {
+    ...state,
+    agencyProfile: { ...DEFAULT_AGENCY_PROFILE, ...(state.agencyProfile ?? {}) },
+    segmentReputation: { ...createDefaultSegmentReputation(), ...(state.segmentReputation ?? {}) },
+    credibility: state.credibility ?? 52,
+    difficulty: state.difficulty ?? state.agencyProfile?.difficulty ?? 'realiste',
+    startProfile: state.startProfile ?? state.agencyProfile?.startProfile ?? 'ancien_joueur',
+    countryReputation: state.countryReputation ?? createDefaultCountryReputation(state.agencyProfile?.countryCode ?? 'FR', state.reputation ?? 12),
+    mediaRelations: { ...createDefaultMediaRelations(), ...(state.mediaRelations ?? {}) },
+    playerSegmentReputation: { ...createDefaultPlayerSegmentReputation(), ...(state.playerSegmentReputation ?? {}) },
+    rivalAgents: state.rivalAgents ?? createDefaultRivalAgents(),
+    decisionHistory: state.decisionHistory ?? [],
+    staff: { ...createDefaultStaff(), ...(state.staff ?? {}) },
+    promises: state.promises ?? [],
+    clubOffers: state.clubOffers ?? [],
+    pendingChainedEvents: state.pendingChainedEvents ?? [],
+    seasonAwards: state.seasonAwards ?? {},
+    worldState: state.worldState ?? generateWorldState(1),
+    freeAgents: state.freeAgents ?? generateFreeAgents(state.reputation ?? 12),
+    leagueTables: mergeWithInitialLeagueTables(state.leagueTables),
+    leagueReputation: state.leagueReputation ?? createDefaultLeagueReputation(state.agencyProfile?.countryCode ?? 'FR'),
+    clubRelations: state.clubRelations ?? createDefaultClubRelations(),
+    scoutingMissions: state.scoutingMissions ?? [],
+    competitorThreats: state.competitorThreats ?? [],
+    lastFixtures: state.lastFixtures ?? [],
+    nextFixtures: state.nextFixtures ?? [],
+    agencyLevel: state.agencyLevel ?? 4,
+    news: state.news ?? [],
+    messages: state.messages ?? [],
+    agencyGoals: state.agencyGoals ?? createLongTermAgencyGoals(),
+    roster: (state.roster ?? []).map((player) => {
+      const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
+      const personality = player.personality ?? pick(PERSONALITIES);
+      const club = normalizeClubForPlayer(player, country.code);
+
+      return {
+        ...player,
+        ...ensureDeepPlayerProfile(player, country.code, club),
+        ...normalizeRoleProfile(player),
+        club: club.name,
+        clubTier: player.clubTier ?? club.tier,
+        clubCountryCode: club.countryCode,
+        clubCity: club.city,
+        countryCode: player.countryCode ?? country.code,
+        countryLabel: player.countryLabel ?? country.label,
+        countryFlag: player.countryFlag ?? country.flag,
+        value: player.value < 500000 ? player.value * 1000 : player.value,
+        weeklySalary: player.weeklySalary < 1000 ? player.weeklySalary * 20 : player.weeklySalary,
+        signingCost: player.signingCost < 1000 ? player.signingCost * 10 : player.signingCost,
+        fatigue: player.fatigue ?? rand(12, 36),
+        brandValue: player.brandValue ?? rand(8, 35),
+        seasonStats: player.seasonStats ?? { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
+        careerGoal: player.careerGoal ?? createCareerGoal(player),
+        agentContract: player.agentContract ?? createAgentContract(player),
+        timeline: player.timeline ?? [],
+        personality,
+        trust: player.trust ?? getInitialTrust(personality),
+      };
+    }),
+    market: (state.market?.length ? state.market : generateMarket(state.reputation ?? 15, state.office?.scoutLevel ?? 0)).map((player) => {
+      const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
+      const personality = player.personality ?? pick(PERSONALITIES);
+      const club = normalizeClubForPlayer(player, country.code);
+
+      return {
+        ...player,
+        ...ensureDeepPlayerProfile(player, country.code, club),
+        ...normalizeRoleProfile(player),
+        club: club.name,
+        clubTier: player.clubTier ?? club.tier,
+        clubCountryCode: club.countryCode,
+        clubCity: club.city,
+        countryCode: player.countryCode ?? country.code,
+        countryLabel: player.countryLabel ?? country.label,
+        countryFlag: player.countryFlag ?? country.flag,
+        value: player.value < 500000 ? player.value * 1000 : player.value,
+        weeklySalary: player.weeklySalary < 1000 ? player.weeklySalary * 20 : player.weeklySalary,
+        signingCost: player.signingCost < 1000 ? player.signingCost * 10 : player.signingCost,
+        fatigue: player.fatigue ?? rand(12, 36),
+        brandValue: player.brandValue ?? rand(8, 35),
+        seasonStats: player.seasonStats ?? { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
+        careerGoal: player.careerGoal ?? createCareerGoal(player),
+        scoutReport: (state.staff?.scoutAfrica ?? 0) > 0 ? player.scoutReport ?? createScoutReport(player, state.office?.scoutLevel ?? 0) : null,
+        agentContract: player.agentContract ?? createAgentContract(player),
+        timeline: player.timeline ?? [],
+        personality,
+        trust: player.trust ?? getInitialTrust(personality),
+      };
+    }),
+  };
+};
+
+export const signPlayer = (state, player) => {
+  const capacity = getAgencyCapacity(state.agencyLevel);
+  if (state.money < player.signingCost) return { state, error: 'Fonds insuffisants' };
+  if (state.roster.length >= capacity) return { state, error: `Agence pleine (${capacity} joueurs)` };
+  const signedPlayer = {
+    ...player,
+    careerGoal: player.careerGoal ?? createCareerGoal(player),
+    agentContract: player.agentContract ?? createAgentContract(player),
+    timeline: [
+      { week: state.week, type: 'signature', label: `Signature avec ${state.agencyProfile?.name ?? 'ton agence'}` },
+      ...(player.timeline ?? []),
+    ],
+  };
+  const nextRoster = [...state.roster, signedPlayer];
+
+  return {
+    state: {
+      ...state,
+      money: state.money - player.signingCost,
+      credibility: applyCredibilityChange(state.credibility, 1),
+      playerSegmentReputation: applyPlayerSegmentReputation(state.playerSegmentReputation, getPlayerSegment(signedPlayer), 2),
+      countryReputation: applyLeagueReputation(state.countryReputation, signedPlayer.countryCode, 1),
+      decisionHistory: addDecisionHistory(state.decisionHistory, {
+        week: state.week,
+        type: 'signature',
+        label: 'Signature joueur',
+        detail: `${signedPlayer.firstName} ${signedPlayer.lastName} rejoint le portefeuille.`,
+        playerId: signedPlayer.id,
+        playerName: `${signedPlayer.firstName} ${signedPlayer.lastName}`,
+      }),
+      roster: nextRoster,
+      nextFixtures: buildWeeklyFixtures(nextRoster, state.week + 1),
+      market: state.market.filter((candidate) => candidate.id !== player.id),
+      freeAgents: (state.freeAgents ?? []).filter((candidate) => candidate.id !== player.id),
+      stats: { ...state.stats, playersSigned: state.stats.playersSigned + 1 },
+      messages: [
+        createMessage({ player: signedPlayer, type: 'welcome', week: state.week, context: 'signing' }),
+        ...state.messages,
+      ].slice(0, 40),
+    },
+    newMessagesCount: 1,
+  };
+};
+
+export const updateAgencyProfile = (state, profilePatch) => {
+  const isFirstLaunch = !state.agencyProfile?.onboarded && profilePatch.onboarded;
+  const profiledState = isFirstLaunch ? applyStartingProfileToState(state, profilePatch) : state;
+
+  return {
+    state: {
+      ...profiledState,
+      difficulty: profilePatch.difficulty ?? profiledState.difficulty,
+      startProfile: profilePatch.startProfile ?? profiledState.startProfile,
+      agencyProfile: {
+        ...profiledState.agencyProfile,
+        ...profilePatch,
+      },
+    },
+  };
+};
+
+export const refreshMarket = (state) => {
+  if (state.money < MARKET_REFRESH_COST) return { state, error: 'Fonds insuffisants' };
+
+  const specializationBonus = SPECIALIZATION_EFFECTS[state.agencyProfile?.style ?? 'equilibre']?.marketBonus ?? 0;
+  const staffBonus = getStaffEffect(state.staff, 'scoutAfrica');
+  const scoutLevel = state.office.scoutLevel + staffBonus;
+  return {
+    state: {
+      ...state,
+      money: state.money - MARKET_REFRESH_COST,
+      market: generateMarket(state.reputation + staffBonus * 3 + specializationBonus, scoutLevel).map((player) => ({
+        ...player,
+        scoutReport: scoutLevel > 0 ? createScoutReport(player, scoutLevel) : null,
+      })),
+    },
+  };
+};
+
+export const upgradeOffice = (state, type) => {
+  const currentLevel = state.office[type];
+  const cost = OFFICE_UPGRADE_COSTS[type]?.[currentLevel];
+  if (currentLevel >= 3 || !cost) return { state, error: 'Niveau maximum' };
+  if (state.money < cost) return { state, error: 'Fonds insuffisants' };
+
+  return {
+    state: {
+      ...state,
+      money: state.money - cost,
+      office: { ...state.office, [type]: currentLevel + 1 },
+    },
+  };
+};
+
+export const upgradeAgency = (state) => {
+  const cost = getAgencyUpgradeCost(state.agencyLevel);
+  if (!cost) return { state, error: 'Niveau maximum' };
+  if (state.money < cost) return { state, error: 'Fonds insuffisants' };
+
+  return {
+    state: {
+      ...state,
+      money: state.money - cost,
+      agencyLevel: state.agencyLevel + 1,
+    },
+  };
+};
+
+export const upgradeStaff = (state, key) => upgradeStaffMember(state, key);
+
+export const startScoutingMission = (state, countryCode) => {
+  const scoutLevel = getStaffEffect(state.staff, 'scoutAfrica');
+  if (scoutLevel <= 0) return { state, error: "Recrute d'abord un scout international" };
+  if ((state.scoutingMissions ?? []).some((mission) => mission.status === 'active')) return { state, error: 'Mission déjà en cours' };
+
+  return {
+    state: {
+      ...state,
+      scoutingMissions: [
+        {
+          id: makeId('mission'),
+          countryCode,
+          weeksLeft: Math.max(1, 4 - scoutLevel),
+          scoutLevel,
+          status: 'active',
+        },
+        ...(state.scoutingMissions ?? []),
+      ].slice(0, 8),
+    },
+  };
+};
+
+export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
+  const offer = state.clubOffers.find((item) => item.id === offerId);
+  if (!offer || offer.status !== 'open') return { state, error: 'Offre indisponible' };
+  const player = state.roster.find((item) => item.id === offer.playerId);
+  if (!player) return { state, error: 'Joueur introuvable' };
+  const finalPrice = negotiatedOutcome?.price ?? offer.price;
+  const finalSalaryMultiplier = negotiatedOutcome?.salMult ?? offer.salMult;
+  const signingBonus = negotiatedOutcome?.signingBonus ?? Math.floor(player.weeklySalary * 8);
+  const contractWeeks = negotiatedOutcome?.contractWeeks ?? 150;
+  const clubRole = negotiatedOutcome?.role ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
+  const clubBonuses = negotiatedOutcome?.clubBonuses ?? { total: Math.floor(player.weeklySalary * 8) };
+  const commission = Math.floor(finalPrice * 0.08 + signingBonus * 0.05 + (clubBonuses.total ?? 0) * 0.02);
+  const targetClub = CLUBS.find((club) => club.name === offer.club);
+  const nextRoster = state.roster.map((item) =>
+    item.id === offer.playerId
+      ? {
+          ...item,
+          club: offer.club,
+          clubTier: offer.clubTier,
+          clubCountry: offer.clubCountry,
+          clubCountryCode: offer.clubCountryCode ?? targetClub?.countryCode ?? item.clubCountryCode,
+          clubCity: offer.clubCity ?? targetClub?.city ?? item.clubCity,
+          value: Math.floor(item.value * 1.06),
+          weeklySalary: Math.floor(item.weeklySalary * finalSalaryMultiplier),
+          moral: clamp(item.moral + 10),
+          trust: clamp((item.trust ?? 50) + 5),
+          contractWeeksLeft: contractWeeks,
+          clubRole,
+          releaseClause: negotiatedOutcome?.releaseClause ?? Math.floor(item.value * 1.8),
+          sellOnPercent: negotiatedOutcome?.sellOnPercent ?? 5,
+          clubBonuses,
+          freeAgent: false,
+          timeline: [
+            { week: state.week, type: 'transfer', label: `${offer.club} · ${clubRole} · contrat ${Math.round(contractWeeks / 52)} ans` },
+            ...(item.timeline ?? []),
+          ],
+        }
+      : item,
+  );
+
+  return {
+    state: {
+      ...state,
+      money: state.money + commission,
+      reputation: applyReputationChange(state.reputation, 5),
+      credibility: applyCredibilityChange(state.credibility, 2),
+      countryReputation: applyLeagueReputation(state.countryReputation, offer.clubCountryCode ?? targetClub?.countryCode, 3),
+      playerSegmentReputation: applyPlayerSegmentReputation(state.playerSegmentReputation, getPlayerSegment(player), 3),
+      decisionHistory: addDecisionHistory(state.decisionHistory, {
+        week: state.week,
+        type: 'transfer',
+        label: 'Transfert négocié',
+        detail: `${offer.playerName} rejoint ${offer.club} avec un rôle ${clubRole}.`,
+        playerId: player.id,
+        playerName: offer.playerName,
+      }),
+      leagueReputation: applyLeagueReputation(state.leagueReputation, offer.clubCountryCode ?? targetClub?.countryCode, 4),
+      clubRelations: applyClubRelation(state.clubRelations, offer.club, 5),
+      segmentReputation: applySegmentReputationChange(state.segmentReputation, { business: 6, sportif: 2 }),
+      clubOffers: state.clubOffers.map((item) => (item.id === offerId ? { ...item, status: 'accepted' } : item)),
+      roster: nextRoster,
+      nextFixtures: buildWeeklyFixtures(nextRoster, state.week + 1),
+      promises: resolvePromisesForPlayer(state.promises, offer.playerId, ['transfer_request']),
+      stats: {
+        ...state.stats,
+        transfersDone: state.stats.transfersDone + 1,
+        totalEarned: state.stats.totalEarned + commission,
+      },
+      news: [
+        createManualNewsPost({
+          type: 'transfert',
+          player,
+          week: state.week,
+          text: `${offer.playerName} rejoint ${offer.club} après négociation : rôle ${clubRole}, contrat ${Math.round(contractWeeks / 52)} ans, prime ${formatMoney(signingBonus)}, clause ${formatMoney(negotiatedOutcome?.releaseClause ?? Math.floor(player.value * 1.8))}.`,
+          reputationImpact: 5,
+          account: { name: 'Mercato Insider', kind: 'journal', icon: 'MI', color: '#172026' },
+        }),
+        ...state.news,
+      ].slice(0, 60),
+    },
+  };
+};
+
+export const rejectClubOffer = (state, offerId) => ({
+  state: {
+    ...state,
+    credibility: applyCredibilityChange(state.credibility, -1),
+    clubOffers: state.clubOffers.map((offer) => (offer.id === offerId ? { ...offer, status: 'rejected' } : offer)),
+    decisionHistory: addDecisionHistory(state.decisionHistory, {
+      week: state.week,
+      type: 'transfer',
+      label: 'Offre refusée',
+      detail: `Offre de ${state.clubOffers.find((offer) => offer.id === offerId)?.club ?? 'club'} refusée.`,
+    }),
+    clubRelations: applyClubRelation(
+      state.clubRelations,
+      state.clubOffers.find((offer) => offer.id === offerId)?.club,
+      -2,
+    ),
+  },
+});
+
+export const createPlayerMarketAction = (state, playerId, action) => {
+  const player = state.roster.find((item) => item.id === playerId);
+  if (!player) return { state, error: 'Joueur introuvable' };
+  const phase = getPhase(state.week);
+  const targetClubs = CLUBS
+    .filter((club) => club.name !== player.club)
+    .filter((club) => action === 'loan' ? club.tier >= Math.min(4, player.clubTier) : club.tier <= Math.max(4, player.clubTier + 1));
+  const club = pick(targetClubs.length ? targetClubs : CLUBS);
+  const country = getCountry(club.countryCode);
+  const trustCost = action === 'transfer_list' ? -3 : action === 'loan' ? -1 : 1;
+  const credibilityDelta = action === 'propose' ? 1 : action === 'transfer_list' ? -1 : 0;
+  const isOfficialOffer = phase.mercato && Math.random() < (
+    action === 'propose' ? 0.34 : action === 'free_trial' ? 0.42 : action === 'loan' ? 0.28 : 0.22
+  );
+  const price = Math.floor(player.value * (action === 'loan' ? 0.08 : Math.random() * 0.28 + 0.82));
+  const nextRoster = state.roster.map((item) =>
+    item.id === playerId
+      ? {
+          ...item,
+          moral: clamp(item.moral + (action === 'transfer_list' ? -4 : 2), 0, 100),
+          trust: clamp((item.trust ?? 50) + trustCost, 0, 100),
+          timeline: [{ week: state.week, type: 'mercato', label: action === 'loan' ? 'Recherche de prêt lancée' : action === 'transfer_list' ? 'Mis sur le marché' : 'Proposé à plusieurs clubs' }, ...(item.timeline ?? [])].slice(0, 18),
+        }
+      : item,
+  );
+  const baseState = {
+    ...state,
+    roster: nextRoster,
+    credibility: applyCredibilityChange(state.credibility, credibilityDelta),
+    decisionHistory: addDecisionHistory(state.decisionHistory, {
+      week: state.week,
+      type: 'mercato',
+      label: action === 'loan' ? 'Recherche de prêt' : action === 'transfer_list' ? 'Mise sur le marché' : 'Proposition aux clubs',
+      detail: `${player.firstName} ${player.lastName} ciblé par une démarche proactive vers ${club.name}.`,
+      playerId,
+      playerName: `${player.firstName} ${player.lastName}`,
+    }),
+    news: [
+      createManualNewsPost({
+        type: 'transfert',
+        player,
+        week: state.week,
+        text: isOfficialOffer
+          ? `${club.name} transforme l'intérêt en offre concrète pour ${player.firstName} ${player.lastName}.`
+          : `${club.name} prend des renseignements sur ${player.firstName} ${player.lastName}, sans offre officielle pour l'instant.`,
+        reputationImpact: credibilityDelta,
+        account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
+      }),
+      ...state.news,
+    ].slice(0, 60),
+  };
+
+  if (!isOfficialOffer) {
+    return {
+      state: baseState,
+      message: 'Intérêt créé, mais aucune offre officielle pour le moment.',
+    };
+  }
+
+  return {
+    state: {
+      ...baseState,
+      clubOffers: [
+        {
+          id: makeId('offer'),
+          week: state.week,
+          expiresWeek: state.week + (phase.deadlineDay ? 1 : 2),
+          window: phase.window ?? 'approche',
+          playerId: player.id,
+          playerName: `${player.firstName} ${player.lastName}`,
+          club: club.name,
+          clubTier: club.tier,
+          clubCountry: country.flag,
+          clubCountryCode: club.countryCode,
+          clubCity: club.city,
+          price,
+          salMult: rand(112, 172) / 100,
+          status: 'open',
+          actionSource: action,
+        },
+        ...(state.clubOffers ?? []),
+      ].slice(0, 30),
+    },
+    message: `${club.name} fait une offre officielle.`,
+  };
+};
+
+export const playWeek = (state) => {
+  const events = [];
+  const generatedNews = [];
+  const generatedMessages = [];
+  const matchResults = [];
+  const newChainedEvents = [];
+  let totalIncome = 0;
+  let totalCost = 0;
+  let reputationChange = 0;
+  let segmentReputation = state.segmentReputation ?? createDefaultSegmentReputation();
+  const communityManagerLevel = getStaffEffect(state.staff, 'communityManager');
+  const playerCareLevel = getStaffEffect(state.staff, 'playerCare');
+  const dataAnalystLevel = getStaffEffect(state.staff, 'dataAnalyst');
+  const specialization = SPECIALIZATION_EFFECTS[state.agencyProfile?.style ?? 'equilibre'] ?? SPECIALIZATION_EFFECTS.equilibre;
+  const staffWeeklyCost = getStaffWeeklyCost(state.staff);
+  const mediaReduction = 1 - state.office.mediaLevel * 0.15 - communityManagerLevel * 0.07;
+  totalCost += staffWeeklyCost;
+
+  const weeklySimulation = simulateWeeklyClubResults(state.roster, state.week);
+  const weeklyFixtures = weeklySimulation.fixtures;
+  const weeklyMatchResults = weeklySimulation.matchResults;
+  const matchByPlayerId = new Map(weeklyMatchResults.map((match) => [match.playerId, match]));
+
+  const updatedRoster = state.roster.map((player) => {
+    let updatedPlayer = {
+      ...player,
+      injured: Math.max(0, player.injured - 1),
+      contractWeeksLeft: Math.max(0, player.contractWeeksLeft - 1),
+      agentContract: tickAgentContract(player.agentContract ?? createAgentContract(player)),
+      fatigue: player.injured > 0 ? clamp((player.fatigue ?? 20) - 8, 0, 100) : player.fatigue ?? 20,
+    };
+    const { salaryCost, commissionIncome } = calculateWeeklyPlayerEconomy(updatedPlayer);
+    totalCost += salaryCost;
+    totalIncome += commissionIncome;
+    const matchResult = matchByPlayerId.get(updatedPlayer.id);
+    matchResults.push(matchResult);
+    if (matchResult?.matchRating) {
+      const resultMoral = matchResult.result === 'win' ? 2 : matchResult.result === 'loss' ? -2 : 0;
+      const contributionMoral = matchResult.goals || matchResult.assists ? 2 : 0;
+      const promisedRolePenalty =
+        (updatedPlayer.clubRole === 'Star' && matchResult.minutes < 70)
+          ? { moral: -5, trust: -4, label: 'Rôle Star non respecté' }
+          : (updatedPlayer.clubRole === 'Titulaire' && matchResult.minutes < 55)
+            ? { moral: -3, trust: -3, label: 'Temps de jeu inférieur au rôle promis' }
+            : null;
+      updatedPlayer = {
+        ...updatedPlayer,
+        moral: clamp(updatedPlayer.moral + resultMoral + contributionMoral + (promisedRolePenalty?.moral ?? 0)),
+        trust: clamp((updatedPlayer.trust ?? 50) + (promisedRolePenalty?.trust ?? 0)),
+        form: clamp(updatedPlayer.form + (matchResult.matchRating >= 7 ? 2 : matchResult.matchRating < 6 ? -2 : 0), 40, 99),
+        brandValue: clamp((updatedPlayer.brandValue ?? 10) + (matchResult.matchRating >= 7.5 ? 2 : matchResult.matchRating < 5.8 ? -1 : 0) + (matchResult.goals ? 1 : 0), 0, 100),
+        fatigue: clamp((updatedPlayer.fatigue ?? 20) + Math.floor(matchResult.minutes / 12) + (matchResult.result === 'loss' ? 2 : 0), 0, 100),
+        seasonStats: updateSeasonStats(updatedPlayer.seasonStats, matchResult),
+        matchHistory: matchResult ? [{ week: state.week, roleExpectation: promisedRolePenalty?.label, ...matchResult }, ...(updatedPlayer.matchHistory ?? [])].slice(0, 12) : updatedPlayer.matchHistory ?? [],
+      };
+      if (promisedRolePenalty) {
+        generatedMessages.push(createMessage({ player: updatedPlayer, type: 'role_frustration', week: state.week + 1, context: 'club_role' }));
+      }
+    } else {
+      updatedPlayer = {
+        ...updatedPlayer,
+        fatigue: clamp((updatedPlayer.fatigue ?? 20) - 6, 0, 100),
+        seasonStats: updateSeasonStats(updatedPlayer.seasonStats, matchResult),
+        matchHistory: matchResult ? [{ week: state.week, ...matchResult }, ...(updatedPlayer.matchHistory ?? [])].slice(0, 12) : updatedPlayer.matchHistory ?? [],
+      };
+    }
+
+    const event = rollPassiveEvent(updatedPlayer, {
+      scandalReduction: communityManagerLevel * 0.06,
+      performanceBoost: dataAnalystLevel * 0.03,
+      matchResult,
+      worldState: state.worldState,
+    });
+    (matchResult?.incidents ?? []).forEach((incident) => {
+      const incidentEvent = MATCH_INCIDENT_EVENTS[incident];
+      if (!incidentEvent) return;
+      const reputationImpact = incidentEvent.rep;
+      const moneyImpact = incidentEvent.money;
+      totalIncome += moneyImpact > 0 ? moneyImpact : 0;
+      totalCost += moneyImpact < 0 ? Math.abs(moneyImpact) : 0;
+      reputationChange += reputationImpact;
+      events.push({
+        id: incident,
+        player: `${updatedPlayer.firstName} ${updatedPlayer.lastName}`,
+        playerId: updatedPlayer.id,
+        match: matchResult,
+        ...incidentEvent,
+        money: moneyImpact,
+        rep: reputationImpact,
+      });
+      if (Math.abs(reputationImpact) >= 3) {
+        generatedNews.push(createManualNewsPost({
+          type: incidentEvent.good ? 'performance' : 'media',
+          player: updatedPlayer,
+          week: state.week,
+          text: `${updatedPlayer.firstName} ${updatedPlayer.lastName} : ${incidentEvent.label.toLowerCase()} pendant ${matchResult.club} ${matchResult.score} ${matchResult.opponent}.`,
+          reputationImpact,
+        }));
+      }
+    });
+    if (event) {
+      const moneyImpact = event.good ? event.money : Math.floor(event.money * mediaReduction);
+      const reputationImpact = event.good ? event.rep : Math.floor(event.rep * mediaReduction);
+      updatedPlayer = applyPassiveEventToPlayer(updatedPlayer, event);
+      if (event.injury) {
+        updatedPlayer = {
+          ...updatedPlayer,
+          seasonStats: { ...(updatedPlayer.seasonStats ?? {}), injuries: (updatedPlayer.seasonStats?.injuries ?? 0) + 1 },
+        };
+      }
+      totalIncome += moneyImpact > 0 ? moneyImpact : 0;
+      totalCost += moneyImpact < 0 ? Math.abs(moneyImpact) : 0;
+      reputationChange += reputationImpact;
+      segmentReputation = applySegmentReputationChange(segmentReputation, getSegmentDeltaForEvent(event, reputationImpact + (specialization.mediaBoost ?? 0)));
+      events.push({
+        player: `${updatedPlayer.firstName} ${updatedPlayer.lastName}`,
+        playerId: updatedPlayer.id,
+        match: matchResult,
+        ...event,
+        money: moneyImpact,
+        rep: reputationImpact,
+      });
+      generatedNews.push(createNewsPost({ player: updatedPlayer, event, week: state.week, reputationImpact }));
+
+      const message = maybeCreateContextualMessage({
+        player: updatedPlayer,
+        event,
+        week: state.week,
+        mercato: getPhase(state.week).mercato,
+        worldState: state.worldState,
+      });
+      if (message) generatedMessages.push(message);
+
+      // Générer les événements enchaînés
+      const newChains = generateChainedEvents(updatedPlayer, event, state.week);
+      newChainedEvents.push(...newChains);
+    }
+
+    const developmentChance = 0.035
+      + (matchResult?.minutes >= 55 ? 0.025 : 0)
+      + ((updatedPlayer.form - 60) / 1000)
+      + ((updatedPlayer.moral - 50) / 1200)
+      + dataAnalystLevel * 0.012
+      + (specialization.youthProgress ?? 0) / 2;
+    if (updatedPlayer.age < 24 && Math.random() < developmentChance && updatedPlayer.rating < updatedPlayer.potential) {
+      updatedPlayer = {
+        ...updatedPlayer,
+        rating: Math.min(updatedPlayer.potential, updatedPlayer.rating + 1),
+        value: Math.floor(updatedPlayer.value * 1.035),
+        timeline: [{ week: state.week, type: 'progression', label: 'Progression validée par le temps de jeu' }, ...(updatedPlayer.timeline ?? [])].slice(0, 18),
+      };
+    } else if (updatedPlayer.age > 30 && Math.random() < 0.06) {
+      updatedPlayer = { ...updatedPlayer, rating: Math.max(60, updatedPlayer.rating - 1), value: Math.floor(updatedPlayer.value * 0.95) };
+    }
+
+    const recurrentRisk = ((updatedPlayer.recurringInjuryRisk ?? 8) + Math.max(0, (updatedPlayer.fatigue ?? 20) - 68)) / 1000;
+    if (!updatedPlayer.injured && Math.random() < recurrentRisk) {
+      updatedPlayer = {
+        ...updatedPlayer,
+        injured: rand(2, 5),
+        fatigue: clamp((updatedPlayer.fatigue ?? 20) - 10, 0, 100),
+        seasonStats: { ...(updatedPlayer.seasonStats ?? {}), injuries: (updatedPlayer.seasonStats?.injuries ?? 0) + 1 },
+        timeline: [{ week: state.week, type: 'blessure', label: 'Alerte musculaire liée à la fatigue' }, ...(updatedPlayer.timeline ?? [])].slice(0, 18),
+      };
+    }
+
+    return updatedPlayer;
+  });
+
+  const caredRoster = playerCareLevel
+    ? updatedRoster.map((player) =>
+        player.moral < 45 || (player.trust ?? 50) < 45
+          ? { ...player, moral: clamp(player.moral + playerCareLevel * 2), trust: clamp((player.trust ?? 50) + playerCareLevel * 2) }
+          : player,
+      )
+    : updatedRoster;
+
+  // Appliquer les événements passifs enchaînés arrivés à maturité
+  const pendingChains = state.pendingChainedEvents ?? [];
+  const chainedPassives = processChainedPassiveEvents(pendingChains, caredRoster, state.week + 1);
+  let chainedRoster = caredRoster;
+  for (const { player, event } of chainedPassives) {
+    const moneyImpact = event.good ? event.money : Math.floor(event.money * mediaReduction);
+    const reputationImpact = event.good ? event.rep : Math.floor(event.rep * mediaReduction);
+    chainedRoster = chainedRoster.map((p) => p.id === player.id ? applyPassiveEventToPlayer(p, event) : p);
+    totalIncome += moneyImpact > 0 ? moneyImpact : 0;
+    totalCost += moneyImpact < 0 ? Math.abs(moneyImpact) : 0;
+    reputationChange += reputationImpact;
+    events.push({ player: `${player.firstName} ${player.lastName}`, playerId: player.id, ...event, money: moneyImpact, rep: reputationImpact, chained: true });
+    generatedNews.push(createNewsPost({ player, event, week: state.week + 1, reputationImpact }));
+  }
+
+  let interactiveEvent = null;
+  if (Math.random() < 0.28 && chainedRoster.length > 0) {
+    interactiveEvent = chooseInteractiveEvent(chainedRoster, { scoutLevel: getStaffEffect(state.staff, 'scoutAfrica') });
+  }
+
+  const contractEvent = getContractEventForRoster(chainedRoster);
+  if (contractEvent && !interactiveEvent && Math.random() < 0.5) {
+    interactiveEvent = contractEvent;
+  }
+
+  // Si pas d'événement interactif organique, piocher dans les chaînes interactives
+  if (!interactiveEvent) {
+    const chainedInteractive = pickChainedInteractiveEvent(pendingChains, chainedRoster, state.week + 1);
+    if (chainedInteractive) interactiveEvent = chainedInteractive;
+  }
+
+  const promiseEvaluation = evaluatePromises({ promises: state.promises ?? [], roster: chainedRoster, week: state.week + 1 });
+  promiseEvaluation.failedPromises.forEach((promise) => {
+    reputationChange -= 3;
+    segmentReputation = applySegmentReputationChange(segmentReputation, { media: -2, business: -1 });
+    generatedMessages.push({
+      id: makeId('msg'),
+      week: state.week + 1,
+      type: 'promise_broken_warning',
+      context: 'promise_failed',
+      playerId: promise.playerId,
+      playerName: promise.playerName,
+      subject: 'Tu avais promis',
+      body: `La promesse "${promise.label}" n'a pas été tenue. Je dois réfléchir à la suite.`,
+      read: false,
+      resolved: false,
+    });
+  });
+
+  const leavingPlayers = chainedRoster.filter((player) => Math.random() < getDepartureRisk(player));
+  const net = totalIncome - totalCost;
+  const nextPhase = getPhase(state.week + 1);
+  const worldSummary = generateWorldSummary({ week: state.week + 1, phase: nextPhase, worldState: state.worldState });
+  let objectives = state.objectives;
+  let bonusMoney = 0;
+  let bonusReputation = 0;
+
+  // Rotation worldState à chaque nouvelle saison
+  const nextWorldState = nextPhase.seasonWeek === 1 && state.week > 1
+    ? generateWorldState(nextPhase.season)
+    : (state.worldState ?? generateWorldState(1));
+
+  if (nextPhase.seasonWeek === 1 && state.week > 1) {
+    state.objectives.forEach((objective) => {
+      const done =
+        (objective.type === 'money' && state.stats.totalEarned >= objective.target) ||
+        (objective.type === 'rep' && state.reputation >= objective.target) ||
+        (objective.type === 'transfers' && state.stats.transfersDone >= objective.target);
+
+      if (done) bonusMoney += objective.reward;
+    });
+
+    bonusReputation = bonusMoney > 0 ? 5 : 0;
+    objectives = generateObjectives(nextPhase.season);
+  }
+
+  const seasonRecap = nextPhase.seasonWeek === 1 && state.week > 1
+    ? {
+        season: nextPhase.season - 1,
+        transfers: state.stats.transfersDone,
+        earned: state.stats.totalEarned,
+        reputation: state.reputation,
+        objectivesCompleted: state.objectives.filter((objective) =>
+          (objective.type === 'money' && state.stats.totalEarned >= objective.target)
+          || (objective.type === 'rep' && state.reputation >= objective.target)
+          || (objective.type === 'transfers' && state.stats.transfersDone >= objective.target),
+        ).length,
+      }
+    : null;
+
+  let finalRoster = chainedRoster
+    .filter((player) => !leavingPlayers.some((leavingPlayer) => leavingPlayer.id === player.id))
+    .map((player) =>
+      nextPhase.seasonWeek === 1 && state.week > 1
+        ? {
+            ...player,
+            age: player.age + 1,
+            fatigue: clamp((player.fatigue ?? 20) - 18, 0, 100),
+            seasonStats: { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
+            careerGoal: createCareerGoal(player),
+          }
+        : player,
+    );
+
+  const annualCalendar = resolveAnnualCalendarEvents({
+    roster: finalRoster,
+    leagueTables: state.leagueTables ?? createInitialLeagueTables(),
+    phase: nextPhase,
+    seasonAwards: state.seasonAwards,
+    week: state.week + 1,
+  });
+  finalRoster = annualCalendar.roster;
+  totalIncome += annualCalendar.income;
+  reputationChange += annualCalendar.reputation;
+  events.push(...annualCalendar.events);
+  generatedNews.push(...annualCalendar.news);
+
+  const livingWeek = generateLivingWeek({
+    state,
+    roster: finalRoster,
+    phase: nextPhase,
+  });
+  finalRoster = livingWeek.roster;
+  events.push(...livingWeek.events);
+  generatedNews.push(...livingWeek.news);
+  generatedMessages.push(...livingWeek.messages);
+
+  const activeOffers = (state.clubOffers ?? []).filter((offer) => offer.expiresWeek >= state.week && offer.status === 'open');
+  const expiredOffers = (state.clubOffers ?? []).map((offer) =>
+    offer.status === 'open' && offer.expiresWeek < state.week + 1 ? { ...offer, status: 'expired' } : offer,
+  );
+  const newClubOffers = generateClubOffers({ roster: finalRoster, week: state.week + 1, reputation: state.reputation, existingOffers: activeOffers, worldState: state.worldState });
+
+  // Offre surprise hors mercato
+  const surpriseOffer = generateSurpriseOffer({ roster: finalRoster, week: state.week + 1, reputation: state.reputation, worldState: state.worldState });
+  if (surpriseOffer) newClubOffers.push(surpriseOffer);
+  const nextFixtures = buildWeeklyFixtures(finalRoster, state.week + 1);
+  const competitorThreat = rollCompetitorThreat({ roster: finalRoster, week: state.week + 1 });
+  const completedScouting = [];
+  const scoutingMissions = (state.scoutingMissions ?? []).map((mission) => {
+    if (mission.status !== 'active') return mission;
+    const weeksLeft = mission.weeksLeft - 1;
+    if (weeksLeft > 0) return { ...mission, weeksLeft };
+    const prospectBase = generatePlayer(state.reputation + mission.scoutLevel * 5, mission.scoutLevel, true, mission.countryCode);
+    const prospect = {
+      ...prospectBase,
+      careerGoal: createCareerGoal(prospectBase),
+      scoutReport: createScoutReport(prospectBase, mission.scoutLevel),
+      timeline: [{ week: state.week + 1, type: 'scout', label: 'Repéré en mission scouting' }],
+    };
+    completedScouting.push(prospect);
+    return { ...mission, weeksLeft: 0, status: 'completed', playerId: prospect.id, playerName: `${prospect.firstName} ${prospect.lastName}` };
+  });
+  if (competitorThreat) {
+    generatedMessages.push({
+      id: makeId('msg'),
+      week: state.week + 1,
+      type: 'complaint',
+      context: 'competitor_agent',
+      playerId: competitorThreat.playerId,
+      playerName: competitorThreat.playerName,
+      subject: `${competitorThreat.agentName} me contacte`,
+      body: `Un agent concurrent insiste pour me rencontrer. J'ai besoin de savoir si ton projet est toujours solide.`,
+      read: false,
+      resolved: false,
+    });
+  }
+  const deliveredMessages = generatedMessages.slice(0, 3);
+  // Supprimer les chaînes déjà traitées ou expirées et ajouter les nouvelles
+  const processedChainIds = new Set([
+    ...chainedPassives.map((_, i) => pendingChains.filter((c) => c.type === 'passive' && c.triggerWeek <= state.week + 1)[i]?.id),
+    ...(interactiveEvent?.chainId ? [interactiveEvent.chainId] : []),
+  ]);
+  const updatedPendingChains = [
+    ...pendingChains.filter((c) => !processedChainIds.has(c.id) && c.triggerWeek > state.week),
+    ...newChainedEvents,
+  ].slice(0, 50);
+
+  const nextState = {
+    ...state,
+    money: state.money + net + bonusMoney,
+    reputation: applyReputationChange(state.reputation, reputationChange + bonusReputation),
+    credibility: livingWeek.statePatch.credibility ?? state.credibility ?? 50,
+    segmentReputation,
+    mediaRelations: livingWeek.statePatch.mediaRelations ?? state.mediaRelations,
+    countryReputation: livingWeek.statePatch.countryReputation ?? state.countryReputation,
+    playerSegmentReputation: livingWeek.statePatch.playerSegmentReputation ?? state.playerSegmentReputation,
+    rivalAgents: livingWeek.statePatch.rivalAgents ?? state.rivalAgents,
+    decisionHistory: livingWeek.statePatch.decisionHistory ?? state.decisionHistory ?? [],
+    clubRelations: livingWeek.statePatch.clubRelations ?? state.clubRelations,
+    week: state.week + 1,
+    worldState: nextWorldState,
+    pendingChainedEvents: updatedPendingChains,
+    seasonAwards: annualCalendar.seasonAwards,
+    roster: finalRoster,
+    market: [...completedScouting, ...state.market].slice(0, 12),
+    lastFixtures: weeklyFixtures,
+    nextFixtures,
+    leagueTables: updateLeagueTables(state.leagueTables ?? createInitialLeagueTables(), weeklyFixtures),
+    competitorThreats: competitorThreat ? [competitorThreat, ...(state.competitorThreats ?? [])].slice(0, 12) : state.competitorThreats ?? [],
+    scoutingMissions,
+    objectives,
+    history: [...state.history.slice(-20), { week: state.week, net, rep: applyReputationChange(state.reputation, reputationChange) }],
+    news: [
+      ...newClubOffers.map((offer) =>
+        createManualNewsPost({
+          type: 'transfert',
+          player: finalRoster.find((player) => player.id === offer.playerId),
+          week: state.week + 1,
+          text: offer.isSurprise
+            ? `FLASH — ${offer.club} formule une offre d'urgence pour ${offer.playerName} hors mercato.`
+            : offer.isHotWeek
+              ? `FRÉNÉSIE — ${offer.club} s'emballe pour ${offer.playerName}. Plusieurs clubs en lice.`
+              : `${offer.club} prépare une offre pour ${offer.playerName}. Le mercato ${offer.window} s'anime.`,
+          reputationImpact: offer.isSurprise ? 2 : 1,
+          account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
+        }),
+      ),
+      ...worldSummary.map((item) => createManualNewsPost({
+        type: item.type === 'rumor' ? 'transfert' : 'media',
+        week: state.week + 1,
+        text: item.text,
+        reputationImpact: 0,
+        account: { name: 'World Football Wire', kind: 'journal', icon: 'WF', color: '#172026' },
+      })),
+      ...generatedNews,
+      ...state.news,
+    ].slice(0, 60),
+    messages: [...deliveredMessages, ...state.messages].slice(0, 40),
+    promises: promiseEvaluation.promises.slice(-30),
+    clubOffers: [...newClubOffers, ...expiredOffers].slice(0, 30),
+    stats: {
+      ...state.stats,
+      totalEarned: state.stats.totalEarned + Math.max(0, net),
+      seasonsPlayed: nextPhase.seasonWeek === 1 && state.week > 1 ? state.stats.seasonsPlayed + 1 : state.stats.seasonsPlayed,
+    },
+  };
+
+  return {
+    state: nextState,
+    report: {
+      income: totalIncome,
+      salaries: totalCost,
+      staffCost: staffWeeklyCost,
+      net,
+      repChange: reputationChange,
+      events,
+      leavingPlayers,
+      bonusMoney,
+      seasonRecap,
+      interactiveEvent,
+      newSeason: nextPhase.seasonWeek === 1 && state.week > 1,
+      newMessagesCount: deliveredMessages.length,
+      matchResults,
+      fixtures: weeklyFixtures,
+      clubOffers: newClubOffers,
+      phase: nextPhase,
+      worldSummary,
+    },
+  };
+};
+
+export const applyChoice = (state, event, player, choice) => {
+  if (choice.cost && state.money < choice.cost) return { state, error: 'Fonds insuffisants' };
+
+  const effects = choice.effects ?? {};
+  let nextState = {
+    ...state,
+    money: state.money - (choice.cost ?? 0) + (effects.money ?? 0),
+    reputation: applyReputationChange(state.reputation, effects.rep ?? 0),
+    segmentReputation: applySegmentReputationChange(state.segmentReputation, { media: effects.rep ?? 0 }),
+  };
+
+  nextState.roster = nextState.roster.map((rosterPlayer) => {
+    if (rosterPlayer.id !== player.id) return rosterPlayer;
+
+    return {
+      ...rosterPlayer,
+      moral: effects.moral ? clamp(rosterPlayer.moral + effects.moral) : rosterPlayer.moral,
+      trust: effects.trust ? clamp((rosterPlayer.trust ?? 50) + effects.trust) : rosterPlayer.trust ?? 50,
+      value: effects.val ? Math.floor(rosterPlayer.value * effects.val) : rosterPlayer.value,
+      commission: effects.commission ? Math.max(0.05, rosterPlayer.commission + effects.commission) : rosterPlayer.commission,
+      injured: effects.injury ? effects.injury : rosterPlayer.injured,
+    };
+  });
+
+  if (choice.releasePlayer) {
+    nextState = { ...nextState, roster: nextState.roster.filter((rosterPlayer) => rosterPlayer.id !== player.id) };
+  }
+
+  if (effects.repCheck) {
+    if (nextState.reputation >= effects.repCheck) {
+      nextState = {
+        ...nextState,
+        money: nextState.money + 5000,
+        reputation: applyReputationChange(nextState.reputation, 3),
+      };
+    } else {
+      nextState = { ...nextState, reputation: applyReputationChange(nextState.reputation, -3) };
+    }
+  }
+
+  const updatedPlayer = nextState.roster.find((rosterPlayer) => rosterPlayer.id === player.id) ?? player;
+  const news = createManualNewsPost({
+    type: event.types?.[0] === 'scandal' ? 'scandale' : event.types?.[0] ?? 'media',
+    player: updatedPlayer,
+    week: state.week,
+    text: `${updatedPlayer.firstName} ${updatedPlayer.lastName} réagit après la décision: ${choice.label}.`,
+    reputationImpact: effects.rep ?? 0,
+  });
+
+  nextState = { ...nextState, news: [news, ...nextState.news].slice(0, 60) };
+
+  if (choice.flag === 'add_young_prospect') {
+    const prospectBase = generatePlayer(nextState.reputation, nextState.office.scoutLevel, true);
+    const scoutLevel = getStaffEffect(nextState.staff, 'scoutAfrica') + nextState.office.scoutLevel;
+    const prospect = {
+      ...prospectBase,
+      careerGoal: createCareerGoal(prospectBase),
+      scoutReport: scoutLevel > 0 ? createScoutReport(prospectBase, scoutLevel) : null,
+      agentContract: createAgentContract(prospectBase),
+      timeline: [{ week: state.week, type: 'scout', label: 'Repéré par le réseau scouting' }],
+    };
+    if (nextState.roster.length < getAgencyCapacity(nextState.agencyLevel)) {
+      const roster = [...nextState.roster, prospect];
+      nextState = { ...nextState, roster, nextFixtures: buildWeeklyFixtures(roster, state.week + 1) };
+    }
+  }
+
+  return { state: nextState, followUp: choice.flag };
+};
+
+export const finishNegotiation = (state, type, player, outcome) => {
+  let nextState = { ...state };
+
+  if (type === 'transfer' && outcome.success) {
+    const signingBonus = outcome.signingBonus ?? Math.floor(player.weeklySalary * 8);
+    const contractWeeks = outcome.contractWeeks ?? 150;
+    const clubRole = outcome.role ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
+    const clubBonuses = outcome.clubBonuses ?? { total: Math.floor(player.weeklySalary * 8) };
+    const commission = Math.floor(outcome.price * 0.08 + signingBonus * 0.05 + (clubBonuses.total ?? 0) * 0.02);
+    const nextRoster = nextState.roster.map((rosterPlayer) =>
+      rosterPlayer.id !== player.id
+        ? rosterPlayer
+        : {
+            ...rosterPlayer,
+            club: outcome.club,
+            clubTier: outcome.clubTier,
+            clubCountry: outcome.clubCountry,
+            clubCountryCode: outcome.clubCountryCode ?? rosterPlayer.clubCountryCode,
+            clubCity: outcome.clubCity ?? rosterPlayer.clubCity,
+            value: Math.floor(rosterPlayer.value * 1.1),
+            weeklySalary: Math.floor(rosterPlayer.weeklySalary * outcome.salMult),
+            moral: clamp(rosterPlayer.moral + 15),
+            trust: clamp((rosterPlayer.trust ?? 50) + 8),
+            contractWeeksLeft: contractWeeks,
+            clubRole,
+            releaseClause: outcome.releaseClause ?? Math.floor(rosterPlayer.value * 1.8),
+            sellOnPercent: outcome.sellOnPercent ?? 5,
+            clubBonuses,
+            freeAgent: false,
+            timeline: [
+              { week: state.week, type: 'transfer', label: `${outcome.club} · ${clubRole} · contrat ${Math.round(contractWeeks / 52)} ans` },
+              ...(rosterPlayer.timeline ?? []),
+            ],
+          },
+    );
+    nextState = {
+      ...nextState,
+      money: nextState.money + commission,
+      reputation: applyReputationChange(nextState.reputation, 8),
+      credibility: applyCredibilityChange(nextState.credibility, 2),
+      leagueReputation: applyLeagueReputation(nextState.leagueReputation, outcome.clubCountryCode, 5),
+      countryReputation: applyLeagueReputation(nextState.countryReputation, outcome.clubCountryCode, 3),
+      playerSegmentReputation: applyPlayerSegmentReputation(nextState.playerSegmentReputation, getPlayerSegment(player), 4),
+      clubRelations: applyClubRelation(nextState.clubRelations, outcome.club, 6),
+      decisionHistory: addDecisionHistory(nextState.decisionHistory, {
+        week: state.week,
+        type: 'transfer',
+        label: 'Transfert conclu',
+        detail: `${player.firstName} ${player.lastName} signe à ${outcome.club} comme ${clubRole}.`,
+        playerId: player.id,
+        playerName: `${player.firstName} ${player.lastName}`,
+      }),
+      segmentReputation: applySegmentReputationChange(nextState.segmentReputation, { business: 8, sportif: 4 }),
+      promises: resolvePromisesForPlayer(nextState.promises, player.id, ['transfer_request']),
+      stats: {
+        ...nextState.stats,
+        transfersDone: nextState.stats.transfersDone + 1,
+        totalEarned: nextState.stats.totalEarned + commission,
+      },
+      roster: nextRoster,
+      nextFixtures: buildWeeklyFixtures(nextRoster, state.week + 1),
+    };
+  } else if (type === 'extend' && outcome.success) {
+    const signingBonus = outcome.signingBonus ?? Math.floor(player.weeklySalary * 10);
+    const clubBonuses = outcome.clubBonuses ?? { total: Math.floor(player.weeklySalary * 8) };
+    const bonus = Math.floor(signingBonus * 0.08 + (clubBonuses.total ?? 0) * 0.02 + player.value * 0.01);
+    const contractWeeks = outcome.contractWeeks ?? 104;
+    const clubRole = outcome.role ?? player.clubRole ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
+    nextState = {
+      ...nextState,
+      money: nextState.money + bonus,
+      reputation: applyReputationChange(nextState.reputation, 3),
+      credibility: applyCredibilityChange(nextState.credibility, 1),
+      playerSegmentReputation: applyPlayerSegmentReputation(nextState.playerSegmentReputation, getPlayerSegment(player), 2),
+      segmentReputation: applySegmentReputationChange(nextState.segmentReputation, { business: 3 }),
+      decisionHistory: addDecisionHistory(nextState.decisionHistory, {
+        week: state.week,
+        type: 'contrat',
+        label: 'Prolongation négociée',
+        detail: `${player.firstName} ${player.lastName} prolonge avec un rôle ${clubRole}.`,
+        playerId: player.id,
+        playerName: `${player.firstName} ${player.lastName}`,
+      }),
+      promises: resolvePromisesForPlayer(nextState.promises, player.id, ['raise_request']),
+      roster: nextState.roster.map((rosterPlayer) =>
+        rosterPlayer.id !== player.id
+          ? rosterPlayer
+          : {
+              ...rosterPlayer,
+              weeklySalary: Math.floor(rosterPlayer.weeklySalary * outcome.salMult),
+              moral: clamp(rosterPlayer.moral + 10),
+              trust: clamp((rosterPlayer.trust ?? 50) + 6),
+              contractWeeksLeft: contractWeeks,
+              clubRole,
+              releaseClause: outcome.releaseClause ?? rosterPlayer.releaseClause ?? Math.floor(rosterPlayer.value * 1.7),
+              sellOnPercent: outcome.sellOnPercent ?? rosterPlayer.sellOnPercent ?? 5,
+              clubBonuses,
+              agentContract: {
+                ...(rosterPlayer.agentContract ?? createAgentContract(rosterPlayer)),
+                weeksLeft: contractWeeks,
+                commission: rosterPlayer.commission,
+              },
+              timeline: [
+                { week: state.week, type: 'contrat', label: `Prolongation ${Math.round(contractWeeks / 52)} ans · rôle ${clubRole}` },
+                ...(rosterPlayer.timeline ?? []),
+              ],
+            },
+      ),
+    };
+  } else {
+    nextState = {
+      ...nextState,
+      reputation: applyReputationChange(nextState.reputation, -4),
+      credibility: applyCredibilityChange(nextState.credibility, -2),
+      segmentReputation: applySegmentReputationChange(nextState.segmentReputation, { business: -3, media: -1 }),
+      decisionHistory: addDecisionHistory(nextState.decisionHistory, {
+        week: state.week,
+        type: 'negociation',
+        label: 'Négociation échouée',
+        detail: `${player.firstName} ${player.lastName} sort frustré du dossier.`,
+        playerId: player.id,
+        playerName: `${player.firstName} ${player.lastName}`,
+      }),
+      roster: nextState.roster.map((rosterPlayer) =>
+        rosterPlayer.id === player.id
+          ? { ...rosterPlayer, trust: clamp((rosterPlayer.trust ?? 50) - 8), moral: clamp(rosterPlayer.moral - 4) }
+          : rosterPlayer,
+      ),
+    };
+  }
+
+  return nextState;
+};
