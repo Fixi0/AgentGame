@@ -4,17 +4,23 @@ const PROMISE_DURATIONS = {
   transfer_request: 8,
   raise_request: 6,
   complaint: 4,
+  staff_dialogue: 4,
 };
 
 const PROMISE_LABELS = {
   transfer_request: 'Trouver une porte de sortie',
   raise_request: 'Renégocier sa situation',
   complaint: 'Stabiliser la relation',
+  staff_dialogue: 'Temps de jeu promis',
 };
 
 export const createPromiseFromMessage = ({ message, week, responseType }) => {
   if (!['professionnel', 'empathique'].includes(responseType)) return null;
   if (!PROMISE_DURATIONS[message.type]) return null;
+
+  if (message.type === 'staff_dialogue' && message.context && !String(message.context).includes('coach') && !String(message.context).includes('playing')) {
+    return null;
+  }
 
   return {
     id: makeId('promise'),
@@ -45,6 +51,15 @@ export const evaluatePromises = ({ promises = [], roster = [], week }) => {
     const isHealthyRelationship = player && player.moral >= 55 && (player.trust ?? 50) >= 55;
     if (promise.type === 'complaint' && isHealthyRelationship) {
       return { ...promise, resolved: true };
+    }
+    if (promise.type === 'staff_dialogue' && player) {
+      const recentMinutes = (player.matchHistory ?? []).slice(0, 3).reduce((sum, match) => sum + (match.minutes ?? 0), 0);
+      const recentAppearances = (player.matchHistory ?? []).slice(0, 3).length || 1;
+      const averageMinutes = recentMinutes / recentAppearances;
+      const roleIsHonored = averageMinutes >= 55 || (player.clubRole ?? '').toLowerCase().includes('star');
+      if (roleIsHonored && isHealthyRelationship) {
+        return { ...promise, resolved: true };
+      }
     }
 
     failedPromises.push(promise);

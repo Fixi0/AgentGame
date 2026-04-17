@@ -1325,6 +1325,17 @@ export const playWeek = (state) => {
       read: false,
       resolved: false,
     });
+    if (promise.type === 'staff_dialogue') {
+      const player = finalRoster.find((item) => item.id === promise.playerId);
+      if (player) {
+        generatedMessages.push(createMessage({
+          player,
+          type: 'transfer_request',
+          week: state.week + 1,
+          context: 'staff_promise_failed',
+        }));
+      }
+    }
   });
 
   const leavingPlayers = chainedRoster.filter((player) => Math.random() < getDepartureRisk(player));

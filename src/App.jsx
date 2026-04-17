@@ -300,6 +300,32 @@ export default function FootballAgentGame() {
   const handleMessageResponse = (messageId, responseType) => {
     const effects = responseEffects[responseType];
     const currentMessage = state.messages.find((item) => item.id === messageId);
+    const isStaffThread = currentMessage?.type === 'staff_dialogue';
+    const staffReply = isStaffThread && currentMessage ? (() => {
+      const player = state.roster.find((item) => item.id === currentMessage.playerId);
+      const staffName = currentMessage.threadLabel ?? (String(currentMessage.context ?? '').includes('coach')
+        ? `Coach de ${player?.club ?? 'son club'}`
+        : `DS de ${player?.club ?? 'son club'}`);
+      const coachReplyText = (() => {
+        if (String(currentMessage.context ?? '').includes('coach')) {
+          if (responseType === 'professionnel') return "Je prends le message. Tu auras une fenêtre claire pour te battre pour tes minutes, mais je veux voir la même intensité à l'entraînement.";
+          if (responseType === 'empathique') return "Je t'entends. On va calmer le dossier, mais je veux te voir répondre sur le terrain et garder la tête froide.";
+          return "Compris. Le cadre est posé: performe et le temps de jeu suivra, sinon on reparlera de ton statut.";
+        }
+        if (responseType === 'professionnel') return "Le dossier est ouvert. Je regarde le rôle, le contrat et la prochaine fenêtre possible avec le club.";
+        if (responseType === 'empathique') return "Je comprends ton besoin de clarté. Je te reviens vite avec une position propre et sans bruit.";
+        return "C'est noté. Si la situation ne bouge pas, on remettra les choses au clair.";
+      })();
+      return createStaffConversationMessage({
+        player,
+        staffName,
+        type: 'staff_dialogue',
+        week: state.week,
+        context: currentMessage.context,
+        subject: `${staffName} répond`,
+        body: coachReplyText,
+      });
+    })() : null;
     setState((current) => {
       const message = current.messages.find((item) => item.id === messageId);
       if (!message) return current;
@@ -355,7 +381,10 @@ export default function FootballAgentGame() {
               }
             : player,
         ),
-        messages: withMarketAction.messages.map((item) => (item.id === messageId ? { ...item, resolved: true, responseType, responseAction, responseText } : item)),
+        messages: [
+          ...withMarketAction.messages.map((item) => (item.id === messageId ? { ...item, resolved: true, responseType, responseAction, responseText } : item)),
+          ...(staffReply ? [staffReply] : []),
+        ].slice(0, 40),
         promises: [...(promise ? [promise] : []), ...(withMarketAction.promises ?? [])].slice(0, 30),
       };
     });
