@@ -992,6 +992,115 @@ export const createPlayerMarketAction = (state, playerId, action) => {
   };
 };
 
+const createChoiceTransferOffer = (state, player, event, choice) => {
+  const phase = getPhase(state.week);
+  const allowedTiers = getClubTierForRating(player.rating, player.potential);
+  const label = `${choice.label} ${choice.desc ?? ''}`.toLowerCase();
+  const preference = label.includes('plus offrant') || label.includes('enchères') ? 'money' : label.includes('projet') ? 'project' : 'balanced';
+  const targetClubs = CLUBS
+    .filter((club) => club.name !== player.club && allowedTiers.includes(club.tier))
+    .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+  const moneyPool = targetClubs.slice(Math.max(0, targetClubs.length - 3));
+  const projectPool = targetClubs.slice(0, Math.max(1, Math.min(3, targetClubs.length)));
+  const clubPool = preference === 'money' ? moneyPool : preference === 'project' ? projectPool : targetClubs;
+  const club = pick(clubPool.length ? clubPool : targetClubs);
+
+  if (!club) return { state, error: 'Aucun club compatible' };
+
+  const country = getCountry(club.countryCode);
+  const nextWindow = !phase.mercato
+    ? (phase.seasonWeek <= 18
+      ? { window: 'hiver', effectiveWeek: state.week + (19 - phase.seasonWeek) }
+      : phase.seasonWeek <= 37
+        ? { window: 'été', effectiveWeek: state.week + (38 - phase.seasonWeek) }
+        : null)
+    : null;
+  const preWindow = Boolean(nextWindow && phase.seasonWeek >= 16 && phase.seasonWeek !== 38);
+  const priceMult = preference === 'money'
+    ? rand(102, 138) / 100
+    : preference === 'project'
+      ? rand(96, 116) / 100
+      : rand(98, 126) / 100;
+  const salaryMult = preference === 'money'
+    ? rand(128, 190) / 100
+    : preference === 'project'
+      ? rand(108, 160) / 100
+      : rand(112, 174) / 100;
+  const offer = {
+    id: makeId('offer'),
+    week: state.week,
+    expiresWeek: state.week + (preWindow ? 3 : (phase.deadlineDay ? 1 : 2)),
+    window: phase.window ?? nextWindow?.window ?? 'approche',
+    isHotWeek: false,
+    isCompetingOffer: false,
+    preWindow,
+    effectiveWeek: preWindow ? nextWindow?.effectiveWeek : state.week,
+    playerId: player.id,
+    playerName: `${player.firstName} ${player.lastName}`,
+    club: club.name,
+    clubTier: club.tier,
+    clubCountry: country.flag,
+    clubCountryCode: club.countryCode,
+    clubCity: club.city,
+    price: Math.max(1000, Math.floor(player.value * priceMult)),
+    salMult: Math.round(salaryMult * 100) / 100,
+    status: 'open',
+    actionSource: `event:${event.id}:${choice.label}`,
+  };
+
+  return {
+    state: {
+      ...state,
+      clubOffers: [offer, ...(state.clubOffers ?? [])].slice(0, 30),
+      news: [
+        createManualNewsPost({
+          type: 'transfert',
+          player,
+          week: state.week,
+          text: preWindow
+            ? `Après la décision "${choice.label}", ${club.name} place un pré-accord pour ${player.firstName} ${player.lastName}.`
+            : `Après la décision "${choice.label}", ${club.name} dépose une offre concrète pour ${player.firstName} ${player.lastName}.`,
+          reputationImpact: 2,
+          account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
+        }),
+        ...state.news,
+      ].slice(0, 60),
+      messages: [
+        {
+          id: makeId('msg'),
+          week: state.week,
+          type: 'transfer_request',
+          context: event.id,
+          playerId: player.id,
+          playerName: `${player.firstName} ${player.lastName}`,
+          threadKey: player.id,
+          threadLabel: `${player.firstName} ${player.lastName}`,
+          senderRole: 'player',
+          senderName: `${player.firstName} ${player.lastName}`,
+          subject: preWindow ? 'Pré-accord confirmé' : 'Offre concrète arrivée',
+          body: preWindow
+            ? `${club.name} a validé un pré-accord pour moi. L'arrivée est prévue à l'ouverture du mercato ${offer.window}.`
+            : `${club.name} vient d'envoyer une vraie offre. Je veux ton avis avant qu'on réponde.`,
+          read: false,
+          resolved: false,
+        },
+        ...state.messages,
+      ].slice(0, 40),
+      decisionHistory: addDecisionHistory(state.decisionHistory, {
+        week: state.week,
+        type: 'mercato',
+        label: 'Offre générée par événement',
+        detail: `${club.name} se positionne après la décision "${choice.label}".`,
+        playerId: player.id,
+        playerName: `${player.firstName} ${player.lastName}`,
+      }),
+    },
+    message: preWindow
+      ? `${club.name} transforme la décision en pré-accord.`
+      : `${club.name} transforme la décision en offre concrète.`,
+  };
+};
+
 export const playWeek = (state) => {
   const events = [];
   const generatedNews = [];
@@ -1583,6 +1692,13 @@ export const applyChoice = (state, event, player, choice) => {
     if (nextState.roster.length < getAgencyCapacity(nextState.agencyLevel)) {
       const roster = [...nextState.roster, prospect];
       nextState = { ...nextState, roster, nextFixtures: buildWeeklyFixtures(roster, state.week + 1) };
+    }
+  }
+
+  if (choice.flag === 'transfer_offer') {
+    const transferResult = createChoiceTransferOffer(nextState, updatedPlayer, event, choice);
+    if (!transferResult.error) {
+      nextState = transferResult.state;
     }
   }
 

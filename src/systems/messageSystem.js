@@ -104,7 +104,7 @@ const MESSAGE_TYPES = {
   ],
 };
 
-export const createMessage = ({ player, type, week, context }) => {
+export const createMessage = ({ player, type, week, context, threadKey = null, threadLabel = null, senderRole = 'player', senderName = null }) => {
   const blueprint = pick(MESSAGE_TYPES[type] ?? MESSAGE_TYPES.complaint);
 
   return {
@@ -114,12 +114,36 @@ export const createMessage = ({ player, type, week, context }) => {
     context,
     playerId: player.id,
     playerName: `${player.firstName} ${player.lastName}`,
+    threadKey: threadKey ?? player.id,
+    threadLabel: threadLabel ?? `${player.firstName} ${player.lastName}`,
+    senderRole,
+    senderName: senderName ?? `${player.firstName} ${player.lastName}`,
+    direction: senderRole === 'staff' ? 'incoming' : 'incoming',
     subject: blueprint.subject,
     body: blueprint.body,
     read: false,
     resolved: false,
   };
 };
+
+export const createStaffConversationMessage = ({ player, staffName, type, week, context, subject, body }) => ({
+  id: makeId('msg'),
+  week,
+  type,
+  context,
+  playerId: player.id,
+  playerName: `${player.firstName} ${player.lastName}`,
+  threadKey: `${player.id}:staff:${context}`,
+  threadLabel: staffName,
+  threadContextLabel: `${player.firstName} ${player.lastName}`,
+  senderRole: 'staff',
+  senderName: staffName,
+  direction: 'incoming',
+  subject,
+  body,
+  read: false,
+  resolved: false,
+});
 
 export const maybeCreateContextualMessage = ({ player, event, week, mercato = false, worldState = null }) => {
   if (!player) return null;
@@ -227,6 +251,11 @@ const RESPONSE_OPTIONS_BY_TYPE = {
     empathique: 'Appeler ce soir',
     ferme: 'Gagner sa place',
   },
+  staff_dialogue: {
+    professionnel: 'Clarifier le plan',
+    empathique: 'Écouter et rassurer',
+    ferme: 'Poser le cadre',
+  },
   media_pressure: {
     professionnel: 'Communiqué préparé',
     empathique: 'Protéger le joueur',
@@ -251,6 +280,8 @@ export const getMessageResponseAction = (message, responseType) => {
   if (message.type === 'raise_request' && ['professionnel', 'empathique'].includes(responseType)) return { type: 'salary_case', label: 'Dossier salaire à préparer' };
   if (message.type === 'role_frustration' && responseType === 'professionnel') return { type: 'coach_talk', label: 'Appel coach demandé' };
   if (message.type === 'role_frustration' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel joueur programmé ce soir' };
+  if (message.type === 'staff_dialogue' && responseType === 'professionnel') return { type: 'coach_talk', label: 'Discussion staff lancée' };
+  if (message.type === 'staff_dialogue' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel de cadrage programmé' };
   if (message.type === 'complaint' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel de crise programmé' };
   if (message.type === 'media_pressure' && responseType === 'professionnel') return { type: 'press_release', label: 'Communiqué média préparé' };
   if (message.type === 'secret_offer' && responseType === 'professionnel') return { type: 'club_check', label: 'Vérification club lancée' };
@@ -273,6 +304,11 @@ export const getResponseCopy = (message, responseType) => {
     if (responseType === 'professionnel') return "Tu as raison de soulever le sujet.\n\nJe vais parler au coach et au directeur sportif pour comprendre où tu te situes réellement dans la hiérarchie. Si le rôle promis n'est pas respecté, on mettra le club face à ses engagements.\n\nEn attendant, reste prêt. Je veux des arguments quand j'appelle.";
     if (responseType === 'empathique') return "Je comprends ta frustration.\n\nQuand on signe pour un rôle, on a besoin de sentir que le club tient parole. Je t'appelle ce soir, on regarde les minutes, le calendrier et la meilleure manière de mettre la pression sans te griller.\n\nTu n'es pas seul là-dessus.";
     return "Je vais regarder la situation, mais tu dois aussi répondre sur le terrain.\n\nLe rôle promis donne un cadre, pas un passe-droit. Tu restes irréprochable à l'entraînement, et moi je mets le club devant ses responsabilités si ça continue.";
+  }
+  if (message.type === 'staff_dialogue') {
+    if (responseType === 'professionnel') return "Je prends le sujet au sérieux et je vais être concret.\n\nJe veux savoir exactement ce que le club a promis, ce qui bloque aujourd'hui, et à quoi ressemble la prochaine étape. S'il faut parler de temps de jeu ou de rôle, je le ferai sans détour.\n\nOn garde ce dossier propre et on se revoit après mon appel au club.";
+    if (responseType === 'empathique') return "Je t'écoute et je comprends que tu veuilles du clair.\n\nSi la situation te pèse, on va la traiter sans te mettre en face-à-face inutile avec le club. On parle du fond: minutes, confiance, plan de match, et ce qui peut te remettre dans un bon cycle.\n\nJe t'appelle vite et on avance ensemble.";
+    return "Je vais être direct : je ne laisse pas la situation s'enliser.\n\nSi le club ne respecte pas ce qui a été dit, je le mets face à ses responsabilités. En revanche, j'attends aussi que tu restes irréprochable et concentré.\n\nOn agit vite, mais proprement.";
   }
   if (message.type === 'voice_call') {
     if (responseType === 'professionnel') return "Je te rappelle aujourd'hui.\n\nPrépare-moi les trois points importants : ce qui bloque, ce que tu veux, et ce que tu refuses. On sort de l'appel avec une décision claire.";

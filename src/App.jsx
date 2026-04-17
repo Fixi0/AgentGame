@@ -47,9 +47,9 @@ import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, getNego
 import { applyClubRelation } from './systems/clubSystem';
 import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
-import { createMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
+import { createMessage, createStaffConversationMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage } from './systems/promiseSystem';
-import { clamp, makeId } from './utils/helpers';
+import { clamp } from './utils/helpers';
 import { formatMoney } from './utils/format';
 
 const getTransferReadiness = (state, player, phase) => {
@@ -145,6 +145,7 @@ export default function FootballAgentGame() {
   const [toast, setToast] = useState(null);
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const [hasSave, setHasSave] = useState(false);
+  const [activeMessageThreadKey, setActiveMessageThreadKey] = useState(null);
 
   useEffect(() => {
     try {
@@ -298,6 +299,7 @@ export default function FootballAgentGame() {
 
   const handleMessageResponse = (messageId, responseType) => {
     const effects = responseEffects[responseType];
+    const currentMessage = state.messages.find((item) => item.id === messageId);
     setState((current) => {
       const message = current.messages.find((item) => item.id === messageId);
       if (!message) return current;
@@ -357,6 +359,7 @@ export default function FootballAgentGame() {
         promises: [...(promise ? [promise] : []), ...(withMarketAction.promises ?? [])].slice(0, 30),
       };
     });
+    if (currentMessage) setActiveMessageThreadKey(currentMessage.threadKey ?? currentMessage.playerId);
     showToast('Réponse envoyée', 'success');
   };
 
@@ -407,6 +410,7 @@ export default function FootballAgentGame() {
       if (!player || player.club === 'Libre') return current;
       const isCoach = target === 'coach';
       const staffName = isCoach ? `Coach de ${player.club}` : `DS de ${player.club}`;
+      const threadKey = `${player.id}:staff:${target}`;
       return {
         ...current,
         clubRelations: applyClubRelation(current.clubRelations, player.club, isCoach ? 2 : 1),
@@ -429,26 +433,23 @@ export default function FootballAgentGame() {
             : item,
         ),
         messages: [
-          {
-            id: makeId('msg'),
+          createStaffConversationMessage({
+            player,
+            staffName,
+            type: 'staff_dialogue',
             week: current.week,
-            type: 'staff_reply',
             context: isCoach ? 'coach_talk' : 'ds_talk',
-            playerId: player.id,
-            playerName: `${player.firstName} ${player.lastName}`,
             subject: `${staffName} répond`,
             body: isCoach
-              ? `Le coach confirme un point sur le temps de jeu de ${player.firstName} d'ici deux semaines.`
-              : `Le DS est ouvert à discuter du projet pour ${player.firstName} pendant la prochaine fenêtre.`,
-            read: false,
-            resolved: true,
-            responseType: 'professionnel',
-            responseText: `Appel effectué: ${staffName} contacté.`,
-          },
+              ? `Le coach veut clarifier le temps de jeu de ${player.firstName} et comprendre le niveau d'attente sur les prochaines semaines.`
+              : `Le DS accepte de parler du rôle, de la situation contractuelle et du plan sportif de ${player.firstName}.`,
+          }),
           ...current.messages,
         ].slice(0, 40),
       };
     });
+    setActiveMessageThreadKey(`${playerId}:staff:${target}`);
+    setView('messages');
     showToast(target === 'coach' ? 'Coach contacté' : 'DS contacté', 'success');
   };
 
@@ -498,6 +499,7 @@ export default function FootballAgentGame() {
       ),
     }));
     setModal(null);
+    setActiveMessageThreadKey(player.id);
     setView('messages');
     showToast('Appel joueur ajouté aux messages', 'success');
   };
@@ -612,7 +614,7 @@ export default function FootballAgentGame() {
         {view === 'profile' && <AgencyProfile state={state} />}
         {view === 'news' && <NewsFeed news={state.news} />}
         {view === 'media' && <MediaRoom state={state} />}
-        {view === 'messages' && <Messages messages={state.messages} onRespond={handleMessageResponse} />}
+        {view === 'messages' && <Messages messages={state.messages} onRespond={handleMessageResponse} focusThreadKey={activeMessageThreadKey} />}
       </main>
       {modal?.type === 'results' && (
         <ResultsModal

@@ -191,7 +191,7 @@ export default function PlayerDetailModal({ player, messages, promises, onClose,
               {playerMessages.length ? playerMessages.slice(-8).map((message) => (
                 <div key={message.id} style={S.threadBlock}>
                   <div style={S.incomingBubble}>
-                    <div style={S.threadMeta}>S{message.week} · {message.subject}</div>
+                    <div style={S.threadMeta}>{message.senderName ?? message.playerName} · S{message.week} · {message.subject}</div>
                     <div>{message.body}</div>
                   </div>
                   {message.resolved ? (

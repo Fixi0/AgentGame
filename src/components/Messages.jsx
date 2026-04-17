@@ -1,5 +1,5 @@
-import { MessageCircle } from 'lucide-react';
-import React, { useState } from 'react';
+import { MessageCircle, PhoneCall, UserRound } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { getMessageResponseOptions, getResponseCopy } from '../systems/messageSystem';
 import { S } from './styles';
 
@@ -9,38 +9,69 @@ const responseLabels = {
   ferme: 'Ferme',
 };
 
-export default function Messages({ messages, onRespond }) {
+export default function Messages({ messages, onRespond, focusThreadKey = null }) {
   const [filter, setFilter] = useState('all');
-  const threads = messages.reduce((acc, message) => {
-    const key = message.playerId ?? message.playerName ?? message.id;
-    if (!acc[key]) {
-      acc[key] = {
-        key,
-        playerName: message.playerName ?? 'Contact',
-        items: [],
-      };
+  const [selectedThreadKey, setSelectedThreadKey] = useState(null);
+
+  const threads = useMemo(() => {
+    const grouped = messages.reduce((acc, message) => {
+      const key = message.threadKey ?? message.playerId ?? message.id;
+      if (!acc[key]) {
+        acc[key] = {
+          key,
+          label: message.threadLabel ?? message.playerName ?? 'Contact',
+          contextLabel: message.threadContextLabel ?? message.playerName ?? '',
+          playerName: message.playerName ?? 'Contact',
+          playerId: message.playerId,
+          items: [],
+        };
+      }
+      acc[key].items.push(message);
+      return acc;
+    }, {});
+
+    return Object.values(grouped)
+      .map((thread) => {
+        const items = [...thread.items].sort((a, b) => (a.week ?? 0) - (b.week ?? 0));
+        const latest = items[items.length - 1];
+        const unresolvedCount = items.filter((item) => !item.resolved).length;
+        const isStaff = items.some((item) => item.senderRole === 'staff' || String(item.context ?? '').includes('coach') || String(item.context ?? '').includes('ds'));
+        return {
+          ...thread,
+          items,
+          latestWeek: latest?.week ?? 0,
+          latestLabel: latest?.subject ?? 'Conversation',
+          unresolvedCount,
+          hasUnread: unresolvedCount > 0,
+          isStaff,
+        };
+      })
+      .filter((thread) => {
+        if (filter === 'all') return true;
+        if (filter === 'urgent') return thread.items.some((item) => !item.resolved && ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning', 'staff_dialogue'].includes(item.type));
+        if (filter === 'unread') return thread.hasUnread;
+        if (filter === 'staff') return thread.isStaff;
+        if (filter === 'players') return !thread.isStaff;
+        return true;
+      })
+      .sort((a, b) => b.latestWeek - a.latestWeek);
+  }, [filter, messages]);
+
+  useEffect(() => {
+    if (!threads.length) {
+      setSelectedThreadKey(null);
+      return;
     }
-    acc[key].items.push(message);
-    return acc;
-  }, {});
-  const orderedThreads = Object.values(threads)
-    .map((thread) => ({
-      ...thread,
-      latestWeek: Math.max(...thread.items.map((item) => item.week ?? 0)),
-      unresolvedCount: thread.items.filter((item) => !item.resolved).length,
-      hasStaff: thread.items.some((item) => item.type === 'staff_reply' || ['coach_talk', 'ds_talk'].includes(item.context)),
-      hasUnread: thread.items.some((item) => !item.resolved),
-      items: [...thread.items].sort((a, b) => (a.week ?? 0) - (b.week ?? 0)),
-    }))
-    .filter((thread) => {
-      if (filter === 'all') return true;
-      if (filter === 'urgent') return thread.items.some((item) => !item.resolved && ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning'].includes(item.type));
-      if (filter === 'unread') return thread.hasUnread;
-      if (filter === 'staff') return thread.hasStaff;
-      if (filter === 'players') return !thread.hasStaff;
-      return true;
-    })
-    .sort((a, b) => b.latestWeek - a.latestWeek);
+
+    const visibleThread = threads.find((thread) => thread.key === focusThreadKey) ?? threads[0];
+    setSelectedThreadKey((current) => {
+      if (focusThreadKey && threads.some((thread) => thread.key === focusThreadKey)) return focusThreadKey;
+      if (current && threads.some((thread) => thread.key === current)) return current;
+      return visibleThread.key;
+    });
+  }, [focusThreadKey, threads]);
+
+  const selectedThread = threads.find((thread) => thread.key === selectedThreadKey) ?? threads[0] ?? null;
 
   const getDisplayedResponse = (message) => {
     if (message.responseText && !message.responseText.startsWith('Réponse envoyée')) return message.responseText;
@@ -51,9 +82,10 @@ export default function Messages({ messages, onRespond }) {
   return (
     <div style={S.vp}>
       <div style={S.et}>
-        <div style={S.el}>BOITE DE RECEPTION</div>
+        <div style={S.el}>BOÎTE DE RÉCEPTION</div>
         <h1 style={S.eh}>Messages</h1>
       </div>
+
       <div style={S.filterChips}>
         {[
           ['all', 'Tout'],
@@ -75,49 +107,90 @@ export default function Messages({ messages, onRespond }) {
           </button>
         ))}
       </div>
-      <div style={S.cardList}>
-        {orderedThreads.map((thread) => (
-          <div key={thread.key} style={S.msgCard}>
-            <div style={S.msgSubject}>
-              <MessageCircle size={14} /> {thread.playerName}
-            </div>
-            <div style={S.msgFrom}>{thread.unresolvedCount ? `${thread.unresolvedCount} en attente` : 'fil à jour'} · semaine {thread.latestWeek}</div>
-            <div style={S.thread}>
-              {thread.items.map((message) => (
-                <div key={message.id} style={S.threadBlock}>
-                  <div style={S.incomingBubble}>
-                    <div style={S.threadMeta}>{message.subject} · S{message.week}</div>
-                    <div>{message.body}</div>
+
+      <div style={S.messagesLayout}>
+        <aside style={S.threadListPane}>
+          {threads.map((thread) => {
+            const active = thread.key === selectedThreadKey;
+            return (
+              <button
+                key={thread.key}
+                onClick={() => setSelectedThreadKey(thread.key)}
+                style={{
+                  ...S.threadContact,
+                  borderColor: active ? '#00a676' : '#e5eaf0',
+                  boxShadow: active ? '0 12px 28px rgba(0,166,118,.14)' : '0 10px 24px rgba(15,23,32,.06)',
+                }}
+              >
+                <div style={S.threadContactTop}>
+                  <div style={S.threadContactIcon}>
+                    {thread.isStaff ? <PhoneCall size={14} /> : <UserRound size={14} />}
                   </div>
-                  {message.resolved && (
-                    <div style={S.outgoingBubble}>
-                      {getDisplayedResponse(message)}
-                    </div>
-                  )}
-                  {!message.resolved && (
-                    <>
-                      {['transfer_request', 'raise_request', 'complaint'].includes(message.type) && (
-                        <div style={S.msgHint}>Une réponse professionnelle ou empathique crée une promesse à tenir.</div>
-                      )}
-                      <div style={S.msgActions}>
-                        {Object.entries(getMessageResponseOptions(message)).map(([type, label]) => (
-                          <button key={type} onClick={() => onRespond(message.id, type)} style={S.msgBtn}>
-                            {label || responseLabels[type]}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={S.threadContactTitle}>{thread.label}</div>
+                    <div style={S.threadContactSub}>{thread.contextLabel || thread.playerName}</div>
+                  </div>
+                  {thread.unresolvedCount > 0 && <span style={S.threadBadge}>{thread.unresolvedCount}</span>}
                 </div>
-              ))}
+                <div style={S.threadContactMeta}>{thread.latestLabel}</div>
+              </button>
+            );
+          })}
+          {!threads.length && <div style={S.emptySmall}>Aucun message dans ce filtre.</div>}
+        </aside>
+
+        <section style={S.threadPane}>
+          {selectedThread ? (
+            <>
+              <div style={S.chatHeader}>
+                <div>
+                  <div style={S.chatTitle}>{selectedThread.label}</div>
+                  <div style={S.chatSub}>{selectedThread.contextLabel || selectedThread.playerName}</div>
+                </div>
+                <div style={S.chatTag}>{selectedThread.isStaff ? 'Staff' : 'Joueur'}</div>
+              </div>
+              <div style={S.chatTimeline}>
+                {selectedThread.items.map((message) => (
+                  <div key={message.id} style={S.chatBlock}>
+                    <div style={S.chatBubbleLeft}>
+                      <div style={S.chatMeta}>{message.senderName ?? message.playerName} · S{message.week}</div>
+                      <div style={S.chatSubject}>{message.subject}</div>
+                      <div style={S.chatBody}>{message.body}</div>
+                    </div>
+                    {message.resolved ? (
+                      <div style={S.chatBubbleRight}>
+                        {getDisplayedResponse(message)}
+                      </div>
+                    ) : (
+                      <>
+                        {['transfer_request', 'raise_request', 'complaint', 'role_frustration', 'staff_dialogue'].includes(message.type) && (
+                          <div style={S.msgHint}>Une réponse concrète peut déclencher une suite dans le jeu.</div>
+                        )}
+                        <div style={S.msgActions}>
+                          {Object.entries(getMessageResponseOptions(message)).map(([type, label]) => (
+                            <button key={type} onClick={() => onRespond(message.id, type)} style={S.msgBtn}>
+                              {label || responseLabels[type]}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div style={S.emptySmall}>
+                La conversation garde le contexte. Les réponses poussent des effets réels sur la confiance, le club et le mercato.
+              </div>
+            </>
+          ) : (
+            <div style={S.chatEmpty}>
+              <MessageCircle size={26} />
+              <div style={S.chatEmptyTitle}>Aucune conversation</div>
+              <div style={S.chatEmptySub}>Les contacts et les échanges apparaissent ici quand un joueur, un coach ou un DS écrit.</div>
             </div>
-            <div style={S.emptySmall}>
-              Conversation complète conservée pour garder le contexte des décisions.
-            </div>
-          </div>
-        ))}
+          )}
+        </section>
       </div>
-      {!orderedThreads.length && <div style={S.empty}>Aucun message dans ce filtre. Les joueurs écriront après les décisions importantes.</div>}
     </div>
   );
 }
