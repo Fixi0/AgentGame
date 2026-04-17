@@ -56,6 +56,11 @@ const SPECIALIZATION_EFFECTS = {
   prestige: { marketBonus: 1, negotiationRep: 1, mediaBoost: 2 },
 };
 
+const scaleReputationDelta = (delta) => {
+  if (delta <= 0) return delta;
+  return Math.max(1, Math.floor(delta * 0.45));
+};
+
 const getWeightedCountry = (reputation) => {
   const unlocked = getUnlockedCountries(reputation);
   const weightedPool = unlocked.flatMap((country) => Array.from({ length: country.marketWeight }, () => country));
@@ -65,6 +70,30 @@ const getWeightedCountry = (reputation) => {
 const getClubForCountry = (countryCode) => {
   const matchingClubs = CLUBS.filter((club) => club.countryCode === countryCode);
   return pick(matchingClubs.length ? matchingClubs : CLUBS);
+};
+
+const getClubTierForRating = (rating, potential) => {
+  if (rating >= 84 || potential >= 90) return [1, 2];
+  if (rating >= 76 || potential >= 84) return [2, 3];
+  if (rating >= 66 || potential >= 78) return [3, 4];
+  return [4];
+};
+
+const getClubForPlayerLevel = (countryCode, rating, potential) => {
+  const allowedTiers = getClubTierForRating(rating, potential);
+  const matchingClubs = CLUBS.filter((club) => club.countryCode === countryCode && allowedTiers.includes(club.tier));
+  return pick(matchingClubs.length ? matchingClubs : CLUBS.filter((club) => allowedTiers.includes(club.tier)));
+};
+
+const generateRealisticRating = (reputation, scoutLevel, young) => {
+  const base = young ? rand(52, 67) : rand(55, 72);
+  const repBoost = Math.floor(Math.min(35, reputation) / 8);
+  const scoutBoost = Math.floor(scoutLevel * 1.2);
+  let rating = base + repBoost + scoutBoost + rand(-3, 4);
+  const eliteRoll = Math.random();
+  if (eliteRoll < 0.015 + reputation / 6000 + scoutLevel / 1000) rating = rand(86, 91);
+  else if (eliteRoll < 0.055 + reputation / 1800 + scoutLevel / 450) rating = rand(80, 85);
+  return clamp(rating, 50, 93);
 };
 
 const LEGACY_CLUB_ALIASES = {
@@ -140,10 +169,11 @@ const ensureDeepPlayerProfile = (player, countryCode, club) => ({
 
 export const generatePlayer = (reputation, scoutLevel = 0, young = false, forcedCountryCode = null) => {
   const country = forcedCountryCode ? getCountry(forcedCountryCode) : getWeightedCountry(reputation + scoutLevel * 6);
-  const club = getClubForCountry(country.code);
-  const rating = clamp(58 + Math.floor(reputation / 5) + scoutLevel * 2 + rand(-6, 10), 55, 95);
+  const rating = generateRealisticRating(reputation, scoutLevel, young);
   const age = young ? rand(17, 20) : rand(17, 32);
-  const potential = clamp(rating + rand(0, 15 - Math.min(14, Math.max(0, age - 18))), rating, 99);
+  const potentialCeiling = rating >= 86 ? 96 : rating >= 80 ? 92 : 88;
+  const potential = clamp(rating + rand(0, 13 - Math.min(12, Math.max(0, age - 18))), rating, potentialCeiling);
+  const club = getClubForPlayerLevel(country.code, rating, potential);
   const value = Math.floor((rating / 60) ** 5 * rand(650000, 4200000));
   const personality = pick(PERSONALITIES);
   const position = pick(POSITIONS);
@@ -276,9 +306,9 @@ const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seasonAwards
       account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
     }));
     if (shortlist) {
-      reputation += 6;
+      reputation += scaleReputationDelta(6);
       income += 12000;
-      events.push({ player: `${shortlist.firstName} ${shortlist.lastName}`, playerId: shortlist.id, label: "Nominé Ballon d'Or", good: true, money: 12000, rep: 6, calendar: true });
+      events.push({ player: `${shortlist.firstName} ${shortlist.lastName}`, playerId: shortlist.id, label: "Nominé Ballon d'Or", good: true, money: 12000, rep: scaleReputationDelta(6), calendar: true });
     }
   }
 
@@ -303,8 +333,8 @@ const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seasonAwards
           : player,
       );
       income += 80000;
-      reputation += 35;
-      events.push({ player: `${winner.firstName} ${winner.lastName}`, playerId: winner.id, label: "Remporte le Ballon d'Or", good: true, money: 80000, rep: 35, calendar: true });
+      reputation += scaleReputationDelta(35);
+      events.push({ player: `${winner.firstName} ${winner.lastName}`, playerId: winner.id, label: "Remporte le Ballon d'Or", good: true, money: 80000, rep: scaleReputationDelta(35), calendar: true });
     }
     news.push(createManualNewsPost({
       type: 'media',
@@ -341,8 +371,8 @@ const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seasonAwards
           : player,
       );
       income += 30000;
-      reputation += 12;
-      events.push({ player: `${clubPlayer.firstName} ${clubPlayer.lastName}`, playerId: clubPlayer.id, label: `Vainqueur de la LDC avec ${club}`, good: true, money: 30000, rep: 12, calendar: true });
+      reputation += scaleReputationDelta(12);
+      events.push({ player: `${clubPlayer.firstName} ${clubPlayer.lastName}`, playerId: clubPlayer.id, label: `Vainqueur de la LDC avec ${club}`, good: true, money: 30000, rep: scaleReputationDelta(12), calendar: true });
     }
 
     news.push(createManualNewsPost({
@@ -727,7 +757,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
     state: {
       ...state,
       money: state.money + commission,
-      reputation: applyReputationChange(state.reputation, 5),
+      reputation: applyReputationChange(state.reputation, scaleReputationDelta(5)),
       credibility: applyCredibilityChange(state.credibility, 2),
       countryReputation: applyLeagueReputation(state.countryReputation, offer.clubCountryCode ?? targetClub?.countryCode, 3),
       playerSegmentReputation: applyPlayerSegmentReputation(state.playerSegmentReputation, getPlayerSegment(player), 3),
@@ -789,16 +819,18 @@ export const createPlayerMarketAction = (state, playerId, action) => {
   const player = state.roster.find((item) => item.id === playerId);
   if (!player) return { state, error: 'Joueur introuvable' };
   const phase = getPhase(state.week);
+  const allowedTiers = getClubTierForRating(player.rating, player.potential);
   const targetClubs = CLUBS
     .filter((club) => club.name !== player.club)
-    .filter((club) => action === 'loan' ? club.tier >= Math.min(4, player.clubTier) : club.tier <= Math.max(4, player.clubTier + 1));
+    .filter((club) => action === 'loan' ? club.tier >= Math.min(4, player.clubTier) : allowedTiers.includes(club.tier));
   const club = pick(targetClubs.length ? targetClubs : CLUBS);
   const country = getCountry(club.countryCode);
   const trustCost = action === 'transfer_list' ? -3 : action === 'loan' ? -1 : 1;
   const credibilityDelta = action === 'propose' ? 1 : action === 'transfer_list' ? -1 : 0;
-  const isOfficialOffer = phase.mercato && Math.random() < (
+  const levelPenalty = player.rating < 64 ? -0.16 : player.rating < 70 ? -0.08 : 0;
+  const isOfficialOffer = phase.mercato && Math.random() < Math.max(0.04, (
     action === 'propose' ? 0.34 : action === 'free_trial' ? 0.42 : action === 'loan' ? 0.28 : 0.22
-  );
+  ) + levelPenalty);
   const price = Math.floor(player.value * (action === 'loan' ? 0.08 : Math.random() * 0.28 + 0.82));
   const nextRoster = state.roster.map((item) =>
     item.id === playerId
@@ -948,7 +980,7 @@ export const playWeek = (state) => {
     (matchResult?.incidents ?? []).forEach((incident) => {
       const incidentEvent = MATCH_INCIDENT_EVENTS[incident];
       if (!incidentEvent) return;
-      const reputationImpact = incidentEvent.rep;
+      const reputationImpact = scaleReputationDelta(incidentEvent.rep);
       const moneyImpact = incidentEvent.money;
       totalIncome += moneyImpact > 0 ? moneyImpact : 0;
       totalCost += moneyImpact < 0 ? Math.abs(moneyImpact) : 0;
@@ -974,7 +1006,7 @@ export const playWeek = (state) => {
     });
     if (event) {
       const moneyImpact = event.good ? event.money : Math.floor(event.money * mediaReduction);
-      const reputationImpact = event.good ? event.rep : Math.floor(event.rep * mediaReduction);
+      const reputationImpact = scaleReputationDelta(event.good ? event.rep : Math.floor(event.rep * mediaReduction));
       updatedPlayer = applyPassiveEventToPlayer(updatedPlayer, event);
       if (event.injury) {
         updatedPlayer = {
@@ -1055,7 +1087,7 @@ export const playWeek = (state) => {
   let chainedRoster = caredRoster;
   for (const { player, event } of chainedPassives) {
     const moneyImpact = event.good ? event.money : Math.floor(event.money * mediaReduction);
-    const reputationImpact = event.good ? event.rep : Math.floor(event.rep * mediaReduction);
+    const reputationImpact = scaleReputationDelta(event.good ? event.rep : Math.floor(event.rep * mediaReduction));
     chainedRoster = chainedRoster.map((p) => p.id === player.id ? applyPassiveEventToPlayer(p, event) : p);
     totalIncome += moneyImpact > 0 ? moneyImpact : 0;
     totalCost += moneyImpact < 0 ? Math.abs(moneyImpact) : 0;
@@ -1318,8 +1350,8 @@ export const applyChoice = (state, event, player, choice) => {
   let nextState = {
     ...state,
     money: state.money - (choice.cost ?? 0) + (effects.money ?? 0),
-    reputation: applyReputationChange(state.reputation, effects.rep ?? 0),
-    segmentReputation: applySegmentReputationChange(state.segmentReputation, { media: effects.rep ?? 0 }),
+    reputation: applyReputationChange(state.reputation, scaleReputationDelta(effects.rep ?? 0)),
+    segmentReputation: applySegmentReputationChange(state.segmentReputation, { media: scaleReputationDelta(effects.rep ?? 0) }),
   };
 
   nextState.roster = nextState.roster.map((rosterPlayer) => {
@@ -1344,7 +1376,7 @@ export const applyChoice = (state, event, player, choice) => {
       nextState = {
         ...nextState,
         money: nextState.money + 5000,
-        reputation: applyReputationChange(nextState.reputation, 3),
+        reputation: applyReputationChange(nextState.reputation, scaleReputationDelta(3)),
       };
     } else {
       nextState = { ...nextState, reputation: applyReputationChange(nextState.reputation, -3) };
@@ -1357,7 +1389,7 @@ export const applyChoice = (state, event, player, choice) => {
     player: updatedPlayer,
     week: state.week,
     text: `${updatedPlayer.firstName} ${updatedPlayer.lastName} réagit après la décision: ${choice.label}.`,
-    reputationImpact: effects.rep ?? 0,
+    reputationImpact: scaleReputationDelta(effects.rep ?? 0),
   });
 
   nextState = { ...nextState, news: [news, ...nextState.news].slice(0, 60) };
@@ -1419,7 +1451,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
     nextState = {
       ...nextState,
       money: nextState.money + commission,
-      reputation: applyReputationChange(nextState.reputation, 8),
+      reputation: applyReputationChange(nextState.reputation, scaleReputationDelta(8)),
       credibility: applyCredibilityChange(nextState.credibility, 2),
       leagueReputation: applyLeagueReputation(nextState.leagueReputation, outcome.clubCountryCode, 5),
       countryReputation: applyLeagueReputation(nextState.countryReputation, outcome.clubCountryCode, 3),
@@ -1452,7 +1484,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
     nextState = {
       ...nextState,
       money: nextState.money + bonus,
-      reputation: applyReputationChange(nextState.reputation, 3),
+      reputation: applyReputationChange(nextState.reputation, scaleReputationDelta(3)),
       credibility: applyCredibilityChange(nextState.credibility, 1),
       playerSegmentReputation: applyPlayerSegmentReputation(nextState.playerSegmentReputation, getPlayerSegment(player), 2),
       segmentReputation: applySegmentReputationChange(nextState.segmentReputation, { business: 3 }),

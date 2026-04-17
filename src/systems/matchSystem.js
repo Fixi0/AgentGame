@@ -60,7 +60,20 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
     return { minutes: 0, goals: 0, assists: 0, matchRating: null };
   }
 
-  const minutes = Math.min(90, Math.max(15, rand(45, 90) + Math.floor((player.form - 70) / 3)));
+  const tierExpectation = player.clubTier <= 1 ? 80 : player.clubTier === 2 ? 74 : player.clubTier === 3 ? 66 : 58;
+  const levelGap = player.rating - tierExpectation;
+  const roleBonus = player.clubRole === 'Star' ? 18 : player.clubRole === 'Titulaire' ? 12 : player.clubRole === 'Rotation' ? 4 : player.clubRole === 'Indésirable' ? -18 : 0;
+  const formBonus = Math.floor((player.form - 70) / 3);
+  const startChance = Math.max(0.04, Math.min(0.96, 0.42 + levelGap * 0.035 + roleBonus / 100 + formBonus / 100));
+  const squadChance = Math.max(0.12, Math.min(0.98, 0.72 + levelGap * 0.025 + roleBonus / 120));
+  if (Math.random() > squadChance) {
+    return { minutes: 0, goals: 0, assists: 0, matchRating: null, selectionStatus: 'hors groupe' };
+  }
+
+  const starts = Math.random() < startChance;
+  const minutes = starts
+    ? Math.min(90, Math.max(55, rand(62, 90) + formBonus + Math.max(-12, levelGap)))
+    : Math.min(45, Math.max(8, rand(8, 32) + formBonus + Math.floor(levelGap / 3)));
   const scoringProfile = getPositionScoringProfile(player);
   const availableGoals = Math.max(0, Math.min(teamGoals, remainingGoals));
   const goals = availableGoals > 0 && scoringProfile.maxGoals > 0 && Math.random() < scoringProfile.goalChance + player.rating / 650
@@ -128,6 +141,7 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
     incidents,
     matchReport: report,
     matchRating,
+    selectionStatus: starts ? 'titulaire' : 'remplaçant',
   };
 };
 

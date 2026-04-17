@@ -2,6 +2,20 @@ import { CLUBS, getCountry } from '../data/clubs';
 import { makeId, pick, rand } from '../utils/helpers';
 import { getWorldStateOfferModifier } from './worldStateSystem';
 
+const getEligibleBuyerTiers = (player) => {
+  if (player.rating >= 84 || player.potential >= 90) return [1, 2];
+  if (player.rating >= 77 || player.potential >= 85) return [2, 3];
+  if (player.rating >= 68 || player.potential >= 79) return [3, 4];
+  return [4];
+};
+
+const isTransferCandidate = (player) => {
+  if (player.rating >= 68 || player.potential >= 80) return true;
+  if (player.contractWeeksLeft <= 20 && player.rating >= 62) return true;
+  if ((player.freeAgent || player.club === 'Libre') && player.rating >= 58) return true;
+  return false;
+};
+
 export const getSeasonContext = (week) => {
   const seasonWeek = ((week - 1) % 38) + 1;
   const season = Math.floor((week - 1) / 38) + 1;
@@ -40,7 +54,7 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
 
   const candidates = roster
     .filter((player) => !openOfferPlayerIds.has(player.id))
-    .filter((player) => player.rating >= 68 || player.potential >= 80 || player.contractWeeksLeft <= 20)
+    .filter(isTransferCandidate)
     .sort((a, b) => b.value - a.value);
 
   const offers = [];
@@ -57,8 +71,9 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
     // Clubs concurrents : 25% de chance qu'une 2e offre arrive la semaine suivante (gérée via worldState)
     const isCompetingOffer = offers.length > 0 && Math.random() < 0.25;
 
+    const allowedTiers = getEligibleBuyerTiers(player);
     const possibleClubs = CLUBS.filter(
-      (club) => club.name !== player.club && club.tier <= Math.max(4, player.clubTier + 1),
+      (club) => club.name !== player.club && allowedTiers.includes(club.tier),
     );
     const club = pick(possibleClubs.length ? possibleClubs : CLUBS);
     const country = getCountry(club.countryCode);
@@ -106,12 +121,13 @@ export const generateSurpriseOffer = ({ roster, week, reputation, worldState = n
 
   // Candidats : très haute forme ou contrat expirant
   const candidates = roster.filter(
-    (p) => (p.form >= 82 && p.rating >= 74) || (p.contractWeeksLeft <= 6 && p.contractWeeksLeft > 0),
+    (p) => (p.form >= 82 && p.rating >= 74) || (p.contractWeeksLeft <= 6 && p.contractWeeksLeft > 0 && p.rating >= 66),
   );
   if (!candidates.length) return null;
 
   const player = pick(candidates);
-  const possibleClubs = CLUBS.filter((c) => c.name !== player.club && c.tier <= Math.max(3, player.clubTier));
+  const allowedTiers = getEligibleBuyerTiers(player);
+  const possibleClubs = CLUBS.filter((c) => c.name !== player.club && allowedTiers.includes(c.tier));
   const club = pick(possibleClubs.length ? possibleClubs : CLUBS);
   const country = getCountry(club.countryCode);
 

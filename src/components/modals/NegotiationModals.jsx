@@ -8,6 +8,13 @@ import { S } from '../styles';
 
 const CONTRACT_ROLES = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
 
+const getEligibleBuyerTiers = (player) => {
+  if (player.rating >= 84 || player.potential >= 90) return [1, 2];
+  if (player.rating >= 77 || player.potential >= 85) return [2, 3];
+  if (player.rating >= 68 || player.potential >= 79) return [3, 4];
+  return [4];
+};
+
 export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialOffer, initialSalaryMultiplier = 1.3, onFinish, onClose }) {
   const [turn, setTurn] = useState(1);
   const [interest, setInterest] = useState(() => 50 + rand(-15, 15) + getNegotiationModifier(player));
@@ -23,10 +30,11 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
   const [done, setDone] = useState(false);
   const [suitor] = useState(() => {
     if (fixedSuitor) return fixedSuitor;
+    const allowedTiers = getEligibleBuyerTiers(player);
     const pool = CLUBS.filter((club) => {
       if (club.name === player.club) return false;
       if (player.club === 'Libre' || player.freeAgent) return club.tier >= 3;
-      return club.tier <= Math.max(1, player.clubTier);
+      return allowedTiers.includes(club.tier);
     });
     return pick(pool.length ? pool : CLUBS.filter((club) => club.name !== player.club));
   });

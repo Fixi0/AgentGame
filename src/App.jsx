@@ -60,7 +60,7 @@ const getTransferReadiness = (state, player, phase) => {
   if (!phase.mercato) return { ok: false, message: 'Pas de transfert hors mercato. Surveille les fenêtres hiver/été ou attends une vraie offre club.' };
 
   const chance = 0.18
-    + (player.rating >= 76 ? 0.12 : 0)
+    + (player.rating >= 76 ? 0.12 : player.rating < 64 ? -0.12 : 0)
     + (player.potential >= 84 ? 0.08 : 0)
     + (player.contractWeeksLeft <= 20 ? 0.1 : 0)
     + (['ambitieux', 'mercenaire'].includes(player.personality) ? 0.08 : 0)
