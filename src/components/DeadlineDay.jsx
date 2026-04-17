@@ -17,7 +17,11 @@ export default function DeadlineDay({ state, phase, onNegotiateOffer, onRejectOf
         {offers.map((offer) => (
           <div key={offer.id} style={S.msgCard}>
             <div style={S.msgSubject}>{offer.club} pour {offer.playerName}</div>
-            <div style={S.msgBody}>Proposition : {formatMoney(offer.price)} · expire S{offer.expiresWeek}. Décision rapide recommandée.</div>
+            <div style={S.msgBody}>
+              Proposition : {formatMoney(offer.price)}
+              {offer.preWindow ? ` · pré-accord · arrivée S${offer.effectiveWeek}` : ` · expire S${offer.expiresWeek}`}
+              . Décision rapide recommandée.
+            </div>
             <div style={S.msgActions}>
               <button onClick={() => onNegotiateOffer(offer.id)} style={S.msgBtn}>Négocier</button>
               <button onClick={() => onRejectOffer(offer.id)} style={S.msgBtn}>Refuser</button>

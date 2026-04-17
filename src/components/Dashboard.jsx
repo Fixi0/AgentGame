@@ -30,6 +30,20 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
   const lowTrustPlayers = state.roster.filter((player) => (player.trust ?? 50) < 45 || player.moral < 45).slice(0, 3);
   const openOffers = (state.clubOffers ?? []).filter((offer) => offer.status === 'open' && offer.expiresWeek >= state.week).slice(0, 3);
   const competitorThreats = (state.competitorThreats ?? []).slice(0, 2);
+  const spotlightNews = (state.news ?? []).slice(0, 3);
+  const todayTimeline = [
+    {
+      label: 'Date',
+      value: phase.phase,
+      sub: `${phase.month ?? ''} · S${phase.seasonWeek}/38`,
+    },
+    urgentMessages.length
+      ? { label: 'Urgence', value: `${urgentMessages.length}`, sub: 'Messages à traiter' }
+      : { label: 'Urgence', value: '0', sub: "Rien d'urgent" },
+    openOffers.length
+      ? { label: 'Offres', value: `${openOffers.length}`, sub: 'Dossiers à suivre' }
+      : { label: 'Offres', value: '0', sub: 'Aucune offre' },
+  ];
   const todayActions = [
     urgentMessages.length ? { label: 'Répondre', sub: `${urgentMessages.length} message`, action: () => onNav('messages') } : null,
     openOffers.length ? { label: 'Gérer offres', sub: `${openOffers.length} dossier mercato`, action: () => onNav('dashboard') } : null,
@@ -49,6 +63,18 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
             <div style={S.qLabel}>{action.label}</div>
             <div style={S.qSub}>{action.sub}</div>
           </button>
+        ))}
+      </div>
+      <div style={S.todayCard}>
+        <div style={S.todayTitle}>AUJOURD'HUI</div>
+        {todayTimeline.map((item, index) => (
+          <div key={item.label} style={index === todayTimeline.length - 1 ? S.todayRowLast : S.todayRow}>
+            <span>{item.label}</span>
+            <div style={{ textAlign: 'right' }}>
+              <strong>{item.value}</strong>
+              <div style={S.qSub}>{item.sub}</div>
+            </div>
+          </div>
         ))}
       </div>
       <div style={S.kpiGrid}>
@@ -118,7 +144,10 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
             <div key={offer.id} style={S.offerRow}>
               <div>
                 <button onClick={() => onClubDetails?.(offer.club)} style={S.linkBtn}>{offer.club}</button>
-                <div style={S.offerMeta}>{offer.playerName} · {formatMoney(offer.price)} · expire S{offer.expiresWeek}</div>
+                <div style={S.offerMeta}>
+                  {offer.playerName} · {formatMoney(offer.price)} · {offer.preWindow ? `arrivée S${offer.effectiveWeek}` : `expire S${offer.expiresWeek}`}
+                </div>
+                {offer.preWindow && <div style={{ ...S.preAccordBadge, marginTop: 6 }}>PRÉ-ACCORD</div>}
               </div>
               <div style={S.offerActions}>
                 <button onClick={() => onAcceptOffer(offer.id)} style={S.miniPrimary}>Négocier</button>
@@ -148,6 +177,17 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
             <button key={player.id} onClick={() => onNav('roster')} style={S.decisionRow}>
               <span>Relation fragile · {player.firstName} {player.lastName}</span>
               <strong>{player.trust ?? 50}</strong>
+            </button>
+          ))}
+        </div>
+      )}
+      {!!spotlightNews.length && (
+        <div style={S.objCard}>
+          <div style={S.secTitle}>NEWS RAPIDES</div>
+          {spotlightNews.map((post) => (
+            <button key={post.id} style={S.decisionRow} onClick={() => onNav('news')}>
+              <span>{post.accountName} · {post.text}</span>
+              <strong>S{post.week}</strong>
             </button>
           ))}
         </div>

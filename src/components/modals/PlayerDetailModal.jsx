@@ -1,12 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { PERSONALITY_LABELS } from '../../data/players';
 import { getCareerGoalProgress } from '../../systems/playerDevelopmentSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
-export default function PlayerDetailModal({ player, promises, onClose, onNego, onMeeting, onMarketAction, onCallPlayer }) {
+const tabLabels = {
+  profile: 'Profil',
+  conversation: 'Conversation',
+  dossier: 'Dossier',
+};
+
+export default function PlayerDetailModal({ player, messages, promises, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
+  const [tab, setTab] = useState('profile');
   const playerPromises = (promises ?? []).filter((promise) => promise.playerId === player.id && !promise.resolved && !promise.failed);
+  const playerMessages = (messages ?? []).filter((message) => message.playerId === player.id);
   const seasonStats = player.seasonStats ?? {};
   const careerProgress = getCareerGoalProgress(player);
 
@@ -26,6 +34,23 @@ export default function PlayerDetailModal({ player, promises, onClose, onNego, o
               <div style={S.profileSub}>{player.roleLabel ?? player.position} · rôle club {player.clubRole ?? 'non défini'}</div>
             </div>
           </div>
+          <div style={S.tabRow}>
+            {Object.entries(tabLabels).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                style={{
+                  ...S.tabBtn,
+                  background: tab === key ? '#172026' : '#f7f9fb',
+                  color: tab === key ? '#ffffff' : '#172026',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {tab === 'profile' && (
+            <>
           <div style={S.kpiGrid}>
             <DetailMetric label="Note" value={player.rating} />
             <DetailMetric label="Potentiel" value={player.potential} />
@@ -158,6 +183,41 @@ export default function PlayerDetailModal({ player, promises, onClose, onNego, o
               <button onClick={() => onMarketAction?.(player.id, 'loan')} style={S.msgBtn}>Chercher prêt</button>
             </div>
           </div>
+            </>
+          )}
+          {tab === 'conversation' && (
+            <div style={S.objCard}>
+              <div style={S.secTitle}>CONVERSATION</div>
+              {playerMessages.length ? playerMessages.slice(-8).map((message) => (
+                <div key={message.id} style={S.threadBlock}>
+                  <div style={S.incomingBubble}>
+                    <div style={S.threadMeta}>S{message.week} · {message.subject}</div>
+                    <div>{message.body}</div>
+                  </div>
+                  {message.resolved ? (
+                    <div style={S.outgoingBubble}>{message.responseText ?? 'Réponse envoyée'}</div>
+                  ) : (
+                    <div style={S.msgActions}>
+                      <button onClick={() => onCallPlayer?.(player)} style={S.msgBtn}>Appeler</button>
+                      <button onClick={() => onMeeting?.(player.id, 'career')} style={S.msgBtn}>Plan</button>
+                      <button onClick={() => onMeeting?.(player.id, 'support')} style={S.msgBtn}>Soutenir</button>
+                    </div>
+                  )}
+                </div>
+              )) : <div style={S.emptySmall}>Aucun échange encore.</div>}
+            </div>
+          )}
+          {tab === 'dossier' && (
+            <div style={S.objCard}>
+              <div style={S.secTitle}>DOSSIER PRATIQUE</div>
+              <div style={S.msgActions}>
+                <button onClick={() => onContactClubStaff?.(player.id, 'coach')} style={S.msgBtn}>Appeler coach</button>
+                <button onClick={() => onContactClubStaff?.(player.id, 'ds')} style={S.msgBtn}>Appeler DS</button>
+                <button onClick={() => onCallPlayer?.(player)} style={S.msgBtn}>Appeler joueur</button>
+              </div>
+              <div style={S.emptySmall}>Ici, on garde les contacts utiles pour avancer sans perdre le fil.</div>
+            </div>
+          )}
         </div>
       </div>
     </div>

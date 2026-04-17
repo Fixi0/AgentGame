@@ -1,5 +1,6 @@
 import { CalendarDays } from 'lucide-react';
 import React from 'react';
+import { getCalendarSnapshot } from '../systems/seasonSystem';
 import { S } from './styles';
 
 const FixtureRow = ({ fixture, played, onClubDetails }) => (
@@ -16,6 +17,8 @@ const FixtureRow = ({ fixture, played, onClubDetails }) => (
 );
 
 export default function Calendar({ state, onClubDetails }) {
+  const currentDate = getCalendarSnapshot(state.week);
+  const nextDate = getCalendarSnapshot(state.week + 1);
   const nextFixtures = state.nextFixtures ?? [];
   const lastFixtures = state.lastFixtures ?? [];
 
@@ -24,11 +27,14 @@ export default function Calendar({ state, onClubDetails }) {
       <div style={S.et}>
         <div style={S.el}>CALENDRIER</div>
         <h1 style={S.eh}>Affiches</h1>
+        <div style={S.calendarLegend}>
+          <strong>Aujourd'hui:</strong> {currentDate.dateLabel} · {currentDate.weekRangeLabel}
+        </div>
       </div>
       <div style={S.objCard}>
         <div style={S.secTitle}>
           <CalendarDays size={14} />
-          <span>PROCHAINE SEMAINE</span>
+          <span>PROCHAINE SEMAINE · {nextDate.weekRangeLabel}</span>
         </div>
         {nextFixtures.length ? nextFixtures.slice(0, 20).map((fixture) => (
           <FixtureRow key={fixture.fixtureId} fixture={fixture} onClubDetails={onClubDetails} />

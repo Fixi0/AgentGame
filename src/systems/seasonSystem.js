@@ -2,6 +2,27 @@ import { CLUBS, getCountry } from '../data/clubs';
 import { makeId, pick, rand } from '../utils/helpers';
 import { getWorldStateOfferModifier } from './worldStateSystem';
 
+const SEASON_START_MONTH = 7; // August (0-indexed month)
+const SEASON_START_DAY = 1;
+
+const getWeekDate = (week) => {
+  const season = Math.floor((week - 1) / 38) + 1;
+  const dayOffset = ((week - 1) % 38) * 7;
+  return new Date(Date.UTC(2025 + season, SEASON_START_MONTH, SEASON_START_DAY + dayOffset));
+};
+
+export const getCalendarSnapshot = (week) => {
+  const date = getWeekDate(week);
+  const weekEnd = new Date(date);
+  weekEnd.setUTCDate(date.getUTCDate() + 6);
+  const fmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const shortFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', timeZone: 'UTC' });
+  return {
+    dateLabel: fmt.format(date),
+    weekRangeLabel: `${shortFmt.format(date)} - ${shortFmt.format(weekEnd)}`,
+  };
+};
+
 const getEligibleBuyerTiers = (player) => {
   if (player.rating >= 84 || player.potential >= 90) return [1, 2];
   if (player.rating >= 77 || player.potential >= 85) return [2, 3];
@@ -30,21 +51,37 @@ export const getSeasonContext = (week) => {
   return { phase: 'Mercato été', season, seasonWeek, month: 'Juin', mercato: true, window: 'été', deadlineDay: true };
 };
 
+const getApproachWindow = (week) => {
+  const seasonWeek = ((week - 1) % 38) + 1;
+  if (seasonWeek >= 16 && seasonWeek <= 18) {
+    return { window: 'hiver', effectiveWeek: week + (19 - seasonWeek) };
+  }
+  if (seasonWeek >= 35 && seasonWeek <= 37) {
+    return { window: 'été', effectiveWeek: week + (38 - seasonWeek) };
+  }
+  return null;
+};
+
 export const generateClubOffers = ({ roster, week, reputation, existingOffers = [], worldState = null }) => {
   const phase = getSeasonContext(week);
-  if (!phase.mercato || !roster.length) return [];
+  const approachWindow = !phase.mercato ? getApproachWindow(week) : null;
+  if ((!phase.mercato && !approachWindow) || !roster.length) return [];
 
   const openOfferPlayerIds = new Set(
     existingOffers.filter((offer) => offer.expiresWeek >= week).map((offer) => offer.playerId),
   );
 
-  const isHotWeek = Math.random() < 0.12;
+  const isPreWindow = Boolean(approachWindow && !phase.mercato);
+  const isHotWeek = !isPreWindow && Math.random() < 0.12;
   const baseChance = phase.window === 'été' ? 0.24 : 0.14;
+  const preWindowChance = approachWindow ? (approachWindow.window === 'été' ? 0.12 : 0.08) : 0;
   const deadlineDayBonus = phase.deadlineDay ? 0.18 : 0;
   const hotWeekBonus = isHotWeek ? 0.08 : 0;
 
   // Nombre max d'offres (plus généreux, hot week = frénésie)
-  const maxOffers = isHotWeek
+  const maxOffers = isPreWindow
+    ? 2
+    : isHotWeek
     ? 6
     : phase.deadlineDay
       ? (phase.window === 'été' ? 5 : 3)
@@ -64,7 +101,7 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
     const ambitionBoost = ['ambitieux', 'mercenaire'].includes(player.personality) ? 0.1 : 0;
     const worldStateBoost = getWorldStateOfferModifier(worldState, player);
     const repBoost = reputation / 400;
-    const totalChance = baseChance + deadlineDayBonus + hotWeekBonus + ambitionBoost + worldStateBoost + repBoost;
+    const totalChance = (isPreWindow ? preWindowChance : baseChance) + deadlineDayBonus + hotWeekBonus + ambitionBoost + worldStateBoost + repBoost;
 
     if (Math.random() > totalChance) continue;
 
@@ -80,7 +117,10 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
 
     // Multiplicateur prix : worldState économie impacte les montants
     const worldEconMult = worldState?.economie === 'boom' ? 1.2 : worldState?.economie === 'crise' ? 0.82 : 1;
-    const windowMult = phase.window === 'été' ? rand(92, 140) / 100 : rand(82, 120) / 100;
+    const targetWindow = phase.window ?? approachWindow?.window ?? 'hiver';
+    const windowMult = isPreWindow
+      ? targetWindow === 'été' ? rand(88, 125) / 100 : rand(78, 112) / 100
+      : phase.window === 'été' ? rand(92, 140) / 100 : rand(82, 120) / 100;
     const priceMult = windowMult * worldEconMult;
     const price = Math.max(1000, Math.floor(player.value * priceMult));
 
@@ -91,10 +131,12 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
     offers.push({
       id: makeId('offer'),
       week,
-      expiresWeek: week + (phase.window === 'été' ? 3 : 2),
-      window: phase.window,
+      expiresWeek: week + (isPreWindow ? 3 : (targetWindow === 'été' ? 3 : 2)),
+      window: targetWindow,
       isHotWeek,
       isCompetingOffer,
+      preWindow: isPreWindow,
+      effectiveWeek: isPreWindow ? approachWindow.effectiveWeek : week,
       playerId: player.id,
       playerName: `${player.firstName} ${player.lastName}`,
       club: club.name,
@@ -103,7 +145,7 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
       clubCountryCode: club.countryCode,
       clubCity: club.city,
       price,
-      salMult: rand(salMin, salMax) / 100,
+      salMult: rand(isPreWindow ? 108 : salMin, isPreWindow ? 165 : salMax) / 100,
       status: 'open',
     });
   }

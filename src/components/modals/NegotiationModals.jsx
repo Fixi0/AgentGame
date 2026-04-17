@@ -157,6 +157,7 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
         done={done}
         turn={turn}
         maxTurns={maxTurns}
+        allowConclude={turn >= 3}
         acceptLabel={`Signer ${contractYears} ans`}
         acceptHint={`Offre ${formatMoney(offer)} · Prime ${formatMoney(signingBonus)} · Clause ${formatMoney(releaseClause)}`}
         onAct={act}
@@ -276,7 +277,11 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
           <button onClick={() => act('demand')} style={S.choiceBtn}><div><div style={S.chLabel}>Grosse augmentation</div><div style={S.chDesc}>Risqué, gros gain</div></div></button>
           <button onClick={() => act('moderate')} style={S.choiceBtn}><div><div style={S.chLabel}>Demande raisonnable</div><div style={S.chDesc}>Equilibré</div></div></button>
           <button onClick={() => act('loyalty')} style={S.choiceBtn}><div><div style={S.chLabel}>Argument loyauté</div><div style={S.chDesc}>Regagner confiance</div></div></button>
-          <button onClick={() => act('sign')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}><div><div style={{ ...S.chLabel, color: '#00a676' }}>Signer {contractYears} ans</div><div style={S.chDesc}>{role} · prime {formatMoney(signingBonus)} · ×{salaryMultiplier.toFixed(2)}</div></div></button>
+          {turn >= 3 ? (
+            <button onClick={() => act('sign')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}><div><div style={{ ...S.chLabel, color: '#00a676' }}>Signer {contractYears} ans</div><div style={S.chDesc}>{role} · prime {formatMoney(signingBonus)} · ×{salaryMultiplier.toFixed(2)}</div></div></button>
+          ) : (
+            <div style={S.msgHint}>La prolongation n'est pas encore prête à être conclue.</div>
+          )}
           <button onClick={() => act('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Abandonner</div></button>
         </div>
       )}
@@ -394,7 +399,7 @@ function LogBox({ log }) {
   );
 }
 
-function NegotiationActions({ done, turn, maxTurns, acceptLabel, acceptHint, onAct }) {
+function NegotiationActions({ done, turn, maxTurns, allowConclude, acceptLabel, acceptHint, onAct }) {
   if (done || turn > maxTurns) {
     return (
       <div style={S.choiceList}>
@@ -410,9 +415,13 @@ function NegotiationActions({ done, turn, maxTurns, acceptLabel, acceptHint, onA
       <button onClick={() => onAct('balanced')} style={S.choiceBtn}><div><div style={S.chLabel}>Approche équilibrée</div><div style={S.chDesc}>Sûr, gains modérés</div></div></button>
       <button onClick={() => onAct('bluff')} style={S.choiceBtn}><div><div style={S.chLabel}>Bluff autre club</div><div style={S.chDesc}>Gros risque, très gros gain</div></div></button>
       <button onClick={() => onAct('concede')} style={S.choiceBtn}><div><div style={S.chLabel}>Concession</div><div style={S.chDesc}>Regagner leur intérêt</div></div></button>
-      <button onClick={() => onAct('accept')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
-        <div><div style={{ ...S.chLabel, color: '#00a676' }}>{acceptLabel}</div><div style={S.chDesc}>{acceptHint}</div></div>
-      </button>
+      {allowConclude ? (
+        <button onClick={() => onAct('accept')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
+          <div><div style={{ ...S.chLabel, color: '#00a676' }}>{acceptLabel}</div><div style={S.chDesc}>{acceptHint}</div></div>
+        </button>
+      ) : (
+        <div style={S.msgHint}>La proposition doit encore mûrir avant de pouvoir conclure.</div>
+      )}
       <button onClick={() => onAct('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Abandonner</div></button>
     </div>
   );

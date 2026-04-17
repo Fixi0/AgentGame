@@ -46,9 +46,10 @@ import { getAgencyCapacity } from './systems/agencySystem';
 import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, getNegotiationContextModifier } from './systems/agencyReputationSystem';
 import { applyClubRelation } from './systems/clubSystem';
 import { applyReputationChange } from './systems/reputationSystem';
+import { getCalendarSnapshot } from './systems/seasonSystem';
 import { createMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage } from './systems/promiseSystem';
-import { clamp } from './utils/helpers';
+import { clamp, makeId } from './utils/helpers';
 import { formatMoney } from './utils/format';
 
 const getTransferReadiness = (state, player, phase) => {
@@ -305,25 +306,28 @@ export default function FootballAgentGame() {
       const responseText = getResponseCopy(message, responseType);
       const targetPlayer = current.roster.find((player) => player.id === message.playerId);
       const actionType = responseAction?.type;
+      const withMarketAction = actionType === 'market_watch' && targetPlayer
+        ? createPlayerMarketAction(current, message.playerId, 'propose').state
+        : current;
       const extraPlayerEffect = {
         moral: actionType === 'voice_call' ? 3 : actionType === 'press_release' ? 1 : 0,
         trust: actionType === 'voice_call' ? 3 : actionType === 'coach_talk' ? 2 : actionType === 'market_watch' ? 1 : 0,
         pressure: actionType === 'press_release' ? -8 : actionType === 'coach_talk' ? -4 : responseType === 'ferme' ? 3 : -1,
       };
       const nextClubRelations = actionType === 'coach_talk' && targetPlayer?.club
-        ? applyClubRelation(current.clubRelations, targetPlayer.club, responseType === 'ferme' ? -1 : 2)
+        ? applyClubRelation(withMarketAction.clubRelations, targetPlayer.club, responseType === 'ferme' ? -1 : 2)
         : actionType === 'salary_case' && targetPlayer?.club
-          ? applyClubRelation(current.clubRelations, targetPlayer.club, -1)
-          : current.clubRelations;
+          ? applyClubRelation(withMarketAction.clubRelations, targetPlayer.club, -1)
+          : withMarketAction.clubRelations;
       const nextMediaRelations = actionType === 'press_release'
-        ? applyMediaRelation(current.mediaRelations, 'canal_football_desk', responseType === 'professionnel' ? 3 : 1)
-        : current.mediaRelations;
+        ? applyMediaRelation(withMarketAction.mediaRelations, 'canal_football_desk', responseType === 'professionnel' ? 3 : 1)
+        : withMarketAction.mediaRelations;
       const nextCredibility = actionType === 'press_release' || actionType === 'club_check'
-        ? applyCredibilityChange(current.credibility, responseType === 'ferme' ? 1 : 2)
+        ? applyCredibilityChange(withMarketAction.credibility, responseType === 'ferme' ? 1 : 2)
         : responseType === 'ferme'
-          ? applyCredibilityChange(current.credibility, 1)
-          : current.credibility;
-      const nextDecisionHistory = addDecisionHistory(current.decisionHistory, {
+          ? applyCredibilityChange(withMarketAction.credibility, 1)
+          : withMarketAction.credibility;
+      const nextDecisionHistory = addDecisionHistory(withMarketAction.decisionHistory, {
         week: current.week,
         type: `message_${message.type}`,
         label: `${message.playerName}: ${responseAction?.label ?? responseText.split('\n')[0]}`,
@@ -331,13 +335,13 @@ export default function FootballAgentGame() {
       });
 
       return {
-        ...current,
-        reputation: applyReputationChange(current.reputation, effects.reputation),
+        ...withMarketAction,
+        reputation: applyReputationChange(withMarketAction.reputation, effects.reputation),
         credibility: nextCredibility,
         mediaRelations: nextMediaRelations,
         clubRelations: nextClubRelations,
         decisionHistory: nextDecisionHistory,
-        roster: current.roster.map((player) =>
+        roster: withMarketAction.roster.map((player) =>
           player.id === message.playerId
             ? {
                 ...player,
@@ -349,8 +353,8 @@ export default function FootballAgentGame() {
               }
             : player,
         ),
-        messages: current.messages.map((item) => (item.id === messageId ? { ...item, resolved: true, responseType, responseAction, responseText } : item)),
-        promises: [...(promise ? [promise] : []), ...(current.promises ?? [])].slice(0, 30),
+        messages: withMarketAction.messages.map((item) => (item.id === messageId ? { ...item, resolved: true, responseType, responseAction, responseText } : item)),
+        promises: [...(promise ? [promise] : []), ...(withMarketAction.promises ?? [])].slice(0, 30),
       };
     });
     showToast('Réponse envoyée', 'success');
@@ -376,6 +380,11 @@ export default function FootballAgentGame() {
 
   const startNegotiation = (player, type) => {
     const latestPlayer = state.roster.find((item) => item.id === player.id) ?? player;
+    const cooldownUntil = state.negotiationCooldowns?.[latestPlayer.id];
+    if (cooldownUntil && cooldownUntil > state.week) {
+      showToast(`Négociation en pause jusqu'en S${cooldownUntil}`, 'error');
+      return;
+    }
     const readiness = type === 'transfer' ? getTransferReadiness(state, latestPlayer, phase) : getExtensionReadiness(state, latestPlayer);
     if (!readiness.ok) {
       showToast(readiness.message, 'error');
@@ -390,6 +399,57 @@ export default function FootballAgentGame() {
 
   const showClubDetails = (clubName) => {
     setModal({ type: 'club_detail', data: { clubName } });
+  };
+
+  const handleContactClubStaff = (playerId, target) => {
+    setState((current) => {
+      const player = current.roster.find((item) => item.id === playerId);
+      if (!player || player.club === 'Libre') return current;
+      const isCoach = target === 'coach';
+      const staffName = isCoach ? `Coach de ${player.club}` : `DS de ${player.club}`;
+      return {
+        ...current,
+        clubRelations: applyClubRelation(current.clubRelations, player.club, isCoach ? 2 : 1),
+        decisionHistory: addDecisionHistory(current.decisionHistory, {
+          week: current.week,
+          type: isCoach ? 'coach_call' : 'ds_call',
+          label: `${staffName} contacté`,
+          detail: `Discussion ouverte pour ${player.firstName} ${player.lastName}.`,
+          playerId: player.id,
+          playerName: `${player.firstName} ${player.lastName}`,
+        }),
+        roster: current.roster.map((item) =>
+          item.id === player.id
+            ? {
+                ...item,
+                trust: clamp((item.trust ?? 50) + (isCoach ? 3 : 2)),
+                pressure: clamp((item.pressure ?? 30) - 3),
+                timeline: [{ week: current.week, type: 'staff_call', label: `${staffName} contacté` }, ...(item.timeline ?? [])].slice(0, 18),
+              }
+            : item,
+        ),
+        messages: [
+          {
+            id: makeId('msg'),
+            week: current.week,
+            type: 'staff_reply',
+            context: isCoach ? 'coach_talk' : 'ds_talk',
+            playerId: player.id,
+            playerName: `${player.firstName} ${player.lastName}`,
+            subject: `${staffName} répond`,
+            body: isCoach
+              ? `Le coach confirme un point sur le temps de jeu de ${player.firstName} d'ici deux semaines.`
+              : `Le DS est ouvert à discuter du projet pour ${player.firstName} pendant la prochaine fenêtre.`,
+            read: false,
+            resolved: true,
+            responseType: 'professionnel',
+            responseText: `Appel effectué: ${staffName} contacté.`,
+          },
+          ...current.messages,
+        ].slice(0, 40),
+      };
+    });
+    showToast(target === 'coach' ? 'Coach contacté' : 'DS contacté', 'success');
   };
 
   const handlePlayerMeeting = (playerId, type) => {
@@ -462,6 +522,7 @@ export default function FootballAgentGame() {
   }
 
   const phase = getPhase(state.week);
+  const calendarSnapshot = getCalendarSnapshot(state.week);
   const unreadMessages = state.messages.filter((message) => !message.resolved).length;
   const agencyProfile = state.agencyProfile;
 
@@ -491,7 +552,10 @@ export default function FootballAgentGame() {
           </button>
         </div>
         <div style={S.seasonBar}>
-          <div style={S.seasonLabel}>SAISON {phase.season} · S{phase.seasonWeek}/38</div>
+          <div>
+            <div style={S.seasonLabel}>SAISON {phase.season} · S{phase.seasonWeek}/38</div>
+            <div style={S.seasonDate}>{calendarSnapshot.dateLabel} · {calendarSnapshot.weekRangeLabel}</div>
+          </div>
           <div style={S.seasonPhase}>{phase.phase.toUpperCase()}</div>
         </div>
         <div style={S.statsGrid}>
@@ -531,7 +595,7 @@ export default function FootballAgentGame() {
         {view === 'more' && <More items={moreItems} onNav={setView} />}
         {view === 'calendar' && <Calendar state={state} onClubDetails={showClubDetails} />}
         {view === 'standings' && <Standings state={state} onClubDetails={showClubDetails} />}
-        {view === 'phone' && <Phone state={state} onNav={setView} onNegotiateOffer={handleAcceptOffer} />}
+        {view === 'phone' && <Phone state={state} onNav={setView} onNegotiateOffer={handleAcceptOffer} onContactClubStaff={handleContactClubStaff} />}
         {view === 'deadline' && <DeadlineDay state={state} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={state} onStartMission={handleStartScoutingMission} />}
         {view === 'cards' && <SwipeDesk state={state} onNav={setView} onNegotiateOffer={handleAcceptOffer} />}
@@ -595,17 +659,19 @@ export default function FootballAgentGame() {
           onClose={() => setModal(null)}
         />
       )}
-      {modal?.type === 'player_detail' && (
-        <PlayerDetailModal
-          player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
-          promises={state.promises}
-          onClose={() => setModal(null)}
-          onNego={(type) => startNegotiation(modal.data.player, type)}
-          onMeeting={handlePlayerMeeting}
-          onMarketAction={handlePlayerMarketAction}
-          onCallPlayer={handleCallPlayer}
-        />
-      )}
+        {modal?.type === 'player_detail' && (
+          <PlayerDetailModal
+            player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
+            messages={state.messages}
+            promises={state.promises}
+            onClose={() => setModal(null)}
+            onNego={(type) => startNegotiation(modal.data.player, type)}
+            onMeeting={handlePlayerMeeting}
+            onMarketAction={handlePlayerMarketAction}
+            onCallPlayer={handleCallPlayer}
+            onContactClubStaff={handleContactClubStaff}
+          />
+        )}
       {modal?.type === 'club_detail' && (
         <ClubModal clubName={modal.data.clubName} relations={state.clubRelations} onClose={() => setModal(null)} />
       )}
