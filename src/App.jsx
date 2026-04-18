@@ -59,12 +59,8 @@ import { formatMoney } from './utils/format';
 
 const getTransferReadiness = (state, player, phase) => {
   if (player.freeAgent || player.club === 'Libre') {
-    return phase.mercato
-      ? { ok: true, type: 'transfer' }
-      : { ok: false, message: 'Les clubs bougent surtout pendant le mercato. Attends la fenêtre pour placer un joueur libre.' };
+    return { ok: true, type: 'transfer' };
   }
-
-  if (!phase.mercato) return { ok: false, message: 'Pas de transfert hors mercato. Surveille les fenêtres hiver/été ou attends une vraie offre club.' };
 
   const chance = 0.18
     + (player.rating >= 76 ? 0.12 : player.rating < 64 ? -0.12 : 0)
