@@ -57,7 +57,7 @@ import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
 import { createMessage, createStaffConversationMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage } from './systems/promiseSystem';
-import { getPendingMessageCounts } from './systems/dossierSystem';
+import { getOfferAcceptanceReadiness, getPendingMessageCounts } from './systems/dossierSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
 import { purchaseShopItem } from './systems/shopSystem';
 import { clamp, makeId } from './utils/helpers';
@@ -255,6 +255,11 @@ export default function FootballAgentGame() {
   const handleAcceptOffer = (offerId) => {
     const offer = state.clubOffers.find((item) => item.id === offerId);
     const player = state.roster.find((item) => item.id === offer?.playerId);
+    const readiness = getOfferAcceptanceReadiness(state, offer);
+    if (!readiness.ok) {
+      showToast(readiness.reason, readiness.tone === 'danger' ? 'error' : 'info');
+      return;
+    }
     if (!offer || !player) {
       showToast('Offre indisponible', 'error');
       return;
@@ -352,10 +357,21 @@ export default function FootballAgentGame() {
       return;
     }
 
+    const readiness = getOfferAcceptanceReadiness(state, offer);
+    if (!readiness.ok) {
+      showToast(readiness.reason, readiness.tone === 'danger' ? 'error' : 'info');
+      return;
+    }
+
     const result = acceptClubOffer(state, offer.id, outcome);
     if (result.error) {
       const fallbackOffer = state.clubOffers.find((item) => item.playerId === offer.playerId && item.status === 'open');
       if (fallbackOffer && fallbackOffer.id !== offer.id) {
+        const fallbackReadiness = getOfferAcceptanceReadiness(state, fallbackOffer);
+        if (!fallbackReadiness.ok) {
+          showToast(fallbackReadiness.reason, fallbackReadiness.tone === 'danger' ? 'error' : 'info');
+          return;
+        }
         const retry = acceptClubOffer(state, fallbackOffer.id, outcome);
         if (!retry.error) {
           setState(retry.state);

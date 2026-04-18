@@ -202,3 +202,44 @@ export const getMarketOfferQueue = (state = {}) => {
       return (b.week ?? 0) - (a.week ?? 0);
     });
 };
+
+export const getOfferAcceptanceReadiness = (state = {}, offer = null) => {
+  if (!offer) {
+    return { ok: false, reason: 'Offre introuvable', tone: 'danger' };
+  }
+
+  const player = (state?.roster ?? []).find((item) => item.id === offer.playerId)
+    ?? (state?.freeAgents ?? []).find((item) => item.id === offer.playerId)
+    ?? null;
+
+  if (!player) {
+    return { ok: false, reason: 'Le joueur n\'est plus disponible dans la base', tone: 'danger' };
+  }
+
+  if (offer.status !== 'open') {
+    const label = offer.status === 'accepted_pending' ? 'pré-accord déjà posé'
+      : offer.status === 'accepted' ? 'déjà acceptée'
+      : offer.status === 'completed' ? 'déjà appliquée'
+      : offer.status === 'expired' ? 'expirée'
+      : offer.status === 'rejected' ? 'refusée'
+      : offer.status;
+    return { ok: false, reason: `Offre ${label}`, tone: 'warn' };
+  }
+
+  const cooldownUntil = state?.negotiationCooldowns?.[offer.playerId] ?? 0;
+  if (cooldownUntil > (state?.week ?? 0)) {
+    return { ok: false, reason: `Joueur verrouillé jusqu'en S${cooldownUntil}`, tone: 'danger' };
+  }
+
+  if ((state?.pendingTransfers ?? []).some((transfer) => transfer.playerId === offer.playerId && transfer.offerId !== offer.id)) {
+    return { ok: false, reason: 'Un autre transfert est déjà en attente', tone: 'warn' };
+  }
+
+  return {
+    ok: true,
+    reason: offer.preWindow
+      ? `Pré-accord valide, activation prévue en S${offer.effectiveWeek}`
+      : 'Offre valide et signable maintenant',
+    tone: 'good',
+  };
+};
