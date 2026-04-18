@@ -62,7 +62,7 @@ const getApproachWindow = (week) => {
   return null;
 };
 
-export const generateClubOffers = ({ roster, week, reputation, existingOffers = [], worldState = null }) => {
+export const generateClubOffers = ({ roster, week, reputation, existingOffers = [], worldState = null, cooldowns = {} }) => {
   const phase = getSeasonContext(week);
   const approachWindow = !phase.mercato ? getApproachWindow(week) : null;
   if ((!phase.mercato && !approachWindow) || !roster.length) return [];
@@ -90,6 +90,7 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
         : 2;
 
   const candidates = roster
+    .filter((player) => !cooldowns[player.id] || cooldowns[player.id] <= week)
     .filter((player) => !openOfferPlayerIds.has(player.id))
     .filter(isTransferCandidate)
     .sort((a, b) => b.value - a.value);
@@ -154,7 +155,7 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
 };
 
 // Offre d'urgence uniquement pendant une fenêtre officielle.
-export const generateSurpriseOffer = ({ roster, week, reputation, worldState = null }) => {
+export const generateSurpriseOffer = ({ roster, week, reputation, worldState = null, cooldowns = {} }) => {
   const phase = getSeasonContext(week);
   if (!phase.mercato) return null;
 
@@ -163,7 +164,8 @@ export const generateSurpriseOffer = ({ roster, week, reputation, worldState = n
 
   // Candidats : très haute forme ou contrat expirant
   const candidates = roster.filter(
-    (p) => (p.form >= 82 && p.rating >= 74) || (p.contractWeeksLeft <= 6 && p.contractWeeksLeft > 0 && p.rating >= 66),
+    (p) => (!cooldowns[p.id] || cooldowns[p.id] <= week)
+      && ((p.form >= 82 && p.rating >= 74) || (p.contractWeeksLeft <= 6 && p.contractWeeksLeft > 0 && p.rating >= 66)),
   );
   if (!candidates.length) return null;
 

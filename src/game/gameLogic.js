@@ -802,6 +802,10 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
         credibility: applyCredibilityChange(state.credibility, 1),
         clubRelations: applyClubRelation(state.clubRelations, offer.club, 2),
         clubMemory: recordClubMemory(state.clubMemory, offer.club, { trust: 2, week: state.week }),
+        negotiationCooldowns: {
+          ...(state.negotiationCooldowns ?? {}),
+          [player.id]: state.week + 4,
+        },
         decisionHistory: addDecisionHistory(state.decisionHistory, {
           week: state.week,
           type: 'transfer_predeal',
@@ -1106,6 +1110,10 @@ export const proposePlayerToClubs = (state, playerId, clubNames = []) => {
 };
 
 const createChoiceTransferOffer = (state, player, event, choice) => {
+  const cooldownUntil = state.negotiationCooldowns?.[player.id];
+  if (cooldownUntil && cooldownUntil > state.week) {
+    return { state, error: `${player.firstName} ${player.lastName} est déjà sous verrou de transfert` };
+  }
   const phase = getPhase(state.week);
   const allowedTiers = getClubTierForRating(player.rating, player.potential);
   const label = `${choice.label} ${choice.desc ?? ''}`.toLowerCase();
@@ -1565,10 +1573,23 @@ export const playWeek = (state) => {
   const expiredOffers = (state.clubOffers ?? []).map((offer) =>
     offer.status === 'open' && offer.expiresWeek < state.week + 1 ? { ...offer, status: 'expired' } : offer,
   );
-  const newClubOffers = generateClubOffers({ roster: finalRoster, week: state.week + 1, reputation: state.reputation, existingOffers: activeOffers, worldState: state.worldState });
+  const newClubOffers = generateClubOffers({
+    roster: finalRoster,
+    week: state.week + 1,
+    reputation: state.reputation,
+    existingOffers: activeOffers,
+    worldState: state.worldState,
+    cooldowns: state.negotiationCooldowns ?? {},
+  });
 
   // Offre surprise hors mercato
-  const surpriseOffer = generateSurpriseOffer({ roster: finalRoster, week: state.week + 1, reputation: state.reputation, worldState: state.worldState });
+  const surpriseOffer = generateSurpriseOffer({
+    roster: finalRoster,
+    week: state.week + 1,
+    reputation: state.reputation,
+    worldState: state.worldState,
+    cooldowns: state.negotiationCooldowns ?? {},
+  });
   if (surpriseOffer) newClubOffers.push(surpriseOffer);
   const nextFixtures = buildWeeklyFixtures(finalRoster, state.week + 1);
   const competitorThreat = rollCompetitorThreat({ roster: finalRoster, week: state.week + 1 });
@@ -1650,6 +1671,7 @@ export const playWeek = (state) => {
   let pendingTransferIncome = 0;
   let pendingTransferReputation = 0;
   const completedOfferIds = [];
+  const updatedNegotiationCooldowns = { ...(state.negotiationCooldowns ?? {}) };
   duePendingTransfers.forEach((transfer) => {
     const playerBeforeMove = finalRoster.find((item) => item.id === transfer.playerId);
     if (!playerBeforeMove) return;
@@ -1657,6 +1679,7 @@ export const playWeek = (state) => {
     finalRoster = finalRoster.map((item) => (item.id === transfer.playerId ? nextPlayer : item));
     pendingTransferIncome += transfer.agreement.commission;
     pendingTransferReputation += 3;
+    updatedNegotiationCooldowns[transfer.playerId] = state.week + 4;
     completedOfferIds.push(transfer.offerId);
     generatedNews.unshift(
       createManualNewsPost({
@@ -1691,7 +1714,7 @@ export const playWeek = (state) => {
     });
   });
 
-  const deliveredMessages = generatedMessages.slice(0, 3);
+  const deliveredMessages = generatedMessages.slice(0, 1);
   // Supprimer les chaînes déjà traitées ou expirées et ajouter les nouvelles
   const processedChainIds = new Set([
     ...chainedPassives.map((_, i) => pendingChains.filter((c) => c.type === 'passive' && c.triggerWeek <= state.week + 1)[i]?.id),
@@ -1743,6 +1766,7 @@ export const playWeek = (state) => {
     promises: promiseEvaluation.promises.slice(-30),
     clubOffers: [...newClubOffers, ...expiredOffers].slice(0, 30),
     pendingTransfers: remainingPendingTransfers,
+    negotiationCooldowns: updatedNegotiationCooldowns,
     stats: {
       ...state.stats,
       totalEarned: state.stats.totalEarned + Math.max(0, net),
