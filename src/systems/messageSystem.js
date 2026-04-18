@@ -189,10 +189,17 @@ export const maybeCreateContextualMessage = ({ player, event, week, mercato = fa
     return createMessage({ player, type: 'national_pride', week, context: event.id });
   }
 
-  // Scandale viral + joueur jeune ou impulsif → pression presse (50%)
+  // Scandale grave → pression presse (seulement rare/epic, pas les cartons jaunes ou retards)
+  // common scandals (red_card, late, tweet…) → jamais de crise médiatique
+  // uncommon → 10%, rare → 22%, epic → 35%
+  const scandalCrisisChance = event?.rarity === 'epic' ? 0.35
+    : event?.rarity === 'rare' ? 0.22
+    : event?.rarity === 'uncommon' ? 0.10
+    : 0; // common = 0
   if (event && !event.good && event.type === 'scandal'
-      && (player.age <= 24 || ['impulsif', 'rebelle'].includes(player.personality))
-      && Math.random() < 0.50) {
+      && scandalCrisisChance > 0
+      && (player.age <= 26 || ['instable', 'fetard'].includes(player.personality))
+      && Math.random() < scandalCrisisChance) {
     return createMessage({ player, type: 'media_pressure', week, context: event.id });
   }
 

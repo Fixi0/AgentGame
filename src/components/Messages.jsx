@@ -309,13 +309,16 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                                   🎖 DÉCIDER DE L'AVENIR →
                                 </button>
                               )}
-                              <div style={actionGridStyle}>
-                                {Object.entries(getContextualResponseOptions(message)).map(([type, label]) => (
-                                  <button key={type} onClick={() => onRespond(message.id, type)} style={actionBtnStyle}>
-                                    {label || responseLabels[type]}
-                                  </button>
-                                ))}
-                              </div>
+                              {/* Hide generic buttons for types handled by dedicated modals */}
+                              {!['media_pressure', 'retirement'].includes(message.type) && (
+                                <div style={actionGridStyle}>
+                                  {Object.entries(getContextualResponseOptions(message)).map(([type, label]) => (
+                                    <button key={type} onClick={() => onRespond(message.id, type)} style={actionBtnStyle}>
+                                      {label || responseLabels[type]}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </>
                           )}
                         </>
