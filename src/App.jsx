@@ -456,15 +456,19 @@ export default function FootballAgentGame() {
         if (responseType === 'empathique') return "Je comprends ton besoin de clarté. Je te reviens vite avec une position propre et sans bruit.";
         return "C'est noté. Si la situation ne bouge pas, on remettra les choses au clair.";
       })();
-      return createStaffConversationMessage({
-        player,
-        staffName,
-        type: currentMessage.type === 'coach_dialogue' ? 'coach_dialogue' : currentMessage.type === 'ds_dialogue' ? 'ds_dialogue' : 'staff_dialogue',
-        week: state.week,
-        context: currentMessage.context,
-        subject: `${staffName} répond`,
-        body: coachReplyText,
-      });
+      // resolved: true — narrative closure, not a new actionable thread
+      return {
+        ...createStaffConversationMessage({
+          player,
+          staffName,
+          type: currentMessage.type === 'coach_dialogue' ? 'coach_dialogue' : currentMessage.type === 'ds_dialogue' ? 'ds_dialogue' : 'staff_dialogue',
+          week: state.week,
+          context: currentMessage.context,
+          subject: `${staffName} répond`,
+          body: coachReplyText,
+        }),
+        resolved: true,
+      };
     })() : null;
     setState((current) => {
       const message = current.messages.find((item) => item.id === messageId);
