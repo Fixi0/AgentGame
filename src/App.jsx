@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Briefcase, CalendarDays, DollarSign, Home, Layers, LogOut, MessageCircle, Newspaper, Search, Shield, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
+import { Briefcase, CalendarDays, DollarSign, Home, Layers, LogOut, MessageCircle, Moon, Network, Newspaper, Search, Shield, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
 import Calendar from './components/Calendar';
+import Contacts from './components/Contacts';
+import ContractDashboard from './components/ContractDashboard';
 import DeadlineDay from './components/DeadlineDay';
 import Market from './components/Market';
 import MediaRoom from './components/MediaRoom';
@@ -17,6 +19,9 @@ import Scouting from './components/Scouting';
 import Standings from './components/Standings';
 import InteractiveModal from './components/modals/InteractiveModal';
 import ClubModal from './components/modals/ClubModal';
+import MediaCrisisModal from './components/modals/MediaCrisisModal';
+import OfferCompareModal from './components/modals/OfferCompareModal';
+import RetirementModal from './components/modals/RetirementModal';
 import { NegotiationExtend, NegotiationTransfer } from './components/modals/NegotiationModals';
 import PlayerDetailModal from './components/modals/PlayerDetailModal';
 import ResultsModal from './components/modals/ResultsModal';
@@ -24,6 +29,7 @@ import { CSS, S } from './components/styles';
 import {
   applyChoice,
   acceptClubOffer,
+  callContact,
   createPlayerMarketAction,
   createFreshState,
   finishNegotiation,
@@ -35,6 +41,7 @@ import {
   signPlayer,
   startScoutingMission,
   STORAGE_KEY,
+  toggleDarkMode,
   upgradeAgency,
   upgradeOffice,
   upgradeStaff,
@@ -89,6 +96,8 @@ const views = {
   dashboard: { label: 'Accueil', icon: Home },
   market: { label: 'Marché', icon: Search },
   roster: { label: 'Joueurs', icon: Shield },
+  contracts: { label: 'Contrats', icon: Briefcase },
+  contacts: { label: 'Réseau', icon: Network },
   calendar: { label: 'Calend.', icon: CalendarDays },
   standings: { label: 'Ligues', icon: Trophy },
   news: { label: 'News', icon: Newspaper },
@@ -109,6 +118,8 @@ const mainNav = [
 ];
 
 const moreItems = [
+  { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase },
+  { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network },
   { key: 'news', label: 'News', desc: 'Médias et réseaux', icon: Newspaper },
   { key: 'media', label: 'Médias', desc: 'Journalistes alliés ou hostiles', icon: Newspaper },
   { key: 'standings', label: 'Ligues', desc: 'Classements et clubs', icon: Trophy },
@@ -205,6 +216,19 @@ export default function FootballAgentGame() {
 
   const handleStartScoutingMission = (countryCode) => {
     commitResult(startScoutingMission(state, countryCode), 'Mission scouting lancée');
+  };
+
+  const handleCallContact = (contactId) => {
+    const result = callContact(state, contactId);
+    setState(result.state);
+    showToast(result.result.message, result.result.error ? 'error' : result.result.onCooldown ? 'info' : 'success');
+  };
+
+  const handleToggleDarkMode = () => setState(toggleDarkMode(state));
+
+  const handleCompareOffers = () => {
+    const openOffers = (state.clubOffers ?? []).filter((o) => o.status === 'open' && o.expiresWeek >= state.week);
+    if (openOffers.length >= 2) setModal({ type: 'offer_compare', data: { offers: openOffers } });
   };
 
   const handleAcceptOffer = (offerId) => {
@@ -591,21 +615,31 @@ export default function FootballAgentGame() {
     );
   }
 
+  const darkBg = state.darkMode ? { background: '#101314', color: '#e5eaf0' } : {};
+  const darkHeader = state.darkMode ? { background: '#161b1f', borderBottom: '1px solid #243040' } : {};
+  const darkNav = state.darkMode ? { background: '#161b1f', borderBottom: '1px solid #243040' } : {};
+  const darkMain = state.darkMode ? { background: '#101314' } : {};
+
   return (
-    <div style={S.app}>
+    <div style={{ ...S.app, ...darkBg }}>
       <style>{CSS}</style>
-      <header style={S.header}>
+      <header style={{ ...S.header, ...darkHeader }}>
         <div style={S.brandRow}>
           <div style={S.logo}>
             <div style={{ ...S.logoMark, background: agencyProfile.color }}>★</div>
             <div>
-              <div style={S.brandName}>{agencyProfile.name}</div>
+              <div style={{ ...S.brandName, ...(state.darkMode ? { color: '#e5eaf0' } : {}) }}>{agencyProfile.name}</div>
               <div style={S.brandSub}>{agencyProfile.city} · {agencyProfile.ownerName}</div>
             </div>
           </div>
-          <button onClick={handleResetGame} style={S.iconBtn}>
-            <LogOut size={16} />
-          </button>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button onClick={handleToggleDarkMode} style={{ ...S.iconBtn, color: state.darkMode ? '#f0c040' : '#64727d' }} title={state.darkMode ? 'Mode clair' : 'Mode sombre'}>
+              <Moon size={16} />
+            </button>
+            <button onClick={handleResetGame} style={S.iconBtn}>
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
         <div style={S.seasonBar}>
           <div>
@@ -621,7 +655,7 @@ export default function FootballAgentGame() {
           <StatCard icon={<Trophy size={14} />} label="MESSAGES" value={unreadMessages} accent="#64727d" />
         </div>
       </header>
-      <nav style={S.nav}>
+      <nav style={{ ...S.nav, ...darkNav }}>
         {mainNav.map(([key, item]) => {
           const Icon = item.icon;
           const active = key === 'more'
@@ -644,8 +678,8 @@ export default function FootballAgentGame() {
           );
         })}
       </nav>
-      <main style={S.main}>
-        {view === 'dashboard' && <Dashboard state={state} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} />}
+      <main style={{ ...S.main, ...darkMain }}>
+        {view === 'dashboard' && <Dashboard state={state} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} darkMode={state.darkMode} />}
         {view === 'market' && <Market market={state.market} freeAgents={state.freeAgents} money={state.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
         {view === 'roster' && <Roster roster={state.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
         {view === 'messages' && <Messages messages={state.messages} onRespond={handleMessageResponse} focusThreadKey={activeMessageThreadKey} />}
@@ -667,6 +701,8 @@ export default function FootballAgentGame() {
         {view === 'profile' && <AgencyProfile state={state} />}
         {view === 'news' && <NewsFeed news={state.news} />}
         {view === 'media' && <MediaRoom state={state} />}
+        {view === 'contracts' && <ContractDashboard state={state} onNego={(player, type) => startNegotiation(player, type ?? 'extend')} onOpenPlayer={showPlayerDetails} darkMode={state.darkMode} />}
+        {view === 'contacts' && <Contacts state={state} onCall={handleCallContact} />}
       </main>
       {modal?.type === 'results' && (
         <ResultsModal
@@ -731,6 +767,67 @@ export default function FootballAgentGame() {
         )}
       {modal?.type === 'club_detail' && (
         <ClubModal clubName={modal.data.clubName} relations={state.clubRelations} onClose={() => setModal(null)} />
+      )}
+      {modal?.type === 'offer_compare' && (
+        <OfferCompareModal
+          offers={modal.data.offers}
+          players={state.roster}
+          onAccept={(offer) => { setModal(null); handleAcceptOffer(offer.id); }}
+          onReject={(offer) => { commitResult(rejectClubOffer(state, offer.id), 'Offre refusée'); }}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal?.type === 'media_crisis' && (
+        <MediaCrisisModal
+          crisis={modal.data.crisis}
+          player={modal.data.player}
+          money={state.money}
+          onResolve={({ choice, effects, cost }) => {
+            setState((cur) => ({
+              ...cur,
+              money: cur.money - (cost ?? 0),
+              reputation: Math.max(0, Math.min(100, cur.reputation + (effects?.rep ?? 0))),
+              roster: cur.roster.map((p) =>
+                p.id === modal.data.player?.id
+                  ? {
+                      ...p,
+                      moral: Math.max(0, Math.min(100, p.moral + (effects?.moral ?? 0))),
+                      trust: Math.max(0, Math.min(100, (p.trust ?? 50) + (effects?.trust ?? 0))),
+                    }
+                  : p,
+              ),
+            }));
+            setModal(null);
+            showToast('Crise gérée', 'success');
+          }}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal?.type === 'retirement' && (
+        <RetirementModal
+          player={modal.data.player}
+          week={state.week}
+          onDecide={(pathId) => {
+            const RETIREMENT_BONUS = {
+              retire_graceful: { money: 5000, rep: 4 },
+              one_more_year: { money: 0, rep: 0 },
+              coaching: { money: 0, rep: 2 },
+              ambassador: { money: 0, rep: 3 },
+            };
+            const bonus = RETIREMENT_BONUS[pathId] ?? { money: 0, rep: 0 };
+            setState((cur) => ({
+              ...cur,
+              money: cur.money + bonus.money,
+              reputation: Math.min(100, cur.reputation + bonus.rep),
+              // Keep player for "one_more_year", remove for others
+              roster: pathId === 'one_more_year' ? cur.roster : cur.roster.filter((p) => p.id !== modal.data.player.id),
+            }));
+            setModal(null);
+            const labels = { retire_graceful: 'Retraite', one_more_year: 'Une saison de plus', coaching: 'Reconversion entraîneur', ambassador: 'Ambassadeur' };
+            showToast(`${modal.data.player.firstName} ${modal.data.player.lastName} — ${labels[pathId] ?? pathId}`, 'success');
+          }}
+          onClose={() => setModal(null)}
+        />
       )}
       {toast && (
         <div

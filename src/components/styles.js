@@ -219,4 +219,24 @@ export const S = {
   logRow: { fontSize: 11, fontFamily: 'system-ui,sans-serif', padding: '2px 0' },
   toast: { position: 'fixed', bottom: 82, left: 20, right: 20, padding: '12px 16px', borderRadius: 8, color: '#ffffff', border: '1px solid', textAlign: 'center', fontSize: 13, fontFamily: 'system-ui,sans-serif', fontWeight: 800, animation: 'slideUp .2s ease-out', zIndex: 200, boxShadow: '0 18px 38px rgba(15,23,32,.18)' },
   navBadge: { marginLeft: 4, minWidth: 16, height: 16, borderRadius: 8, background: '#b42318', color: '#ffffff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900 },
+  // ── Objectives widget ──────────────────────────────────────────────────
+  objWidget: { background: '#ffffff', border: '1px solid #e5eaf0', borderRadius: 10, padding: '14px 16px', marginBottom: 14, boxShadow: '0 4px 14px rgba(15,23,32,.05)' },
+  objWidgetTitle: { fontSize: 10, letterSpacing: '.18em', color: '#00a676', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 10 },
+  objItem: { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid #f0f4f7' },
+  objItemLabel: { flex: 1, fontSize: 12, color: '#172026', fontWeight: 700 },
+  objItemPct: { fontSize: 11, fontWeight: 800, fontFamily: 'system-ui,sans-serif' },
+  // ── Contacts ──────────────────────────────────────────────────────────
+  contactCard: { background: '#ffffff', border: '1px solid #e5eaf0', borderRadius: 10, padding: '12px 14px', marginBottom: 10, display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: '0 4px 14px rgba(15,23,32,.04)' },
+  contactAvatar: { width: 40, height: 40, borderRadius: 20, background: 'linear-gradient(135deg,#172026,#2f3f4a)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontSize: 14, fontWeight: 900, flexShrink: 0 },
+  contactName: { fontSize: 13, fontWeight: 800, color: '#172026', marginBottom: 2 },
+  contactBio: { fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 },
+  contactTip: { fontSize: 11, color: '#00a676', fontStyle: 'italic', marginTop: 4 },
+  contactCooldown: { fontSize: 10, color: '#b45309', fontFamily: 'system-ui,sans-serif', marginTop: 2 },
+  // ── Dark mode overlay ─────────────────────────────────────────────────
+  darkOverlay: { background: 'rgba(16,19,20,.94)', backdropFilter: 'blur(2px)' },
+  // ── Urgency colors (used in ResultsModal) ─────────────────────────────
+  urgRed: { borderLeft: '3px solid #dc2626', background: '#fef2f2' },
+  urgOrange: { borderLeft: '3px solid #b45309', background: '#fffbeb' },
+  urgGreen: { borderLeft: '3px solid #00a676', background: '#f0fdf8' },
+  urgBlue: { borderLeft: '3px solid #2563eb', background: '#eff6ff' },
 };

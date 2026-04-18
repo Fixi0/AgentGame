@@ -1,4 +1,4 @@
-import { Activity, Briefcase, ChevronRight, Target, UserPlus, Zap } from 'lucide-react';
+import { Activity, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Target, UserPlus, Zap } from 'lucide-react';
 import React from 'react';
 import { getAgencyCapacity } from '../systems/agencySystem';
 import { getMarketReachLabel } from '../systems/reputationSystem';
@@ -9,6 +9,44 @@ import { COUNTRIES } from '../data/clubs';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
 
+function ObjectivesWidget({ objectives, onNav }) {
+  if (!objectives?.length) return null;
+  const active = objectives.filter((o) => !o.completed && !o.failed);
+  const done = objectives.filter((o) => o.completed).length;
+
+  return (
+    <div style={S.objWidget}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={S.objWidgetTitle}>🎯 OBJECTIFS DE SAISON</div>
+        <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>{done}/{objectives.length} complétés</span>
+      </div>
+      {active.map((obj) => {
+        const pct = Math.min(100, Math.round((obj.current / obj.target) * 100));
+        const color = pct >= 80 ? '#00a676' : pct >= 40 ? '#b45309' : '#64727d';
+        return (
+          <div key={obj.id} style={{ ...S.objItem, borderBottom: '1px solid #f0f4f7', paddingBottom: 8, marginBottom: 6 }}>
+            <Circle size={10} color={color} style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ ...S.objItemLabel, marginBottom: 3 }}>{obj.label}</div>
+              <div style={{ ...S.progBar, height: 3, margin: 0 }}>
+                <div style={{ ...S.progFill, width: `${pct}%`, background: color, height: 3 }} />
+              </div>
+            </div>
+            <span style={{ ...S.objItemPct, color }}>{obj.current}/{obj.target}</span>
+          </div>
+        );
+      })}
+      {done > 0 && objectives.filter((o) => o.completed).map((obj) => (
+        <div key={obj.id} style={{ ...S.objItem, opacity: 0.5, borderBottom: 'none', paddingBottom: 0 }}>
+          <CheckCircle size={10} color="#00a676" />
+          <div style={{ ...S.objItemLabel, textDecoration: 'line-through', color: '#64727d', fontSize: 11 }}>{obj.label}</div>
+          <span style={{ fontSize: 10, color: '#00a676', fontFamily: 'system-ui,sans-serif' }}>✓</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const SummaryRow = ({ label, value, color }) => (
   <div style={S.sumRow}>
     <span style={S.sumK}>{label}</span>
@@ -16,7 +54,7 @@ const SummaryRow = ({ label, value, color }) => (
   </div>
 );
 
-export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, onRejectOffer, onClubDetails }) {
+export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, onRejectOffer, onClubDetails, onOpenContracts }) {
   const portfolioValue = state.roster.reduce((sum, player) => sum + player.value, 0);
   const weeklyIncome = state.roster.reduce((sum, player) => sum + Math.floor(player.weeklySalary * player.commission), 0);
   const injuredCount = state.roster.filter((player) => player.injured > 0).length;
@@ -65,6 +103,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           </button>
         ))}
       </div>
+      <ObjectivesWidget objectives={state.seasonObjectives} onNav={onNav} />
       <div style={S.todayCard}>
         <div style={S.todayTitle}>AUJOURD'HUI</div>
         {todayTimeline.map((item, index) => (

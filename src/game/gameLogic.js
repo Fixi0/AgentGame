@@ -20,6 +20,9 @@ import { buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/match
 import { generateClubOffers, generateSurpriseOffer, getSeasonContext } from '../systems/seasonSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
 import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/consequenceSystem';
+import { generateSeasonObjectives, updateObjectiveProgress, checkObjectiveCompletion } from '../systems/objectivesSystem';
+import { createDefaultContacts } from '../systems/contactsSystem';
+import { createPublicRep, tickPublicRep, getPublicRepOfferBonus } from '../systems/publicReputationSystem';
 import {
   addDecisionHistory,
   applyCredibilityChange,
@@ -220,6 +223,7 @@ export const generatePlayer = (reputation, scoutLevel = 0, young = false, forced
     careerGoal: null,
     scoutReport: null,
     seasonStats: { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
+    publicRep: null,  // initialized lazily on first use
   };
 };
 
@@ -248,11 +252,9 @@ export const getPhase = (week) => {
   return getSeasonContext(week);
 };
 
-export const generateObjectives = (season) => [
-  { id: 'earn', label: `Gagner ${formatMoney(100000 * season)}`, target: 100000 * season, reward: 30000, type: 'money' },
-  { id: 'rep', label: `Réputation ${20 + season * 10}+`, target: 20 + season * 10, reward: 20000, type: 'rep' },
-  { id: 'trans', label: `${season + 1} transferts`, target: season + 1, reward: 25000, type: 'transfers' },
-];
+// Legacy shim — new objectives come from objectivesSystem.js
+export const generateObjectives = (season) =>
+  generateSeasonObjectives({ week: (season - 1) * 38 + 1, reputation: 12 + season * 5 });
 
 const getSeasonAwardMemory = (seasonAwards, season) => ({
   ...(seasonAwards?.[season] ?? {}),
@@ -463,6 +465,9 @@ export const createFreshState = () => ({
   pendingChainedEvents: [],
   seasonAwards: {},
   worldState: generateWorldState(1),
+  contacts: createDefaultContacts(),
+  seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 12 }),
+  darkMode: false,
   roster: [],
   market: generateMarket(12, 0),
   freeAgents: generateFreeAgents(12),
@@ -528,6 +533,9 @@ export const migrateState = (state) => {
     news: state.news ?? [],
     messages: state.messages ?? [],
     agencyGoals: state.agencyGoals ?? createLongTermAgencyGoals(),
+    contacts: state.contacts ?? createDefaultContacts(),
+    seasonObjectives: state.seasonObjectives ?? generateSeasonObjectives({ week: state.week ?? 1, reputation: state.reputation ?? 12 }),
+    darkMode: state.darkMode ?? false,
     roster: (state.roster ?? []).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
       const personality = player.personality ?? pick(PERSONALITIES);
@@ -1279,6 +1287,10 @@ export const playWeek = (state) => {
       };
     }
 
+    // Tick publicRep each week (regression to mean + trending decay)
+    const currentPublicRep = updatedPlayer.publicRep ?? createPublicRep(updatedPlayer);
+    updatedPlayer = { ...updatedPlayer, publicRep: tickPublicRep(currentPublicRep, state.week + 1) };
+
     return updatedPlayer;
   });
 
@@ -1367,18 +1379,31 @@ export const playWeek = (state) => {
     ? generateWorldState(nextPhase.season)
     : (state.worldState ?? generateWorldState(1));
 
-  if (nextPhase.seasonWeek === 1 && state.week > 1) {
-    state.objectives.forEach((objective) => {
-      const done =
-        (objective.type === 'money' && state.stats.totalEarned >= objective.target) ||
-        (objective.type === 'rep' && state.reputation >= objective.target) ||
-        (objective.type === 'transfers' && state.stats.transfersDone >= objective.target);
+  // Track season objectives progress from this week's events
+  let currentObjectives = state.seasonObjectives ?? generateSeasonObjectives(state);
+  if (totalIncome > 0) {
+    currentObjectives = updateObjectiveProgress(currentObjectives, { type: 'earn_money', amount: totalIncome });
+  }
+  const objectiveCheck = checkObjectiveCompletion(currentObjectives);
+  currentObjectives = objectiveCheck.objectives;
+  if (objectiveCheck.rewards.money > 0) {
+    bonusMoney += objectiveCheck.rewards.money;
+    bonusReputation += objectiveCheck.rewards.rep;
+  }
 
-      if (done) bonusMoney += objective.reward;
+  if (nextPhase.seasonWeek === 1 && state.week > 1) {
+    // Old-style objectives fallback evaluation
+    (state.objectives ?? []).forEach((objective) => {
+      const done =
+        (objective.type === 'money' && state.stats.totalEarned >= (objective.target ?? 0)) ||
+        (objective.type === 'rep' && state.reputation >= (objective.target ?? 0)) ||
+        (objective.type === 'transfers' && state.stats.transfersDone >= (objective.target ?? 0));
+      if (done) bonusMoney += objective.reward ?? 0;
     });
 
-    bonusReputation = bonusMoney > 0 ? 5 : 0;
+    bonusReputation += bonusMoney > 0 ? 3 : 0;
     objectives = generateObjectives(nextPhase.season);
+    currentObjectives = generateSeasonObjectives({ week: state.week + 1, reputation: state.reputation });
   }
 
   const seasonRecap = nextPhase.seasonWeek === 1 && state.week > 1
@@ -1387,11 +1412,7 @@ export const playWeek = (state) => {
         transfers: state.stats.transfersDone,
         earned: state.stats.totalEarned,
         reputation: state.reputation,
-        objectivesCompleted: state.objectives.filter((objective) =>
-          (objective.type === 'money' && state.stats.totalEarned >= objective.target)
-          || (objective.type === 'rep' && state.reputation >= objective.target)
-          || (objective.type === 'transfers' && state.stats.transfersDone >= objective.target),
-        ).length,
+        objectivesCompleted: currentObjectives.filter((o) => o.completed).length,
       }
     : null;
 
@@ -1608,6 +1629,8 @@ export const playWeek = (state) => {
     competitorThreats: competitorThreat ? [competitorThreat, ...(state.competitorThreats ?? [])].slice(0, 12) : state.competitorThreats ?? [],
     scoutingMissions,
     objectives,
+    seasonObjectives: currentObjectives,
+    contacts: state.contacts ?? createDefaultContacts(),
     history: [...state.history.slice(-20), { week: state.week, net, rep: applyReputationChange(state.reputation, reputationChange) }],
     news: [
       ...offerNews,
@@ -1890,3 +1913,9 @@ export const finishNegotiation = (state, type, player, outcome) => {
 
   return nextState;
 };
+
+// ── Contacts ───────────────────────────────────────────────────────────────
+export { callContact } from '../systems/contactsSystem';
+
+// ── Dark mode toggle ────────────────────────────────────────────────────────
+export const toggleDarkMode = (state) => ({ ...state, darkMode: !state.darkMode });

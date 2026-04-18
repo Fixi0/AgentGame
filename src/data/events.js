@@ -385,3 +385,43 @@ export const CHAINED_EVENTS = {
     { delayWeeks: 3, type: 'interactive', eventId: 'youth_mentor', chance: 0.4 },
   ],
 };
+
+// ── VESTIAIRE & RIVALITÉS ──────────────────────────────────────────────────
+export const LOCKER_ROOM_EVENTS = [
+  {
+    id: 'locker_rivalry',
+    rarity: 'uncommon',
+    types: ['vestiaire'],
+    title: 'Tension dans le vestiaire',
+    description: 'Deux de tes joueurs sont en froid depuis le dernier match. La rumeur parle d\'altercation à l\'entraînement. Le coach a contacté l\'agence.',
+    choices: [
+      { label: 'Médiateur neutre', cost: 0, effects: { moral: 3, trust: 4 }, desc: 'Dialogue direct avec les deux joueurs' },
+      { label: 'Soutenir le plus important', cost: 0, effects: { moral: -4, trust: 6 }, desc: 'Tu choisis un camp — l\'autre sera blessé' },
+      { label: 'Laisser le coach gérer', cost: 0, effects: { moral: -2, trust: -3 }, desc: 'Tu recules — ils noteront ton absence' },
+    ],
+  },
+  {
+    id: 'salary_jealousy',
+    rarity: 'uncommon',
+    types: ['vestiaire', 'transfer'],
+    title: 'Jalousie salariale',
+    description: 'Un joueur a appris que son coéquipier gagne bien plus. Il veut une explication — et une revalorisation immédiate.',
+    choices: [
+      { label: 'Promettre une renégociation', cost: 0, effects: { moral: 4, trust: 5 }, desc: 'Tu crées une promesse — à honorer' },
+      { label: 'Expliquer les hiérarchies', cost: 0, effects: { moral: -1, trust: 2 }, desc: 'Réponse froide mais honnête' },
+      { label: 'Ignorer la demande', cost: 0, effects: { moral: -8, trust: -7 }, desc: 'Il va ruminer — et potentiellement fuir' },
+    ],
+  },
+  {
+    id: 'captain_conflict',
+    rarity: 'rare',
+    types: ['vestiaire'],
+    title: 'Conflit de leadership',
+    description: 'Ton joueur et le capitaine de l\'équipe s\'affrontent pour le leadership. L\'ambiance est explosive. Le DS t\'appelle.',
+    choices: [
+      { label: 'Valoriser ton joueur publiquement', cost: 0, effects: { moral: 8, trust: 4, rep: 2 }, desc: 'Bonne opération médiatique — mais risquée' },
+      { label: 'Calmer le jeu discrètement', cost: 0, effects: { moral: 2, trust: 6 }, desc: 'Diplomatie — moins spectaculaire, plus sûr' },
+      { label: 'Demander un transfert immédiat', cost: 0, effects: { moral: 5, trust: 2, rep: -2 }, flag: 'transfer_offer', desc: 'Sortir par le haut' },
+    ],
+  },
+];
