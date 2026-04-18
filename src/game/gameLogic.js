@@ -1,6 +1,6 @@
 import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
 import { COUNTRY_NAME_POOLS, FIRST_NAMES, LAST_NAMES, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
-import { calculateWeeklyPlayerEconomy, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS } from './economy';
+import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
 import { getAgencyCapacity, getAgencyUpgradeCost } from '../systems/agencySystem';
 import { applyReputationChange, applySegmentReputationChange, createDefaultSegmentReputation, getSegmentDeltaForEvent } from '../systems/reputationSystem';
@@ -20,6 +20,7 @@ import { buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/match
 import { generateClubOffers, generateSurpriseOffer, getSeasonContext } from '../systems/seasonSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
 import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/consequenceSystem';
+import { awardGems } from '../systems/shopSystem';
 import { generateSeasonObjectives, updateObjectiveProgress, checkObjectiveCompletion } from '../systems/objectivesSystem';
 import { createDefaultContacts } from '../systems/contactsSystem';
 import { createPublicRep, tickPublicRep, getPublicRepOfferBonus } from '../systems/publicReputationSystem';
@@ -442,7 +443,8 @@ const generateWorldSummary = ({ week, phase, worldState }) => {
 };
 
 export const createFreshState = () => ({
-  money: 35000,
+  money: 25000,
+  gems: 0,
   reputation: 12,
   credibility: 52,
   difficulty: 'realiste',
@@ -536,6 +538,7 @@ export const migrateState = (state) => {
     contacts: state.contacts ?? createDefaultContacts(),
     seasonObjectives: state.seasonObjectives ?? generateSeasonObjectives({ week: state.week ?? 1, reputation: state.reputation ?? 12 }),
     darkMode: state.darkMode ?? false,
+    gems: state.gems ?? 0,
     roster: (state.roster ?? []).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
       const personality = player.personality ?? pick(PERSONALITIES);
@@ -1138,6 +1141,7 @@ export const playWeek = (state) => {
   const staffWeeklyCost = getStaffWeeklyCost(state.staff);
   const mediaReduction = 1 - state.office.mediaLevel * 0.15 - communityManagerLevel * 0.07;
   totalCost += staffWeeklyCost;
+  totalCost += WEEKLY_OVERHEAD[state.agencyLevel ?? 1] ?? 300;
 
   const weeklySimulation = simulateWeeklyClubResults(state.roster, state.week);
   const weeklyFixtures = weeklySimulation.fixtures;
@@ -1198,7 +1202,7 @@ export const playWeek = (state) => {
       const incidentEvent = MATCH_INCIDENT_EVENTS[incident];
       if (!incidentEvent) return;
       const reputationImpact = scaleReputationDelta(incidentEvent.rep);
-      const moneyImpact = incidentEvent.money;
+      const moneyImpact = incidentEvent.good ? Math.floor(incidentEvent.money * EVENT_INCOME_MULT) : incidentEvent.money;
       totalIncome += moneyImpact > 0 ? moneyImpact : 0;
       totalCost += moneyImpact < 0 ? Math.abs(moneyImpact) : 0;
       reputationChange += reputationImpact;
@@ -1222,7 +1226,7 @@ export const playWeek = (state) => {
       }
     });
     if (event) {
-      const moneyImpact = event.good ? event.money : Math.floor(event.money * mediaReduction);
+      const moneyImpact = event.good ? Math.floor(event.money * EVENT_INCOME_MULT) : Math.floor(event.money * mediaReduction);
       const reputationImpact = scaleReputationDelta(event.good ? event.rep : Math.floor(event.rep * mediaReduction));
       updatedPlayer = applyPassiveEventToPlayer(updatedPlayer, event);
       if (event.injury) {
@@ -1307,7 +1311,7 @@ export const playWeek = (state) => {
   const chainedPassives = processChainedPassiveEvents(pendingChains, caredRoster, state.week + 1);
   let chainedRoster = caredRoster;
   for (const { player, event } of chainedPassives) {
-    const moneyImpact = event.good ? event.money : Math.floor(event.money * mediaReduction);
+    const moneyImpact = event.good ? Math.floor(event.money * EVENT_INCOME_MULT) : Math.floor(event.money * mediaReduction);
     const reputationImpact = scaleReputationDelta(event.good ? event.rep : Math.floor(event.rep * mediaReduction));
     chainedRoster = chainedRoster.map((p) => p.id === player.id ? applyPassiveEventToPlayer(p, event) : p);
     totalIncome += moneyImpact > 0 ? moneyImpact : 0;
@@ -1390,6 +1394,11 @@ export const playWeek = (state) => {
     bonusMoney += objectiveCheck.rewards.money;
     bonusReputation += objectiveCheck.rewards.rep;
   }
+  const bonusGems = objectiveCheck.rewards.gems ?? 0;
+  const seasonObjectiveGemBonus = nextPhase.seasonWeek === 1 && state.week > 1
+    ? currentObjectives.filter((objective) => objective.completed).length * 2
+    : 0;
+  const gemRewardState = awardGems({ gems: state.gems ?? 0 }, bonusGems + seasonObjectiveGemBonus, 'objectifs');
 
   if (nextPhase.seasonWeek === 1 && state.week > 1) {
     // Old-style objectives fallback evaluation
@@ -1618,6 +1627,7 @@ export const playWeek = (state) => {
     activeNarratives: socialConsequences.patch.activeNarratives ?? livingWeek.statePatch.activeNarratives ?? state.activeNarratives ?? [],
     clubMemory,
     week: state.week + 1,
+    gems: gemRewardState.gems,
     worldState: nextWorldState,
     pendingChainedEvents: updatedPendingChains,
     seasonAwards: annualCalendar.seasonAwards,

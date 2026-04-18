@@ -716,6 +716,7 @@ export default function FootballAgentGame() {
       )}
       {modal?.type === 'nego_transfer' && (
         <NegotiationTransfer
+          key={`nego-transfer-${modal.data.player.id}-${modal.data.offer?.id ?? 'manual'}`}
           player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
           rep={state.reputation}
           lawyer={state.office.lawyerLevel}
@@ -725,6 +726,7 @@ export default function FootballAgentGame() {
       )}
       {modal?.type === 'nego_offer' && (
         <NegotiationTransfer
+          key={`nego-offer-${modal.data.offer.id}`}
           player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
           rep={state.reputation}
           lawyer={state.office.lawyerLevel}
@@ -742,6 +744,7 @@ export default function FootballAgentGame() {
       )}
       {modal?.type === 'nego_extend' && (
         <NegotiationExtend
+          key={`nego-extend-${modal.data.player.id}`}
           player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
           rep={state.reputation}
           lawyer={state.office.lawyerLevel}
