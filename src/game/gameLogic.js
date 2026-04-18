@@ -759,10 +759,13 @@ const applyCompletedTransferToPlayer = (player, offer, agreement, week) => {
     moral: clamp(player.moral + 10),
     trust: clamp((player.trust ?? 50) + 5),
     contractWeeksLeft: agreement.contractWeeks,
+    contractStartWeek: week,
+    signingBonus: agreement.signingBonus ?? 0,
     clubRole: agreement.clubRole,
     releaseClause: agreement.releaseClause,
     sellOnPercent: agreement.sellOnPercent,
     clubBonuses: agreement.clubBonuses,
+    lastContractEventWeek: week,
     freeAgent: false,
     timeline: [
       { week, type: 'transfer', label: `${offer.club} · ${agreement.clubRole} · contrat ${Math.round(agreement.contractWeeks / 52)} ans` },
@@ -1307,7 +1310,7 @@ export const playWeek = (state) => {
     interactiveEvent = chooseInteractiveEvent(chainedRoster, { scoutLevel: getStaffEffect(state.staff, 'scoutAfrica') });
   }
 
-  const contractEvent = getContractEventForRoster(chainedRoster);
+  const contractEvent = getContractEventForRoster(chainedRoster, state.week + 1);
   if (contractEvent && !interactiveEvent && Math.random() < 0.5) {
     interactiveEvent = contractEvent;
   }
@@ -1674,6 +1677,10 @@ export const applyChoice = (state, event, player, choice) => {
       value: effects.val ? Math.floor(rosterPlayer.value * effects.val) : rosterPlayer.value,
       commission: effects.commission ? Math.max(0.05, rosterPlayer.commission + effects.commission) : rosterPlayer.commission,
       injured: effects.injury ? effects.injury : rosterPlayer.injured,
+      // Track that the contract event was triggered so it doesn't re-fire immediately
+      lastContractEventWeek: (choice.flag === 'extend' || choice.flag === 'transfer_offer') && event.id === 'contract_exp'
+        ? state.week
+        : rosterPlayer.lastContractEventWeek,
     };
   });
 
@@ -1830,10 +1837,13 @@ export const finishNegotiation = (state, type, player, outcome) => {
               moral: clamp(rosterPlayer.moral + 10),
               trust: clamp((rosterPlayer.trust ?? 50) + 6),
               contractWeeksLeft: contractWeeks,
+              contractStartWeek: state.week,
+              signingBonus,
               clubRole,
               releaseClause: outcome.releaseClause ?? rosterPlayer.releaseClause ?? Math.floor(rosterPlayer.value * 1.7),
               sellOnPercent: outcome.sellOnPercent ?? rosterPlayer.sellOnPercent ?? 5,
               clubBonuses,
+              lastContractEventWeek: state.week,
               agentContract: {
                 ...(rosterPlayer.agentContract ?? createAgentContract(rosterPlayer)),
                 weeksLeft: contractWeeks,

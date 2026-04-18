@@ -260,12 +260,18 @@ export default function FootballAgentGame() {
         showToast(readiness.message, 'error');
       }
     } else if (result.followUp === 'extend') {
-      const readiness = getExtensionReadiness(result.state, player);
-      if (readiness.ok) {
-        setModal({ type: 'nego_extend', data: { player } });
-      } else {
+      // Player explicitly chose to extend from the contract event — always open the negotiation modal.
+      // Only block for hard conditions (no club, player hostile).
+      const blockedHard = (player.freeAgent || player.club === 'Libre');
+      const playerHostile = (player.trust ?? 50) < 25 && player.moral < 30;
+      if (blockedHard) {
         setModal(null);
-        showToast(readiness.message, 'error');
+        showToast("Impossible de prolonger sans club. Trouve-lui d'abord une équipe.", 'error');
+      } else if (playerHostile) {
+        setModal(null);
+        showToast("Le joueur refuse toute discussion pour l'instant — la relation est trop dégradée.", 'error');
+      } else {
+        setModal({ type: 'nego_extend', data: { player } });
       }
     } else {
       setModal(null);
@@ -287,7 +293,19 @@ export default function FootballAgentGame() {
       return;
     }
 
-    commitResult(acceptClubOffer(state, offer.id, outcome), 'Transfert négocié');
+    const result = acceptClubOffer(state, offer.id, outcome);
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+    setState(result.state);
+    // Pre-window offers create a pending transfer that activates at mercato opening
+    const newPending = (result.state.pendingTransfers ?? []).find((pt) => pt.offerId === offer.id);
+    if (newPending) {
+      showToast(`✅ Pré-accord signé — transfert officiel semaine ${newPending.effectiveWeek}`, 'success');
+    } else {
+      showToast('Transfert négocié et activé', 'success');
+    }
     setModal(null);
   };
 
@@ -702,6 +720,7 @@ export default function FootballAgentGame() {
             promises={state.promises}
             clubRelations={state.clubRelations}
             clubMemory={state.clubMemory}
+            currentWeek={state.week}
             onClose={() => setModal(null)}
             onNego={(type) => startNegotiation(modal.data.player, type)}
             onMeeting={handlePlayerMeeting}

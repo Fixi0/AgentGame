@@ -12,7 +12,15 @@ const tabLabels = {
   dossier: 'Dossier',
 };
 
-export default function PlayerDetailModal({ player, messages, promises, clubRelations, clubMemory, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
+const weekToLabel = (week) => {
+  const MONTHS = ['Août', 'Sep.', 'Oct.', 'Nov.', 'Déc.', 'Jan.', 'Fév.', 'Mar.', 'Avr.', 'Mai', 'Jun.', 'Jul.'];
+  const season = Math.floor((week - 1) / 38) + 1;
+  const seasonWeek = ((week - 1) % 38) + 1;
+  const monthIdx = Math.min(11, Math.floor((seasonWeek - 1) / 3));
+  return `${MONTHS[monthIdx]} S${season}`;
+};
+
+export default function PlayerDetailModal({ player, messages, promises, clubRelations, clubMemory, currentWeek, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
   const [tab, setTab] = useState('profile');
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
   const playerPromises = (promises ?? []).filter((promise) => promise.playerId === player.id && !promise.resolved && !promise.failed);
@@ -148,19 +156,64 @@ export default function PlayerDetailModal({ player, messages, promises, clubRela
             </div>
           )}
           <div style={S.objCard}>
-            <div style={S.secTitle}>CARRIERE</div>
+            <div style={S.secTitle}>CONTRAT CLUB</div>
+            {/* Contract status banner */}
+            {(() => {
+              const weeksLeft = player.contractWeeksLeft ?? 0;
+              const endWeek = (currentWeek ?? 0) + weeksLeft;
+              const urgent = weeksLeft <= 8;
+              const warning = weeksLeft > 8 && weeksLeft <= 26;
+              const bannerColor = urgent ? '#dc2626' : warning ? '#b45309' : '#00a676';
+              const bannerBg = urgent ? '#fef2f2' : warning ? '#fffbeb' : '#f0fdf8';
+              return (
+                <div style={{ background: bannerBg, border: `1px solid ${bannerColor}30`, borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>Expire</span>
+                    <strong style={{ fontSize: 13, color: bannerColor }}>
+                      {weeksLeft > 0 ? `${weeksLeft} sem. · ${weekToLabel(endWeek)}` : 'EXPIRÉ'}
+                    </strong>
+                  </div>
+                  {player.contractStartWeek && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                      <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>Signé</span>
+                      <span style={{ fontSize: 12, color: '#64727d' }}>{weekToLabel(player.contractStartWeek)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <div style={S.sumRow}><span style={S.sumK}>Club</span><strong>{player.club}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Ville</span><strong>{player.clubCity || '-'}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Contrat</span><strong>{player.contractWeeksLeft}s</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Commission</span><strong>{Math.round(player.commission * 100)}%</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Rôle promis</span><strong>{player.clubRole ?? '-'}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Rôle</span><strong style={{ color: player.clubRole === 'Star' ? '#d97706' : '#172026' }}>{player.clubRole ?? 'Non défini'}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Salaire</span><strong>{formatMoney(player.weeklySalary)}/sem</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Commission agence</span><strong>{Math.round(player.commission * 100)}%</strong></div>
+            {(player.signingBonus ?? 0) > 0 && (
+              <div style={S.sumRow}><span style={S.sumK}>Prime à la signature</span><strong style={{ color: '#00a676' }}>{formatMoney(player.signingBonus)}</strong></div>
+            )}
             <div style={S.sumRow}><span style={S.sumK}>Clause libératoire</span><strong>{formatMoney(player.releaseClause ?? 0)}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>% revente</span><strong>{player.sellOnPercent ?? 0}%</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Bonus contrat</span><strong>{formatMoney(player.clubBonuses?.total ?? 0)}</strong></div>
+            {(player.clubBonuses?.total ?? 0) > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>PRIMES DE PERFORMANCE</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  {[
+                    { k: 'Total', v: player.clubBonuses.total },
+                    { k: 'Buts', v: player.clubBonuses.goals ?? 0 },
+                    { k: 'Matchs', v: player.clubBonuses.appearances ?? 0 },
+                    { k: 'Europe', v: player.clubBonuses.europe ?? 0 },
+                  ].map(({ k, v }) => v > 0 && (
+                    <div key={k} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '6px 8px' }}>
+                      <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>{k.toUpperCase()}</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{formatMoney(v)}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>CONTRAT AGENT-JOUEUR</div>
-            <div style={S.sumRow}><span style={S.sumK}>Durée mandat</span><strong>{player.agentContract?.weeksLeft ?? 104}s</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Durée mandat</span><strong>{player.agentContract?.weeksLeft ?? 104} sem.</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Commission</span><strong>{Math.round((player.agentContract?.commission ?? player.commission) * 100)}%</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Clause sortie</span><strong>{formatMoney(player.agentContract?.releaseClause ?? 0)}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Bonus loyauté</span><strong>{formatMoney(player.agentContract?.loyaltyBonus ?? 0)}</strong></div>

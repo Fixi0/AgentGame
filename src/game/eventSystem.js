@@ -94,8 +94,14 @@ export const chooseInteractiveEvent = (roster, context = {}) => {
   return { event: pick(contextualEvents), player };
 };
 
-export const getContractEventForRoster = (roster) => {
-  const expiringPlayer = roster.find((player) => player.contractWeeksLeft > 0 && player.contractWeeksLeft <= 8);
+export const getContractEventForRoster = (roster, currentWeek = 0) => {
+  // Fire at ≤26 weeks (6 months). Cooldown: don't re-fire within 6 weeks of last trigger.
+  const expiringPlayer = roster.find(
+    (player) =>
+      player.contractWeeksLeft > 0 &&
+      player.contractWeeksLeft <= 26 &&
+      (!player.lastContractEventWeek || currentWeek - player.lastContractEventWeek >= 6),
+  );
   if (!expiringPlayer) return null;
 
   return {

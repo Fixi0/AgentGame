@@ -30,10 +30,18 @@ export default function Phone({ state, onNav, onNegotiateOffer, onContactClubSta
     ...(state.clubOffers ?? []).filter((offer) => offer.status === 'open').map((offer) => ({
       id: offer.id,
       from: offer.club,
-      title: `Offre pour ${offer.playerName}`,
+      title: offer.isSurprise
+        ? `🚨 FLASH — ${offer.playerName}`
+        : offer.preWindow
+          ? `📋 Pré-accord — ${offer.playerName}`
+          : offer.isHotWeek
+            ? `🔥 Frénésie — ${offer.playerName}`
+            : `Offre pour ${offer.playerName}`,
       body: offer.preWindow
-        ? `${offer.club} propose un pré-accord (${offer.price.toLocaleString('fr-FR')} €). Arrivée prévue semaine ${offer.effectiveWeek}.`
-        : `${offer.club} veut avancer vite. Prix proposé : ${offer.price.toLocaleString('fr-FR')} €.`,
+        ? `${offer.club} propose un pré-accord à ${offer.price.toLocaleString('fr-FR')} €. Transfert activé à l'ouverture du mercato ${offer.window} (sem. ${offer.effectiveWeek}).`
+        : offer.isSurprise
+          ? `Offre d'urgence de ${offer.club} — ${offer.price.toLocaleString('fr-FR')} €. Expire dans 1 semaine !`
+          : `${offer.club} veut avancer. Prix proposé : ${offer.price.toLocaleString('fr-FR')} €. Expire sem. ${offer.expiresWeek}.`,
       action: 'Négocier',
       onClick: () => onNegotiateOffer(offer.id),
     })),
