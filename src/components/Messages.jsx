@@ -44,7 +44,7 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
 
     return Object.values(grouped)
       .map((thread) => {
-        const items = [...thread.items].sort((a, b) => (a.week ?? 0) - (b.week ?? 0));
+        const items = [...thread.items].sort((a, b) => (a.sortWeek ?? a.week ?? 0) - (b.sortWeek ?? b.week ?? 0));
         const latest = items[items.length - 1];
         const unresolvedCount = items.filter((item) => !item.resolved).length;
         const isStaff = items.some((item) => item.senderRole === 'staff' || String(item.context ?? '').includes('coach') || String(item.context ?? '').includes('ds'));
@@ -212,28 +212,38 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
                 <div style={S.chatTimeline}>
                   {visibleThreadItems.map((message) => (
                     <div key={message.id} style={S.chatBlock}>
-                      <div style={S.chatBubbleLeft}>
-                        <div style={S.chatMeta}>{message.senderName ?? message.playerName} · S{message.week}</div>
-                        <div style={S.chatSubject}>{message.subject}</div>
-                        <div style={S.chatBody}>{message.body}</div>
-                        {messageNeedsResponse(message) && <div style={S.responseBadgeInline}>Réponse attendue</div>}
-                      </div>
-                      {message.resolved ? (
-                        <div style={S.chatBubbleRight}>
-                          {getDisplayedResponse(message)}
+                      {message.type === 'shortlist_reply' ? (
+                        <div style={S.chatBubbleLeft}>
+                          <div style={S.chatMeta}>{message.senderName ?? message.playerName} · S{message.week}</div>
+                          <div style={S.chatSubject}>{message.subject}</div>
+                          <div style={S.chatBody}>{message.body}</div>
                         </div>
                       ) : (
                         <>
-                          {messageNeedsResponse(message) && (
-                            <div style={S.msgHint}>Une réponse concrète peut déclencher une suite dans le jeu.</div>
-                          )}
-                          <div style={actionGridStyle}>
-                            {Object.entries(getMessageResponseOptions(message)).map(([type, label]) => (
-                              <button key={type} onClick={() => onRespond(message.id, type)} style={actionBtnStyle}>
-                                {label || responseLabels[type]}
-                              </button>
-                            ))}
+                          <div style={S.chatBubbleLeft}>
+                            <div style={S.chatMeta}>{message.senderName ?? message.playerName} · S{message.week}</div>
+                            <div style={S.chatSubject}>{message.subject}</div>
+                            <div style={S.chatBody}>{message.body}</div>
+                            {messageNeedsResponse(message) && <div style={S.responseBadgeInline}>Réponse attendue</div>}
                           </div>
+                          {message.resolved ? (
+                            <div style={S.chatBubbleRight}>
+                              {getDisplayedResponse(message)}
+                            </div>
+                          ) : (
+                            <>
+                              {messageNeedsResponse(message) && (
+                                <div style={S.msgHint}>Une réponse concrète peut déclencher une suite dans le jeu.</div>
+                              )}
+                              <div style={actionGridStyle}>
+                                {Object.entries(getMessageResponseOptions(message)).map(([type, label]) => (
+                                  <button key={type} onClick={() => onRespond(message.id, type)} style={actionBtnStyle}>
+                                    {label || responseLabels[type]}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </>
                       )}
                     </div>

@@ -143,6 +143,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
         <SummaryRow label="Blessés" value={injuredCount} />
         <SummaryRow label="Moral moyen" value={`${averageMoral}/100`} color={averageMoral >= 60 ? '#00a676' : averageMoral >= 40 ? '#8a6f1f' : '#b42318'} />
         <SummaryRow label="Confiance moyenne" value={`${averageTrust}/100`} color={averageTrust >= 60 ? '#00a676' : averageTrust >= 40 ? '#8a6f1f' : '#b42318'} />
+        <SummaryRow label="Gemmes" value={`${state.gems ?? 0}`} color={(state.gems ?? 0) > 0 ? '#00a676' : '#64727d'} />
         <SummaryRow label="Crédibilité" value={`${state.credibility ?? 50}/100`} color={(state.credibility ?? 50) >= 60 ? '#00a676' : (state.credibility ?? 50) >= 40 ? '#8a6f1f' : '#b42318'} />
         <SummaryRow label="Portée marché" value={getMarketReachLabel(state.reputation)} />
         <SummaryRow label="Capacité agence" value={`${state.roster.length}/${getAgencyCapacity(state.agencyLevel)}`} />

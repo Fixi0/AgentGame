@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Briefcase, CalendarDays, DollarSign, Home, Layers, LogOut, MessageCircle, Moon, Network, Newspaper, Search, Shield, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
+import { Briefcase, CalendarDays, DollarSign, Home, Layers, LogOut, MessageCircle, Moon, Network, Newspaper, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
 import Calendar from './components/Calendar';
@@ -14,6 +14,7 @@ import NewsFeed from './components/NewsFeed';
 import Onboarding from './components/Onboarding';
 import Office from './components/Office';
 import Roster from './components/Roster';
+import Shop from './components/Shop';
 import SaveMenu from './components/SaveMenu';
 import Scouting from './components/Scouting';
 import Standings from './components/Standings';
@@ -21,6 +22,7 @@ import InteractiveModal from './components/modals/InteractiveModal';
 import ClubModal from './components/modals/ClubModal';
 import MediaCrisisModal from './components/modals/MediaCrisisModal';
 import OfferCompareModal from './components/modals/OfferCompareModal';
+import ShortlistModal from './components/modals/ShortlistModal';
 import RetirementModal from './components/modals/RetirementModal';
 import { NegotiationExtend, NegotiationTransfer } from './components/modals/NegotiationModals';
 import PlayerDetailModal from './components/modals/PlayerDetailModal';
@@ -54,7 +56,8 @@ import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
 import { createMessage, createStaffConversationMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage } from './systems/promiseSystem';
-import { clamp } from './utils/helpers';
+import { purchaseShopItem } from './systems/shopSystem';
+import { clamp, makeId } from './utils/helpers';
 import { formatMoney } from './utils/format';
 
 const getTransferReadiness = (state, player, phase) => {
@@ -92,6 +95,7 @@ const views = {
   dashboard: { label: 'Accueil', icon: Home },
   market: { label: 'Marché', icon: Search },
   roster: { label: 'Joueurs', icon: Shield },
+  shop: { label: 'Boutique', icon: ShoppingBag },
   contracts: { label: 'Contrats', icon: Briefcase },
   contacts: { label: 'Réseau', icon: Network },
   calendar: { label: 'Calend.', icon: CalendarDays },
@@ -114,6 +118,7 @@ const mainNav = [
 ];
 
 const moreItems = [
+  { key: 'shop', label: 'Boutique', desc: 'Gemmes et bonus', icon: ShoppingBag },
   { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase },
   { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network },
   { key: 'news', label: 'News', desc: 'Médias et réseaux', icon: Newspaper },
@@ -196,6 +201,24 @@ export default function FootballAgentGame() {
 
   const handleRefreshMarket = () => {
     commitResult(refreshMarket(state), 'Marché rafraîchi');
+  };
+
+  const handleBuyShopItem = (itemId) => {
+    const result = purchaseShopItem(state, itemId);
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+
+    let nextState = result.state;
+    if (nextState._pendingMarketRefresh) {
+      const refreshed = refreshMarket(nextState);
+      if (!refreshed.error) nextState = refreshed.state;
+      delete nextState._pendingMarketRefresh;
+    }
+
+    setState(nextState);
+    showToast(`Boutique: ${result.item.label}`, 'success');
   };
 
   const handleUpgradeOffice = (type) => {
@@ -334,6 +357,20 @@ export default function FootballAgentGame() {
   const handleMessageResponse = (messageId, responseType) => {
     const effects = responseEffects[responseType];
     const currentMessage = state.messages.find((item) => item.id === messageId);
+    const responseAction = currentMessage ? getMessageResponseAction(currentMessage, responseType) : null;
+    const targetPlayer = currentMessage ? state.roster.find((player) => player.id === currentMessage.playerId) : null;
+    if (currentMessage && responseAction?.type === 'market_watch' && targetPlayer) {
+      setModal({
+        type: 'shortlist',
+        data: {
+          message: currentMessage,
+          player: targetPlayer,
+          responseType,
+        },
+      });
+      showToast('Choisis 1 ou 2 clubs pour la shortlist', 'info');
+      return;
+    }
     const isStaffThread = currentMessage && ['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(currentMessage.type);
     const staffReply = isStaffThread && currentMessage ? (() => {
       const player = state.roster.find((item) => item.id === currentMessage.playerId);
@@ -436,6 +473,104 @@ export default function FootballAgentGame() {
     });
     if (currentMessage) setActiveMessageThreadKey(currentMessage.threadKey ?? currentMessage.playerId);
     showToast('Réponse envoyée', 'success');
+  };
+
+  const handleShortlistConfirm = (message, player, responseType, selectedClubs) => {
+    if (!message || !player || !selectedClubs?.length) return;
+    const clubNames = selectedClubs.map((club) => club.name);
+    const expectedTier = player.rating >= 84 ? 1 : player.rating >= 77 ? 2 : player.rating >= 68 ? 3 : 4;
+    const bestTier = Math.min(...selectedClubs.map((club) => club.tier));
+    const cityMatch = selectedClubs.some((club) =>
+      (player.preferredCountries ?? []).includes(club.countryCode)
+      || (player.preferredCities ?? []).includes(club.city),
+    );
+    const ambitionBias = ['ambitieux', 'mercenaire'].includes(player.personality) ? 1 : 0;
+    const satisfied = bestTier <= expectedTier + ambitionBias || cityMatch;
+    const shortlistLabel = `Shortlist: ${clubNames.join(' / ')}`;
+    const responseAction = { type: 'market_watch', label: shortlistLabel };
+    const responseText = satisfied
+      ? `Shortlist validée: ${clubNames.join(', ')}. On peut avancer.`
+      : `J'ai vu la shortlist, mais j'espérais des pistes un peu plus fortes.`;
+    const replyBody = satisfied
+      ? `Oui, ${clubNames.join(', ')} me parlent. C'est cohérent avec ce que je veux.`
+      : `Je suis partagé. Les pistes sont propres, mais je ne sens pas encore le coup parfait.`;
+    const replySubject = satisfied ? 'La shortlist me plaît' : 'Shortlist à revoir';
+    const effects = responseEffects[responseType] ?? { moral: 0, trust: 0, reputation: 0 };
+    const playerMoodDelta = satisfied ? 4 : -3;
+    const playerTrustDelta = satisfied ? 5 : -2;
+
+    setState((current) => {
+      const currentMessage = current.messages.find((item) => item.id === message.id);
+      const currentPlayer = current.roster.find((item) => item.id === player.id) ?? player;
+      if (!currentMessage || !currentPlayer) return current;
+      const promise = createPromiseFromMessage({ message: currentMessage, week: current.week, responseType });
+      const nextClubRelations = selectedClubs.reduce(
+        (relations, club) => applyClubRelation(relations, club.name, satisfied ? 1 : -1),
+        current.clubRelations,
+      );
+      const nextClubMemory = selectedClubs.reduce(
+        (memory, club) => recordClubMemory(memory, club.name, { trust: satisfied ? 1 : -1, week: current.week }),
+        current.clubMemory,
+      );
+
+      const resolvedMessage = {
+        ...currentMessage,
+        resolved: true,
+        responseType,
+        responseAction,
+        responseText,
+      };
+
+      const playerReply = {
+        id: makeId('msg'),
+        week: current.week,
+        sortWeek: current.week + 0.1,
+        type: 'shortlist_reply',
+        threadKey: currentMessage.threadKey ?? currentPlayer.id,
+        threadLabel: currentMessage.threadLabel ?? `${currentPlayer.firstName} ${currentPlayer.lastName}`,
+        playerId: currentPlayer.id,
+        playerName: `${currentPlayer.firstName} ${currentPlayer.lastName}`,
+        senderRole: 'player',
+        senderName: `${currentPlayer.firstName} ${currentPlayer.lastName}`,
+        subject: replySubject,
+        body: replyBody,
+        read: false,
+        resolved: true,
+      };
+
+      return {
+        ...current,
+        roster: current.roster.map((item) =>
+          item.id === currentPlayer.id
+            ? {
+                ...item,
+                moral: clamp(item.moral + effects.moral + playerMoodDelta),
+                trust: clamp((item.trust ?? 50) + effects.trust + playerTrustDelta),
+                pressure: clamp((item.pressure ?? 30) + (satisfied ? -2 : 2)),
+                shortlist: clubNames,
+                activeActions: [responseAction, ...(item.activeActions ?? [])].slice(0, 5),
+                timeline: [{ week: current.week, type: 'shortlist', label: shortlistLabel }, ...(item.timeline ?? [])].slice(0, 18),
+              }
+            : item,
+        ),
+        messages: [playerReply, ...current.messages.map((item) => (item.id === message.id ? resolvedMessage : item))].slice(0, 40),
+        promises: [...(promise ? [promise] : []), ...(current.promises ?? [])].slice(0, 30),
+        clubRelations: nextClubRelations,
+        clubMemory: nextClubMemory,
+        decisionHistory: addDecisionHistory(current.decisionHistory, {
+          week: current.week,
+          type: 'shortlist',
+          label: shortlistLabel,
+          detail: `${currentPlayer.firstName} ${currentPlayer.lastName} shortlist sur ${clubNames.join(', ')}.`,
+          playerId: currentPlayer.id,
+          playerName: `${currentPlayer.firstName} ${currentPlayer.lastName}`,
+        }),
+      };
+    });
+
+    setActiveMessageThreadKey(message.threadKey ?? message.playerId);
+    setModal(null);
+    showToast(satisfied ? 'Shortlist validée' : 'Shortlist discutée', satisfied ? 'success' : 'info');
   };
 
   const handleResetGame = () => {
@@ -682,6 +817,7 @@ export default function FootballAgentGame() {
         {view === 'roster' && <Roster roster={state.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
         {view === 'messages' && <Messages messages={state.messages} onRespond={handleMessageResponse} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
+        {view === 'shop' && <Shop state={state} onBuy={handleBuyShopItem} />}
         {view === 'calendar' && <Calendar state={state} onClubDetails={showClubDetails} />}
         {view === 'standings' && <Standings state={state} onClubDetails={showClubDetails} />}
         {view === 'deadline' && <DeadlineDay state={state} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
@@ -711,6 +847,13 @@ export default function FootballAgentGame() {
       )}
       {modal?.type === 'interactive' && (
         <InteractiveModal event={modal.data.event} player={modal.data.player} money={state.money} onChoose={handleChoice} onClose={() => setModal(null)} />
+      )}
+      {modal?.type === 'shortlist' && (
+        <ShortlistModal
+          player={modal.data.player}
+          onClose={() => setModal(null)}
+          onConfirm={(selectedClubs) => handleShortlistConfirm(modal.data.message, modal.data.player, modal.data.responseType, selectedClubs)}
+        />
       )}
       {modal?.type === 'nego_transfer' && (
         <NegotiationTransfer
