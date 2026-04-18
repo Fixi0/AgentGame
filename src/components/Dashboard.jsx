@@ -55,6 +55,78 @@ const SummaryRow = ({ label, value, color }) => (
   </div>
 );
 
+function SeasonArc({ currentWeek, totalWeeks }) {
+  const pct = Math.min(100, Math.round(((currentWeek - 1) / (totalWeeks - 1)) * 100));
+  const segments = [
+    { label: 'Pré-saison', start: 1, end: 4, color: '#d97706' },
+    { label: 'Saison', start: 5, end: 20, color: '#2563eb' },
+    { label: 'Mercato Hiver', start: 21, end: 23, color: '#e83a3a' },
+    { label: 'Saison', start: 24, end: 34, color: '#2563eb' },
+    { label: 'Fin', start: 35, end: 38, color: '#16a34a' },
+  ];
+  const svgW = 280;
+  const svgH = 36;
+  const barY = 18;
+  const barH = 6;
+  const r = 7;
+
+  return (
+    <div style={S.seasonArc}>
+      <div style={{ ...S.secTitle, marginBottom: 8 }}>
+        <Clock size={13} />
+        <span>ARC DE SAISON · S{currentWeek}/{totalWeeks}</span>
+      </div>
+      <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%" style={{ display: 'block' }}>
+        {/* Background bar */}
+        <rect x={r} y={barY - barH / 2} width={svgW - r * 2} height={barH} rx={barH / 2} fill="#e7edf1" />
+        {/* Colored segments */}
+        {segments.map((seg) => {
+          const x1 = r + ((seg.start - 1) / (totalWeeks - 1)) * (svgW - r * 2);
+          const x2 = r + ((seg.end - 1) / (totalWeeks - 1)) * (svgW - r * 2);
+          return <rect key={seg.label + seg.start} x={x1} y={barY - barH / 2} width={Math.max(0, x2 - x1)} height={barH} fill={seg.color} opacity={0.7} />;
+        })}
+        {/* Current week dot */}
+        <circle cx={r + (pct / 100) * (svgW - r * 2)} cy={barY} r={r} fill="#172026" />
+        <text x={r + (pct / 100) * (svgW - r * 2)} y={barY + 1} textAnchor="middle" dominantBaseline="middle" fill="#ffffff" fontSize={7} fontWeight="900" fontFamily="system-ui,sans-serif">{currentWeek}</text>
+        {/* Labels */}
+        <text x={r} y={svgH - 2} textAnchor="start" fill="#9aa7b2" fontSize={7} fontFamily="system-ui,sans-serif">Pré-saison</text>
+        <text x={svgW / 2} y={svgH - 2} textAnchor="middle" fill="#9aa7b2" fontSize={7} fontFamily="system-ui,sans-serif">Mi-saison</text>
+        <text x={svgW - r} y={svgH - 2} textAnchor="end" fill="#9aa7b2" fontSize={7} fontFamily="system-ui,sans-serif">Fin</text>
+      </svg>
+    </div>
+  );
+}
+
+function ActivityFeed({ news, history }) {
+  const newsItems = (news ?? []).slice(0, 6).map((post) => ({
+    icon: '📰',
+    text: `${post.accountName ?? post.account?.name ?? 'News'} · ${post.text?.slice(0, 60)}${(post.text?.length ?? 0) > 60 ? '…' : ''}`,
+    week: post.week,
+  }));
+  const histItems = (history ?? []).slice(-3).reverse().map((h) => ({
+    icon: h.net >= 0 ? '💰' : '📉',
+    text: `Bilan S${h.week} · ${h.net >= 0 ? '+' : ''}${h.net?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}`,
+    week: h.week,
+  }));
+  const items = [...newsItems, ...histItems].sort((a, b) => (b.week ?? 0) - (a.week ?? 0)).slice(0, 8);
+  if (!items.length) return null;
+  return (
+    <div style={S.actFeed}>
+      <div style={{ ...S.secTitle, marginBottom: 6 }}>
+        <Activity size={13} />
+        <span>FIL D'ACTU</span>
+      </div>
+      {items.map((item, i) => (
+        <div key={i} style={{ ...S.actFeedItem, borderBottom: i < items.length - 1 ? '1px solid #f0f4f7' : 'none' }}>
+          <span style={{ fontSize: 14, flexShrink: 0 }}>{item.icon}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.text}</span>
+          {item.week != null && <span style={{ fontSize: 10, color: '#9aa7b2', flexShrink: 0, fontFamily: 'system-ui,sans-serif' }}>S{item.week}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, onRejectOffer, onClubDetails, onOpenContracts }) {
   const portfolioValue = state.roster.reduce((sum, player) => sum + player.value, 0);
   const weeklyIncome = state.roster.reduce((sum, player) => sum + Math.floor(player.weeklySalary * player.commission), 0);
@@ -103,6 +175,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           </button>
         ))}
       </div>
+      <SeasonArc currentWeek={phase.seasonWeek ?? 1} totalWeeks={38} />
       <ObjectivesWidget objectives={state.seasonObjectives} onNav={onNav} />
       <div style={S.todayCard}>
         <div style={S.todayTitle}>AUJOURD'HUI</div>
@@ -172,6 +245,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           </div>
         ))}
       </div>
+      <ActivityFeed news={state.news} history={state.history} />
       <button onClick={onPlay} style={S.primaryBtn}>
         <Zap size={18} />
         <span>JOUER LA SEMAINE</span>

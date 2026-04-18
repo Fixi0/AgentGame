@@ -3,6 +3,66 @@ import { Activity, AlertCircle, ChevronRight, LogOut, X } from 'lucide-react';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
+function generateHeadlines(data) {
+  const headlines = [];
+  if (data.matchResults?.length > 0) {
+    const topScorer = data.matchResults.reduce((best, m) => (!best || (m.goals ?? 0) > (best.goals ?? 0)) ? m : best, null);
+    if (topScorer && (topScorer.goals ?? 0) >= 2) {
+      headlines.push(`⚡ ${topScorer.playerName} impressionne — ${topScorer.goals} buts cette semaine`);
+    }
+  }
+  if (data.events?.some((e) => e.label?.toLowerCase().includes('transfer') || e.label?.toLowerCase().includes('rejoint'))) {
+    const transfer = data.events.find((e) => e.label?.toLowerCase().includes('transfer') || e.label?.toLowerCase().includes('rejoint'));
+    if (transfer) headlines.push(`📰 Coup de marché — ${transfer.player}`);
+  }
+  if ((data.net ?? 0) > 5000) {
+    headlines.push(`💰 Semaine dorée pour l'agence`);
+  }
+  return headlines.slice(0, 2);
+}
+
+function MatchScorecard({ match }) {
+  const resultColor = match.result === 'win' ? '#16a34a' : match.result === 'loss' ? '#e83a3a' : '#2563eb';
+  const resultBg = match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff';
+  const resultLabel = match.result === 'win' ? 'V' : match.result === 'loss' ? 'D' : 'N';
+
+  const stats = [];
+  if (match.goals > 0) stats.push(`⚽ ${match.goals}`);
+  if (match.assists > 0) stats.push(`🅰️ ${match.assists}`);
+  if (match.matchRating) stats.push(`★ ${match.matchRating}`);
+  if (match.saves > 0) stats.push(`🧤 ${match.saves}`);
+  if (match.tackles > 0) stats.push(`⚡ ${match.tackles}`);
+  if (match.keyPasses > 0) stats.push(`🎯 ${match.keyPasses}`);
+
+  return (
+    <div style={{ ...S.scoreboard, borderLeft: `4px solid ${resultColor}`, background: resultBg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 850, color: '#172026' }}>{match.playerName}</span>
+          {match.roleShort && <span style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', background: '#f0f4f7', borderRadius: 4, padding: '1px 5px' }}>{match.roleShort}</span>}
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 900, color: resultColor, background: `${resultColor}22`, borderRadius: 6, padding: '2px 7px' }}>{resultLabel}</span>
+      </div>
+      <div style={{ ...S.scoreboardScore, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.club}</span>
+        <span style={{ fontWeight: 900, fontSize: 18, color: '#172026', minWidth: 60, textAlign: 'center' }}>{match.score}</span>
+        <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.opponent}</span>
+      </div>
+      {stats.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 6, fontSize: 11, color: '#3f5663', fontFamily: 'system-ui,sans-serif', flexWrap: 'wrap' }}>
+          {stats.map((s, i) => <span key={i}>{s}</span>)}
+        </div>
+      )}
+      {match.matchReport && (
+        <div style={{ marginTop: 5, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', fontStyle: 'italic' }}>{match.matchReport}</div>
+      )}
+      {!match.minutes && (
+        <div style={{ marginTop: 4, fontSize: 10, color: '#9aa7b2', fontFamily: 'system-ui,sans-serif', textAlign: 'center' }}>Absent</div>
+      )}
+    </div>
+  );
+}
+
 export default function ResultsModal({ data, onClose, onInteractive }) {
   const [step, setStep] = useState('results');
 
@@ -32,6 +92,8 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
     );
   }
 
+  const headlines = generateHeadlines(data);
+
   return (
     <div style={S.overlay}>
       <div style={S.modal}>
@@ -43,6 +105,11 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           </button>
         </div>
         <div style={S.mBody}>
+          {headlines.length > 0 && (
+            <div style={S.newsHeadline}>
+              {headlines.map((h, i) => <div key={i} style={{ marginBottom: i < headlines.length - 1 ? 4 : 0 }}>{h}</div>)}
+            </div>
+          )}
           {data.newSeason && <div style={S.newSeason}>NOUVELLE SAISON {data.bonusMoney > 0 && `· Bonus ${formatMoney(data.bonusMoney)}`}</div>}
           {data.phase?.mercato && (
             <div style={S.newSeason}>
@@ -139,19 +206,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                 <span>RESULTATS CLUBS</span>
               </div>
               {data.matchResults.slice(0, 8).map((match) => (
-                <div key={`${match.playerId}-${match.opponent}`} style={{ ...S.evRow, borderLeft: `3px solid ${match.result === 'win' ? '#00a676' : match.result === 'loss' ? '#b42318' : '#2f80ed'}` }}>
-                  <div style={S.evPlayer}>{match.playerName} · {match.club} {match.score} {match.opponent}</div>
-                  <div style={S.evLabel}>
-                    {match.minutes ? `${match.minutes}' · Note ${match.matchRating}` : 'Absent'}
-                    {match.goals ? ` · ${match.goals} but${match.goals > 1 ? 's' : ''}` : ''}
-                    {match.assists ? ` · ${match.assists} passe déc.` : ''}
-                    {match.saves ? ` · ${match.saves} arrêt${match.saves > 1 ? 's' : ''}` : ''}
-                    {match.tackles ? ` · ${match.tackles} tacles` : ''}
-                    {match.keyPasses ? ` · ${match.keyPasses} passes clés` : ''}
-                    {match.xg ? ` · ${match.xg} xG` : ''}
-                    {match.matchReport && <div style={{ marginTop: 4 }}>{match.matchReport}</div>}
-                  </div>
-                </div>
+                <MatchScorecard key={`${match.playerId}-${match.opponent}`} match={match} />
               ))}
             </div>
           )}

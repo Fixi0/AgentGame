@@ -583,6 +583,8 @@ export const migrateState = (state) => {
         timeline: player.timeline ?? [],
         personality,
         trust: player.trust ?? getInitialTrust(personality),
+        recentResults: player.recentResults ?? [],
+        previousRating: player.previousRating ?? null,
       };
     }),
     market: (state.market?.length ? state.market : generateMarket(state.reputation ?? 15, state.office?.scoutLevel ?? 0)).map((player) => {
@@ -1388,6 +1390,7 @@ export const playWeek = (state) => {
   const updatedRoster = state.roster.map((player) => {
     let updatedPlayer = {
       ...player,
+      previousRating: player.rating,
       injured: Math.max(0, player.injured - 1),
       contractWeeksLeft: Math.max(0, player.contractWeeksLeft - 1),
       agentContract: tickAgentContract(player.agentContract ?? createAgentContract(player)),
@@ -1407,6 +1410,8 @@ export const playWeek = (state) => {
           : (updatedPlayer.clubRole === 'Titulaire' && matchResult.minutes < 55)
             ? { moral: -3, trust: -3, label: 'Temps de jeu inférieur au rôle promis' }
             : null;
+      const matchOutcome = matchResult.result === 'win' ? 'W' : matchResult.result === 'loss' ? 'L' : 'D';
+      const updatedRecentResults = [...(updatedPlayer.recentResults ?? []), matchOutcome].slice(-5);
       updatedPlayer = {
         ...updatedPlayer,
         moral: clamp(updatedPlayer.moral + resultMoral + contributionMoral + (promisedRolePenalty?.moral ?? 0)),
@@ -1416,6 +1421,7 @@ export const playWeek = (state) => {
         fatigue: clamp((updatedPlayer.fatigue ?? 20) + Math.floor(matchResult.minutes / 12) + (matchResult.result === 'loss' ? 2 : 0), 0, 100),
         seasonStats: updateSeasonStats(updatedPlayer.seasonStats, matchResult),
         matchHistory: matchResult ? [{ week: state.week, roleExpectation: promisedRolePenalty?.label, ...matchResult }, ...(updatedPlayer.matchHistory ?? [])].slice(0, 12) : updatedPlayer.matchHistory ?? [],
+        recentResults: updatedRecentResults,
       };
       if (promisedRolePenalty) {
         generatedMessages.push(createMessage({ player: updatedPlayer, type: 'role_frustration', week: state.week + 1, context: 'club_role' }));
