@@ -24,6 +24,7 @@ import InteractiveModal from './components/modals/InteractiveModal';
 import ClubModal from './components/modals/ClubModal';
 import MediaCrisisModal from './components/modals/MediaCrisisModal';
 import OfferCompareModal from './components/modals/OfferCompareModal';
+import OfferContractModal from './components/modals/OfferContractModal';
 import ShortlistModal from './components/modals/ShortlistModal';
 import RetirementModal from './components/modals/RetirementModal';
 import TransferOfferModal from './components/modals/TransferOfferModal';
@@ -260,7 +261,7 @@ export default function FootballAgentGame() {
       showToast('Offre indisponible', 'error');
       return;
     }
-    setModal({ type: 'offer_detail', data: { offer, player, readiness: getOfferAcceptanceReadiness(state, offer) } });
+    setModal({ type: 'offer_contract', data: { offer, player, readiness: getOfferAcceptanceReadiness(state, offer) } });
   };
 
   const handleRecruitPlayer = (player, pitchId) => {
@@ -314,7 +315,7 @@ export default function FootballAgentGame() {
         ?? result.state.clubOffers.find((item) => item.playerId === player.id && item.status === 'open' && item.week === result.state.week)
         ?? result.state.clubOffers.find((item) => item.playerId === player.id && item.status === 'open');
       if (offer) {
-        setModal({ type: 'nego_offer', data: { offer, player } });
+        setModal({ type: 'offer_contract', data: { offer, player, readiness: getOfferAcceptanceReadiness(result.state, offer) } });
       } else {
         setModal(null);
         showToast('L\'offre liée à l\'événement n\'a pas pu être retrouvée.', 'error');
@@ -933,21 +934,13 @@ export default function FootballAgentGame() {
         />
       )}
       {modal?.type === 'nego_offer' && (
-        <NegotiationTransfer
-          key={`nego-offer-${modal.data.offer.id}`}
+        <OfferContractModal
+          offer={modal.data.offer}
           player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
-          rep={state.reputation}
-          lawyer={state.office.lawyerLevel}
-          fixedSuitor={{
-            name: modal.data.offer.club,
-            tier: modal.data.offer.clubTier,
-            countryCode: modal.data.offer.clubCountryCode,
-            city: modal.data.offer.clubCity,
-          }}
-          initialOffer={modal.data.offer.price}
-          initialSalaryMultiplier={modal.data.offer.salMult}
-          onFinish={(outcome) => handleFinishOfferNegotiation(modal.data.offer, outcome)}
+          readiness={getOfferAcceptanceReadiness(state, modal.data.offer)}
           onClose={() => setModal(null)}
+          onSign={(outcome) => handleFinishOfferNegotiation(modal.data.offer, outcome)}
+          onReject={() => { commitResult(rejectClubOffer(state, modal.data.offer.id), 'Offre refusée'); setModal(null); }}
         />
       )}
       {modal?.type === 'offer_detail' && (
@@ -958,6 +951,16 @@ export default function FootballAgentGame() {
           onClose={() => setModal(null)}
           onAccept={() => handleAcceptOfferDirect(modal.data.offer)}
           onNegotiate={() => setModal({ type: 'nego_offer', data: { offer: modal.data.offer, player: modal.data.player } })}
+          onReject={() => { commitResult(rejectClubOffer(state, modal.data.offer.id), 'Offre refusée'); setModal(null); }}
+        />
+      )}
+      {modal?.type === 'offer_contract' && (
+        <OfferContractModal
+          offer={modal.data.offer}
+          player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
+          readiness={modal.data.readiness ?? getOfferAcceptanceReadiness(state, modal.data.offer)}
+          onClose={() => setModal(null)}
+          onSign={(outcome) => handleFinishOfferNegotiation(modal.data.offer, outcome)}
           onReject={() => { commitResult(rejectClubOffer(state, modal.data.offer.id), 'Offre refusée'); setModal(null); }}
         />
       )}
