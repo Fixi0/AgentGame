@@ -73,7 +73,7 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
           disabled={!canSign}
           style={{ ...S.signBtn, opacity: canSign ? 1 : 0.4, cursor: canSign ? 'pointer' : 'not-allowed' }}
         >
-          <span>SIGNER</span>
+          <span>RECRUTER</span>
           <span>{formatMoney(player.signingCost)}</span>
         </button>
       ) : (

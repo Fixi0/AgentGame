@@ -8,6 +8,7 @@ import Contacts from './components/Contacts';
 import ContractDashboard from './components/ContractDashboard';
 import DeadlineDay from './components/DeadlineDay';
 import Market from './components/Market';
+import RecruitmentModal from './components/modals/RecruitmentModal';
 import MediaRoom from './components/MediaRoom';
 import Messages from './components/Messages';
 import More from './components/More';
@@ -42,7 +43,6 @@ import {
   proposePlayerToClubs,
   refreshMarket,
   rejectClubOffer,
-  signPlayer,
   startScoutingMission,
   STORAGE_KEY,
   toggleDarkMode,
@@ -59,6 +59,7 @@ import { getCalendarSnapshot } from './systems/seasonSystem';
 import { createMessage, createStaffConversationMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage } from './systems/promiseSystem';
 import { getPendingMessageCounts } from './systems/dossierSystem';
+import { recruitPlayer } from './systems/recruitmentSystem';
 import { purchaseShopItem } from './systems/shopSystem';
 import { clamp, makeId } from './utils/helpers';
 import { formatMoney } from './utils/format';
@@ -192,7 +193,7 @@ export default function FootballAgentGame() {
   };
 
   const handleSignPlayer = (player) => {
-    commitResult(signPlayer(state, player), `${player.firstName} ${player.lastName} signé`);
+    setModal({ type: 'recruit_player', data: { player } });
   };
 
   const handleReleasePlayer = (playerId) => {
@@ -262,6 +263,18 @@ export default function FootballAgentGame() {
       return;
     }
     setModal({ type: 'nego_offer', data: { offer, player } });
+  };
+
+  const handleRecruitPlayer = (player, pitchId) => {
+    const result = recruitPlayer(state, player.id, pitchId);
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+    setState(result.state);
+    setModal(null);
+    const pitchLabel = result.preview?.pitch?.label ?? 'Projet';
+    showToast(`${player.firstName} ${player.lastName} recruté via ${pitchLabel}`, 'success');
   };
 
   const handleRejectOffer = (offerId) => {
@@ -875,6 +888,14 @@ export default function FootballAgentGame() {
     onConfirm={(selectedClubs) => handleShortlistConfirm(modal.data.message, modal.data.player, modal.data.responseType, selectedClubs)}
           />
         )}
+      {modal?.type === 'recruit_player' && (
+        <RecruitmentModal
+          state={state}
+          player={state.market.find((player) => player.id === modal.data.player.id) ?? state.freeAgents.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
+          onClose={() => setModal(null)}
+          onConfirm={(pitchId) => handleRecruitPlayer(modal.data.player, pitchId)}
+        />
+      )}
       {modal?.type === 'nego_transfer' && (
         <NegotiationTransfer
           key={`nego-transfer-${modal.data.player.id}-${modal.data.offer?.id ?? 'manual'}`}

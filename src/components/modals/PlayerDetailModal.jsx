@@ -121,6 +121,21 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             <div style={S.sumRow}><span style={S.sumK}>Villes préférées</span><strong>{(player.preferredCities ?? []).join(', ') || '-'}</strong></div>
           </div>
           <div style={S.objCard}>
+            <div style={S.secTitle}>DOSSIER RECRUTEMENT</div>
+            <div style={S.tagRow}>
+              {(player.recruitmentPriorities ?? []).length
+                ? player.recruitmentPriorities.map((item) => <span key={item} style={S.softTag}>{item}</span>)
+                : <span style={S.emptySmall}>Aucune priorité détectée.</span>}
+            </div>
+            <div style={S.tagRow}>
+              {(player.recruitmentDealBreakers ?? []).length
+                ? player.recruitmentDealBreakers.map((item) => <span key={item} style={S.warnTag}>{item}</span>)
+                : <span style={S.emptySmall}>Aucun frein majeur.</span>}
+            </div>
+            <div style={S.sumRow}><span style={S.sumK}>Fit recrutement</span><strong>{player.recruitmentFit ?? '--'}/100</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Angle choisi</span><strong>{player.signReason ?? player.recruitmentPitch ?? 'à déterminer'}</strong></div>
+          </div>
+          <div style={S.objCard}>
             <div style={S.secTitle}>SAISON</div>
             <div style={S.statLineGrid}>
               <div><strong>{seasonStats.appearances ?? 0}</strong><span>Matchs</span></div>

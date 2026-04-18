@@ -163,6 +163,20 @@ const createDeepPlayerProfile = (player, countryCode, club) => {
     preferredCountries: [countryCode, ...(Math.random() < 0.35 ? [pick(['FR', 'GB', 'ES', 'IT', 'DE'])] : [])],
     preferredCities: [...new Set([club.city, pick(possibleCities.length ? possibleCities : [club.city])])],
     dreamClub: pick(CLUBS.filter((item) => item.tier <= 2)).name,
+    recruitmentPriorities: [
+      ...(benchFear > 65 ? ['Temps de jeu'] : []),
+      ...(ambitionBase > 60 ? ['Ambition sportive'] : []),
+      ...(player.personality === 'mercenaire' ? ['Salaire'] : []),
+      ...(familyInfluence > 60 ? ['Stabilité familiale'] : []),
+      ...(player.brandValue > 24 ? ['Visibilité'] : []),
+      ...(loyaltyBase > 70 ? ['Projet durable'] : []),
+    ].slice(0, 3),
+    recruitmentDealBreakers: [
+      ...(benchFear > 72 ? ['promesse de banc'] : []),
+      ...(familyInfluence > 70 ? ['ville distante'] : []),
+      ...(player.personality === 'mercenaire' ? ['offre trop basse'] : []),
+      ...(player.personality === 'professionnel' ? ['projet flou'] : []),
+    ].slice(0, 3),
     pressure: rand(25, 65),
   };
 };
