@@ -75,7 +75,20 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
   });
 
   const act = (action) => {
-    if (done) return;
+    // Allow finalisation actions even after turns are exhausted
+    if (done && action !== 'accept' && action !== 'walk') return;
+
+    if (action === 'accept') {
+      setDone(true);
+      finishSuccess();
+      return;
+    }
+    if (action === 'walk') {
+      setDone(true);
+      onFinish({ success: false });
+      return;
+    }
+
     let nextInterest = interest;
     let nextOffer = offer;
     let nextSalaryMultiplier = salaryMultiplier;
@@ -108,14 +121,6 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
       nextInterest += 8;
       nextOffer = Math.floor(offer * 1.03);
       addLog('info', 'Concession acceptée.');
-    } else if (action === 'accept') {
-      setDone(true);
-      finishSuccess();
-      return;
-    } else if (action === 'walk') {
-      setDone(true);
-      onFinish({ success: false });
-      return;
     }
 
     nextInterest = Math.max(0, Math.min(100, nextInterest - Math.floor(getTermsPressure() / 4)));
@@ -157,9 +162,11 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
         done={done}
         turn={turn}
         maxTurns={maxTurns}
-        allowConclude={turn >= 3}
+        allowConclude={turn >= 2}
         acceptLabel={`Signer ${contractYears} ans`}
         acceptHint={`Offre ${formatMoney(offer)} · Prime ${formatMoney(signingBonus)} · Clause ${formatMoney(releaseClause)}`}
+        onFinishSuccess={finishSuccess}
+        onFinishFail={() => onFinish({ success: false })}
         onAct={act}
       />
     </NegotiationShell>
@@ -171,7 +178,8 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
   const [open, setOpen] = useState(() => 55 + rand(-10, 15) + getNegotiationModifier(player));
   const [salaryMultiplier, setSalaryMultiplier] = useState(1);
   const [role, setRole] = useState(() => player.clubRole ?? (player.rating >= 84 ? 'Star' : player.rating >= 74 ? 'Titulaire' : 'Rotation'));
-  const [contractYears, setContractYears] = useState(() => Math.max(1, Math.round((player.contractWeeksLeft || 104) / 52)));
+  // Default duration: age-based (not leftover weeks, which gives absurd 0-1 year defaults)
+  const [contractYears, setContractYears] = useState(() => player.age >= 33 ? 2 : player.age >= 29 ? 3 : 4);
   const [signingBonus, setSigningBonus] = useState(() => Math.max(3000, Math.floor(player.weeklySalary * 7)));
   const [releaseClause, setReleaseClause] = useState(() => player.releaseClause ?? Math.floor(player.value * 1.7));
   const [sellOnPercent, setSellOnPercent] = useState(() => player.sellOnPercent ?? 5);
@@ -208,7 +216,20 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
   });
 
   const act = (action) => {
-    if (done) return;
+    // Allow sign/walk even after turns are exhausted
+    if (done && action !== 'sign' && action !== 'walk') return;
+
+    if (action === 'sign') {
+      setDone(true);
+      onFinish(signOutcome());
+      return;
+    }
+    if (action === 'walk') {
+      setDone(true);
+      onFinish({ success: false });
+      return;
+    }
+
     let nextOpen = open;
     let nextSalaryMultiplier = salaryMultiplier;
 
@@ -228,14 +249,6 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
       nextOpen += 10;
       nextSalaryMultiplier += 0.03;
       addLog('info', 'Argument de loyauté.');
-    } else if (action === 'sign') {
-      setDone(true);
-      onFinish(signOutcome());
-      return;
-    } else if (action === 'walk') {
-      setDone(true);
-      onFinish({ success: false });
-      return;
     }
 
     nextOpen = Math.max(0, Math.min(100, nextOpen - Math.floor(getTermsPressure() / 4)));
@@ -277,18 +290,26 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
           <button onClick={() => act('demand')} style={S.choiceBtn}><div><div style={S.chLabel}>Grosse augmentation</div><div style={S.chDesc}>Risqué, gros gain</div></div></button>
           <button onClick={() => act('moderate')} style={S.choiceBtn}><div><div style={S.chLabel}>Demande raisonnable</div><div style={S.chDesc}>Equilibré</div></div></button>
           <button onClick={() => act('loyalty')} style={S.choiceBtn}><div><div style={S.chLabel}>Argument loyauté</div><div style={S.chDesc}>Regagner confiance</div></div></button>
-          {turn >= 3 ? (
-            <button onClick={() => act('sign')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}><div><div style={{ ...S.chLabel, color: '#00a676' }}>Signer {contractYears} ans</div><div style={S.chDesc}>{role} · prime {formatMoney(signingBonus)} · ×{salaryMultiplier.toFixed(2)}</div></div></button>
-          ) : (
-            <div style={S.msgHint}>La prolongation n'est pas encore prête à être conclue.</div>
-          )}
+          {/* Sign available from turn 1 — contract urgency means no forced delay */}
+          <button onClick={() => act('sign')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
+            <div>
+              <div style={{ ...S.chLabel, color: '#00a676' }}>Signer {contractYears} ans</div>
+              <div style={S.chDesc}>{role} · prime {formatMoney(signingBonus)} · ×{salaryMultiplier.toFixed(2)}</div>
+            </div>
+          </button>
           <button onClick={() => act('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Abandonner</div></button>
         </div>
       )}
+      {/* Done/post-turns screen — call onFinish directly, NOT through act() */}
       {(done || turn > maxTurns) && (
         <div style={S.choiceList}>
-          <button onClick={() => act('sign')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}><div><div style={{ ...S.chLabel, color: '#00a676' }}>Signer {contractYears} ans</div><div style={S.chDesc}>{role} · prime {formatMoney(signingBonus)} · ×{salaryMultiplier.toFixed(2)}</div></div></button>
-          <button onClick={() => act('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Refuser</div></button>
+          <button onClick={() => onFinish(signOutcome())} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
+            <div>
+              <div style={{ ...S.chLabel, color: '#00a676' }}>Signer {contractYears} ans</div>
+              <div style={S.chDesc}>{role} · prime {formatMoney(signingBonus)} · ×{salaryMultiplier.toFixed(2)}</div>
+            </div>
+          </button>
+          <button onClick={() => onFinish({ success: false })} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Refuser</div></button>
         </div>
       )}
     </NegotiationShell>
@@ -399,12 +420,23 @@ function LogBox({ log }) {
   );
 }
 
-function NegotiationActions({ done, turn, maxTurns, allowConclude, acceptLabel, acceptHint, onAct }) {
+function NegotiationActions({ done, turn, maxTurns, allowConclude, acceptLabel, acceptHint, onAct, onFinishSuccess, onFinishFail }) {
+  // Done/post-turns: use direct callbacks to avoid the `if (done) return` guard in act()
   if (done || turn > maxTurns) {
     return (
       <div style={S.choiceList}>
-        <button onClick={() => onAct('accept')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}><div style={{ ...S.chLabel, color: '#00a676' }}>{acceptLabel}</div></button>
-        <button onClick={() => onAct('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Refuser</div></button>
+        <button
+          onClick={() => onFinishSuccess ? onFinishSuccess() : onAct('accept')}
+          style={{ ...S.choiceBtn, borderColor: '#00a676' }}
+        >
+          <div style={{ ...S.chLabel, color: '#00a676' }}>{acceptLabel}</div>
+        </button>
+        <button
+          onClick={() => onFinishFail ? onFinishFail() : onAct('walk')}
+          style={{ ...S.choiceBtn, borderColor: '#b42318' }}
+        >
+          <div style={{ ...S.chLabel, color: '#b42318' }}>Refuser</div>
+        </button>
       </div>
     );
   }
