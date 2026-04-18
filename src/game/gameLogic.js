@@ -959,7 +959,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
       stats: {
         ...state.stats,
         transfersDone: state.stats.transfersDone + 1,
-        totalEarned: state.stats.totalEarned + commission,
+        totalEarned: state.stats.totalEarned + agreement.commission,
       },
       news: [
         createManualNewsPost({
