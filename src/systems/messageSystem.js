@@ -286,13 +286,51 @@ const RESPONSE_OPTIONS_BY_TYPE = {
   },
 };
 
+const isDealContext = (message) => ['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(message?.context);
+
 export const getMessageResponseOptions = (message) => RESPONSE_OPTIONS_BY_TYPE[message.type] ?? {
   professionnel: 'Réponse claire',
   empathique: 'Soutien direct',
   ferme: 'Cadre strict',
 };
 
+export const getContextualResponseOptions = (message) => {
+  if (!isDealContext(message)) return getMessageResponseOptions(message);
+
+  if (message.type === 'transfer_request') {
+    return {
+      professionnel: 'Valider le plan',
+      empathique: 'Féliciter et cadrer',
+      ferme: 'Focus performance',
+    };
+  }
+
+  if (message.type === 'ds_dialogue') {
+    return {
+      professionnel: 'Confirmer les détails',
+      empathique: 'Remercier la direction',
+      ferme: 'Exiger exécution',
+    };
+  }
+
+  return {
+    professionnel: 'Réponse claire',
+    empathique: 'Soutien direct',
+    ferme: 'Cadre strict',
+  };
+};
+
 export const getMessageResponseAction = (message, responseType) => {
+  if (isDealContext(message) && message.type === 'transfer_request') {
+    if (responseType === 'professionnel') return { type: 'deal_followup', label: 'Plan de transition validé' };
+    if (responseType === 'empathique') return { type: 'voice_call', label: 'Appel de suivi après deal' };
+    return { type: 'focus_reset', label: 'Focus terrain relancé' };
+  }
+  if (isDealContext(message) && message.type === 'ds_dialogue') {
+    if (responseType === 'professionnel') return { type: 'club_check', label: 'Détails administratifs confirmés' };
+    if (responseType === 'empathique') return { type: 'deal_followup', label: 'Relation club renforcée' };
+    return { type: 'club_check', label: 'Direction relancée sur l\'exécution' };
+  }
   if (message.type === 'transfer_request' && responseType === 'professionnel') return { type: 'market_watch', label: 'Préparer shortlist' };
   if (message.type === 'transfer_request' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel joueur programmé ce soir' };
   if (message.type === 'raise_request' && ['professionnel', 'empathique'].includes(responseType)) return { type: 'salary_case', label: 'Dossier salaire à préparer' };
@@ -319,6 +357,18 @@ export const responseCopy = {
 };
 
 export const getResponseCopy = (message, responseType) => {
+  if (isDealContext(message) && message.type === 'transfer_request') {
+    if (responseType === 'professionnel') return "Parfait, on verrouille la suite proprement.\n\nJe valide le plan de transition avec le club et je te protège sur toute la phase avant l'arrivée officielle: communication, temps de jeu, et aucun bruit inutile.\n\nTu restes concentré, je gère la partie contractuelle et média.";
+    if (responseType === 'empathique') return "Je suis content pour toi, vraiment.\n\nTu as mérité ce deal et on va le vivre proprement jusqu'au bout. Si tu as une inquiétude (ville, rythme, pression), tu me l'envoies direct et je la traite.\n\nOn avance ensemble, sans te laisser seul dans cette transition.";
+    return "Le deal est signé, maintenant on passe en mode performance.\n\nPas de distraction, pas de drama. Tu montres que le club a fait le bon choix et moi je sécurise tout le reste autour de toi.\n\nOn garde la tête froide et on enchaîne.";
+  }
+
+  if (isDealContext(message) && message.type === 'ds_dialogue') {
+    if (responseType === 'professionnel') return "Merci, on confirme les derniers points opérationnels.\n\nJe veux la feuille de route exacte: intégration, rôle de départ, et timing de communication. Comme ça on évite tout malentendu dès le début.\n\nDès que c'est validé, je briefe le joueur.";
+    if (responseType === 'empathique') return "Merci pour la clarté.\n\nLe joueur a besoin d'un cadre sain pour réussir son arrivée, donc j'apprécie l'ouverture. On reste alignés et on se tient au courant au moindre ajustement.\n\nObjectif: une transition propre pour tout le monde.";
+    return "Je prends note, mais je veux une exécution sans écart.\n\nLes engagements pris doivent être tenus sur le rôle et le plan d'intégration. Si ça dérive, je reviens immédiatement vers vous.\n\nOn reste carrés.";
+  }
+
   if (message.type === 'welcome') {
     if (responseType === 'professionnel') return "Bienvenue dans l'agence.\n\nJe vais commencer par établir ton plan de carrière : situation actuelle, objectif sportif, salaire cible, clubs compatibles et calendrier réaliste. Tu sauras toujours ce qu'on fait et pourquoi on le fait.\n\nDe ton côté, je veux de la régularité, du sérieux et une communication directe avec moi.";
     if (responseType === 'empathique') return "Bienvenue, vraiment.\n\nJe suis content que tu nous fasses confiance. Avant de parler argent ou mercato, je veux comprendre ce que tu veux vivre comme carrière : le type de club, la ville, le rôle, le rythme, et ce qui compte pour toi en dehors du terrain.\n\nOn construit ça ensemble, pas au-dessus de ta tête.";

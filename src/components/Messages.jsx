@@ -1,6 +1,6 @@
 import { ChevronLeft, MessageCircle, PhoneCall, UserRound } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
-import { getMessageResponseOptions, getResponseCopy } from '../systems/messageSystem';
+import { getContextualResponseOptions, getResponseCopy } from '../systems/messageSystem';
 import { getPendingMessageCounts, getMessageQueueLabel } from '../systems/dossierSystem';
 import { S } from './styles';
 
@@ -261,7 +261,7 @@ export default function Messages({ messages, messageQueue = [], onRespond, focus
                                 <div style={S.msgHint}>Une réponse concrète peut déclencher une suite dans le jeu.</div>
                               )}
                               <div style={actionGridStyle}>
-                                {Object.entries(getMessageResponseOptions(message)).map(([type, label]) => (
+                                {Object.entries(getContextualResponseOptions(message)).map(([type, label]) => (
                                   <button key={type} onClick={() => onRespond(message.id, type)} style={actionBtnStyle}>
                                     {label || responseLabels[type]}
                                   </button>
