@@ -26,6 +26,7 @@ import MediaCrisisModal from './components/modals/MediaCrisisModal';
 import OfferCompareModal from './components/modals/OfferCompareModal';
 import ShortlistModal from './components/modals/ShortlistModal';
 import RetirementModal from './components/modals/RetirementModal';
+import TransferOfferModal from './components/modals/TransferOfferModal';
 import { NegotiationExtend, NegotiationTransfer } from './components/modals/NegotiationModals';
 import PlayerDetailModal from './components/modals/PlayerDetailModal';
 import ResultsModal from './components/modals/ResultsModal';
@@ -255,16 +256,11 @@ export default function FootballAgentGame() {
   const handleAcceptOffer = (offerId) => {
     const offer = state.clubOffers.find((item) => item.id === offerId);
     const player = state.roster.find((item) => item.id === offer?.playerId);
-    const readiness = getOfferAcceptanceReadiness(state, offer);
-    if (!readiness.ok) {
-      showToast(readiness.reason, readiness.tone === 'danger' ? 'error' : 'info');
-      return;
-    }
     if (!offer || !player) {
       showToast('Offre indisponible', 'error');
       return;
     }
-    setModal({ type: 'nego_offer', data: { offer, player } });
+    setModal({ type: 'offer_detail', data: { offer, player, readiness: getOfferAcceptanceReadiness(state, offer) } });
   };
 
   const handleRecruitPlayer = (player, pitchId) => {
@@ -390,6 +386,22 @@ export default function FootballAgentGame() {
       showToast(`✅ Pré-accord signé — transfert officiel semaine ${newPending.effectiveWeek}`, 'success');
     } else {
       showToast('Transfert négocié et activé', 'success');
+    }
+    setModal(null);
+  };
+
+  const handleAcceptOfferDirect = (offer) => {
+    const result = acceptClubOffer(state, offer.id, null);
+    if (result.error) {
+      showToast(result.error, 'error');
+      return;
+    }
+    setState(result.state);
+    const newPending = (result.state.pendingTransfers ?? []).find((pt) => pt.offerId === offer.id);
+    if (newPending) {
+      showToast(`✅ Pré-accord signé — transfert officiel semaine ${newPending.effectiveWeek}`, 'success');
+    } else {
+      showToast('Transfert validé', 'success');
     }
     setModal(null);
   };
@@ -927,6 +939,17 @@ export default function FootballAgentGame() {
           initialSalaryMultiplier={modal.data.offer.salMult}
           onFinish={(outcome) => handleFinishOfferNegotiation(modal.data.offer, outcome)}
           onClose={() => setModal(null)}
+        />
+      )}
+      {modal?.type === 'offer_detail' && (
+        <TransferOfferModal
+          offer={modal.data.offer}
+          player={modal.data.player}
+          readiness={modal.data.readiness}
+          onClose={() => setModal(null)}
+          onAccept={() => handleAcceptOfferDirect(modal.data.offer)}
+          onNegotiate={() => setModal({ type: 'nego_offer', data: { offer: modal.data.offer, player: modal.data.player } })}
+          onReject={() => { commitResult(rejectClubOffer(state, modal.data.offer.id), 'Offre refusée'); setModal(null); }}
         />
       )}
       {modal?.type === 'nego_extend' && (
