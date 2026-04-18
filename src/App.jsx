@@ -70,6 +70,14 @@ const getTransferReadiness = (state, player, phase) => {
   if (player.freeAgent || player.club === 'Libre') {
     return { ok: true, type: 'transfer' };
   }
+  // Minimum 1 saison (38 sem.) au club avant de pouvoir re-transférer
+  // Exception : contrat < 8 semaines (joueur en fin de contrat, libre de partir)
+  const weeksAtClub = state.week - (player.contractStartWeek ?? 0);
+  const contractAlmostOver = (player.contractWeeksLeft ?? 99) < 8;
+  if (weeksAtClub < 38 && !contractAlmostOver) {
+    const remaining = 38 - weeksAtClub;
+    return { ok: false, message: `${player.firstName} vient d'arriver — encore ${remaining} semaine${remaining > 1 ? 's' : ''} de stabilité requises avant un transfert.` };
+  }
 
   const chance = 0.18
     + (player.rating >= 76 ? 0.12 : player.rating < 64 ? -0.12 : 0)

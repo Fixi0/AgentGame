@@ -55,10 +55,25 @@ const getEventChance = (event, player, worldState) => {
   return event.chance * personalityMultiplier * moralMultiplier * ageMultiplier * injuryMultiplier * fatigueMultiplier * rarityMult * worldStateMult;
 };
 
+// Events that only make sense when the player has a club
+const CLUB_REQUIRED_EVENT_TYPES = new Set(['performance', 'playing_time']);
+const CLUB_REQUIRED_EVENT_IDS = new Set([
+  'benched', 'hat_trick', 'mvp', 'brace', 'assist', 'penalty_miss', 'bad_form',
+  'fatigue', 'own_goal', 'comeback_hero', 'top_scorer_race', 'hat_trick_cl',
+  'callup', 'international_debut', 'red_card', 'yellow_spree', 'training_clash',
+  'fine_club', 'fight', 'fan_dispute', 'rival_clash', 'public_meltdown',
+  'president_call', 'manager_clash', 'benched_starter', 'top_scorer_race',
+]);
+
+const isFreeAgent = (player) => player.freeAgent || player.club === 'Libre' || !player.club;
+
 export const rollPassiveEvent = (player, modifiers = {}) => {
+  const freeAgent = isFreeAgent(player);
   for (const event of PASSIVE_EVENTS) {
     if (CALENDAR_LOCKED_EVENTS.has(event.id) && !modifiers.allowCalendarAwards) continue;
     if (!isEventCompatibleWithMatch(event, modifiers.matchResult)) continue;
+    // Skip club-specific events for free agents — a player without a club can't be benched
+    if (freeAgent && (CLUB_REQUIRED_EVENT_TYPES.has(event.type) || CLUB_REQUIRED_EVENT_IDS.has(event.id))) continue;
 
     const mediaProtection = event.type === 'scandal' ? 1 - (modifiers.scandalReduction ?? 0) : 1;
     const performanceBoost = event.good && event.type === 'performance' ? 1 + (modifiers.performanceBoost ?? 0) : 1;

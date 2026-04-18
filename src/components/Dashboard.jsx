@@ -97,31 +97,173 @@ function SeasonArc({ currentWeek, totalWeeks }) {
   );
 }
 
-function ActivityFeed({ news, history }) {
-  const newsItems = (news ?? []).slice(0, 6).map((post) => ({
-    icon: '📰',
-    text: `${post.accountName ?? post.account?.name ?? 'News'} · ${post.text?.slice(0, 60)}${(post.text?.length ?? 0) > 60 ? '…' : ''}`,
-    week: post.week,
-  }));
-  const histItems = (history ?? []).slice(-3).reverse().map((h) => ({
-    icon: h.net >= 0 ? '💰' : '📉',
-    text: `Bilan S${h.week} · ${h.net >= 0 ? '+' : ''}${h.net?.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}`,
-    week: h.week,
-  }));
-  const items = [...newsItems, ...histItems].sort((a, b) => (b.week ?? 0) - (a.week ?? 0)).slice(0, 8);
-  if (!items.length) return null;
+// ── Newspaper "Une" component ──────────────────────────────────────────────
+const PRESS_ICONS = { transfer: '🔄', scandal: '🔴', performance: '⚽', injury: '🤕', media: '📰', financial: '💰', default: '📋' };
+
+function getHeadlineFromNews(news, history, roster) {
+  // Try to find the most impactful recent story
+  const recent = (news ?? []).slice(0, 8);
+  const transferNews = recent.find((p) => p.type === 'transfer' || p.text?.includes('transfert') || p.text?.includes('signe'));
+  const scandaleNews = recent.find((p) => p.type === 'scandal' || p.text?.includes('polémique') || p.text?.includes('scandale'));
+  const perfNews = recent.find((p) => p.type === 'performance' || p.text?.includes('but') || p.text?.includes('passes'));
+  const headline = transferNews ?? scandaleNews ?? perfNews ?? recent[0];
+  if (!headline) {
+    // Fallback: best player this roster
+    const bestPlayer = [...(roster ?? [])].sort((a, b) => b.rating - a.rating)[0];
+    if (bestPlayer) return {
+      icon: '⭐',
+      title: `${bestPlayer.firstName} ${bestPlayer.lastName} — La priorité de l'agence`,
+      sub: `Note ${bestPlayer.rating} · ${bestPlayer.roleLabel ?? bestPlayer.position} · ${bestPlayer.club ?? 'Libre'}`,
+      week: null,
+      source: 'Agence',
+    };
+    return null;
+  }
+  const typeIcon = PRESS_ICONS[headline.type] ?? PRESS_ICONS.default;
+  const rawText = headline.text ?? '';
+  // Try to extract a punchy headline (first sentence or first 80 chars)
+  const title = rawText.split(/[.!?]/)[0].trim().slice(0, 90) || rawText.slice(0, 90);
+  const sub = rawText.length > title.length ? rawText.slice(title.length + 1).trim().slice(0, 100) : null;
+  return { icon: typeIcon, title: title || 'Semaine agitée', sub, week: headline.week, source: headline.accountName ?? headline.account?.name ?? 'Sources' };
+}
+
+function NewspaperFront({ news, history, roster, phase, onNav }) {
+  const headline = getHeadlineFromNews(news, history, roster);
+  // Secondary briefs — mix of news + financial history
+  const briefs = [
+    ...(news ?? []).slice(1, 4).map((p) => ({
+      icon: PRESS_ICONS[p.type] ?? '📋',
+      text: (p.text ?? '').slice(0, 70),
+      week: p.week,
+    })),
+    ...((history ?? []).slice(-2).reverse().map((h) => ({
+      icon: h.net >= 0 ? '💰' : '📉',
+      text: `Bilan S${h.week} · ${h.net >= 0 ? '+' : ''}${Math.abs(h.net).toLocaleString('fr-FR')} €`,
+      week: h.week,
+    }))),
+  ].slice(0, 4);
+
+  if (!headline && !briefs.length) return null;
+
   return (
-    <div style={S.actFeed}>
-      <div style={{ ...S.secTitle, marginBottom: 6 }}>
-        <Activity size={13} />
-        <span>FIL D'ACTU</span>
+    <div
+      style={{
+        background: '#ffffff',
+        border: '1px solid #e5eaf0',
+        borderRadius: 10,
+        overflow: 'hidden',
+        marginBottom: 16,
+        boxShadow: '0 14px 34px rgba(15,23,32,.07)',
+      }}
+    >
+      {/* Masthead */}
+      <div style={{
+        background: '#172026',
+        color: '#ffffff',
+        padding: '8px 14px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.18em', fontFamily: 'system-ui,sans-serif' }}>
+          L'AGENT FC
+        </span>
+        <span style={{ fontSize: 10, color: '#9aa7b2', fontFamily: 'system-ui,sans-serif' }}>
+          SEMAINE {phase?.seasonWeek ?? '—'} · SAISON {phase?.season ?? '—'}
+        </span>
       </div>
-      {items.map((item, i) => (
-        <div key={i} style={{ ...S.actFeedItem, borderBottom: i < items.length - 1 ? '1px solid #f0f4f7' : 'none' }}>
-          <span style={{ fontSize: 14, flexShrink: 0 }}>{item.icon}</span>
-          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.text}</span>
-          {item.week != null && <span style={{ fontSize: 10, color: '#9aa7b2', flexShrink: 0, fontFamily: 'system-ui,sans-serif' }}>S{item.week}</span>}
-        </div>
+
+      {/* Main headline */}
+      {headline && (
+        <button
+          onClick={() => onNav('dossiers')}
+          style={{
+            display: 'block',
+            width: '100%',
+            textAlign: 'left',
+            background: 'none',
+            border: 'none',
+            padding: '14px 14px 10px',
+            borderBottom: briefs.length ? '1px solid #e5eaf0' : 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{headline.icon}</span>
+            <div>
+              <div style={{
+                fontSize: 16,
+                fontWeight: 900,
+                color: '#172026',
+                lineHeight: 1.25,
+                marginBottom: 4,
+                letterSpacing: '-.01em',
+              }}>
+                {headline.title}
+              </div>
+              {headline.sub && (
+                <div style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 }}>
+                  {headline.sub}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center' }}>
+                <span style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '.12em',
+                  color: '#9aa7b2',
+                  fontFamily: 'system-ui,sans-serif',
+                  textTransform: 'uppercase',
+                }}>
+                  {headline.source}
+                </span>
+                {headline.week && (
+                  <span style={{ fontSize: 9, color: '#c0cbd3', fontFamily: 'system-ui,sans-serif' }}>
+                    · S{headline.week}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </button>
+      )}
+
+      {/* Secondary briefs */}
+      {briefs.map((brief, i) => (
+        <button
+          key={i}
+          onClick={() => onNav('dossiers')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            width: '100%',
+            textAlign: 'left',
+            background: i % 2 === 0 ? '#f7f9fb' : '#ffffff',
+            border: 'none',
+            borderTop: '1px solid #f0f4f7',
+            padding: '8px 14px',
+            cursor: 'pointer',
+          }}
+        >
+          <span style={{ fontSize: 13, flexShrink: 0 }}>{brief.icon}</span>
+          <span style={{
+            flex: 1,
+            fontSize: 11,
+            color: '#3f5663',
+            fontFamily: 'system-ui,sans-serif',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {brief.text}
+          </span>
+          {brief.week && (
+            <span style={{ fontSize: 10, color: '#c0cbd3', flexShrink: 0, fontFamily: 'system-ui,sans-serif' }}>
+              S{brief.week}
+            </span>
+          )}
+        </button>
       ))}
     </div>
   );
@@ -245,7 +387,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           </div>
         ))}
       </div>
-      <ActivityFeed news={state.news} history={state.history} />
+      <NewspaperFront news={state.news} history={state.history} roster={state.roster} phase={phase} onNav={onNav} />
       <button onClick={onPlay} style={S.primaryBtn}>
         <Zap size={18} />
         <span>JOUER LA SEMAINE</span>
@@ -312,17 +454,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           ))}
         </div>
       )}
-      {!!spotlightNews.length && (
-        <div style={S.objCard}>
-          <div style={S.secTitle}>NEWS RAPIDES</div>
-          {spotlightNews.map((post) => (
-            <button key={post.id} style={S.decisionRow} onClick={() => onNav('news')}>
-              <span>{post.accountName} · {post.text}</span>
-              <strong>S{post.week}</strong>
-            </button>
-          ))}
-        </div>
-      )}
+      {/* NEWS RAPIDES section removed — replaced by NewspaperFront above */}
       <div style={S.objCard}>
         <div style={S.secTitle}>
           <Target size={14} />
