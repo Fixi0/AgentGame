@@ -353,12 +353,6 @@ export default function FootballAgentGame() {
       return;
     }
 
-    const readiness = getOfferAcceptanceReadiness(state, offer);
-    if (!readiness.ok) {
-      showToast(readiness.reason, readiness.tone === 'danger' ? 'error' : 'info');
-      return;
-    }
-
     const result = acceptClubOffer(state, offer.id, outcome);
     if (result.error) {
       const fallbackOffer = state.clubOffers.find((item) => item.playerId === offer.playerId && item.status === 'open');
@@ -391,13 +385,23 @@ export default function FootballAgentGame() {
   };
 
   const handleAcceptOfferDirect = (offer) => {
-    const readiness = getOfferAcceptanceReadiness(state, offer);
-    if (!readiness.ok) {
-      showToast(readiness.reason, readiness.tone === 'danger' ? 'error' : 'info');
-      return;
-    }
     const result = acceptClubOffer(state, offer.id, null);
     if (result.error) {
+      const fallbackOffer = state.clubOffers.find((item) => item.playerId === offer.playerId && item.status === 'open');
+      if (fallbackOffer && fallbackOffer.id !== offer.id) {
+        const retry = acceptClubOffer(state, fallbackOffer.id, null);
+        if (!retry.error) {
+          setState(retry.state);
+          const retryPending = (retry.state.pendingTransfers ?? []).find((pt) => pt.offerId === fallbackOffer.id);
+          if (retryPending) {
+            showToast(`✅ Pré-accord signé — transfert officiel semaine ${retryPending.effectiveWeek}`, 'success');
+          } else {
+            showToast('Transfert validé', 'success');
+          }
+          setModal(null);
+          return;
+        }
+      }
       showToast(result.error, 'error');
       return;
     }

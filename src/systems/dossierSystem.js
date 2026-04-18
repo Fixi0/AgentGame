@@ -249,7 +249,11 @@ export const getOfferAcceptanceReadiness = (state = {}, offer = null) => {
 
   const cooldownUntil = state?.negotiationCooldowns?.[offer.playerId] ?? 0;
   if (cooldownUntil > (state?.week ?? 0)) {
-    return { ok: false, reason: `Joueur verrouillé jusqu'en S${cooldownUntil}`, tone: 'danger' };
+    return {
+      ok: true,
+      reason: `Dossier sous suivi jusqu'en S${cooldownUntil}, mais la signature de cette offre reste possible.`,
+      tone: 'warn',
+    };
   }
 
   if ((state?.pendingTransfers ?? []).some((transfer) => transfer.playerId === offer.playerId && transfer.offerId !== offer.id)) {

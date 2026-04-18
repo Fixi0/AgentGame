@@ -802,14 +802,34 @@ const applyCompletedTransferToPlayer = (player, offer, agreement, week) => {
   };
 };
 
+const normalizeOfferBook = (offers = []) => {
+  const latestOpenByPlayer = new Map();
+  const sorted = [...offers].sort((a, b) => (b.week ?? 0) - (a.week ?? 0));
+  return sorted.map((offer) => {
+    if (offer.status !== 'open') return offer;
+    if (!latestOpenByPlayer.has(offer.playerId)) {
+      latestOpenByPlayer.set(offer.playerId, offer.id);
+      return offer;
+    }
+    return { ...offer, status: 'superseded' };
+  });
+};
+
 export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
   const offer = state.clubOffers.find((item) => item.id === offerId);
   if (!offer || offer.status !== 'open') return { state, error: 'Offre indisponible' };
-  const player = state.roster.find((item) => item.id === offer.playerId);
+  const player = state.roster.find((item) => item.id === offer.playerId)
+    ?? state.freeAgents?.find((item) => item.id === offer.playerId);
   if (!player) return { state, error: 'Joueur introuvable' };
   const agreement = buildTransferAgreement(player, offer, negotiatedOutcome);
   const targetClub = CLUBS.find((club) => club.name === offer.club);
   const phase = getPhase(state.week);
+  const closeCompetingOffers = (item) => {
+    if (item.id === offerId) return item;
+    if (item.playerId !== offer.playerId) return item;
+    if (!['open'].includes(item.status)) return item;
+    return { ...item, status: 'superseded' };
+  };
 
   if (offer.preWindow && !phase.mercato) {
     const effectiveWeek = offer.effectiveWeek ?? state.week + 1;
@@ -831,7 +851,11 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
           playerId: player.id,
           playerName: offer.playerName,
         }),
-        clubOffers: state.clubOffers.map((item) => (item.id === offerId ? { ...item, status: 'accepted_pending' } : item)),
+        clubOffers: state.clubOffers.map((item) => (
+          item.id === offerId
+            ? { ...item, status: 'accepted_pending' }
+            : closeCompetingOffers(item)
+        )),
         pendingTransfers: [
           {
             id: makeId('pending_transfer'),
@@ -889,7 +913,11 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
         [player.id]: state.week + 4,
       },
       segmentReputation: applySegmentReputationChange(state.segmentReputation, { business: 6, sportif: 2 }),
-      clubOffers: state.clubOffers.map((item) => (item.id === offerId ? { ...item, status: 'accepted' } : item)),
+      clubOffers: state.clubOffers.map((item) => (
+        item.id === offerId
+          ? { ...item, status: 'accepted' }
+          : closeCompetingOffers(item)
+      )),
       roster: nextRoster,
       nextFixtures: buildWeeklyFixtures(nextRoster, state.week + 1),
       promises: resolvePromisesForPlayer(state.promises, offer.playerId, ['transfer_request']),
@@ -1601,8 +1629,9 @@ export const playWeek = (state) => {
   events.push(...narrativeFollowups.events);
   generatedMessages.push(...narrativeFollowups.messages);
 
-  const activeOffers = (state.clubOffers ?? []).filter((offer) => offer.expiresWeek >= state.week && offer.status === 'open');
-  const expiredOffers = (state.clubOffers ?? []).map((offer) =>
+  const normalizedOfferBook = normalizeOfferBook(state.clubOffers ?? []);
+  const activeOffers = normalizedOfferBook.filter((offer) => offer.expiresWeek >= state.week && offer.status === 'open');
+  const expiredOffers = normalizedOfferBook.map((offer) =>
     offer.status === 'open' && offer.expiresWeek < state.week + 1 ? { ...offer, status: 'expired' } : offer,
   );
   const newClubOffers = generateClubOffers({
