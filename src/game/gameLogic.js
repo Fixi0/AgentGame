@@ -1375,6 +1375,13 @@ export const playWeek = (state) => {
   const weeklyFixtures = weeklySimulation.fixtures;
   const weeklyMatchResults = weeklySimulation.matchResults;
   const matchByPlayerId = new Map(weeklyMatchResults.map((match) => [match.playerId, match]));
+  const playedMatches = weeklyMatchResults.filter((match) => (match.minutes ?? 0) > 0 && Number.isFinite(match.matchRating));
+  const topMatch = playedMatches.length
+    ? [...playedMatches].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0]
+    : null;
+  const flopMatch = playedMatches.length
+    ? [...playedMatches].sort((a, b) => (a.matchRating ?? 0) - (b.matchRating ?? 0))[0]
+    : null;
   const activeDossierPlayerIds = [...getMarketLockedPlayerIds(state)];
 
   const updatedRoster = state.roster.map((player) => {
@@ -1534,6 +1541,37 @@ export const playWeek = (state) => {
           : player,
       )
     : updatedRoster;
+
+  if (topMatch) {
+    const topPlayer = caredRoster.find((player) => player.id === topMatch.playerId);
+    if (topPlayer) {
+      generatedNews.push(createManualNewsPost({
+        type: 'performance',
+        player: topPlayer,
+        week: state.week + 1,
+        text: `${topPlayer.firstName} ${topPlayer.lastName} brille: note ${topMatch.matchRating.toFixed(1)} dans ${topMatch.club} ${topMatch.score} ${topMatch.opponent}.`,
+        reputationImpact: 2,
+        account: { name: 'StatsZone FC', kind: 'data', icon: 'SZ', color: '#2f80ed' },
+      }));
+    }
+  }
+
+  if (flopMatch && (flopMatch.matchRating ?? 10) <= 5.8) {
+    const flopPlayer = caredRoster.find((player) => player.id === flopMatch.playerId);
+    if (flopPlayer) {
+      generatedNews.push(createManualNewsPost({
+        type: 'media',
+        player: flopPlayer,
+        week: state.week + 1,
+        text: `Semaine difficile pour ${flopPlayer.firstName} ${flopPlayer.lastName}: note ${flopMatch.matchRating.toFixed(1)} après ${flopMatch.club} ${flopMatch.score} ${flopMatch.opponent}.`,
+        reputationImpact: -1,
+        account: { name: 'Onze Hebdo', kind: 'media', icon: 'OH', color: '#2f80ed' },
+      }));
+      if (!generatedMessages.some((message) => message.playerId === flopPlayer.id && message.type === 'form_slump')) {
+        generatedMessages.push(createMessage({ player: flopPlayer, type: 'form_slump', week: state.week + 1, context: 'match_flop' }));
+      }
+    }
+  }
 
   // Appliquer les événements passifs enchaînés arrivés à maturité
   const pendingChains = state.pendingChainedEvents ?? [];

@@ -57,11 +57,12 @@ import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, getNego
 import { applyClubRelation, recordClubMemory } from './systems/clubSystem';
 import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
-import { createMessage, createStaffConversationMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
+import { createMessage, createStaffConversationMessage, getMessageContextOutcome, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage, normalizePromises } from './systems/promiseSystem';
 import { getOfferAcceptanceReadiness, getPendingMessageCounts } from './systems/dossierSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
 import { purchaseShopItem } from './systems/shopSystem';
+import { createManualNewsPost } from './systems/newsSystem';
 import { clamp, makeId } from './utils/helpers';
 import { formatMoney } from './utils/format';
 
@@ -462,27 +463,41 @@ export default function FootballAgentGame() {
     setState((current) => {
       const message = current.messages.find((item) => item.id === messageId);
       if (!message) return current;
-      const promise = createPromiseFromMessage({ message, week: current.week, responseType, existingPromises: current.promises });
-      const responseAction = getMessageResponseAction(message, responseType);
-      const responseText = getResponseCopy(message, responseType);
       const targetPlayer = current.roster.find((player) => player.id === message.playerId);
+      const contextOutcome = getMessageContextOutcome({ message, responseType, player: targetPlayer });
+      const promise = createPromiseFromMessage({ message, week: current.week, responseType, existingPromises: current.promises });
+      const responseAction = contextOutcome.actionOverride ?? getMessageResponseAction(message, responseType);
+      const responseText = contextOutcome.responseTextOverride ?? getResponseCopy(message, responseType);
+      const baseEffects = responseEffects[responseType] ?? { moral: 0, trust: 0, reputation: 0 };
+      const mergedEffects = {
+        moral: baseEffects.moral + (contextOutcome.effects?.moral ?? 0),
+        trust: baseEffects.trust + (contextOutcome.effects?.trust ?? 0),
+        reputation: baseEffects.reputation + (contextOutcome.effects?.reputation ?? 0),
+      };
       const actionType = responseAction?.type;
       const withMarketAction = actionType === 'market_watch' && targetPlayer
         ? createPlayerMarketAction(current, message.playerId, 'propose').state
         : current;
       const extraPlayerEffect = {
-        moral: actionType === 'voice_call' ? 3 : actionType === 'press_release' ? 1 : 0,
-        trust: actionType === 'voice_call' ? 3 : actionType === 'coach_talk' ? 2 : actionType === 'market_watch' ? 1 : 0,
-        pressure: actionType === 'press_release' ? -8 : actionType === 'coach_talk' ? -4 : responseType === 'ferme' ? 3 : -1,
+        moral: (actionType === 'voice_call' ? 3 : actionType === 'press_release' ? 1 : 0),
+        trust: (actionType === 'voice_call' ? 3 : actionType === 'coach_talk' ? 2 : actionType === 'market_watch' ? 1 : 0),
+        pressure: (actionType === 'press_release' ? -8 : actionType === 'coach_talk' ? -4 : responseType === 'ferme' ? 3 : -1)
+          + (contextOutcome.effects?.pressure ?? 0),
       };
       const nextClubRelations = actionType === 'coach_talk' && targetPlayer?.club
         ? applyClubRelation(withMarketAction.clubRelations, targetPlayer.club, responseType === 'ferme' ? -1 : 2)
         : actionType === 'salary_case' && targetPlayer?.club
           ? applyClubRelation(withMarketAction.clubRelations, targetPlayer.club, -1)
           : withMarketAction.clubRelations;
+      const nextClubRelationsWithContext = targetPlayer?.club
+        ? applyClubRelation(nextClubRelations, targetPlayer.club, contextOutcome.effects?.clubRelation ?? 0)
+        : nextClubRelations;
       const nextMediaRelations = actionType === 'press_release'
         ? applyMediaRelation(withMarketAction.mediaRelations, 'canal_football_desk', responseType === 'professionnel' ? 3 : 1)
         : withMarketAction.mediaRelations;
+      const nextMediaRelationsWithContext = (contextOutcome.effects?.mediaRelation ?? 0) !== 0
+        ? applyMediaRelation(nextMediaRelations, 'canal_football_desk', contextOutcome.effects.mediaRelation)
+        : nextMediaRelations;
       const nextClubMemory = targetPlayer?.club && targetPlayer.club !== 'Libre'
         ? recordClubMemory(
             withMarketAction.clubMemory,
@@ -494,32 +509,73 @@ export default function FootballAgentGame() {
             },
           )
         : withMarketAction.clubMemory;
+      const nextClubMemoryWithContext = targetPlayer?.club && targetPlayer.club !== 'Libre'
+        ? recordClubMemory(
+            nextClubMemory,
+            targetPlayer.club,
+            {
+              trust: contextOutcome.effects?.clubMemoryTrust ?? 0,
+              week: current.week,
+            },
+          )
+        : nextClubMemory;
       const nextCredibility = actionType === 'press_release' || actionType === 'club_check'
         ? applyCredibilityChange(withMarketAction.credibility, responseType === 'ferme' ? 1 : 2)
         : responseType === 'ferme'
           ? applyCredibilityChange(withMarketAction.credibility, 1)
           : withMarketAction.credibility;
+      const nextCredibilityWithContext = applyCredibilityChange(nextCredibility, contextOutcome.effects?.credibility ?? 0);
       const nextDecisionHistory = addDecisionHistory(withMarketAction.decisionHistory, {
         week: current.week,
         type: `message_${message.type}`,
         label: `${message.playerName}: ${responseAction?.label ?? responseText.split('\n')[0]}`,
-        impact: effects.trust + effects.moral,
+        impact: mergedEffects.trust + mergedEffects.moral,
       });
+      const contextualFollowup = contextOutcome.followup
+        ? {
+            id: makeId('msg'),
+            week: current.week,
+            sortWeek: current.week + 0.05,
+            type: contextOutcome.followup.type ?? message.type,
+            context: `followup:${message.context ?? message.type}`,
+            threadKey: message.threadKey ?? message.playerId,
+            threadLabel: message.threadLabel ?? message.playerName,
+            threadContextLabel: message.threadContextLabel,
+            playerId: message.playerId,
+            playerName: message.playerName,
+            senderRole: contextOutcome.followup.senderRole ?? 'staff',
+            senderName: contextOutcome.followup.senderName ?? 'Staff agence',
+            subject: contextOutcome.followup.subject,
+            body: contextOutcome.followup.body,
+            read: false,
+            resolved: true,
+          }
+        : null;
+      const contextualNews = contextOutcome.news
+        ? createManualNewsPost({
+            type: contextOutcome.news.type ?? 'media',
+            player: targetPlayer,
+            week: current.week,
+            text: contextOutcome.news.text,
+            reputationImpact: contextOutcome.news.impact ?? 0,
+            account: contextOutcome.news.account,
+          })
+        : null;
 
       return {
         ...withMarketAction,
-        reputation: applyReputationChange(withMarketAction.reputation, effects.reputation),
-        credibility: nextCredibility,
-        mediaRelations: nextMediaRelations,
-        clubRelations: nextClubRelations,
-        clubMemory: nextClubMemory,
+        reputation: applyReputationChange(withMarketAction.reputation, mergedEffects.reputation),
+        credibility: nextCredibilityWithContext,
+        mediaRelations: nextMediaRelationsWithContext,
+        clubRelations: nextClubRelationsWithContext,
+        clubMemory: nextClubMemoryWithContext,
         decisionHistory: nextDecisionHistory,
         roster: withMarketAction.roster.map((player) =>
           player.id === message.playerId
             ? {
                 ...player,
-                moral: clamp(player.moral + effects.moral + extraPlayerEffect.moral),
-                trust: clamp((player.trust ?? 50) + effects.trust + extraPlayerEffect.trust),
+                moral: clamp(player.moral + mergedEffects.moral + extraPlayerEffect.moral),
+                trust: clamp((player.trust ?? 50) + mergedEffects.trust + extraPlayerEffect.trust),
                 pressure: clamp((player.pressure ?? 30) + extraPlayerEffect.pressure),
                 activeActions: responseAction ? [responseAction, ...(player.activeActions ?? [])].slice(0, 5) : player.activeActions ?? [],
                 timeline: responseAction ? [{ week: current.week, type: 'appel', label: responseAction.label }, ...(player.timeline ?? [])].slice(0, 18) : player.timeline,
@@ -529,7 +585,12 @@ export default function FootballAgentGame() {
         messages: [
           ...withMarketAction.messages.map((item) => (item.id === messageId ? { ...item, resolved: true, responseType, responseAction, responseText } : item)),
           ...(staffReply ? [staffReply] : []),
+          ...(contextualFollowup ? [contextualFollowup] : []),
         ].slice(0, 40),
+        news: [
+          ...(contextualNews ? [contextualNews] : []),
+          ...(withMarketAction.news ?? []),
+        ].slice(0, 60),
         promises: normalizePromises([...(promise ? [promise] : []), ...(withMarketAction.promises ?? [])]).slice(0, 30),
       };
     });

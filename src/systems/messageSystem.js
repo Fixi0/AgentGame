@@ -479,3 +479,142 @@ export const getRandomMessageType = (player) => {
   if (['ambitieux', 'mercenaire'].includes(player.personality)) return pick(['transfer_request', 'raise_request', 'ambition_clash']);
   return pick(['thanks', 'raise_request', 'complaint', 'form_slump']);
 };
+
+const createEmptyOutcome = () => ({
+  effects: {
+    moral: 0,
+    trust: 0,
+    reputation: 0,
+    pressure: 0,
+    credibility: 0,
+    clubRelation: 0,
+    clubMemoryTrust: 0,
+    mediaRelation: 0,
+  },
+  actionOverride: null,
+  responseTextOverride: null,
+  followup: null,
+  news: null,
+});
+
+export const getMessageContextOutcome = ({ message, responseType, player }) => {
+  const outcome = createEmptyOutcome();
+  const context = String(message?.context ?? '');
+  const playerName = player ? `${player.firstName} ${player.lastName}` : message?.playerName ?? 'Le joueur';
+
+  if (['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(context)) {
+    outcome.actionOverride = responseType === 'ferme'
+      ? { type: 'focus_reset', label: 'Cadre performance fixé après signature' }
+      : { type: 'deal_followup', label: 'Plan de transition post-signature validé' };
+    outcome.effects.trust += responseType === 'empathique' ? 5 : responseType === 'professionnel' ? 3 : 1;
+    outcome.effects.moral += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 2 : -1;
+    outcome.effects.pressure += responseType === 'ferme' ? 2 : -3;
+    outcome.effects.reputation += responseType === 'professionnel' ? 1 : 0;
+    outcome.effects.clubRelation += responseType === 'ferme' ? -1 : 2;
+    outcome.effects.clubMemoryTrust += responseType === 'ferme' ? -1 : 2;
+    outcome.effects.credibility += responseType === 'professionnel' ? 2 : 1;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? -1 : 1,
+      text: responseType === 'ferme'
+        ? `${playerName} est recadré publiquement sur l'après-transfert: priorité à la performance immédiate.`
+        : `L'agence confirme un plan de transition propre pour ${playerName} après le deal.`,
+      account: { name: 'Canal Football Desk', kind: 'journal', icon: 'CF', color: '#172026' },
+    };
+    outcome.followup = {
+      type: 'staff_dialogue',
+      senderRole: 'staff',
+      senderName: message.senderRole === 'staff' ? message.senderName : `Staff de ${player?.club ?? 'club'}`,
+      subject: 'Feuille de route validée',
+      body: responseType === 'ferme'
+        ? "Message reçu. Le cadre est clair, on exécute sans bruit."
+        : "Parfait, on reste alignés sur la transition. Je te confirme les prochains jalons cette semaine.",
+    };
+    return outcome;
+  }
+
+  if (context === 'promise_failed' || context === 'staff_promise_failed') {
+    outcome.actionOverride = responseType === 'empathique'
+      ? { type: 'voice_call', label: 'Appel réparation relation lancé' }
+      : { type: 'club_check', label: 'Audit de promesse relancé' };
+    outcome.effects.trust += responseType === 'empathique' ? 6 : responseType === 'professionnel' ? 2 : -3;
+    outcome.effects.moral += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 1 : -3;
+    outcome.effects.pressure += responseType === 'ferme' ? 3 : -2;
+    outcome.effects.reputation += responseType === 'professionnel' ? 1 : responseType === 'ferme' ? -1 : 0;
+    outcome.effects.clubRelation += responseType === 'ferme' ? -2 : 1;
+    outcome.effects.clubMemoryTrust += responseType === 'ferme' ? -2 : 1;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'empathique' ? 1 : responseType === 'ferme' ? -2 : 0,
+      text: responseType === 'ferme'
+        ? `Le dossier ${playerName} se tend après une promesse non tenue.`
+        : `L'agence ouvre un plan de réparation autour de ${playerName} après une promesse cassée.`,
+      account: { name: 'Le Vestiaire', kind: 'media', icon: 'LV', color: '#172026' },
+    };
+    outcome.followup = {
+      type: 'transfer_request',
+      senderRole: 'player',
+      senderName: message.playerName,
+      subject: responseType === 'empathique' ? 'Je te laisse la main' : 'Je reste en attente',
+      body: responseType === 'empathique'
+        ? "Merci d'assumer. Je te laisse corriger ça, mais je veux du concret rapidement."
+        : "Je prends note. J'attends de voir les faits maintenant.",
+    };
+    return outcome;
+  }
+
+  if (context === 'competitor_agent') {
+    outcome.actionOverride = responseType === 'ferme'
+      ? { type: 'focus_reset', label: 'Cadre anti-agent concurrent posé' }
+      : { type: 'deal_followup', label: 'Fidélisation joueur relancée' };
+    outcome.effects.trust += responseType === 'empathique' ? 5 : responseType === 'professionnel' ? 3 : -2;
+    outcome.effects.moral += responseType === 'empathique' ? 2 : 0;
+    outcome.effects.reputation += responseType === 'professionnel' ? 1 : 0;
+    outcome.effects.credibility += responseType === 'professionnel' ? 1 : 0;
+    outcome.effects.pressure += responseType === 'ferme' ? 2 : -1;
+    outcome.followup = {
+      type: 'staff_dialogue',
+      senderRole: 'staff',
+      senderName: 'Assistant agence',
+      subject: 'Concurrence monitorée',
+      body: responseType === 'ferme'
+        ? "Message enregistré. On verrouille le périmètre agent sur ce dossier."
+        : "On renforce le suivi du joueur sur 2 semaines pour couper l'approche concurrente.",
+    };
+    return outcome;
+  }
+
+  if (message?.type === 'media_pressure') {
+    outcome.effects.mediaRelation += responseType === 'professionnel' ? 3 : responseType === 'empathique' ? 1 : -2;
+    outcome.effects.credibility += responseType === 'professionnel' ? 2 : 0;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? -1 : 1,
+      text: responseType === 'professionnel'
+        ? `L'agence cadre la communication de ${playerName} face à la pression médiatique.`
+        : responseType === 'empathique'
+          ? `Le clan de ${playerName} apaise la séquence médiatique avec un message mesuré.`
+          : `${playerName} reste silencieux, la presse entretient le doute.`,
+      account: { name: 'Onze Hebdo', kind: 'media', icon: 'OH', color: '#2f80ed' },
+    };
+    return outcome;
+  }
+
+  if (message?.type === 'injury_worry') {
+    outcome.effects.moral += responseType === 'empathique' ? 6 : responseType === 'professionnel' ? 3 : -2;
+    outcome.effects.trust += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 2 : -1;
+    outcome.effects.pressure += responseType === 'ferme' ? 2 : -4;
+    outcome.followup = {
+      type: 'staff_dialogue',
+      senderRole: 'staff',
+      senderName: 'Médecin club',
+      subject: 'Point médical',
+      body: responseType === 'ferme'
+        ? "Le protocole suit son cours. On veut un retour sans précipitation."
+        : "On confirme un protocole progressif et une reprise encadrée pour éviter la rechute.",
+    };
+    return outcome;
+  }
+
+  return outcome;
+};
