@@ -128,8 +128,6 @@ const moreItems = [
   { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase },
   { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network },
   { key: 'dossiers', label: 'Dossiers', desc: 'Messages, tensions, mémoire', icon: FileText },
-  { key: 'news', label: 'News', desc: 'Médias et réseaux', icon: Newspaper },
-  { key: 'media', label: 'Médias', desc: 'Journalistes alliés ou hostiles', icon: Newspaper },
   { key: 'standings', label: 'Ligues', desc: 'Classements et clubs', icon: Trophy },
   { key: 'calendar', label: 'Calendrier', desc: 'Affiches et résultats', icon: CalendarDays },
   { key: 'deadline', label: 'Deadline Day', desc: 'Appels mercato', icon: Timer },
@@ -598,6 +596,31 @@ export default function FootballAgentGame() {
     showToast('Réponse envoyée', 'success');
   };
 
+  const handleMessageAction = (messageId, actionType, message) => {
+    const player = message?.playerId ? state.roster.find((p) => p.id === message.playerId) : null;
+    if (actionType === 'media_crisis') {
+      const crisis = {
+        type: message?.context?.includes('scandal') ? 'scandal' : message?.context?.includes('leak') ? 'leak' : 'controversy',
+        title: message?.subject ?? 'Incident médiatique',
+        description: message?.body ?? 'Une situation sensible nécessite ta gestion immédiate.',
+        severity: message?.severity ?? 2,
+      };
+      setModal({ type: 'media_crisis', data: { crisis, player, messageId } });
+    } else if (actionType === 'player_support') {
+      if (player) {
+        setModal({ type: 'player_detail', data: { player } });
+      } else {
+        showToast('Joueur introuvable dans le roster', 'error');
+      }
+    } else if (actionType === 'retirement') {
+      if (player) {
+        setModal({ type: 'retirement', data: { player, messageId } });
+      } else {
+        showToast('Joueur introuvable dans le roster', 'error');
+      }
+    }
+  };
+
   const handleShortlistConfirm = (message, player, responseType, selectedClubs) => {
     if (!message || !player || !selectedClubs?.length) return;
     const clubNames = selectedClubs.map((club) => club.name);
@@ -935,7 +958,7 @@ export default function FootballAgentGame() {
         {view === 'dashboard' && <Dashboard state={state} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} />}
         {view === 'market' && <Market state={state} market={state.market} freeAgents={state.freeAgents} money={state.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
         {view === 'roster' && <Roster state={state} roster={state.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
-        {view === 'messages' && <Messages messages={state.messages} messageQueue={state.messageQueue ?? []} onRespond={handleMessageResponse} focusThreadKey={activeMessageThreadKey} />}
+        {view === 'messages' && <Messages messages={state.messages} messageQueue={state.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
         {view === 'shop' && <Shop state={state} onBuy={handleBuyShopItem} />}
         {view === 'calendar' && <Calendar state={state} onClubDetails={showClubDetails} />}
@@ -954,8 +977,7 @@ export default function FootballAgentGame() {
           />
         )}
         {view === 'profile' && <AgencyProfile state={state} />}
-        {view === 'news' && <NewsFeed news={state.news} />}
-        {view === 'media' && <MediaRoom state={state} />}
+        {/* news/media views removed — content accessible via Dossiers */}
         {view === 'contracts' && <ContractDashboard state={state} onNego={(player, type) => startNegotiation(player, type ?? 'extend')} onOpenPlayer={showPlayerDetails} />}
         {view === 'contacts' && <Contacts state={state} onCall={handleCallContact} />}
       </main>
@@ -1074,6 +1096,7 @@ export default function FootballAgentGame() {
           player={modal.data.player}
           money={state.money}
           onResolve={({ choice, effects, cost }) => {
+            const resolvedMessageId = modal.data.messageId;
             setState((cur) => ({
               ...cur,
               money: cur.money - (cost ?? 0),
@@ -1087,6 +1110,13 @@ export default function FootballAgentGame() {
                     }
                   : p,
               ),
+              messages: resolvedMessageId
+                ? cur.messages.map((m) =>
+                    m.id === resolvedMessageId
+                      ? { ...m, resolved: true, responseType: choice.id, responseText: `Crise gérée : ${choice.label}` }
+                      : m,
+                  )
+                : cur.messages,
             }));
             setModal(null);
             showToast('Crise gérée', 'success');
@@ -1105,17 +1135,24 @@ export default function FootballAgentGame() {
               coaching: { money: 0, rep: 2 },
               ambassador: { money: 0, rep: 3 },
             };
+            const RETIREMENT_LABELS = { retire_graceful: 'Retraite', one_more_year: 'Une saison de plus', coaching: 'Reconversion entraîneur', ambassador: 'Ambassadeur' };
             const bonus = RETIREMENT_BONUS[pathId] ?? { money: 0, rep: 0 };
+            const retirementMessageId = modal.data.messageId;
             setState((cur) => ({
               ...cur,
               money: cur.money + bonus.money,
               reputation: Math.min(100, cur.reputation + bonus.rep),
-              // Keep player for "one_more_year", remove for others
               roster: pathId === 'one_more_year' ? cur.roster : cur.roster.filter((p) => p.id !== modal.data.player.id),
+              messages: retirementMessageId
+                ? cur.messages.map((m) =>
+                    m.id === retirementMessageId
+                      ? { ...m, resolved: true, responseType: pathId, responseText: RETIREMENT_LABELS[pathId] ?? pathId }
+                      : m,
+                  )
+                : cur.messages,
             }));
             setModal(null);
-            const labels = { retire_graceful: 'Retraite', one_more_year: 'Une saison de plus', coaching: 'Reconversion entraîneur', ambassador: 'Ambassadeur' };
-            showToast(`${modal.data.player.firstName} ${modal.data.player.lastName} — ${labels[pathId] ?? pathId}`, 'success');
+            showToast(`${modal.data.player.firstName} ${modal.data.player.lastName} — ${RETIREMENT_LABELS[pathId] ?? pathId}`, 'success');
           }}
           onClose={() => setModal(null)}
         />

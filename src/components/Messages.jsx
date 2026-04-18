@@ -12,7 +12,7 @@ const responseLabels = {
 
 const URGENT_TYPES = ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning', 'staff_dialogue', 'coach_dialogue', 'ds_dialogue'];
 
-export default function Messages({ messages, messageQueue = [], onRespond, focusThreadKey = null }) {
+export default function Messages({ messages, messageQueue = [], onRespond, onAction, focusThreadKey = null }) {
   const [filter, setFilter] = useState('all');
   const [selectedThreadKey, setSelectedThreadKey] = useState(null);
   const [mobileScreen, setMobileScreen] = useState('list');
@@ -259,6 +259,55 @@ export default function Messages({ messages, messageQueue = [], onRespond, focus
                             <>
                               {messageNeedsResponse(message) && (
                                 <div style={S.msgHint}>Une réponse concrète peut déclencher une suite dans le jeu.</div>
+                              )}
+                              {/* Special action CTAs for key message types */}
+                              {message.type === 'media_pressure' && onAction && (
+                                <button
+                                  onClick={() => onAction(message.id, 'media_crisis', message)}
+                                  style={{
+                                    ...actionBtnStyle,
+                                    background: '#fef2f2',
+                                    color: '#dc2626',
+                                    border: '1.5px solid #fca5a5',
+                                    fontWeight: 900,
+                                    marginBottom: 6,
+                                    width: '100%',
+                                  }}
+                                >
+                                  🔥 GÉRER LA CRISE →
+                                </button>
+                              )}
+                              {message.type === 'injury_worry' && onAction && (
+                                <button
+                                  onClick={() => onAction(message.id, 'player_support', message)}
+                                  style={{
+                                    ...actionBtnStyle,
+                                    background: '#eff6ff',
+                                    color: '#2563eb',
+                                    border: '1.5px solid #bfdbfe',
+                                    fontWeight: 900,
+                                    marginBottom: 6,
+                                    width: '100%',
+                                  }}
+                                >
+                                  💙 SOUTENIR LE JOUEUR →
+                                </button>
+                              )}
+                              {message.type === 'retirement' && onAction && (
+                                <button
+                                  onClick={() => onAction(message.id, 'retirement', message)}
+                                  style={{
+                                    ...actionBtnStyle,
+                                    background: '#f5f3ff',
+                                    color: '#7c3aed',
+                                    border: '1.5px solid #ddd6fe',
+                                    fontWeight: 900,
+                                    marginBottom: 6,
+                                    width: '100%',
+                                  }}
+                                >
+                                  🎖 DÉCIDER DE L'AVENIR →
+                                </button>
                               )}
                               <div style={actionGridStyle}>
                                 {Object.entries(getContextualResponseOptions(message)).map(([type, label]) => (

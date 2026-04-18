@@ -6,7 +6,7 @@ import { getAgencyCapacity, getAgencyUpgradeCost } from '../systems/agencySystem
 import { applyReputationChange, applySegmentReputationChange, createDefaultSegmentReputation, getSegmentDeltaForEvent } from '../systems/reputationSystem';
 import { getDepartureRisk, getInitialTrust } from '../systems/relationshipSystem';
 import { createManualNewsPost, createNewsPost } from '../systems/newsSystem';
-import { createMessage, maybeCreateContextualMessage } from '../systems/messageSystem';
+import { createMessage, maybeCreateContextualMessage, MIN_PLAYER_MSG_COOLDOWN, MAX_WEEKLY_MESSAGES } from '../systems/messageSystem';
 import { createDefaultStaff, getStaffEffect, getStaffWeeklyCost, upgradeStaff as upgradeStaffMember } from '../systems/staffSystem';
 import { createInitialLeagueTables, mergeWithInitialLeagueTables, updateLeagueTables } from '../systems/leagueSystem';
 import { applyClubRelation, createDefaultClubMemory, createDefaultClubRelations, recordClubMemory } from '../systems/clubSystem';
@@ -555,6 +555,7 @@ export const migrateState = (state) => {
     contacts: state.contacts ?? createDefaultContacts(),
     seasonObjectives: state.seasonObjectives ?? generateSeasonObjectives({ week: state.week ?? 1, reputation: state.reputation ?? 12 }),
     gems: state.gems ?? 0,
+    lastInteractiveEventWeek: state.lastInteractiveEventWeek ?? 0,
     roster: (state.roster ?? []).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
       const personality = player.personality ?? pick(PERSONALITIES);
@@ -1485,14 +1486,23 @@ export const playWeek = (state) => {
       });
       generatedNews.push(createNewsPost({ player: updatedPlayer, event, week: state.week, reputationImpact }));
 
-      const message = maybeCreateContextualMessage({
-        player: updatedPlayer,
-        event,
-        week: state.week,
-        mercato: getPhase(state.week).mercato,
-        worldState: state.worldState,
-      });
-      if (message) generatedMessages.push(message);
+      // Anti-flood: cooldown par joueur + cap global hebdo
+      const playerLastMsg = updatedPlayer.lastMessageWeek ?? 0;
+      const msgCooldownOk = (state.week - playerLastMsg) >= MIN_PLAYER_MSG_COOLDOWN;
+      const weeklyCapOk = generatedMessages.filter((m) => m.playerId === updatedPlayer.id || true).length < MAX_WEEKLY_MESSAGES;
+      if (msgCooldownOk && weeklyCapOk) {
+        const message = maybeCreateContextualMessage({
+          player: updatedPlayer,
+          event,
+          week: state.week,
+          mercato: getPhase(state.week).mercato,
+        });
+        if (message) {
+          generatedMessages.push(message);
+          // Marquer la semaine du dernier message sur le joueur
+          updatedPlayer = { ...updatedPlayer, lastMessageWeek: state.week };
+        }
+      }
 
       // Générer les événements enchaînés
       const newChains = generateChainedEvents(updatedPlayer, event, state.week);
@@ -1588,13 +1598,18 @@ export const playWeek = (state) => {
     generatedNews.push(createNewsPost({ player, event, week: state.week + 1, reputationImpact }));
   }
 
+  // Events interactifs : fréquence réduite pour ne pas saturer
+  // Cooldown global: min 2 semaines entre deux events interactifs
   let interactiveEvent = null;
-  if (Math.random() < 0.28 && chainedRoster.length > 0) {
+  const lastInteractiveWeek = state.lastInteractiveEventWeek ?? 0;
+  const interactiveCooldownOk = (state.week - lastInteractiveWeek) >= 2;
+
+  if (interactiveCooldownOk && Math.random() < 0.16 && chainedRoster.length > 0) {
     interactiveEvent = chooseInteractiveEvent(chainedRoster, { scoutLevel: getStaffEffect(state.staff, 'scoutAfrica') });
   }
 
   const contractEvent = getContractEventForRoster(chainedRoster, state.week + 1);
-  if (contractEvent && !interactiveEvent && Math.random() < 0.5) {
+  if (contractEvent && !interactiveEvent && interactiveCooldownOk && Math.random() < 0.45) {
     interactiveEvent = contractEvent;
   }
 
@@ -1927,6 +1942,7 @@ export const playWeek = (state) => {
     clubMemory,
     week: state.week + 1,
     gems: gemRewardState.gems,
+    lastInteractiveEventWeek: interactiveEvent ? state.week + 1 : (state.lastInteractiveEventWeek ?? 0),
     worldState: nextWorldState,
     pendingChainedEvents: updatedPendingChains,
     seasonAwards: annualCalendar.seasonAwards,

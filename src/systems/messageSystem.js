@@ -153,74 +153,80 @@ export const createStaffConversationMessage = ({ player, staffName, type, week, 
   resolved: false,
 });
 
-export const maybeCreateContextualMessage = ({ player, event, week, mercato = false, worldState = null }) => {
+// ─── RÈGLES ANTI-FLOOD ──────────────────────────────────────────────────────
+// Un joueur ne peut envoyer qu'un message toutes les MIN_PLAYER_MSG_COOLDOWN semaines.
+// playWeek() n'accepte que MAX_WEEKLY_MESSAGES nouveaux messages par semaine.
+export const MIN_PLAYER_MSG_COOLDOWN = 4; // semaines
+export const MAX_WEEKLY_MESSAGES = 2;
+
+/**
+ * Génère UN message contextuel si — et seulement si — la situation est
+ * vraiment notable. Appel conditionnel dans playWeek() après vérification cooldown.
+ *
+ * Règles:
+ *  - Urgences absolues (moral/trust effondré, blessure longue) → toujours
+ *  - Événements marquants spécifiques (callup, scandale viral) → 60-80%
+ *  - Moments de vie rares (retraite, vie perso) → 3-5% max
+ *  - Suppression des triggers génériques type "good event → merci" (trop fréquents)
+ */
+export const maybeCreateContextualMessage = ({ player, event, week, mercato = false }) => {
   if (!player) return null;
 
-  // Priorité 1 — État critique moral/confiance
-  if ((player.moral < 35 || player.trust < 35) && Math.random() < 0.65) {
-    return createMessage({ player, type: 'complaint', week, context: event?.id });
+  // ── URGENCES (pas de cooldown — message toujours généré) ─────────────────
+  // Moral ou confiance en chute libre → plainte directe
+  if (player.moral < 28 || (player.trust ?? 50) < 28) {
+    return createMessage({ player, type: 'complaint', week, context: event?.id ?? 'critical' });
   }
 
-  // Priorité 2 — Blessure grave
-  if (player.injured > 3 && Math.random() < 0.55) {
-    return createMessage({ player, type: 'injury_worry', week, context: event?.id });
+  // Blessure longue (> 4 semaines) + première semaine → inquiétude
+  if (player.injured === 4) { // exactement 4 = première semaine à ce seuil
+    return createMessage({ player, type: 'injury_worry', week, context: event?.id ?? 'injury' });
   }
 
-  // Priorité 3 — Mercato sans offres + joueur ambitieux
-  if (mercato && player.moral < 60 && ['ambitieux', 'mercenaire'].includes(player.personality) && Math.random() < 0.45) {
-    return createMessage({ player, type: 'ambition_clash', week, context: 'mercato' });
+  // ── ÉVÉNEMENTS SPÉCIFIQUES (déclencheurs précis) ────────────────────────
+  // Convocation ou premier match en sélection → fierté nationale
+  if (event?.id === 'callup' || event?.id === 'international_debut') {
+    return createMessage({ player, type: 'national_pride', week, context: event.id });
   }
 
-  // Priorité 4 — Transfert event → demande directe
-  if (event?.type === 'transfer' && ['ambitieux', 'mercenaire'].includes(player.personality) && Math.random() < 0.45) {
-    return createMessage({ player, type: 'transfer_request', week, context: event.id });
-  }
-
-  // Priorité 5 — Scandale médias → pression presse
-  if (event && !event.good && event.type === 'scandal' && Math.random() < 0.35) {
+  // Scandale viral + joueur jeune ou impulsif → pression presse (50%)
+  if (event && !event.good && event.type === 'scandal'
+      && (player.age <= 24 || ['impulsif', 'rebelle'].includes(player.personality))
+      && Math.random() < 0.50) {
     return createMessage({ player, type: 'media_pressure', week, context: event.id });
   }
 
-  // Priorité 6 — Convocation sélection → fierté nationale
-  if (event?.id === 'callup' && Math.random() < 0.6) {
-    return createMessage({ player, type: 'national_pride', week, context: 'callup' });
-  }
-  if (event?.id === 'international_debut' && Math.random() < 0.75) {
-    return createMessage({ player, type: 'national_pride', week, context: 'international_debut' });
+  // Promesse de rôle non tenue → frustration (déjà géré séparément dans gameLogic pour role_frustration)
+
+  // ── MOMENTS DE CARRIÈRE (rares, max 1 par saison grâce au cooldown) ──────
+  // Joueur ambitieux en mercato sans offre concrète
+  if (mercato && ['ambitieux', 'mercenaire'].includes(player.personality)
+      && player.moral < 55 && Math.random() < 0.30) {
+    return createMessage({ player, type: 'ambition_clash', week, context: 'mercato' });
   }
 
-  // Priorité 7 — Bon événement → remerciements
-  if (event?.good && Math.random() < 0.18) {
-    return createMessage({ player, type: 'thanks', week, context: event.id });
-  }
-
-  // Priorité 8 — Mauvaise forme
-  if (player.form < 52 && Math.random() < 0.25) {
+  // Joueur en baisse de forme prolongée (pas juste mauvaise semaine)
+  if (player.form < 46 && (player.trust ?? 50) < 50 && Math.random() < 0.25) {
     return createMessage({ player, type: 'form_slump', week, context: 'form' });
   }
 
-  // Priorité 9 — Demande augmentation
-  if (player.rating > 78 && Math.random() < 0.05) {
-    return createMessage({ player, type: 'raise_request', week, context: 'form' });
+  // Demande augmentation — seulement si rating élevé ET grosse saison
+  if (player.rating >= 80 && (player.seasonStats?.goals ?? 0) >= 8 && Math.random() < 0.08) {
+    return createMessage({ player, type: 'raise_request', week, context: 'performance' });
   }
 
-  // Priorité 10 — Demande capitanat (joueur leader, haute confiance)
-  if (player.rating > 80 && (player.trust ?? 50) > 70 && ['leader', 'professionnel'].includes(player.personality) && Math.random() < 0.04) {
-    return createMessage({ player, type: 'captain_demand', week, context: 'leadership' });
-  }
-
-  // Priorité 11 — Retraite (joueurs 32+)
-  if (player.age >= 32 && Math.random() < 0.03) {
+  // Retraite proche — joueurs 33+ avec contrat court
+  if (player.age >= 33 && (player.contractWeeksLeft ?? 0) < 20 && Math.random() < 0.05) {
     return createMessage({ player, type: 'retirement_thoughts', week, context: 'age' });
   }
 
-  // Priorité 12 — Contact secret (mercato, rare)
-  if (mercato && Math.random() < 0.03) {
+  // Offre secrète — très rare, uniquement mercato + haut niveau
+  if (mercato && player.rating >= 76 && Math.random() < 0.025) {
     return createMessage({ player, type: 'secret_offer', week, context: 'mercato' });
   }
 
-  // Priorité 13 — Événement de vie (joueur loyal/leader, rare)
-  if (['loyal', 'leader'].includes(player.personality) && Math.random() < 0.02) {
+  // Événement de vie personnel — joueur loyal ou famille-first, très rare
+  if (['loyal', 'famille'].includes(player.personality) && Math.random() < 0.018) {
     return createMessage({ player, type: 'life_event', week, context: 'personal' });
   }
 

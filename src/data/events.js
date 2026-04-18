@@ -325,6 +325,121 @@ export const INTERACTIVE_EVENTS = [
       { label: 'Le laisser partir avec classe', cost: 0, effects: { rep: 3, moral: 5, trust: 5 }, desc: 'Dignité préservée', releasePlayer: true },
     ],
   },
+
+  // ─── NOUVEAUX — Événements de carrière (histoire, attachement, surprise) ─────
+
+  {
+    id: 'club_betrayal',
+    rarity: 'uncommon',
+    types: ['scandal'],
+    title: 'Le club contourne ton joueur',
+    description: "Le club a discuté directement avec ton joueur sans te prévenir — offre de prolongation en dehors de toi. Il t'en parle maintenant.",
+    choices: [
+      { label: 'Répondre avec fermeté au club', cost: 0, effects: { rep: 3, moral: 6, trust: 10 }, desc: 'Défendre son joueur — relation renforcée' },
+      { label: 'Profiter pour renégocier global', cost: 0, effects: { rep: 2, moral: 4, trust: 5, money: 8000 }, desc: 'Transformer en levier financier' },
+      { label: 'Laisser le joueur gérer', cost: 0, effects: { rep: -4, moral: -6, trust: -12 }, desc: 'Très mauvais pour la confiance' },
+    ],
+  },
+  {
+    id: 'dream_club',
+    rarity: 'rare',
+    types: ['transfer'],
+    personalities: ['loyal', 'ambitieux', 'leader'],
+    title: 'Le club de son enfance',
+    description: "Le club qu'il supporte depuis gamin lui propose un contrat. Salaire inférieur, mais c'est son rêve. Il pleure au téléphone.",
+    choices: [
+      { label: 'L\'y envoyer — humain avant tout', cost: 0, effects: { rep: 8, moral: 22, trust: 18, val: 0.97 }, desc: 'Il ne l\'oubliera jamais', flag: 'transfer_offer' },
+      { label: 'Négocier au mieux quand même', cost: 0, effects: { rep: 5, moral: 15, trust: 12 }, desc: 'Rêve + professionnalisme', flag: 'transfer_offer' },
+      { label: 'Bloquer — trop peu lucratif', cost: 0, effects: { rep: -5, moral: -20, trust: -18 }, desc: 'Il ne te le pardonnera pas de sitôt' },
+    ],
+  },
+  {
+    id: 'transfer_refused',
+    rarity: 'uncommon',
+    types: ['transfer'],
+    personalities: ['loyal', 'famille', 'professionnel'],
+    title: "Il refuse le grand club",
+    description: "Contre toute attente, ton joueur refuse de signer dans un top club. Raisons familiales, confort, bonheur. Les médias ne comprennent pas.",
+    choices: [
+      { label: 'Respecter sa décision — soutien total', cost: 0, effects: { rep: 4, moral: 18, trust: 16 }, desc: 'Relation humaine au top' },
+      { label: 'Essayer de le convaincre encore', cost: 0, effects: { rep: -2, moral: -8, trust: -10 }, desc: 'Il sait ce qu\'il veut' },
+      { label: 'Médiatiser le refus intelligemment', cost: 3000, effects: { rep: 6, moral: 12, trust: 8 }, desc: 'Transformer en image forte' },
+    ],
+  },
+  {
+    id: 'player_bond',
+    rarity: 'uncommon',
+    types: ['fans'],
+    personalities: ['loyal', 'professionnel', 'leader'],
+    title: 'Il dit merci — et c\'est sincère',
+    description: "Ton joueur t'envoie un message personnel. Pas pour l'argent, pas pour un transfert. Juste pour te dire que tu as changé sa carrière.",
+    choices: [
+      { label: 'Lui répondre avec sincérité', cost: 0, effects: { rep: 2, moral: 5, trust: 12 }, desc: 'Lien agent-joueur unique' },
+      { label: 'Profiter pour parler du futur', cost: 0, effects: { rep: 1, moral: 4, trust: 8, money: 3000 }, desc: 'Pragmatique mais efficace' },
+      { label: 'Passer à autre chose', cost: 0, effects: { trust: -4, moral: -2 }, desc: 'Il s\'attendait à plus de toi' },
+    ],
+  },
+  {
+    id: 'rival_player_war',
+    rarity: 'uncommon',
+    types: ['scandal'],
+    title: 'Guerre publique avec un rival',
+    description: "Ton joueur et une star rivale s'insultent sur les réseaux sociaux. L'escalade est live. Les médias adorent.",
+    choices: [
+      { label: 'Stopper immédiatement', cost: 0, effects: { rep: 2, moral: -5, trust: -3 }, desc: 'Contrôler l\'image' },
+      { label: 'Laisser faire — visibilité maximale', cost: 0, effects: { rep: -4, moral: 5, trust: 2, val: 1.04 }, desc: 'Buzz mais dangereux' },
+      { label: 'Engager un community manager', cost: 6000, effects: { rep: 4, moral: 3, trust: 4 }, desc: 'Professionnel et maîtrisé' },
+    ],
+  },
+  {
+    id: 'tax_drama',
+    rarity: 'rare',
+    types: ['scandal'],
+    title: 'Enquête fiscale sur ton joueur',
+    description: "Les autorités fiscales ouvrent une enquête sur des transactions douteuses. Ton joueur ne savait pas — son entourage l'a mal conseillé.",
+    choices: [
+      { label: 'Avocat fiscal d\'urgence', cost: 20000, effects: { rep: 1, moral: -5, trust: 6 }, desc: 'Gérer dans les règles — coûteux' },
+      { label: 'Communication transparente', cost: 3000, effects: { rep: 3, moral: -3, trust: 4 }, desc: 'Honnêteté publique' },
+      { label: 'Discrétion absolue', cost: 0, effects: { rep: -5, moral: -8, trust: -4 }, desc: 'Risque que ça explose plus fort' },
+    ],
+  },
+  {
+    id: 'tournament_release',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Conflit club-sélection nationale',
+    description: "Le club refuse de libérer ton joueur pour un tournoi international crucial. La fédération nationale menace. Le joueur est dévasté.",
+    choices: [
+      { label: 'Intercéder auprès du club', cost: 5000, effects: { rep: 5, moral: 12, trust: 8 }, desc: 'L\'aider à rejoindre sa sélection' },
+      { label: 'Respecter la position du club', cost: 0, effects: { rep: -3, moral: -12, trust: -10 }, desc: 'Priorité au contrat' },
+      { label: 'Trouver un compromis', cost: 2000, effects: { rep: 3, moral: 6, trust: 5 }, desc: 'Diplomatie équilibrée' },
+    ],
+  },
+  {
+    id: 'viral_moment',
+    rarity: 'uncommon',
+    types: ['fans'],
+    title: 'Il devient viral pour le bon côté',
+    description: "Une vidéo de lui aidant un gamin dans les gradins fait le tour du monde. 40 millions de vues. Les marques appellent.",
+    choices: [
+      { label: 'Capitaliser sur l\'élan médiatique', cost: 0, effects: { rep: 8, moral: 12, trust: 6, val: 1.08, money: 12000 }, desc: 'Transformer en deal sponsor' },
+      { label: 'Rester humble — ne rien faire', cost: 0, effects: { rep: 4, moral: 8, trust: 5 }, desc: 'Authenticité totale' },
+      { label: 'Fondation caritative', cost: 15000, effects: { rep: 14, moral: 18, trust: 10, val: 1.06 }, desc: 'Impact long terme exceptionnel' },
+    ],
+  },
+  {
+    id: 'dressing_leader',
+    rarity: 'uncommon',
+    types: ['fans'],
+    personalities: ['leader', 'professionnel'],
+    title: "L'âme du vestiaire",
+    description: "Ses coéquipiers et le staff te confirment que ton joueur est devenu le ciment de l'équipe. Le club veut officialiser son statut.",
+    choices: [
+      { label: 'Négocier une prime de leadership', cost: 0, effects: { rep: 3, moral: 8, trust: 6, money: 10000 }, desc: 'Valoriser concrètement son rôle' },
+      { label: 'Viser le capitanat officiel', cost: 0, effects: { rep: 6, moral: 14, trust: 10, val: 1.05 }, desc: 'Ambition sportive' },
+      { label: 'Rester discret — force tranquille', cost: 0, effects: { rep: 2, moral: 10, trust: 8 }, desc: 'Ne pas surexposer' },
+    ],
+  },
 ];
 
 export const CHAINED_EVENTS = {
