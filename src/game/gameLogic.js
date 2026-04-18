@@ -1121,6 +1121,7 @@ const createChoiceTransferOffer = (state, player, event, choice) => {
     message: preWindow
       ? `${club.name} transforme la décision en pré-accord.`
       : `${club.name} transforme la décision en offre concrète.`,
+    offer,
   };
 };
 
@@ -1765,6 +1766,7 @@ export const applyChoice = (state, event, player, choice) => {
     if (!transferResult.error) {
       nextState = transferResult.state;
     }
+    return { state: nextState, followUp: choice.flag, followUpData: transferResult.offer ? { offer: transferResult.offer } : null };
   }
 
   return { state: nextState, followUp: choice.flag };

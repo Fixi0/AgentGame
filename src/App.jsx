@@ -272,12 +272,14 @@ export default function FootballAgentGame() {
 
     setState(result.state);
     if (result.followUp === 'transfer_offer') {
-      const readiness = getTransferReadiness(result.state, player, getPhase(result.state.week));
-      if (readiness.ok) {
-        setModal({ type: 'nego_transfer', data: { player } });
+      const offer = result.followUpData?.offer
+        ?? result.state.clubOffers.find((item) => item.playerId === player.id && item.status === 'open' && item.week === result.state.week)
+        ?? result.state.clubOffers.find((item) => item.playerId === player.id && item.status === 'open');
+      if (offer) {
+        setModal({ type: 'nego_offer', data: { offer, player } });
       } else {
         setModal(null);
-        showToast(readiness.message, 'error');
+        showToast('L\'offre liée à l\'événement n\'a pas pu être retrouvée.', 'error');
       }
     } else if (result.followUp === 'extend') {
       // Player explicitly chose to extend from the contract event — always open the negotiation modal.
