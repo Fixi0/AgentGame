@@ -3,10 +3,10 @@ import { makeId } from '../utils/helpers';
 const PROMISE_DURATIONS = {
   transfer_request: 8,
   raise_request: 6,
-  complaint: 4,
-  staff_dialogue: 4,
-  coach_dialogue: 4,
-  ds_dialogue: 4,
+  complaint: 5,
+  staff_dialogue: 5,
+  coach_dialogue: 5,
+  ds_dialogue: 5,
 };
 
 const PROMISE_LABELS = {
@@ -34,6 +34,8 @@ export const createPromiseFromMessage = ({ message, week, responseType }) => {
     label: PROMISE_LABELS[message.type],
     createdWeek: week,
     dueWeek: week + PROMISE_DURATIONS[message.type],
+    originThreadKey: message.threadKey ?? message.playerId,
+    originContext: message.context,
     resolved: false,
     failed: false,
   };

@@ -10,10 +10,14 @@ const MEDIA_NAME_TO_ID = MEDIA_RELATION_TEMPLATES.reduce((map, media) => ({
 }), {});
 
 const NARRATIVE_DURATIONS = {
-  media_crisis: 4,
-  hype_train: 5,
+  media_crisis: 5,
+  hype_train: 6,
   transfer_saga: 6,
-  club_tension: 4,
+  club_tension: 5,
+  injury_comeback: 6,
+  coach_conflict: 5,
+  breakout_run: 6,
+  transfer_rumor: 5,
 };
 
 const normalizeMediaId = (accountName = '') => {
@@ -26,7 +30,7 @@ const normalizeMediaId = (accountName = '') => {
   return 'canal_football_desk';
 };
 
-const createNarrativeArc = ({ type, player, club, week, origin, intensity = 1 }) => ({
+export const createNarrativeArc = ({ type, player, club, week, origin, intensity = 1 }) => ({
   id: makeId('arc'),
   type,
   playerId: player?.id,
@@ -38,7 +42,7 @@ const createNarrativeArc = ({ type, player, club, week, origin, intensity = 1 })
   intensity: clamp(intensity, 1, 5),
 });
 
-const mergeNarrativeArc = (arcs, arc) => {
+export const mergeNarrativeArc = (arcs, arc) => {
   if (!arc) return arcs;
   const existingIndex = arcs.findIndex((item) =>
     item.type === arc.type
@@ -245,6 +249,34 @@ export const generateNarrativeFollowups = ({ state, roster, week }) => {
   if (arc.type === 'transfer_saga') {
     return {
       events: [{ title: 'Saga mercato', text: `Le dossier ${player.firstName} ${player.lastName} continue d'agiter les clubs. Un appel sérieux pourrait arriver si les performances suivent.` }],
+      messages: [createMessage({ player, type: 'transfer_request', week, context: arc.id })],
+    };
+  }
+
+  if (arc.type === 'injury_comeback') {
+    return {
+      events: [{ title: 'Retour de blessure', text: `${player.firstName} ${player.lastName} s'approche d'un retour. La gestion des minutes sera décisive.` }],
+      messages: [createMessage({ player, type: 'injury_worry', week, context: arc.id })],
+    };
+  }
+
+  if (arc.type === 'coach_conflict') {
+    return {
+      events: [{ title: 'Conflit coach', text: `Le dossier ${player.firstName} ${player.lastName} reste tendu avec le staff. Un échange direct peut éviter la casse.` }],
+      messages: [createMessage({ player, type: 'coach_dialogue', week, context: arc.id })],
+    };
+  }
+
+  if (arc.type === 'breakout_run') {
+    return {
+      events: [{ title: 'Montée en puissance', text: `${player.firstName} ${player.lastName} enchaîne les semaines fortes. La valeur du dossier grimpe.` }],
+      messages: [createMessage({ player, type: 'thanks', week, context: arc.id })],
+    };
+  }
+
+  if (arc.type === 'transfer_rumor') {
+    return {
+      events: [{ title: 'Rumeur de départ', text: `Une rumeur de départ entoure ${player.firstName} ${player.lastName}. Le prochain message comptera.` }],
       messages: [createMessage({ player, type: 'transfer_request', week, context: arc.id })],
     };
   }

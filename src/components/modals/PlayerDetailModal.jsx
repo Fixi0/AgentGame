@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { PERSONALITY_LABELS } from '../../data/players';
 import { getCareerGoalProgress } from '../../systems/playerDevelopmentSystem';
+import { getClubMemorySummary } from '../../systems/clubSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
@@ -11,12 +12,36 @@ const tabLabels = {
   dossier: 'Dossier',
 };
 
-export default function PlayerDetailModal({ player, messages, promises, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
+export default function PlayerDetailModal({ player, messages, promises, clubRelations, clubMemory, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
   const [tab, setTab] = useState('profile');
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
   const playerPromises = (promises ?? []).filter((promise) => promise.playerId === player.id && !promise.resolved && !promise.failed);
   const playerMessages = (messages ?? []).filter((message) => message.playerId === player.id);
   const seasonStats = player.seasonStats ?? {};
   const careerProgress = getCareerGoalProgress(player);
+  const clubRelation = clubRelations?.[player.club] ?? 50;
+  const memorySummary = getClubMemorySummary(clubMemory, player.club);
+  const clubMemoryScore = clubMemory?.[player.club]?.trust ?? 50;
+  const clubTension = Math.max(0, 100 - clubRelation + Math.max(0, 55 - (player.trust ?? 50)) + Math.max(0, 55 - clubMemoryScore));
+  const tensionColor = clubTension > 68 ? '#b42318' : clubTension > 40 ? '#8a6f1f' : '#00a676';
+  const actionGridStyle = {
+    ...S.msgActions,
+    gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
+  };
+  const actionBtnStyle = {
+    ...S.msgBtn,
+    padding: isMobile ? '12px 14px' : S.msgBtn.padding,
+    fontSize: isMobile ? 11 : S.msgBtn.fontSize,
+  };
+
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 780);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  const messageNeedsResponse = (message) => !message.resolved && ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning', 'staff_dialogue', 'coach_dialogue', 'ds_dialogue', 'secret_offer'].includes(message.type);
 
   return (
     <div style={S.overlay}>
@@ -58,13 +83,17 @@ export default function PlayerDetailModal({ player, messages, promises, onClose,
             <DetailMetric label="Salaire" value={`${formatMoney(player.weeklySalary)}/s`} />
             <DetailMetric label="Marque" value={`${player.brandValue ?? 0}/100`} />
           </div>
-          <div style={S.objCard}>
+            <div style={S.objCard}>
             <div style={S.secTitle}>RELATION</div>
             <Meter label="Moral" value={player.moral} />
             <Meter label="Confiance" value={player.trust ?? 50} />
             <Meter label="Forme" value={player.form} />
             <Meter label="Fatigue" value={player.fatigue ?? 20} inverted />
             <Meter label="Pression" value={player.pressure ?? 50} inverted />
+            <div style={S.sumRow}><span style={S.sumK}>Club relation</span><strong>{clubRelation}/100</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Mémoire club</span><strong>{memorySummary}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Tension</span><strong style={{ color: tensionColor }}>{clubTension >= 65 ? 'forte' : clubTension >= 35 ? 'modérée' : 'calme'}</strong></div>
+            <div style={S.progBar}><div style={{ ...S.progFill, width: `${Math.min(100, clubTension)}%`, background: tensionColor }} /></div>
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>PROFIL HUMAIN</div>
@@ -193,14 +222,15 @@ export default function PlayerDetailModal({ player, messages, promises, onClose,
                   <div style={S.incomingBubble}>
                     <div style={S.threadMeta}>{message.senderName ?? message.playerName} · S{message.week} · {message.subject}</div>
                     <div>{message.body}</div>
+                    {messageNeedsResponse(message) && <div style={S.responseBadgeInline}>Réponse attendue</div>}
                   </div>
                   {message.resolved ? (
                     <div style={S.outgoingBubble}>{message.responseText ?? 'Réponse envoyée'}</div>
                   ) : (
-                    <div style={S.msgActions}>
-                      <button onClick={() => onCallPlayer?.(player)} style={S.msgBtn}>Appeler</button>
-                      <button onClick={() => onMeeting?.(player.id, 'career')} style={S.msgBtn}>Plan</button>
-                      <button onClick={() => onMeeting?.(player.id, 'support')} style={S.msgBtn}>Soutenir</button>
+                    <div style={actionGridStyle}>
+                      <button onClick={() => onCallPlayer?.(player)} style={actionBtnStyle}>Appeler</button>
+                      <button onClick={() => onMeeting?.(player.id, 'career')} style={actionBtnStyle}>Plan</button>
+                      <button onClick={() => onMeeting?.(player.id, 'support')} style={actionBtnStyle}>Soutenir</button>
                     </div>
                   )}
                 </div>
@@ -210,10 +240,10 @@ export default function PlayerDetailModal({ player, messages, promises, onClose,
           {tab === 'dossier' && (
             <div style={S.objCard}>
               <div style={S.secTitle}>DOSSIER PRATIQUE</div>
-              <div style={S.msgActions}>
-                <button onClick={() => onContactClubStaff?.(player.id, 'coach')} style={S.msgBtn}>Appeler coach</button>
-                <button onClick={() => onContactClubStaff?.(player.id, 'ds')} style={S.msgBtn}>Appeler DS</button>
-                <button onClick={() => onCallPlayer?.(player)} style={S.msgBtn}>Appeler joueur</button>
+              <div style={actionGridStyle}>
+                <button onClick={() => onContactClubStaff?.(player.id, 'coach')} style={actionBtnStyle}>Appeler coach</button>
+                <button onClick={() => onContactClubStaff?.(player.id, 'ds')} style={actionBtnStyle}>Appeler DS</button>
+                <button onClick={() => onCallPlayer?.(player)} style={actionBtnStyle}>Appeler joueur</button>
               </div>
               <div style={S.emptySmall}>Ici, on garde les contacts utiles pour avancer sans perdre le fil.</div>
             </div>

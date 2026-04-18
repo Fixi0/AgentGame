@@ -93,6 +93,21 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
   const visibleThreadItems = selectedThread ? selectedThread.items.slice(Math.max(0, selectedThread.items.length - threadLimit)) : [];
   const showList = !isMobile || mobileScreen === 'list';
   const showThread = !isMobile || mobileScreen === 'thread';
+  const messageNeedsResponse = (message) => !message.resolved && (
+    URGENT_TYPES.includes(message.type)
+    || ['coach_dialogue', 'ds_dialogue', 'staff_dialogue'].includes(message.type)
+    || message.type === 'secret_offer'
+  );
+  const threadNeedsResponseCount = (thread) => thread.items.filter(messageNeedsResponse).length;
+  const actionGridStyle = {
+    ...S.msgActions,
+    gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
+  };
+  const actionBtnStyle = {
+    ...S.msgBtn,
+    padding: isMobile ? '12px 14px' : S.msgBtn.padding,
+    fontSize: isMobile ? 11 : S.msgBtn.fontSize,
+  };
 
   const getDisplayedResponse = (message) => {
     if (message.responseText && !message.responseText.startsWith('Réponse envoyée')) return message.responseText;
@@ -158,6 +173,11 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
                     {thread.unresolvedCount > 0 && <span style={S.threadBadge}>{thread.unresolvedCount}</span>}
                   </div>
                   <div style={S.threadContactMeta}>{thread.latestLabel}</div>
+                  {threadNeedsResponseCount(thread) > 0 && (
+                    <div style={S.threadAttention}>
+                      Réponse attendue
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -183,7 +203,10 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
                     <div style={S.chatTitle}>{selectedThread.label}</div>
                     <div style={S.chatSub}>{selectedThread.contextLabel || selectedThread.playerName}</div>
                   </div>
-                  <div style={S.chatTag}>{selectedThread.isStaff ? 'Staff' : 'Joueur'}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <div style={S.chatTag}>{selectedThread.isStaff ? 'Staff' : 'Joueur'}</div>
+                    {threadNeedsResponseCount(selectedThread) > 0 && <div style={S.responseBadge}>Réponse attendue</div>}
+                  </div>
                 </div>
 
                 <div style={S.chatTimeline}>
@@ -193,6 +216,7 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
                         <div style={S.chatMeta}>{message.senderName ?? message.playerName} · S{message.week}</div>
                         <div style={S.chatSubject}>{message.subject}</div>
                         <div style={S.chatBody}>{message.body}</div>
+                        {messageNeedsResponse(message) && <div style={S.responseBadgeInline}>Réponse attendue</div>}
                       </div>
                       {message.resolved ? (
                         <div style={S.chatBubbleRight}>
@@ -200,12 +224,12 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
                         </div>
                       ) : (
                         <>
-                          {URGENT_TYPES.includes(message.type) && (
+                          {messageNeedsResponse(message) && (
                             <div style={S.msgHint}>Une réponse concrète peut déclencher une suite dans le jeu.</div>
                           )}
-                          <div style={S.msgActions}>
+                          <div style={actionGridStyle}>
                             {Object.entries(getMessageResponseOptions(message)).map(([type, label]) => (
-                              <button key={type} onClick={() => onRespond(message.id, type)} style={S.msgBtn}>
+                              <button key={type} onClick={() => onRespond(message.id, type)} style={actionBtnStyle}>
                                 {label || responseLabels[type]}
                               </button>
                             ))}

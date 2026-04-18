@@ -9,7 +9,7 @@ import { createManualNewsPost, createNewsPost } from '../systems/newsSystem';
 import { createMessage, maybeCreateContextualMessage } from '../systems/messageSystem';
 import { createDefaultStaff, getStaffEffect, getStaffWeeklyCost, upgradeStaff as upgradeStaffMember } from '../systems/staffSystem';
 import { createInitialLeagueTables, mergeWithInitialLeagueTables, updateLeagueTables } from '../systems/leagueSystem';
-import { applyClubRelation, createDefaultClubRelations } from '../systems/clubSystem';
+import { applyClubRelation, createDefaultClubMemory, createDefaultClubRelations, recordClubMemory } from '../systems/clubSystem';
 import { applyLeagueReputation, createDefaultLeagueReputation } from '../systems/leagueReputationSystem';
 import { createAgentContract, tickAgentContract } from '../systems/agentContractSystem';
 import { rollCompetitorThreat } from '../systems/competitorSystem';
@@ -469,6 +469,7 @@ export const createFreshState = () => ({
   leagueTables: createInitialLeagueTables(),
   leagueReputation: createDefaultLeagueReputation(DEFAULT_AGENCY_PROFILE.countryCode),
   clubRelations: createDefaultClubRelations(),
+  clubMemory: createDefaultClubMemory(),
   scoutingMissions: [],
   competitorThreats: [],
   lastFixtures: [],
@@ -518,6 +519,7 @@ export const migrateState = (state) => {
     leagueTables: mergeWithInitialLeagueTables(state.leagueTables),
     leagueReputation: state.leagueReputation ?? createDefaultLeagueReputation(state.agencyProfile?.countryCode ?? 'FR'),
     clubRelations: state.clubRelations ?? createDefaultClubRelations(),
+    clubMemory: state.clubMemory ?? createDefaultClubMemory(),
     scoutingMissions: state.scoutingMissions ?? [],
     competitorThreats: state.competitorThreats ?? [],
     lastFixtures: state.lastFixtures ?? [],
@@ -785,6 +787,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
         ...state,
         credibility: applyCredibilityChange(state.credibility, 1),
         clubRelations: applyClubRelation(state.clubRelations, offer.club, 2),
+        clubMemory: recordClubMemory(state.clubMemory, offer.club, { trust: 2, week: state.week }),
         decisionHistory: addDecisionHistory(state.decisionHistory, {
           week: state.week,
           type: 'transfer_predeal',
@@ -845,6 +848,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
       }),
       leagueReputation: applyLeagueReputation(state.leagueReputation, offer.clubCountryCode ?? targetClub?.countryCode, 4),
       clubRelations: applyClubRelation(state.clubRelations, offer.club, 5),
+      clubMemory: recordClubMemory(state.clubMemory, offer.club, { trust: 3, week: state.week }),
       segmentReputation: applySegmentReputationChange(state.segmentReputation, { business: 6, sportif: 2 }),
       clubOffers: state.clubOffers.map((item) => (item.id === offerId ? { ...item, status: 'accepted' } : item)),
       roster: nextRoster,
@@ -875,6 +879,11 @@ export const rejectClubOffer = (state, offerId) => ({
     ...state,
     credibility: applyCredibilityChange(state.credibility, -1),
     clubOffers: state.clubOffers.map((offer) => (offer.id === offerId ? { ...offer, status: 'rejected' } : offer)),
+    clubMemory: recordClubMemory(
+      state.clubMemory,
+      state.clubOffers.find((offer) => offer.id === offerId)?.club,
+      { blocks: 1, trust: -2, week: state.week },
+    ),
     decisionHistory: addDecisionHistory(state.decisionHistory, {
       week: state.week,
       type: 'transfer',
@@ -1309,6 +1318,7 @@ export const playWeek = (state) => {
     if (chainedInteractive) interactiveEvent = chainedInteractive;
   }
 
+  let clubMemory = state.clubMemory;
   const promiseEvaluation = evaluatePromises({ promises: state.promises ?? [], roster: chainedRoster, week: state.week + 1 });
   promiseEvaluation.failedPromises.forEach((promise) => {
     reputationChange -= 3;
@@ -1326,8 +1336,11 @@ export const playWeek = (state) => {
       resolved: false,
     });
     if (['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(promise.type)) {
-      const player = finalRoster.find((item) => item.id === promise.playerId);
+      const player = chainedRoster.find((item) => item.id === promise.playerId);
       if (player) {
+        if (player.club && player.club !== 'Libre') {
+          clubMemory = recordClubMemory(clubMemory, player.club, { promisesBroken: 1, trust: -4, week: state.week + 1 });
+        }
         generatedMessages.push(createMessage({
           player,
           type: 'transfer_request',
@@ -1496,7 +1509,7 @@ export const playWeek = (state) => {
     decisionHistory: livingWeek.statePatch.decisionHistory ?? state.decisionHistory,
     clubRelations: livingWeek.statePatch.clubRelations ?? state.clubRelations,
     leagueReputation: state.leagueReputation,
-    activeNarratives: state.activeNarratives ?? [],
+    activeNarratives: livingWeek.statePatch.activeNarratives ?? state.activeNarratives ?? [],
   };
   const socialConsequences = applyNewsConsequences({
     state: consequenceState,
@@ -1578,7 +1591,8 @@ export const playWeek = (state) => {
     decisionHistory: socialConsequences.patch.decisionHistory ?? livingWeek.statePatch.decisionHistory ?? state.decisionHistory ?? [],
     clubRelations: socialConsequences.patch.clubRelations ?? livingWeek.statePatch.clubRelations ?? state.clubRelations,
     leagueReputation: socialConsequences.patch.leagueReputation ?? state.leagueReputation,
-    activeNarratives: socialConsequences.patch.activeNarratives ?? state.activeNarratives ?? [],
+    activeNarratives: socialConsequences.patch.activeNarratives ?? livingWeek.statePatch.activeNarratives ?? state.activeNarratives ?? [],
+    clubMemory,
     week: state.week + 1,
     worldState: nextWorldState,
     pendingChainedEvents: updatedPendingChains,
@@ -1761,6 +1775,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
       countryReputation: applyLeagueReputation(nextState.countryReputation, outcome.clubCountryCode, 3),
       playerSegmentReputation: applyPlayerSegmentReputation(nextState.playerSegmentReputation, getPlayerSegment(player), 4),
       clubRelations: applyClubRelation(nextState.clubRelations, outcome.club, 6),
+      clubMemory: recordClubMemory(nextState.clubMemory, outcome.club ?? player.club, { trust: 2, week: state.week }),
       decisionHistory: addDecisionHistory(nextState.decisionHistory, {
         week: state.week,
         type: 'transfer',
@@ -1782,6 +1797,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
         ...(nextState.negotiationCooldowns ?? {}),
         [player.id]: state.week + cooldownWeeks,
       },
+      clubMemory: recordClubMemory(nextState.clubMemory, player.club, { trust: 2, week: state.week }),
     };
   } else if (type === 'extend' && outcome.success) {
     const signingBonus = outcome.signingBonus ?? Math.floor(player.weeklySalary * 10);
@@ -1833,6 +1849,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
         ...(nextState.negotiationCooldowns ?? {}),
         [player.id]: state.week + cooldownWeeks,
       },
+      clubMemory: recordClubMemory(nextState.clubMemory, player.club, { trust: 2, week: state.week }),
     };
   } else {
     nextState = {
@@ -1857,6 +1874,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
         ...(nextState.negotiationCooldowns ?? {}),
         [player.id]: state.week + cooldownWeeks,
       },
+      clubMemory: recordClubMemory(nextState.clubMemory, player.club, { blocks: 1, trust: -3, week: state.week }),
     };
   }
 

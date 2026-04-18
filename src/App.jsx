@@ -42,7 +42,7 @@ import {
 } from './game/gameLogic';
 import { getAgencyCapacity } from './systems/agencySystem';
 import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, getNegotiationContextModifier } from './systems/agencyReputationSystem';
-import { applyClubRelation } from './systems/clubSystem';
+import { applyClubRelation, recordClubMemory } from './systems/clubSystem';
 import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
 import { createMessage, createStaffConversationMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
@@ -344,6 +344,17 @@ export default function FootballAgentGame() {
       const nextMediaRelations = actionType === 'press_release'
         ? applyMediaRelation(withMarketAction.mediaRelations, 'canal_football_desk', responseType === 'professionnel' ? 3 : 1)
         : withMarketAction.mediaRelations;
+      const nextClubMemory = targetPlayer?.club && targetPlayer.club !== 'Libre'
+        ? recordClubMemory(
+            withMarketAction.clubMemory,
+            targetPlayer.club,
+            {
+              trust: actionType === 'coach_talk' || actionType === 'club_check' ? (responseType === 'ferme' ? -1 : 2) : responseType === 'ferme' ? -1 : 1,
+              blocks: actionType === 'coach_talk' && responseType === 'ferme' ? 1 : 0,
+              week: current.week,
+            },
+          )
+        : withMarketAction.clubMemory;
       const nextCredibility = actionType === 'press_release' || actionType === 'club_check'
         ? applyCredibilityChange(withMarketAction.credibility, responseType === 'ferme' ? 1 : 2)
         : responseType === 'ferme'
@@ -362,6 +373,7 @@ export default function FootballAgentGame() {
         credibility: nextCredibility,
         mediaRelations: nextMediaRelations,
         clubRelations: nextClubRelations,
+        clubMemory: nextClubMemory,
         decisionHistory: nextDecisionHistory,
         roster: withMarketAction.roster.map((player) =>
           player.id === message.playerId
@@ -437,6 +449,7 @@ export default function FootballAgentGame() {
       return {
         ...current,
         clubRelations: applyClubRelation(current.clubRelations, player.club, isCoach ? 2 : 1),
+        clubMemory: recordClubMemory(current.clubMemory, player.club, { trust: isCoach ? 1 : 1, week: current.week }),
         decisionHistory: addDecisionHistory(current.decisionHistory, {
           week: current.week,
           type: isCoach ? 'coach_call' : 'ds_call',
@@ -687,6 +700,8 @@ export default function FootballAgentGame() {
             player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
             messages={state.messages}
             promises={state.promises}
+            clubRelations={state.clubRelations}
+            clubMemory={state.clubMemory}
             onClose={() => setModal(null)}
             onNego={(type) => startNegotiation(modal.data.player, type)}
             onMeeting={handlePlayerMeeting}

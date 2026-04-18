@@ -3,6 +3,7 @@ import { createManualNewsPost } from './newsSystem';
 import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, applyPlayerSegmentReputation, getPlayerSegment, pickRivalAgent } from './agencyReputationSystem';
 import { applyClubRelation } from './clubSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
+import { createNarrativeArc, mergeNarrativeArc } from './consequenceSystem';
 import { clamp, makeId, pick } from '../utils/helpers';
 
 const mediaAccounts = [
@@ -235,6 +236,7 @@ export const generateLivingWeek = ({ state, roster, phase }) => {
   let credibility = state.credibility ?? 50;
   let rivalAgents = [...(state.rivalAgents ?? [])];
   let decisionHistory = [...(state.decisionHistory ?? [])];
+  let activeNarratives = [...(state.activeNarratives ?? [])];
   const news = [];
   const messages = [];
   const events = [];
@@ -289,6 +291,50 @@ export const generateLivingWeek = ({ state, roster, phase }) => {
       });
     }
 
+    if (template.id === 'medical_warning' || (player.injured > 0 && template.id === 'supporters_pressure')) {
+      activeNarratives = mergeNarrativeArc(activeNarratives, createNarrativeArc({
+        type: 'injury_comeback',
+        player,
+        club: player.club,
+        week: state.week + 1,
+        origin: template.title,
+        intensity: 2,
+      }));
+    }
+
+    if (template.id === 'coach_warning' || template.id === 'bad_press') {
+      activeNarratives = mergeNarrativeArc(activeNarratives, createNarrativeArc({
+        type: 'coach_conflict',
+        player,
+        club: player.club,
+        week: state.week + 1,
+        origin: template.title,
+        intensity: 2,
+      }));
+    }
+
+    if (template.id === 'professional_week' || template.id === 'training_extra') {
+      activeNarratives = mergeNarrativeArc(activeNarratives, createNarrativeArc({
+        type: 'breakout_run',
+        player,
+        club: player.club,
+        week: state.week + 1,
+        origin: template.title,
+        intensity: 2,
+      }));
+    }
+
+    if (template.id === 'hidden_ambition' || template.id === 'club_need' || template.id === 'president_call') {
+      activeNarratives = mergeNarrativeArc(activeNarratives, createNarrativeArc({
+        type: 'transfer_rumor',
+        player,
+        club: player.club,
+        week: state.week + 1,
+        origin: template.title,
+        intensity: 2,
+      }));
+    }
+
     decisionHistory = addDecisionHistory(decisionHistory, {
       week: state.week + 1,
       type: template.type,
@@ -332,6 +378,7 @@ export const generateLivingWeek = ({ state, roster, phase }) => {
       credibility,
       rivalAgents,
       decisionHistory: decisionHistory.slice(0, 40),
+      activeNarratives,
     },
   };
 };
