@@ -5,6 +5,8 @@ const PROMISE_DURATIONS = {
   raise_request: 6,
   complaint: 4,
   staff_dialogue: 4,
+  coach_dialogue: 4,
+  ds_dialogue: 4,
 };
 
 const PROMISE_LABELS = {
@@ -12,13 +14,15 @@ const PROMISE_LABELS = {
   raise_request: 'Renégocier sa situation',
   complaint: 'Stabiliser la relation',
   staff_dialogue: 'Temps de jeu promis',
+  coach_dialogue: 'Temps de jeu promis',
+  ds_dialogue: 'Projet club clarifié',
 };
 
 export const createPromiseFromMessage = ({ message, week, responseType }) => {
   if (!['professionnel', 'empathique'].includes(responseType)) return null;
   if (!PROMISE_DURATIONS[message.type]) return null;
 
-  if (message.type === 'staff_dialogue' && message.context && !String(message.context).includes('coach') && !String(message.context).includes('playing')) {
+  if (['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(message.type) && message.context && !String(message.context).includes('coach') && !String(message.context).includes('playing') && !String(message.context).includes('ds')) {
     return null;
   }
 
@@ -52,7 +56,7 @@ export const evaluatePromises = ({ promises = [], roster = [], week }) => {
     if (promise.type === 'complaint' && isHealthyRelationship) {
       return { ...promise, resolved: true };
     }
-    if (promise.type === 'staff_dialogue' && player) {
+    if (['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(promise.type) && player) {
       const recentMinutes = (player.matchHistory ?? []).slice(0, 3).reduce((sum, match) => sum + (match.minutes ?? 0), 0);
       const recentAppearances = (player.matchHistory ?? []).slice(0, 3).length || 1;
       const averageMinutes = recentMinutes / recentAppearances;

@@ -9,7 +9,7 @@ const responseLabels = {
   ferme: 'Ferme',
 };
 
-const URGENT_TYPES = ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning', 'staff_dialogue'];
+const URGENT_TYPES = ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning', 'staff_dialogue', 'coach_dialogue', 'ds_dialogue'];
 
 export default function Messages({ messages, onRespond, focusThreadKey = null }) {
   const [filter, setFilter] = useState('all');

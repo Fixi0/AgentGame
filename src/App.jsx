@@ -300,14 +300,14 @@ export default function FootballAgentGame() {
   const handleMessageResponse = (messageId, responseType) => {
     const effects = responseEffects[responseType];
     const currentMessage = state.messages.find((item) => item.id === messageId);
-    const isStaffThread = currentMessage?.type === 'staff_dialogue';
+    const isStaffThread = currentMessage && ['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(currentMessage.type);
     const staffReply = isStaffThread && currentMessage ? (() => {
       const player = state.roster.find((item) => item.id === currentMessage.playerId);
       const staffName = currentMessage.threadLabel ?? (String(currentMessage.context ?? '').includes('coach')
         ? `Coach de ${player?.club ?? 'son club'}`
         : `DS de ${player?.club ?? 'son club'}`);
       const coachReplyText = (() => {
-        if (String(currentMessage.context ?? '').includes('coach')) {
+        if (currentMessage.type === 'coach_dialogue' || String(currentMessage.context ?? '').includes('coach')) {
           if (responseType === 'professionnel') return "Je prends le message. Tu auras une fenêtre claire pour te battre pour tes minutes, mais je veux voir la même intensité à l'entraînement.";
           if (responseType === 'empathique') return "Je t'entends. On va calmer le dossier, mais je veux te voir répondre sur le terrain et garder la tête froide.";
           return "Compris. Le cadre est posé: performe et le temps de jeu suivra, sinon on reparlera de ton statut.";
@@ -319,7 +319,7 @@ export default function FootballAgentGame() {
       return createStaffConversationMessage({
         player,
         staffName,
-        type: 'staff_dialogue',
+        type: currentMessage.type === 'coach_dialogue' ? 'coach_dialogue' : currentMessage.type === 'ds_dialogue' ? 'ds_dialogue' : 'staff_dialogue',
         week: state.week,
         context: currentMessage.context,
         subject: `${staffName} répond`,
@@ -465,7 +465,7 @@ export default function FootballAgentGame() {
           createStaffConversationMessage({
             player,
             staffName,
-            type: 'staff_dialogue',
+            type: isCoach ? 'coach_dialogue' : 'ds_dialogue',
             week: current.week,
             context: isCoach ? 'coach_talk' : 'ds_talk',
             subject: `${staffName} répond`,

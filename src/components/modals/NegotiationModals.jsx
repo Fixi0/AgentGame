@@ -415,14 +415,21 @@ function NegotiationActions({ done, turn, maxTurns, allowConclude, acceptLabel, 
       <button onClick={() => onAct('balanced')} style={S.choiceBtn}><div><div style={S.chLabel}>Approche équilibrée</div><div style={S.chDesc}>Sûr, gains modérés</div></div></button>
       <button onClick={() => onAct('bluff')} style={S.choiceBtn}><div><div style={S.chLabel}>Bluff autre club</div><div style={S.chDesc}>Gros risque, très gros gain</div></div></button>
       <button onClick={() => onAct('concede')} style={S.choiceBtn}><div><div style={S.chLabel}>Concession</div><div style={S.chDesc}>Regagner leur intérêt</div></div></button>
-      {allowConclude ? (
-        <button onClick={() => onAct('accept')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
-          <div><div style={{ ...S.chLabel, color: '#00a676' }}>{acceptLabel}</div><div style={S.chDesc}>{acceptHint}</div></div>
-        </button>
-      ) : (
-        <div style={S.msgHint}>La proposition doit encore mûrir avant de pouvoir conclure.</div>
-      )}
-      <button onClick={() => onAct('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Abandonner</div></button>
+      <button
+        onClick={() => allowConclude && onAct('accept')}
+        style={{
+          ...S.choiceBtn,
+          borderColor: allowConclude ? '#00a676' : '#d6dde3',
+          opacity: allowConclude ? 1 : 0.68,
+          cursor: allowConclude ? 'pointer' : 'not-allowed',
+        }}
+      >
+        <div>
+          <div style={{ ...S.chLabel, color: allowConclude ? '#00a676' : '#64727d' }}>{acceptLabel}</div>
+          <div style={S.chDesc}>{allowConclude ? acceptHint : 'Disponible après quelques tours de négociation.'}</div>
+        </div>
+      </button>
+      <button onClick={() => onAct('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div><div style={{ ...S.chLabel, color: '#b42318' }}>Refuser</div><div style={S.chDesc}>Quitter la négociation</div></div></button>
     </div>
   );
 }

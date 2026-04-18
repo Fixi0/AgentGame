@@ -1325,7 +1325,7 @@ export const playWeek = (state) => {
       read: false,
       resolved: false,
     });
-    if (promise.type === 'staff_dialogue') {
+    if (['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(promise.type)) {
       const player = finalRoster.find((item) => item.id === promise.playerId);
       if (player) {
         generatedMessages.push(createMessage({

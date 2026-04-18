@@ -102,6 +102,14 @@ const MESSAGE_TYPES = {
     { subject: 'Appel demandé', body: "J'ai besoin de t'avoir au téléphone. Pas un long message — un vrai échange." },
     { subject: "Tu peux m'appeler ?", body: "Je préfère parler directement. Il y a trop de choses à clarifier par écrit." },
   ],
+  coach_dialogue: [
+    { subject: 'Temps de jeu et confiance', body: "Je veux comprendre où j'en suis dans la hiérarchie et ce qu'il faut faire pour gagner mes minutes." },
+    { subject: 'Je veux parler du rôle', body: "Le plan de match m'intéresse, mais j'ai besoin d'une vraie discussion sur mon temps de jeu." },
+  ],
+  ds_dialogue: [
+    { subject: 'Projet du club', body: "Je veux un point clair sur le projet, le rôle promis et les prochaines étapes possibles." },
+    { subject: 'Discussion direction', body: "Je préfère clarifier la situation avec la direction avant qu'elle ne devienne floue." },
+  ],
 };
 
 export const createMessage = ({ player, type, week, context, threadKey = null, threadLabel = null, senderRole = 'player', senderName = null }) => {
@@ -256,6 +264,16 @@ const RESPONSE_OPTIONS_BY_TYPE = {
     empathique: 'Écouter et rassurer',
     ferme: 'Poser le cadre',
   },
+  coach_dialogue: {
+    professionnel: 'Exiger du concret',
+    empathique: 'Apaiser le coach',
+    ferme: 'Mettre la pression',
+  },
+  ds_dialogue: {
+    professionnel: 'Clarifier le projet',
+    empathique: 'Discuter calmement',
+    ferme: 'Cadre ferme',
+  },
   media_pressure: {
     professionnel: 'Communiqué préparé',
     empathique: 'Protéger le joueur',
@@ -282,6 +300,12 @@ export const getMessageResponseAction = (message, responseType) => {
   if (message.type === 'role_frustration' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel joueur programmé ce soir' };
   if (message.type === 'staff_dialogue' && responseType === 'professionnel') return { type: 'coach_talk', label: 'Discussion staff lancée' };
   if (message.type === 'staff_dialogue' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel de cadrage programmé' };
+  if (message.type === 'coach_dialogue' && responseType === 'professionnel') return { type: 'coach_talk', label: 'Coach relancé sur le temps de jeu' };
+  if (message.type === 'coach_dialogue' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel coach programmé' };
+  if (message.type === 'coach_dialogue' && responseType === 'ferme') return { type: 'coach_talk', label: 'Coach mis face au cadre' };
+  if (message.type === 'ds_dialogue' && responseType === 'professionnel') return { type: 'club_check', label: 'Projet club vérifié' };
+  if (message.type === 'ds_dialogue' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel DS programmé' };
+  if (message.type === 'ds_dialogue' && responseType === 'ferme') return { type: 'club_check', label: 'Direction mise sous cadre' };
   if (message.type === 'complaint' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel de crise programmé' };
   if (message.type === 'media_pressure' && responseType === 'professionnel') return { type: 'press_release', label: 'Communiqué média préparé' };
   if (message.type === 'secret_offer' && responseType === 'professionnel') return { type: 'club_check', label: 'Vérification club lancée' };
@@ -309,6 +333,16 @@ export const getResponseCopy = (message, responseType) => {
     if (responseType === 'professionnel') return "Je prends le sujet au sérieux et je vais être concret.\n\nJe veux savoir exactement ce que le club a promis, ce qui bloque aujourd'hui, et à quoi ressemble la prochaine étape. S'il faut parler de temps de jeu ou de rôle, je le ferai sans détour.\n\nOn garde ce dossier propre et on se revoit après mon appel au club.";
     if (responseType === 'empathique') return "Je t'écoute et je comprends que tu veuilles du clair.\n\nSi la situation te pèse, on va la traiter sans te mettre en face-à-face inutile avec le club. On parle du fond: minutes, confiance, plan de match, et ce qui peut te remettre dans un bon cycle.\n\nJe t'appelle vite et on avance ensemble.";
     return "Je vais être direct : je ne laisse pas la situation s'enliser.\n\nSi le club ne respecte pas ce qui a été dit, je le mets face à ses responsabilités. En revanche, j'attends aussi que tu restes irréprochable et concentré.\n\nOn agit vite, mais proprement.";
+  }
+  if (message.type === 'coach_dialogue') {
+    if (responseType === 'professionnel') return "Je veux du concret, pas une promesse vague.\n\nDis-moi exactement ce qui manque pour que tu me fasses confiance sur les minutes. Si le plan est clair, je joue le jeu. Si ça reste flou, je reviens vers le club avec un dossier solide.\n\nJe préfère une vérité nette à un discours rassurant.";
+    if (responseType === 'empathique') return "Je veux qu'on parle calmement, mais je ne veux plus d'ambiguïté.\n\nSi tu peux me donner une vraie trajectoire sur les prochaines semaines, je l'entends. Je veux simplement sentir que le travail et les minutes vont ensemble.\n\nOn peut avancer proprement si on se comprend vraiment.";
+    return "Je vais être franc: si les minutes ne suivent pas, je ne laisserai pas le dossier s'enliser.\n\nJe veux un cadre précis, des repères clairs et une vraie suite. Sinon je reviens vers le club pour faire bouger les choses.\n\nLe message est simple: je veux du sérieux.";
+  }
+  if (message.type === 'ds_dialogue') {
+    if (responseType === 'professionnel') return "Je veux clarifier le projet de manière nette.\n\nSi le rôle, la ville ou la trajectoire ne correspondent plus, il faut le dire maintenant. Je préfère une discussion propre à une situation qui se dégrade en silence.\n\nOn repart sur quelque chose de précis ou on ajuste la suite.";
+    if (responseType === 'empathique') return "Je comprends qu'on ait besoin de remettre les choses à plat.\n\nJe veux simplement savoir si le club reste aligné avec ce qui a été présenté au départ. Si oui, on avance; si non, il faut envisager une autre direction sans se mentir.\n\nJe préfère un échange honnête.";
+    return "Je vais être direct: si le projet ne tient plus, on ne va pas faire semblant.\n\nJe veux une position claire sur le rôle et la suite. Si le club n'est pas cohérent, je traiterai le dossier en conséquence.\n\nJe préfère savoir maintenant que trop tard.";
   }
   if (message.type === 'voice_call') {
     if (responseType === 'professionnel') return "Je te rappelle aujourd'hui.\n\nPrépare-moi les trois points importants : ce qui bloque, ce que tu veux, et ce que tu refuses. On sort de l'appel avec une décision claire.";
