@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Moon, Network, Newspaper, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
+import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
 import Calendar from './components/Calendar';
@@ -45,7 +45,6 @@ import {
   rejectClubOffer,
   startScoutingMission,
   STORAGE_KEY,
-  toggleDarkMode,
   upgradeAgency,
   upgradeOffice,
   upgradeStaff,
@@ -247,8 +246,6 @@ export default function FootballAgentGame() {
     setState(result.state);
     showToast(result.result.message, result.result.error ? 'error' : result.result.onCooldown ? 'info' : 'success');
   };
-
-  const handleToggleDarkMode = () => setState(toggleDarkMode(state));
 
   const handleCompareOffers = () => {
     const openOffers = (state.clubOffers ?? []).filter((o) => o.status === 'open' && o.expiresWeek >= state.week);
@@ -780,27 +777,19 @@ export default function FootballAgentGame() {
     );
   }
 
-  const darkBg = state.darkMode ? { background: '#101314', color: '#e5eaf0' } : {};
-  const darkHeader = state.darkMode ? { background: '#161b1f', borderBottom: '1px solid #243040' } : {};
-  const darkNav = state.darkMode ? { background: '#161b1f', borderBottom: '1px solid #243040' } : {};
-  const darkMain = state.darkMode ? { background: '#101314' } : {};
-
   return (
-    <div style={{ ...S.app, ...darkBg }}>
+    <div style={S.app}>
       <style>{CSS}</style>
-      <header style={{ ...S.header, ...darkHeader }}>
+      <header style={S.header}>
         <div style={S.brandRow}>
           <div style={S.logo}>
             <div style={{ ...S.logoMark, background: agencyProfile.color }}>★</div>
             <div>
-              <div style={{ ...S.brandName, ...(state.darkMode ? { color: '#e5eaf0' } : {}) }}>{agencyProfile.name}</div>
+              <div style={S.brandName}>{agencyProfile.name}</div>
               <div style={S.brandSub}>{agencyProfile.city} · {agencyProfile.ownerName}</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
-            <button onClick={handleToggleDarkMode} style={{ ...S.iconBtn, color: state.darkMode ? '#f0c040' : '#64727d' }} title={state.darkMode ? 'Mode clair' : 'Mode sombre'}>
-              <Moon size={16} />
-            </button>
             <button onClick={handleResetGame} style={S.iconBtn}>
               <LogOut size={16} />
             </button>
@@ -820,7 +809,7 @@ export default function FootballAgentGame() {
           <StatCard icon={<Trophy size={14} />} label="MESSAGES" value={pendingCounts.total} accent="#64727d" />
         </div>
       </header>
-      <nav style={{ ...S.nav, ...darkNav }}>
+      <nav style={S.nav}>
         {mainNav.map(([key, item]) => {
           const Icon = item.icon;
           const active = key === 'more'
@@ -843,8 +832,8 @@ export default function FootballAgentGame() {
           );
         })}
       </nav>
-      <main style={{ ...S.main, ...darkMain }}>
-        {view === 'dashboard' && <Dashboard state={state} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} darkMode={state.darkMode} />}
+      <main style={S.main}>
+        {view === 'dashboard' && <Dashboard state={state} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} />}
         {view === 'market' && <Market state={state} market={state.market} freeAgents={state.freeAgents} money={state.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
         {view === 'roster' && <Roster state={state} roster={state.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
         {view === 'messages' && <Messages messages={state.messages} messageQueue={state.messageQueue ?? []} onRespond={handleMessageResponse} focusThreadKey={activeMessageThreadKey} />}
@@ -868,7 +857,7 @@ export default function FootballAgentGame() {
         {view === 'profile' && <AgencyProfile state={state} />}
         {view === 'news' && <NewsFeed news={state.news} />}
         {view === 'media' && <MediaRoom state={state} />}
-        {view === 'contracts' && <ContractDashboard state={state} onNego={(player, type) => startNegotiation(player, type ?? 'extend')} onOpenPlayer={showPlayerDetails} darkMode={state.darkMode} />}
+        {view === 'contracts' && <ContractDashboard state={state} onNego={(player, type) => startNegotiation(player, type ?? 'extend')} onOpenPlayer={showPlayerDetails} />}
         {view === 'contacts' && <Contacts state={state} onCall={handleCallContact} />}
       </main>
       {modal?.type === 'results' && (

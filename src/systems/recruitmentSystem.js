@@ -83,14 +83,49 @@ const getAgencyBonus = (state, player) => {
   return cityMatch + countryMatch + repBonus + credBonus + marketReachBonus;
 };
 
+const getRecruitmentNetworkBonus = (state, player, pitchId) => {
+  const contacts = state.contacts ?? [];
+  const weightedContacts = contacts
+    .filter((contact) => ['scout', 'ds', 'avocat', 'journaliste'].includes(contact.type))
+    .map((contact) => {
+      let bonus = Math.floor((contact.trust ?? 0) / 20);
+      if (contact.country === player.countryCode) bonus += 2;
+      if (player.preferredCountries?.includes(contact.country)) bonus += 2;
+      if (contact.club && contact.club === player.club) bonus += 2;
+      if (contact.type === 'scout' && ['sportif', 'ambition'].includes(pitchId)) bonus += 4;
+      if (contact.type === 'ds' && ['sportif', 'ambition'].includes(pitchId)) bonus += 5;
+      if (contact.type === 'avocat' && pitchId === 'financial') bonus += 5;
+      if (contact.type === 'journaliste' && pitchId === 'ambition') bonus += 4;
+      return { contact, bonus };
+    })
+    .sort((a, b) => b.bonus - a.bonus);
+
+  const best = weightedContacts[0] ?? null;
+  return {
+    bonus: best?.bonus ?? 0,
+    contact: best?.contact ?? null,
+    contacts: weightedContacts.slice(0, 3),
+  };
+};
+
+const getRecruitmentMemoryPenalty = (player, pitchId, currentWeek = 0) => {
+  const memory = player.recruitmentMemory ?? [];
+  const refused = memory.filter((entry) => entry.result === 'refused');
+  const samePitchRefusals = refused.filter((entry) => entry.pitchId === pitchId).length;
+  const recentRefusals = refused.filter((entry) => (entry.week ?? 0) >= currentWeek - 12).length;
+  return Math.min(18, samePitchRefusals * 6 + recentRefusals * 2);
+};
+
 export const getRecruitmentPreview = (state, player, pitchId) => {
   if (!player) return null;
   const pitch = RECRUITMENT_PITCHES.find((item) => item.id === pitchId) ?? RECRUITMENT_PITCHES[0];
   const threshold = getThreshold(player, state);
   const pitchBonus = getPitchBonus(player, pitch.id);
   const agencyBonus = getAgencyBonus(state, player);
+  const networkBonus = getRecruitmentNetworkBonus(state, player, pitch.id);
   const dealBreakerPenalty = (player.recruitmentDealBreakers ?? []).length * 3;
-  const fit = clamp(Math.round(32 + pitchBonus + agencyBonus - dealBreakerPenalty), 0, 100);
+  const memoryPenalty = getRecruitmentMemoryPenalty(player, pitch.id, state.week ?? 0);
+  const fit = clamp(Math.round(32 + pitchBonus + agencyBonus + networkBonus.bonus - dealBreakerPenalty - memoryPenalty), 0, 100);
   const chance = clamp(Math.round(50 + (fit - threshold) * 1.5), 10, 95);
 
   return {
@@ -98,12 +133,33 @@ export const getRecruitmentPreview = (state, player, pitchId) => {
     threshold,
     fit,
     chance,
+    network: networkBonus,
+    memoryPenalty,
     reasons: [
       ...(player.recruitmentPriorities ?? []).slice(0, 3).map((item) => `Priorité: ${item}`),
       ...(player.recruitmentDealBreakers ?? []).slice(0, 3).map((item) => `Point sensible: ${item}`),
+      ...(networkBonus.contact ? [`Intermédiaire: ${networkBonus.contact.name}`] : []),
+      ...(memoryPenalty > 0 ? [`Ancien refus: -${memoryPenalty}`] : []),
     ],
   };
 };
+
+const tagRecruitmentMemory = (player, entry) => {
+  const history = [...(player.recruitmentMemory ?? []), entry].slice(-8);
+  return {
+    ...player,
+    recruitmentMemory: history,
+    recruitmentAttempts: (player.recruitmentAttempts ?? 0) + 1,
+    lastRecruitmentWeek: entry.week,
+  };
+};
+
+const updateRecruitmentMemoryInPools = (state, playerId, updater) => ({
+  ...state,
+  market: (state.market ?? []).map((item) => (item.id === playerId ? updater(item) : item)),
+  freeAgents: (state.freeAgents ?? []).map((item) => (item.id === playerId ? updater(item) : item)),
+  scoutedPlayers: (state.scoutedPlayers ?? []).map((item) => (item.id === playerId ? updater(item) : item)),
+});
 
 export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
   const player = state.market.find((item) => item.id === playerId) ?? state.freeAgents.find((item) => item.id === playerId);
@@ -117,9 +173,30 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
   const accepted = fit >= threshold && Math.random() < successChance;
 
   if (!accepted) {
+    const failedMemory = tagRecruitmentMemory(player, {
+      week: state.week,
+      pitchId,
+      pitchLabel: preview.pitch.label,
+      fit,
+      threshold,
+      result: 'refused',
+      contact: preview.network.contact?.name ?? null,
+    });
+    const nextState = updateRecruitmentMemoryInPools(state, player.id, (item) => ({
+      ...item,
+      recruitmentMemory: failedMemory.recruitmentMemory,
+      recruitmentAttempts: failedMemory.recruitmentAttempts,
+      lastRecruitmentWeek: failedMemory.lastRecruitmentWeek,
+      lastRecruitmentRefusal: {
+        week: state.week,
+        pitchId,
+        pitchLabel: preview.pitch.label,
+      },
+    }));
+
     return {
       state: {
-        ...state,
+        ...nextState,
         credibility: applyCredibilityChange(state.credibility, -1),
         decisionHistory: addDecisionHistory(state.decisionHistory, {
           week: state.week,
@@ -131,7 +208,7 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
         }),
         messages: [
           createMessage({ player, type: 'complaint', week: state.week, context: 'recruitment_refused' }),
-          ...state.messages,
+          ...nextState.messages,
         ].slice(0, 40),
       },
       error: `${player.firstName} ${player.lastName} veut un dossier plus cohérent`,
@@ -139,12 +216,24 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
   }
 
   const costMultiplier = clamp(1.08 - (fit - threshold) / 220, 0.82, 1.1);
+  const recruitmentMemory = tagRecruitmentMemory(player, {
+    week: state.week,
+    pitchId,
+    pitchLabel: preview.pitch.label,
+    fit,
+    threshold,
+    result: 'accepted',
+    contact: preview.network.contact?.name ?? null,
+  });
   const signedPlayer = {
     ...player,
     signingCost: Math.floor(player.signingCost * costMultiplier),
     recruitmentPitch: preview.pitch.id,
     recruitmentFit: fit,
     recruitmentChance: preview.chance,
+    recruitmentMemory: recruitmentMemory.recruitmentMemory,
+    recruitmentAttempts: recruitmentMemory.recruitmentAttempts,
+    lastRecruitmentWeek: recruitmentMemory.lastRecruitmentWeek,
     recruitmentPriorities: player.recruitmentPriorities ?? [],
     recruitmentDealBreakers: player.recruitmentDealBreakers ?? [],
     careerStatus: 'recruté',
@@ -160,6 +249,9 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
           recruitmentPitch: preview.pitch.id,
           recruitmentFit: fit,
           recruitmentChance: preview.chance,
+          recruitmentMemory: recruitmentMemory.recruitmentMemory,
+          recruitmentAttempts: recruitmentMemory.recruitmentAttempts,
+          lastRecruitmentWeek: recruitmentMemory.lastRecruitmentWeek,
           careerStatus: 'recruté',
           activeActions: [{ type: 'recruitment', label: preview.pitch.label }, ...(item.activeActions ?? [])].slice(0, 5),
           timeline: [{ week: state.week, type: 'recrutement', label: `Recruté via ${preview.pitch.label}` }, ...(item.timeline ?? [])].slice(0, 18),
@@ -173,11 +265,11 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
       roster: nextRoster,
       credibility: applyCredibilityChange(result.state.credibility, fit >= 80 ? 2 : 1),
       reputation: applyReputationChange(result.state.reputation, fit >= 80 ? 1 : 0),
-      playerSegmentReputation: applyPlayerSegmentReputation(
-        result.state.playerSegmentReputation,
-        getPlayerSegment(player),
-        fit >= 80 ? 2 : 1,
-      ),
+        playerSegmentReputation: applyPlayerSegmentReputation(
+          result.state.playerSegmentReputation,
+          getPlayerSegment(player),
+          fit >= 80 ? 2 : 1,
+        ),
       countryReputation: applyLeagueReputation(result.state.countryReputation, player.countryCode, fit >= 75 ? 2 : 1),
       decisionHistory: addDecisionHistory(result.state.decisionHistory, {
         week: state.week,
@@ -191,4 +283,3 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
     preview,
   };
 };
-

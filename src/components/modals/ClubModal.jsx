@@ -13,6 +13,15 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
   const profile = getClubProfile(club, relation);
   const memory = clubMemory?.[club.name] ?? { trust: 50, blocks: 0, lies: 0, promisesBroken: 0, lastWeek: 0 };
   const clubDecisions = getRelevantDecisionHistory(decisionHistory, { clubName: club.name }).slice(0, 6);
+  const trustedClubs = CLUBS
+    .map((item) => ({
+      club: item,
+      memory: clubMemory?.[item.name] ?? { trust: 50, blocks: 0, lies: 0, promisesBroken: 0, lastWeek: 0 },
+      relation: relations?.[item.name] ?? 50,
+    }))
+    .filter((entry) => entry.memory.trust >= 60 || entry.relation >= 60)
+    .sort((a, b) => b.memory.trust - a.memory.trust)
+    .slice(0, 5);
 
   return (
     <div style={S.overlay}>
@@ -41,6 +50,20 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
             <div style={S.sumRow}><span style={S.sumK}>Confiance</span><strong>{memory.trust}/100</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Blocages</span><strong>{memory.blocks}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Promesses cassées</span><strong>{memory.promisesBroken}</strong></div>
+          </div>
+          <div style={S.objCard}>
+            <div style={S.secTitle}>CLUBS QUI TE FONT CONFIANCE</div>
+            {trustedClubs.length ? trustedClubs.map(({ club: trustedClub, memory: trustedMemory, relation: trustedRelation }) => (
+              <div key={trustedClub.name} style={S.decisionRow}>
+                <span>
+                  {trustedClub.name}
+                  <div style={S.fixtureMeta}>
+                    {trustedClub.city} · {trustedMemory.trust}/100 · relation {trustedRelation}/100
+                  </div>
+                </span>
+                <strong>{trustedMemory.trust >= 70 ? 'Solide' : 'Sûr'}</strong>
+              </div>
+            )) : <div style={S.emptySmall}>Aucun club n'a encore une vraie confiance.</div>}
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>IDENTITE SPORTIVE</div>

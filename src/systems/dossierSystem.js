@@ -18,6 +18,21 @@ const PRIORITY_RANK = {
   to_process: 1,
 };
 
+const RESPONSE_REQUIRED_TYPES = new Set([
+  'transfer_request',
+  'raise_request',
+  'complaint',
+  'injury_worry',
+  'role_frustration',
+  'media_pressure',
+  'promise_broken_warning',
+  'staff_dialogue',
+  'coach_dialogue',
+  'ds_dialogue',
+  'secret_offer',
+  'shortlist_reply',
+]);
+
 export const getMessagePriority = (message) => {
   if (!message) return 'normal';
   if (message.priority) return message.priority;
@@ -42,13 +57,18 @@ export const getPendingMessageCounts = (state) => {
   const urgent = unresolved.filter((message) => URGENT_MESSAGE_TYPES.has(message.type)).length + queue.filter((message) => getMessagePriority(message) === 'urgent').length;
   const normal = queue.filter((message) => getMessagePriority(message) === 'normal').length;
   const toProcess = queue.filter((message) => getMessagePriority(message) === 'to_process').length;
+  const awaitingResponse = unresolved.filter((message) => RESPONSE_REQUIRED_TYPES.has(message.type)).length
+    + queue.filter((message) => RESPONSE_REQUIRED_TYPES.has(message.type)).length;
   return {
     urgent,
     normal,
     toProcess,
+    awaitingResponse,
     total: unresolved.length + queue.length,
   };
 };
+
+export const messageNeedsResponse = (message) => RESPONSE_REQUIRED_TYPES.has(message?.type) && !message?.resolved;
 
 export const getWeeksUntilMessageReopen = (state, playerId) => {
   const cooldownUntil = state?.negotiationCooldowns?.[playerId];
@@ -136,3 +156,49 @@ export const getRelevantDecisionHistory = (history = [], { playerId = null, club
   });
 };
 
+const OFFER_QUEUE_STATUS_ORDER = {
+  nouvelle: 0,
+  en_cours: 1,
+  bloquee: 2,
+  conclue: 3,
+};
+
+export const getMarketOfferStatus = (offer, state = {}) => {
+  if (!offer) return { key: 'nouvelle', label: 'Nouvelle', tone: 'neutral' };
+
+  const concluded = ['accepted_pending', 'accepted', 'completed', 'closed'].includes(offer.status)
+    || (state?.pendingTransfers ?? []).some((transfer) => transfer.offerId === offer.id || transfer.playerId === offer.playerId);
+  if (concluded) return { key: 'conclue', label: 'Conclue', tone: 'good' };
+
+  const cooldownUntil = state?.negotiationCooldowns?.[offer.playerId] ?? 0;
+  if (cooldownUntil > (state?.week ?? 0)) {
+    return {
+      key: 'bloquee',
+      label: 'Bloquée',
+      tone: 'danger',
+      detail: `Verrou jusqu'en S${cooldownUntil}`,
+    };
+  }
+
+  if (offer.isCompetingOffer || offer.isHotWeek || offer.actionSource?.startsWith('event') || offer.preWindow) {
+    return { key: 'en_cours', label: 'En cours', tone: 'warn' };
+  }
+
+  return { key: 'nouvelle', label: 'Nouvelle', tone: 'neutral' };
+};
+
+export const getMarketOfferQueue = (state = {}) => {
+  const offers = state?.clubOffers ?? [];
+  return offers
+    .filter((offer) => ['open', 'accepted_pending', 'accepted', 'closed'].includes(offer.status))
+    .map((offer) => ({
+      ...offer,
+      queueStatus: getMarketOfferStatus(offer, state),
+    }))
+    .sort((a, b) => {
+      const aOrder = OFFER_QUEUE_STATUS_ORDER[a.queueStatus?.key] ?? 0;
+      const bOrder = OFFER_QUEUE_STATUS_ORDER[b.queueStatus?.key] ?? 0;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return (b.week ?? 0) - (a.week ?? 0);
+    });
+};

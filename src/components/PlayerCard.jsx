@@ -13,9 +13,16 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
   const isFreeInRoster = mode === 'roster' && (player.freeAgent || player.club === 'Libre');
   const dossierStatus = getPlayerDossierStatus(player, state);
   const statusColor = dossierStatus.tone === 'good' ? '#00a676' : dossierStatus.tone === 'warn' ? '#b45309' : dossierStatus.tone === 'danger' ? '#b42318' : '#64727d';
+  const tensionBg = dossierStatus.tone === 'danger'
+    ? '#fff7f7'
+    : dossierStatus.tone === 'warn'
+      ? '#fffbeb'
+      : dossierStatus.tone === 'good'
+        ? '#f0fdf8'
+        : '#ffffff';
 
   return (
-    <div style={S.pCard}>
+    <div style={{ ...S.pCard, background: tensionBg, borderColor: dossierStatus.tone === 'danger' ? '#fca5a5' : dossierStatus.tone === 'warn' ? '#fcd34d' : dossierStatus.tone === 'good' ? '#cfeee3' : '#e5eaf0' }}>
       <div style={S.pTop} onClick={onDetails} role={onDetails ? 'button' : undefined}>
         <div style={S.playerAvatar}>{player.firstName[0]}{player.lastName[0]}</div>
         <div style={{ ...S.badge, background: ratingColor }}>

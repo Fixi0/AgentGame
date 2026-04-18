@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { PERSONALITY_LABELS } from '../../data/players';
 import { getCareerGoalProgress } from '../../systems/playerDevelopmentSystem';
 import { getClubMemorySummary } from '../../systems/clubSystem';
-import { getPlayerDossierStatus, getRelevantDecisionHistory } from '../../systems/dossierSystem';
+import { getPlayerDossierStatus, getRelevantDecisionHistory, messageNeedsResponse } from '../../systems/dossierSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
@@ -35,6 +35,8 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
   const tensionColor = clubTension > 68 ? '#b42318' : clubTension > 40 ? '#8a6f1f' : '#00a676';
   const dossierStatus = getPlayerDossierStatus(player, { week: currentWeek, messages, messageQueue, promises, clubOffers, pendingTransfers, negotiationCooldowns });
   const relevantDecisions = getRelevantDecisionHistory(decisionHistory, { playerId: player.id }).slice(0, 8);
+  const recentActions = relevantDecisions.slice(0, 5);
+  const recruitmentMemory = player.recruitmentMemory ?? [];
   const actionGridStyle = {
     ...S.msgActions,
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
@@ -51,8 +53,6 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
-
-  const messageNeedsResponse = (message) => !message.resolved && ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning', 'staff_dialogue', 'coach_dialogue', 'ds_dialogue', 'secret_offer'].includes(message.type);
 
   return (
     <div style={S.overlay}>
@@ -134,6 +134,18 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             </div>
             <div style={S.sumRow}><span style={S.sumK}>Fit recrutement</span><strong>{player.recruitmentFit ?? '--'}/100</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Angle choisi</span><strong>{player.signReason ?? player.recruitmentPitch ?? 'à déterminer'}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Approches</span><strong>{recruitmentMemory.length}</strong></div>
+            {recruitmentMemory.slice(0, 2).map((entry, index) => (
+              <div key={`${entry.week}-${entry.pitchId}-${index}`} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '8px 10px', marginTop: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                  <strong style={{ fontSize: 12, color: '#172026' }}>{entry.pitchLabel ?? entry.pitchId}</strong>
+                  <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>S{entry.week}</span>
+                </div>
+                <div style={S.fixtureMeta}>
+                  {entry.result === 'refused' ? 'Refus' : 'Accord'} · Fit {entry.fit}/100 · Seuil {entry.threshold}/100
+                </div>
+              </div>
+            ))}
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>SAISON</div>
@@ -250,13 +262,23 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             )) : <div style={S.emptySmall}>Aucun moment clé enregistré.</div>}
           </div>
           <div style={S.objCard}>
-            <div style={S.secTitle}>FIL DE DECISION</div>
-            {relevantDecisions.length ? relevantDecisions.map((decision) => (
-              <div key={decision.id} style={S.promiseRow}>
-                <span>{decision.label}</span>
-                <strong>S{decision.week}</strong>
+            <div style={S.secTitle}>HISTORIQUE D'ACTIONS</div>
+            {recentActions.length ? recentActions.map((decision) => (
+              <div key={decision.id} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 850, color: '#172026' }}>{decision.label}</div>
+                    <div style={S.fixtureMeta}>{decision.type ?? 'action'} · S{decision.week}</div>
+                  </div>
+                  <strong style={{ fontSize: 11, color: '#00a676', whiteSpace: 'nowrap' }}>
+                    {decision.impact ? `${decision.impact > 0 ? '+' : ''}${decision.impact}` : '—'}
+                  </strong>
+                </div>
+                <div style={{ fontSize: 12, color: '#3f5663', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginTop: 6 }}>
+                  Conséquence : {decision.detail ?? 'Effet enregistré dans le dossier.'}
+                </div>
               </div>
-            )) : <div style={S.emptySmall}>Aucune décision liée à ce dossier.</div>}
+            )) : <div style={S.emptySmall}>Aucune décision récente liée à ce dossier.</div>}
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>PROMESSES</div>

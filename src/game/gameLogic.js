@@ -485,7 +485,6 @@ export const createFreshState = () => ({
   worldState: generateWorldState(1),
   contacts: createDefaultContacts(),
   seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 12 }),
-  darkMode: false,
   roster: [],
   market: generateMarket(12, 0),
   freeAgents: generateFreeAgents(12),
@@ -554,7 +553,6 @@ export const migrateState = (state) => {
     agencyGoals: state.agencyGoals ?? createLongTermAgencyGoals(),
     contacts: state.contacts ?? createDefaultContacts(),
     seasonObjectives: state.seasonObjectives ?? generateSeasonObjectives({ week: state.week ?? 1, reputation: state.reputation ?? 12 }),
-    darkMode: state.darkMode ?? false,
     gems: state.gems ?? 0,
     roster: (state.roster ?? []).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
@@ -2085,6 +2083,3 @@ export const finishNegotiation = (state, type, player, outcome) => {
 
 // ── Contacts ───────────────────────────────────────────────────────────────
 export { callContact } from '../systems/contactsSystem';
-
-// ── Dark mode toggle ────────────────────────────────────────────────────────
-export const toggleDarkMode = (state) => ({ ...state, darkMode: !state.darkMode });

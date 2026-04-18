@@ -101,6 +101,9 @@ export default function RecruitmentModal({ state, player, onConfirm, onClose }) 
             <div style={S.emptySmall}>
               {preview.reasons.length ? preview.reasons.join(' · ') : 'Aucun point de lecture supplémentaire.'}
             </div>
+            <div style={S.sumRow}><span style={S.sumK}>Réseau</span><strong>{preview.network?.contact?.name ?? 'Aucun contact utile'}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Bonus réseau</span><strong>{preview.network?.bonus ?? 0}</strong></div>
+            {preview.memoryPenalty > 0 && <div style={{ fontSize: 11, color: '#b42318', fontFamily: 'system-ui,sans-serif', marginTop: 8 }}>Ancien refus du joueur: -{preview.memoryPenalty}</div>}
           </div>
 
           <button onClick={() => onConfirm(pitchId)} style={S.primaryBtn}>

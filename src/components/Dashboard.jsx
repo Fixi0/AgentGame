@@ -1,7 +1,7 @@
 import { Activity, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Target, UserPlus, Zap } from 'lucide-react';
 import React from 'react';
 import { getAgencyCapacity } from '../systems/agencySystem';
-import { getPendingMessageCounts } from '../systems/dossierSystem';
+import { getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
 import { getMarketReachLabel } from '../systems/reputationSystem';
 import { getStrategicSuggestions } from '../systems/suggestionSystem';
 import { getAgencyGoalProgress } from '../systems/agencyGoalsSystem';
@@ -65,10 +65,10 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
   const suggestions = getStrategicSuggestions(state);
   const segments = state.segmentReputation ?? {};
   const pendingCounts = getPendingMessageCounts(state);
-  const urgentMessages = state.messages.filter((message) => !message.resolved).slice(0, 3);
+  const urgentMessages = (state.messages ?? []).filter(messageNeedsResponse).slice(0, 3);
   const expiringContracts = state.roster.filter((player) => player.contractWeeksLeft <= 12).slice(0, 3);
   const lowTrustPlayers = state.roster.filter((player) => (player.trust ?? 50) < 45 || player.moral < 45).slice(0, 3);
-  const openOffers = (state.clubOffers ?? []).filter((offer) => offer.status === 'open' && offer.expiresWeek >= state.week).slice(0, 3);
+  const marketQueue = getMarketOfferQueue(state).slice(0, 4);
   const competitorThreats = (state.competitorThreats ?? []).slice(0, 2);
   const spotlightNews = (state.news ?? []).slice(0, 3);
   const todayTimeline = [
@@ -78,13 +78,13 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
       sub: `${phase.month ?? ''} · S${phase.seasonWeek}/38`,
     },
     { label: 'Messages', value: `${pendingCounts.total}`, sub: pendingCounts.total ? 'File active' : 'Rien à lire' },
-    { label: 'Offres', value: `${openOffers.length}`, sub: openOffers.length ? 'Dossiers à suivre' : 'Aucune offre' },
+    { label: 'Offres', value: `${marketQueue.length}`, sub: marketQueue.length ? 'Dossiers à suivre' : 'Aucune offre' },
     { label: 'Promesses', value: `${activePromises.length}`, sub: activePromises.length ? 'Points sensibles' : 'Aucune' },
-    { label: 'Urgence', value: `${pendingCounts.urgent}`, sub: pendingCounts.urgent ? 'Réponse attendue' : "Rien d'urgent" },
+    { label: 'Réponse attendue', value: `${pendingCounts.awaitingResponse ?? pendingCounts.urgent}`, sub: (pendingCounts.awaitingResponse ?? pendingCounts.urgent) ? 'Dossier chaud' : 'Calme' },
   ];
   const todayActions = [
     urgentMessages.length ? { label: 'Répondre', sub: `${urgentMessages.length} message`, action: () => onNav('messages') } : null,
-    openOffers.length ? { label: 'Gérer offres', sub: `${openOffers.length} dossier mercato`, action: () => onNav('dashboard') } : null,
+    marketQueue.length ? { label: 'Gérer offres', sub: `${marketQueue.length} dossier mercato`, action: () => onNav('dossiers') } : null,
     { label: 'Jouer semaine', sub: phase.phase, action: onPlay },
   ].filter(Boolean).slice(0, 3);
 
@@ -177,28 +177,45 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
         <span>JOUER LA SEMAINE</span>
         <ChevronRight size={18} />
       </button>
-      {(openOffers.length > 0 || urgentMessages.length > 0 || expiringContracts.length > 0 || lowTrustPlayers.length > 0 || competitorThreats.length > 0) && (
+      {(marketQueue.length > 0 || urgentMessages.length > 0 || expiringContracts.length > 0 || lowTrustPlayers.length > 0 || competitorThreats.length > 0) && (
         <div style={S.decisionCard}>
           <div style={S.secTitle}>CENTRE DE DECISION</div>
-          {openOffers.map((offer) => (
-            <div key={offer.id} style={S.offerRow}>
-              <div>
-                <button onClick={() => onClubDetails?.(offer.club)} style={S.linkBtn}>{offer.club}</button>
+          {marketQueue.map((offer) => (
+            <div key={offer.id} style={{
+              ...S.offerRow,
+              background: offer.queueStatus?.key === 'bloquee' ? '#fff7f7' : offer.queueStatus?.key === 'conclue' ? '#f0fdf8' : offer.queueStatus?.key === 'en_cours' ? '#f8fbff' : '#f7f9fb',
+              borderColor: offer.queueStatus?.key === 'bloquee' ? '#fca5a5' : offer.queueStatus?.key === 'conclue' ? '#cfeee3' : offer.queueStatus?.key === 'en_cours' ? '#cfe1ff' : '#e5eaf0',
+            }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={() => onClubDetails?.(offer.club)} style={S.linkBtn}>{offer.club}</button>
+                  <span style={{
+                    ...S.preAccordBadge,
+                    background: offer.queueStatus?.key === 'bloquee' ? '#fee2e2' : offer.queueStatus?.key === 'conclue' ? '#dcfce7' : offer.queueStatus?.key === 'en_cours' ? '#dbeafe' : '#fff4d6',
+                    color: offer.queueStatus?.tone === 'danger' ? '#b42318' : offer.queueStatus?.tone === 'good' ? '#246555' : offer.queueStatus?.tone === 'warn' ? '#1d4ed8' : '#8a6f1f',
+                  }}>
+                    {offer.queueStatus?.label ?? 'Nouvelle'}
+                  </span>
+                </div>
                 <div style={S.offerMeta}>
                   {offer.playerName} · {formatMoney(offer.price)} · {offer.preWindow ? `arrivée S${offer.effectiveWeek}` : `expire S${offer.expiresWeek}`}
                 </div>
-                {offer.preWindow && <div style={{ ...S.preAccordBadge, marginTop: 6 }}>PRÉ-ACCORD</div>}
+                <div style={S.qSub}>{offer.queueStatus?.detail ?? (offer.queueStatus?.key === 'bloquee' ? 'Bloqué par le dossier en cours' : 'Dossier actif')}</div>
               </div>
               <div style={S.offerActions}>
-                <button onClick={() => onAcceptOffer(offer.id)} style={S.miniPrimary}>Négocier</button>
-                <button onClick={() => onRejectOffer(offer.id)} style={S.miniGhost}>Refuser</button>
+                {offer.queueStatus?.key !== 'conclue' ? (
+                  <button onClick={() => onAcceptOffer(offer.id)} style={S.miniPrimary}>Négocier</button>
+                ) : (
+                  <button onClick={() => onClubDetails?.(offer.club)} style={S.miniGhost}>Voir</button>
+                )}
+                {offer.queueStatus?.key !== 'conclue' && <button onClick={() => onRejectOffer(offer.id)} style={S.miniGhost}>Refuser</button>}
               </div>
             </div>
           ))}
           {urgentMessages.map((message) => (
-            <button key={message.id} onClick={() => onNav('messages')} style={S.decisionRow}>
-              <span>Message · {message.playerName}</span>
-              <strong>Répondre</strong>
+            <button key={message.id} onClick={() => onNav('messages')} style={{ ...S.decisionRow, background: '#fff7f7', borderColor: '#fecaca' }}>
+              <span>Réponse attendue · {message.playerName}</span>
+              <strong>Ouvrir</strong>
             </button>
           ))}
           {competitorThreats.map((threat) => (

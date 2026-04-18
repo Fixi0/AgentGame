@@ -2,7 +2,7 @@ import { AlertTriangle, Clock3, FileText, Shield, Users } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { CLUBS } from '../data/clubs';
 import { getClubMemorySummary, getClubProfile } from '../systems/clubSystem';
-import { getPendingMessageCounts, getPlayerDossierStatus, getRelevantDecisionHistory, getMessageQueueLabel } from '../systems/dossierSystem';
+import { getMarketOfferQueue, getPendingMessageCounts, getPlayerDossierStatus, getRelevantDecisionHistory, getMessageQueueLabel, messageNeedsResponse } from '../systems/dossierSystem';
 import { S } from './styles';
 
 const STATUS_COLORS = {
@@ -45,8 +45,9 @@ export default function Dossiers({ state, onOpenPlayer, onClubDetails, onNav }) 
   ), [state]);
 
   const queueMessages = (state.messageQueue ?? []).slice(0, 12);
-  const inboxAlerts = (state.messages ?? []).filter((message) => !message.resolved).slice(0, 8);
+  const inboxAlerts = (state.messages ?? []).filter(messageNeedsResponse).slice(0, 8);
   const dossierHistory = (state.decisionHistory ?? []).slice(0, 12);
+  const marketQueue = getMarketOfferQueue(state).slice(0, 10);
 
   return (
     <div style={S.vp}>
@@ -79,6 +80,36 @@ export default function Dossiers({ state, onOpenPlayer, onClubDetails, onNav }) 
       </div>
 
       <div style={S.objCard}>
+        <div style={S.secTitle}>FILE MERCATO</div>
+        {marketQueue.length ? marketQueue.map((offer) => (
+          <div key={offer.id} style={{
+            ...S.offerRow,
+            background: offer.queueStatus?.key === 'bloquee' ? '#fff7f7' : offer.queueStatus?.key === 'conclue' ? '#f0fdf8' : offer.queueStatus?.key === 'en_cours' ? '#f8fbff' : '#f7f9fb',
+            borderColor: offer.queueStatus?.key === 'bloquee' ? '#fca5a5' : offer.queueStatus?.key === 'conclue' ? '#cfeee3' : offer.queueStatus?.key === 'en_cours' ? '#cfe1ff' : '#e5eaf0',
+            alignItems: 'flex-start',
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <strong style={{ color: '#172026' }}>{offer.playerName}</strong>
+                <span style={{
+                  ...S.preAccordBadge,
+                  background: offer.queueStatus?.key === 'bloquee' ? '#fee2e2' : offer.queueStatus?.key === 'conclue' ? '#dcfce7' : offer.queueStatus?.key === 'en_cours' ? '#dbeafe' : '#fff4d6',
+                  color: offer.queueStatus?.tone === 'danger' ? '#b42318' : offer.queueStatus?.tone === 'good' ? '#246555' : offer.queueStatus?.tone === 'warn' ? '#1d4ed8' : '#8a6f1f',
+                }}>
+                  {offer.queueStatus?.label ?? 'Nouvelle'}
+                </span>
+              </div>
+              <div style={S.fixtureMeta}>
+                {offer.club} · {offer.price.toLocaleString('fr-FR')} € · {offer.preWindow ? `pré-accord S${offer.effectiveWeek}` : `expire S${offer.expiresWeek}`}
+              </div>
+              <div style={S.qSub}>{offer.queueStatus?.detail ?? 'Dossier suivi dans la file mercato.'}</div>
+            </div>
+            <strong>{offer.queueStatus?.label ?? offer.status}</strong>
+          </div>
+        )) : <div style={S.emptySmall}>Aucune offre à suivre.</div>}
+      </div>
+
+      <div style={S.objCard}>
         <div style={S.secTitle}>MESSAGES A TRAITER</div>
         {inboxAlerts.length ? inboxAlerts.map((message) => (
           <button
@@ -87,7 +118,7 @@ export default function Dossiers({ state, onOpenPlayer, onClubDetails, onNav }) 
             style={S.decisionRow}
           >
             <span>{message.playerName}</span>
-            <strong>{message.subject}</strong>
+            <strong>{message.subject} · Réponse attendue</strong>
           </button>
         )) : <div style={S.emptySmall}>Rien d'urgent dans la boîte.</div>}
       </div>
