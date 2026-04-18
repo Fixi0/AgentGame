@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Briefcase, CalendarDays, DollarSign, Home, Layers, LogOut, MessageCircle, Newspaper, PhoneCall, Search, Shield, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
+import { Briefcase, CalendarDays, DollarSign, Home, Layers, LogOut, MessageCircle, Newspaper, Search, Shield, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
 import Calendar from './components/Calendar';
@@ -13,7 +13,6 @@ import Onboarding from './components/Onboarding';
 import Office from './components/Office';
 import Roster from './components/Roster';
 import SaveMenu from './components/SaveMenu';
-import Phone from './components/Phone';
 import Scouting from './components/Scouting';
 import SwipeDesk from './components/SwipeDesk';
 import Standings from './components/Standings';
@@ -95,7 +94,6 @@ const views = {
   standings: { label: 'Ligues', icon: Trophy },
   news: { label: 'News', icon: Newspaper },
   media: { label: 'Médias', icon: Newspaper },
-  phone: { label: 'Tel.', icon: PhoneCall },
   deadline: { label: 'Deadline', icon: Timer },
   scouting: { label: 'Scout', icon: Telescope },
   cards: { label: 'Cards', icon: Layers },
@@ -108,12 +106,11 @@ const mainNav = [
   ['dashboard', views.dashboard],
   ['roster', views.roster],
   ['market', views.market],
-  ['phone', views.phone],
+  ['messages', views.messages],
   ['more', { label: 'Plus', icon: Layers }],
 ];
 
 const moreItems = [
-  { key: 'messages', label: 'Messages', desc: 'Répondre aux joueurs', icon: MessageCircle },
   { key: 'news', label: 'News', desc: 'Médias et réseaux', icon: Newspaper },
   { key: 'media', label: 'Médias', desc: 'Journalistes alliés ou hostiles', icon: Newspaper },
   { key: 'standings', label: 'Ligues', desc: 'Classements et clubs', icon: Trophy },
@@ -600,7 +597,7 @@ export default function FootballAgentGame() {
         {mainNav.map(([key, item]) => {
           const Icon = item.icon;
           const active = key === 'more'
-            ? !['dashboard', 'roster', 'market', 'phone'].includes(view)
+            ? !['dashboard', 'roster', 'market', 'messages'].includes(view)
             : view === key;
           return (
           <button
@@ -614,7 +611,7 @@ export default function FootballAgentGame() {
           >
             <Icon size={16} />
             <span>{item.label}</span>
-            {key === 'phone' && unreadMessages > 0 && <span style={S.navBadge}>{unreadMessages}</span>}
+            {key === 'messages' && unreadMessages > 0 && <span style={S.navBadge}>{unreadMessages}</span>}
           </button>
           );
         })}
@@ -623,10 +620,10 @@ export default function FootballAgentGame() {
         {view === 'dashboard' && <Dashboard state={state} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} />}
         {view === 'market' && <Market market={state.market} freeAgents={state.freeAgents} money={state.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
         {view === 'roster' && <Roster roster={state.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
+        {view === 'messages' && <Messages messages={state.messages} onRespond={handleMessageResponse} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
         {view === 'calendar' && <Calendar state={state} onClubDetails={showClubDetails} />}
         {view === 'standings' && <Standings state={state} onClubDetails={showClubDetails} />}
-        {view === 'phone' && <Phone state={state} onNav={setView} onNegotiateOffer={handleAcceptOffer} onContactClubStaff={handleContactClubStaff} />}
         {view === 'deadline' && <DeadlineDay state={state} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={state} onStartMission={handleStartScoutingMission} />}
         {view === 'cards' && <SwipeDesk state={state} onNav={setView} onNegotiateOffer={handleAcceptOffer} />}
@@ -643,7 +640,6 @@ export default function FootballAgentGame() {
         {view === 'profile' && <AgencyProfile state={state} />}
         {view === 'news' && <NewsFeed news={state.news} />}
         {view === 'media' && <MediaRoom state={state} />}
-        {view === 'messages' && <Messages messages={state.messages} onRespond={handleMessageResponse} focusThreadKey={activeMessageThreadKey} />}
       </main>
       {modal?.type === 'results' && (
         <ResultsModal
