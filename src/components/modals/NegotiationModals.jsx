@@ -291,7 +291,7 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
           <button type="button" onClick={() => act('moderate')} style={S.choiceBtn}><div><div style={S.chLabel}>Demande raisonnable</div><div style={S.chDesc}>Equilibré</div></div></button>
           <button type="button" onClick={() => act('loyalty')} style={S.choiceBtn}><div><div style={S.chLabel}>Argument loyauté</div><div style={S.chDesc}>Regagner confiance</div></div></button>
           {/* Sign available from turn 1 — contract urgency means no forced delay */}
-          <button type="button" onClick={() => act('sign')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
+          <button type="button" onClick={() => onFinish(signOutcome())} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
             <div>
               <div style={{ ...S.chLabel, color: '#00a676' }}>Signer {contractYears} ans</div>
               <div style={S.chDesc}>{role} · prime {formatMoney(signingBonus)} · ×{salaryMultiplier.toFixed(2)}</div>

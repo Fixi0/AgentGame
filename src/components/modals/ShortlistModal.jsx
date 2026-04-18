@@ -41,7 +41,7 @@ export default function ShortlistModal({ player, onConfirm, onClose }) {
         <div style={S.mBody}>
           <h2 style={S.mTitle}>{player.firstName} {player.lastName}</h2>
           <div style={S.mPlayer}>{player.clubCountry} {player.club} · {player.rating}/100</div>
-          <p style={S.mText}>Choisis 1 ou 2 clubs à cibler. Le joueur réagit ensuite selon le niveau du projet.</p>
+          <p style={S.mText}>Choisis 1 ou 2 clubs à cibler. On peut ensuite proposer le joueur à ces clubs, si son niveau colle au projet.</p>
 
           <div style={S.swipeHint}>
             Sélection actuelle: {selected.length}/2 {selected.length === 0 ? 'club' : 'clubs'}
@@ -99,7 +99,7 @@ export default function ShortlistModal({ player, onConfirm, onClose }) {
               cursor: selected.length > 0 ? 'pointer' : 'not-allowed',
             }}
           >
-            VALIDER LA SHORTLIST
+            PROPOSER AUX CLUBS
           </button>
           <button onClick={onClose} style={S.secBtn}>ANNULER</button>
         </div>

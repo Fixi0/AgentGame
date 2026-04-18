@@ -1015,6 +1015,96 @@ export const createPlayerMarketAction = (state, playerId, action) => {
   };
 };
 
+export const proposePlayerToClubs = (state, playerId, clubNames = []) => {
+  const player = state.roster.find((item) => item.id === playerId);
+  if (!player) return { state, error: 'Joueur introuvable' };
+  if (!clubNames.length) return { state, error: 'Choisis au moins un club' };
+
+  const phase = getPhase(state.week);
+  const allowedTiers = getClubTierForRating(player.rating, player.potential);
+  const selectedClubs = clubNames
+    .map((name) => CLUBS.find((club) => club.name === name))
+    .filter(Boolean);
+
+  if (!selectedClubs.length) return { state, error: 'Aucun club valide' };
+
+  const invalidClub = selectedClubs.find((club) => !allowedTiers.includes(club.tier));
+  if (invalidClub) {
+    return { state, error: `${player.firstName} ${player.lastName} est trop faible pour ${invalidClub.name}.` };
+  }
+
+  const nextWindow = !phase.mercato
+    ? (phase.seasonWeek <= 18
+      ? { window: 'hiver', effectiveWeek: state.week + (19 - phase.seasonWeek) }
+      : phase.seasonWeek <= 37
+        ? { window: 'été', effectiveWeek: state.week + (38 - phase.seasonWeek) }
+        : null)
+    : null;
+  const preWindow = Boolean(nextWindow && phase.seasonWeek >= 16 && phase.seasonWeek !== 38);
+  const seasonWindow = phase.window ?? nextWindow?.window ?? 'approche';
+
+  const offers = selectedClubs.map((club) => {
+    const country = getCountry(club.countryCode);
+    const tierBoost = club.tier === 1 ? rand(118, 148) / 100
+      : club.tier === 2 ? rand(108, 138) / 100
+      : club.tier === 3 ? rand(96, 122) / 100
+      : rand(88, 114) / 100;
+    const salaryMult = club.tier === 1 ? rand(138, 188) / 100
+      : club.tier === 2 ? rand(124, 170) / 100
+      : club.tier === 3 ? rand(112, 156) / 100
+      : rand(102, 138) / 100;
+
+    return {
+      id: makeId('offer'),
+      week: state.week,
+      expiresWeek: state.week + (preWindow ? 3 : (phase.deadlineDay ? 1 : 2)),
+      window: seasonWindow,
+      isHotWeek: false,
+      isCompetingOffer: false,
+      preWindow,
+      effectiveWeek: preWindow ? nextWindow?.effectiveWeek : state.week,
+      playerId: player.id,
+      playerName: `${player.firstName} ${player.lastName}`,
+      club: club.name,
+      clubTier: club.tier,
+      clubCountry: country.flag,
+      clubCountryCode: club.countryCode,
+      clubCity: club.city,
+      price: Math.max(1000, Math.floor(player.value * tierBoost)),
+      salMult: Math.round(salaryMult * 100) / 100,
+      status: 'open',
+      actionSource: 'shortlist',
+    };
+  });
+
+  return {
+    state: {
+      ...state,
+      clubOffers: [...offers, ...(state.clubOffers ?? [])].slice(0, 30),
+      decisionHistory: addDecisionHistory(state.decisionHistory, {
+        week: state.week,
+        type: 'mercato',
+        label: 'Shortlist proposée',
+        detail: `${player.firstName} ${player.lastName} a été proposé à ${selectedClubs.map((club) => club.name).join(', ')}.`,
+        playerId: player.id,
+        playerName: `${player.firstName} ${player.lastName}`,
+      }),
+      news: [
+        createManualNewsPost({
+          type: 'transfert',
+          player,
+          week: state.week,
+          text: `Shortlist envoyée pour ${player.firstName} ${player.lastName} vers ${selectedClubs.map((club) => club.name).join(', ')}.`,
+          reputationImpact: 1,
+          account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
+        }),
+        ...state.news,
+      ].slice(0, 60),
+    },
+    offers,
+  };
+};
+
 const createChoiceTransferOffer = (state, player, event, choice) => {
   const phase = getPhase(state.week);
   const allowedTiers = getClubTierForRating(player.rating, player.potential);

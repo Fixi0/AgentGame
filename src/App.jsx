@@ -38,6 +38,7 @@ import {
   getPhase,
   migrateState,
   playWeek,
+  proposePlayerToClubs,
   refreshMarket,
   rejectClubOffer,
   signPlayer,
@@ -488,6 +489,11 @@ export default function FootballAgentGame() {
   const handleShortlistConfirm = (message, player, responseType, selectedClubs) => {
     if (!message || !player || !selectedClubs?.length) return;
     const clubNames = selectedClubs.map((club) => club.name);
+    const proposal = proposePlayerToClubs(state, player.id, clubNames);
+    if (proposal.error) {
+      showToast(proposal.error, 'error');
+      return;
+    }
     const expectedTier = player.rating >= 84 ? 1 : player.rating >= 77 ? 2 : player.rating >= 68 ? 3 : 4;
     const bestTier = Math.min(...selectedClubs.map((club) => club.tier));
     const cityMatch = selectedClubs.some((club) =>
@@ -516,11 +522,11 @@ export default function FootballAgentGame() {
       const promise = createPromiseFromMessage({ message: currentMessage, week: current.week, responseType });
       const nextClubRelations = selectedClubs.reduce(
         (relations, club) => applyClubRelation(relations, club.name, satisfied ? 1 : -1),
-        current.clubRelations,
+        proposal.state.clubRelations,
       );
       const nextClubMemory = selectedClubs.reduce(
         (memory, club) => recordClubMemory(memory, club.name, { trust: satisfied ? 1 : -1, week: current.week }),
-        current.clubMemory,
+        proposal.state.clubMemory,
       );
 
       const resolvedMessage = {
@@ -549,8 +555,8 @@ export default function FootballAgentGame() {
       };
 
       return {
-        ...current,
-        roster: current.roster.map((item) =>
+        ...proposal.state,
+        roster: proposal.state.roster.map((item) =>
           item.id === currentPlayer.id
             ? {
                 ...item,
@@ -563,11 +569,11 @@ export default function FootballAgentGame() {
               }
             : item,
         ),
-        messages: [playerReply, ...current.messages.map((item) => (item.id === message.id ? resolvedMessage : item))].slice(0, 40),
-        promises: [...(promise ? [promise] : []), ...(current.promises ?? [])].slice(0, 30),
+        messages: [playerReply, ...proposal.state.messages.map((item) => (item.id === message.id ? resolvedMessage : item))].slice(0, 40),
+        promises: [...(promise ? [promise] : []), ...(proposal.state.promises ?? [])].slice(0, 30),
         clubRelations: nextClubRelations,
         clubMemory: nextClubMemory,
-        decisionHistory: addDecisionHistory(current.decisionHistory, {
+        decisionHistory: addDecisionHistory(proposal.state.decisionHistory, {
           week: current.week,
           type: 'shortlist',
           label: shortlistLabel,
@@ -862,9 +868,9 @@ export default function FootballAgentGame() {
         <ShortlistModal
           player={modal.data.player}
           onClose={() => setModal(null)}
-          onConfirm={(selectedClubs) => handleShortlistConfirm(modal.data.message, modal.data.player, modal.data.responseType, selectedClubs)}
-        />
-      )}
+    onConfirm={(selectedClubs) => handleShortlistConfirm(modal.data.message, modal.data.player, modal.data.responseType, selectedClubs)}
+          />
+        )}
       {modal?.type === 'nego_transfer' && (
         <NegotiationTransfer
           key={`nego-transfer-${modal.data.player.id}-${modal.data.offer?.id ?? 'manual'}`}

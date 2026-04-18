@@ -293,7 +293,7 @@ export const getMessageResponseOptions = (message) => RESPONSE_OPTIONS_BY_TYPE[m
 };
 
 export const getMessageResponseAction = (message, responseType) => {
-  if (message.type === 'transfer_request' && responseType === 'professionnel') return { type: 'market_watch', label: 'Shortlist mercato ouverte' };
+  if (message.type === 'transfer_request' && responseType === 'professionnel') return { type: 'market_watch', label: 'Préparer shortlist' };
   if (message.type === 'transfer_request' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel joueur programmé ce soir' };
   if (message.type === 'raise_request' && ['professionnel', 'empathique'].includes(responseType)) return { type: 'salary_case', label: 'Dossier salaire à préparer' };
   if (message.type === 'role_frustration' && responseType === 'professionnel') return { type: 'coach_talk', label: 'Appel coach demandé' };
@@ -380,7 +380,7 @@ export const getResponseCopy = (message, responseType) => {
     return "Je reconnais que la promesse n'a pas été tenue, mais on doit regarder la suite froidement.\n\nJe vais voir ce qui peut encore être sauvé. De ton côté, ne transforme pas ça en crise publique. On règle ça en interne.";
   }
   if (message.type === 'transfer_request') {
-    if (responseType === 'professionnel') return "Je comprends que tu veuilles savoir où tu vas.\n\nVoilà ce qu'on fait : je prépare une liste courte de clubs compatibles avec ton niveau, ton temps de jeu et ton salaire. On fixe ensemble un prix minimum, et je parle d'abord au club pour éviter de te mettre en difficulté.\n\nTu ne discutes avec personne directement. Si une offre arrive, je te la présente avec le projet sportif, pas seulement le montant.";
+    if (responseType === 'professionnel') return "Je comprends que tu veuilles savoir où tu vas.\n\nVoilà ce qu'on fait : je prépare une liste courte de clubs compatibles avec ton niveau, ton temps de jeu et ton salaire. On fixe ensemble un prix minimum, puis je propose ton dossier aux clubs choisis pour ouvrir les discussions proprement.\n\nTu ne discutes avec personne directement. Si une offre arrive, je te la présente avec le projet sportif, pas seulement le montant.";
     if (responseType === 'empathique') return "Je t'entends. Si tu sens que tu stagnes, on doit le prendre au sérieux.\n\nJe vais ouvrir des portes sans te griller auprès du club. L'objectif n'est pas de partir pour partir, mais de trouver un endroit où tu joues, où tu progresses, et où tu te sens respecté.\n\nOn se refait un point après les prochains matchs et je te dirai clairement ce qui est réaliste.";
     return "Je note ton envie de bouger, mais on ne va pas subir le mercato.\n\nTu restes concentré sur le terrain. Moi je gère les appels, les clubs et le timing. Pas de déclaration, pas de message à d'autres agents, pas de pression publique.\n\nSi une vraie opportunité arrive, on l'étudie. Sinon, on protège ta saison.";
   }
