@@ -43,17 +43,54 @@ const createFixture = ({ homeClub, awayClub, playersByClub }) => {
   };
 };
 
-const getPositionScoringProfile = (player) => {
-  if (player.roleId === 'number_9') return { goalChance: 0.32, assistChance: 0.11, maxGoals: 3, xgBase: 0.55 };
-  if (player.roleId === 'false_9') return { goalChance: 0.22, assistChance: 0.2, maxGoals: 2, xgBase: 0.42 };
-  if (player.roleId === 'winger_forward') return { goalChance: 0.2, assistChance: 0.2, maxGoals: 2, xgBase: 0.38 };
-  if (player.roleId === 'winger') return { goalChance: 0.14, assistChance: 0.26, maxGoals: 2, xgBase: 0.28 };
-  if (player.roleId === 'playmaker') return { goalChance: 0.1, assistChance: 0.3, maxGoals: 1, xgBase: 0.18 };
-  if (player.roleId === 'holding_mid') return { goalChance: 0.055, assistChance: 0.13, maxGoals: 1, xgBase: 0.09 };
-  if (player.roleId === 'full_back') return { goalChance: 0.035, assistChance: 0.14, maxGoals: 1, xgBase: 0.07 };
-  if (player.roleId === 'center_back') return { goalChance: 0.045, assistChance: 0.04, maxGoals: 1, xgBase: 0.08 };
-  return { goalChance: 0, assistChance: 0, maxGoals: 0, xgBase: 0 };
+// Scoring profiles — goalChance/assistChance applied per-match
+// All new realistic roles + legacy aliases (number_9, full_back, holding_mid, winger)
+const SCORING_PROFILES = {
+  // ── GK ────────────────────────────────────────────────────
+  goalkeeper:     { goalChance: 0.003, assistChance: 0.01,  maxGoals: 1, xgBase: 0.01 },
+  sweeper_keeper: { goalChance: 0.004, assistChance: 0.02,  maxGoals: 1, xgBase: 0.01 },
+  // ── DEF ───────────────────────────────────────────────────
+  center_back:    { goalChance: 0.045, assistChance: 0.04,  maxGoals: 1, xgBase: 0.08 },
+  libero:         { goalChance: 0.05,  assistChance: 0.07,  maxGoals: 1, xgBase: 0.09 },
+  right_back:     { goalChance: 0.04,  assistChance: 0.15,  maxGoals: 1, xgBase: 0.07 },
+  left_back:      { goalChance: 0.04,  assistChance: 0.15,  maxGoals: 1, xgBase: 0.07 },
+  right_wing_back:{ goalChance: 0.07,  assistChance: 0.2,   maxGoals: 1, xgBase: 0.11 },
+  left_wing_back: { goalChance: 0.07,  assistChance: 0.2,   maxGoals: 1, xgBase: 0.11 },
+  // ── MIL ───────────────────────────────────────────────────
+  defensive_mid:  { goalChance: 0.055, assistChance: 0.13,  maxGoals: 1, xgBase: 0.09 },
+  box_to_box:     { goalChance: 0.12,  assistChance: 0.18,  maxGoals: 2, xgBase: 0.19 },
+  central_mid:    { goalChance: 0.09,  assistChance: 0.22,  maxGoals: 1, xgBase: 0.15 },
+  playmaker:      { goalChance: 0.10,  assistChance: 0.32,  maxGoals: 1, xgBase: 0.18 },
+  attacking_mid:  { goalChance: 0.17,  assistChance: 0.28,  maxGoals: 2, xgBase: 0.30 },
+  right_winger:   { goalChance: 0.16,  assistChance: 0.27,  maxGoals: 2, xgBase: 0.29 },
+  left_winger:    { goalChance: 0.16,  assistChance: 0.27,  maxGoals: 2, xgBase: 0.29 },
+  // ── ATT ───────────────────────────────────────────────────
+  striker:        { goalChance: 0.33,  assistChance: 0.11,  maxGoals: 3, xgBase: 0.56 },
+  target_man:     { goalChance: 0.28,  assistChance: 0.09,  maxGoals: 2, xgBase: 0.50 },
+  second_striker: { goalChance: 0.24,  assistChance: 0.22,  maxGoals: 2, xgBase: 0.44 },
+  false_9:        { goalChance: 0.22,  assistChance: 0.22,  maxGoals: 2, xgBase: 0.42 },
+  winger_forward: { goalChance: 0.20,  assistChance: 0.20,  maxGoals: 2, xgBase: 0.38 },
+  // ── Legacy aliases (old saves) ────────────────────────────
+  number_9:       { goalChance: 0.33,  assistChance: 0.11,  maxGoals: 3, xgBase: 0.56 },
+  full_back:      { goalChance: 0.035, assistChance: 0.14,  maxGoals: 1, xgBase: 0.07 },
+  holding_mid:    { goalChance: 0.055, assistChance: 0.13,  maxGoals: 1, xgBase: 0.09 },
+  winger:         { goalChance: 0.14,  assistChance: 0.26,  maxGoals: 2, xgBase: 0.28 },
 };
+
+const KEY_PASS_ROLES = new Set([
+  'playmaker', 'attacking_mid', 'right_winger', 'left_winger',
+  'right_wing_back', 'left_wing_back', 'false_9', 'winger_forward',
+  'right_back', 'left_back', 'full_back', 'second_striker', 'box_to_box',
+  'winger', // legacy
+]);
+
+const HIGH_TACKLE_ROLES = new Set([
+  'defensive_mid', 'box_to_box', 'center_back', 'libero',
+  'holding_mid', // legacy
+]);
+
+const getPositionScoringProfile = (player) =>
+  SCORING_PROFILES[player.roleId] ?? { goalChance: 0, assistChance: 0, maxGoals: 0, xgBase: 0 };
 
 const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = teamGoals, remainingAssists = teamGoals) => {
   if (player.injured > 0) {
@@ -85,10 +122,11 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
   const cleanSheetBonus = opponentGoals === 0 && ['DEF', 'GK'].includes(player.position) ? 0.5 : 0;
   const goalkeeperSaveBonus = player.position === 'GK' ? 0.15 + Math.max(0, opponentGoals === 0 ? 0.35 : 0) : 0;
   const saves = player.position === 'GK' ? Math.max(0, rand(1, 7) + opponentGoals - (teamResult === 'loss' ? 1 : 0)) : 0;
-  const tackles = player.position === 'DEF' ? rand(2, 8) : player.roleId === 'holding_mid' ? rand(2, 6) : rand(0, 3);
-  const keyPasses = ['playmaker', 'winger', 'false_9', 'winger_forward', 'full_back'].includes(player.roleId) ? rand(1, 5) : rand(0, 2);
+  const tackles = player.position === 'DEF' ? rand(2, 8) : HIGH_TACKLE_ROLES.has(player.roleId) ? rand(2, 6) : rand(0, 3);
+  const keyPasses = KEY_PASS_ROLES.has(player.roleId) ? rand(1, 5) : rand(0, 2);
   const xg = Number(Math.max(0, scoringProfile.xgBase + goals * 0.22 + rand(-8, 16) / 100).toFixed(2));
-  const passAccuracy = Math.max(58, Math.min(96, rand(70, 90) + Math.floor((player.rating - 70) / 3) + (player.roleId === 'playmaker' ? 4 : 0)));
+  const passBonus = ['playmaker', 'libero'].includes(player.roleId) ? 5 : ['attacking_mid', 'central_mid', 'box_to_box'].includes(player.roleId) ? 2 : 0;
+  const passAccuracy = Math.max(58, Math.min(96, rand(70, 90) + Math.floor((player.rating - 70) / 3) + passBonus));
   const incidents = [];
   if (player.position === 'GK' && opponentGoals === 0) incidents.push('clean_sheet');
   if (player.position === 'GK' && Math.random() < 0.04 + opponentGoals * 0.03) incidents.push('distribution_error');

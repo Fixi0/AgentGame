@@ -143,29 +143,52 @@ export const POSITIONS = ['ATT', 'MIL', 'DEF', 'GK'];
 
 export const POSITION_ROLES = {
   GK: [
-    { id: 'goalkeeper', label: 'Gardien', short: 'GB', family: 'GK' },
+    { id: 'goalkeeper',     label: 'Gardien de but',       short: 'GB',  family: 'GK'  },
+    { id: 'sweeper_keeper', label: 'Gardien libéro',        short: 'GL',  family: 'GK'  },
   ],
   DEF: [
-    { id: 'center_back', label: 'Défenseur central', short: 'DC', family: 'DEF' },
-    { id: 'full_back', label: 'Latéral', short: 'LAT', family: 'DEF' },
+    { id: 'center_back',      label: 'Défenseur central', short: 'DC',  family: 'DEF' },
+    { id: 'libero',           label: 'Libéro',            short: 'LIB', family: 'DEF' },
+    { id: 'right_back',       label: 'Latéral droit',     short: 'LD',  family: 'DEF' },
+    { id: 'left_back',        label: 'Latéral gauche',    short: 'LG',  family: 'DEF' },
+    { id: 'right_wing_back',  label: 'Piston droit',      short: 'PD',  family: 'DEF' },
+    { id: 'left_wing_back',   label: 'Piston gauche',     short: 'PG',  family: 'DEF' },
   ],
   MIL: [
-    { id: 'holding_mid', label: 'Sentinelle', short: 'MDC', family: 'MIL' },
-    { id: 'playmaker', label: 'Meneur', short: 'MC', family: 'MIL' },
-    { id: 'winger', label: 'Ailier', short: 'AIL', family: 'MIL' },
+    { id: 'defensive_mid',  label: 'Milieu défensif',   short: 'MDC', family: 'MIL' },
+    { id: 'box_to_box',     label: 'Box-to-box',        short: 'B2B', family: 'MIL' },
+    { id: 'central_mid',    label: 'Milieu central',    short: 'MC',  family: 'MIL' },
+    { id: 'playmaker',      label: 'Meneur de jeu',     short: 'MJ',  family: 'MIL' },
+    { id: 'attacking_mid',  label: 'Milieu offensif',   short: 'MO',  family: 'MIL' },
+    { id: 'right_winger',   label: 'Ailier droit',      short: 'AD',  family: 'MIL' },
+    { id: 'left_winger',    label: 'Ailier gauche',     short: 'AG',  family: 'MIL' },
   ],
   ATT: [
-    { id: 'number_9', label: 'Numéro 9', short: '9', family: 'ATT' },
-    { id: 'false_9', label: 'Faux 9', short: 'F9', family: 'ATT' },
-    { id: 'winger_forward', label: 'Ailier offensif', short: 'AO', family: 'ATT' },
+    { id: 'striker',         label: 'Avant-centre',          short: 'AC', family: 'ATT' },
+    { id: 'target_man',      label: 'Attaquant de pointe',   short: 'AP', family: 'ATT' },
+    { id: 'second_striker',  label: 'Deuxième attaquant',    short: 'DA', family: 'ATT' },
+    { id: 'false_9',         label: 'Faux 9',                short: 'F9', family: 'ATT' },
+    { id: 'winger_forward',  label: 'Ailier offensif',       short: 'AO', family: 'ATT' },
   ],
+};
+
+// Legacy role IDs kept for save compatibility (old players keep their stored roleId/roleLabel/roleShort)
+export const LEGACY_ROLE_MAP = {
+  number_9:    { label: 'Numéro 9',         short: '9',   family: 'ATT' },
+  full_back:   { label: 'Latéral',          short: 'LAT', family: 'DEF' },
+  holding_mid: { label: 'Sentinelle',       short: 'MDC', family: 'MIL' },
+  winger:      { label: 'Ailier',           short: 'AIL', family: 'MIL' },
 };
 
 export const ALL_POSITION_ROLES = Object.values(POSITION_ROLES).flat();
 
 export const getRoleForPosition = (position, roleId) => {
   const fallback = POSITION_ROLES[position]?.[0] ?? POSITION_ROLES.ATT[0];
-  return ALL_POSITION_ROLES.find((role) => role.id === roleId) ?? fallback;
+  const found = ALL_POSITION_ROLES.find((role) => role.id === roleId);
+  if (found) return found;
+  // Legacy save compat: return a synthetic role object
+  if (LEGACY_ROLE_MAP[roleId]) return { id: roleId, ...LEGACY_ROLE_MAP[roleId] };
+  return fallback;
 };
 
 export const PERSONALITIES = [
