@@ -287,29 +287,29 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
       <LogBox log={log} />
       {!done && turn <= maxTurns && open > 0 && (
         <div style={S.choiceList}>
-          <button onClick={() => act('demand')} style={S.choiceBtn}><div><div style={S.chLabel}>Grosse augmentation</div><div style={S.chDesc}>Risqué, gros gain</div></div></button>
-          <button onClick={() => act('moderate')} style={S.choiceBtn}><div><div style={S.chLabel}>Demande raisonnable</div><div style={S.chDesc}>Equilibré</div></div></button>
-          <button onClick={() => act('loyalty')} style={S.choiceBtn}><div><div style={S.chLabel}>Argument loyauté</div><div style={S.chDesc}>Regagner confiance</div></div></button>
+          <button type="button" onClick={() => act('demand')} style={S.choiceBtn}><div><div style={S.chLabel}>Grosse augmentation</div><div style={S.chDesc}>Risqué, gros gain</div></div></button>
+          <button type="button" onClick={() => act('moderate')} style={S.choiceBtn}><div><div style={S.chLabel}>Demande raisonnable</div><div style={S.chDesc}>Equilibré</div></div></button>
+          <button type="button" onClick={() => act('loyalty')} style={S.choiceBtn}><div><div style={S.chLabel}>Argument loyauté</div><div style={S.chDesc}>Regagner confiance</div></div></button>
           {/* Sign available from turn 1 — contract urgency means no forced delay */}
-          <button onClick={() => act('sign')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
+          <button type="button" onClick={() => act('sign')} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
             <div>
               <div style={{ ...S.chLabel, color: '#00a676' }}>Signer {contractYears} ans</div>
               <div style={S.chDesc}>{role} · prime {formatMoney(signingBonus)} · ×{salaryMultiplier.toFixed(2)}</div>
             </div>
           </button>
-          <button onClick={() => act('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Abandonner</div></button>
+          <button type="button" onClick={() => act('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Abandonner</div></button>
         </div>
       )}
       {/* Done/post-turns screen — call onFinish directly, NOT through act() */}
       {(done || turn > maxTurns) && (
         <div style={S.choiceList}>
-          <button onClick={() => onFinish(signOutcome())} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
+          <button type="button" onClick={() => onFinish(signOutcome())} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
             <div>
               <div style={{ ...S.chLabel, color: '#00a676' }}>Signer {contractYears} ans</div>
               <div style={S.chDesc}>{role} · prime {formatMoney(signingBonus)} · ×{salaryMultiplier.toFixed(2)}</div>
             </div>
           </button>
-          <button onClick={() => onFinish({ success: false })} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Refuser</div></button>
+          <button type="button" onClick={() => onFinish({ success: false })} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div style={{ ...S.chLabel, color: '#b42318' }}>Refuser</div></button>
         </div>
       )}
     </NegotiationShell>
@@ -426,12 +426,14 @@ function NegotiationActions({ done, turn, maxTurns, allowConclude, acceptLabel, 
     return (
       <div style={S.choiceList}>
         <button
+          type="button"
           onClick={() => onFinishSuccess ? onFinishSuccess() : onAct('accept')}
           style={{ ...S.choiceBtn, borderColor: '#00a676' }}
         >
           <div style={{ ...S.chLabel, color: '#00a676' }}>{acceptLabel}</div>
         </button>
         <button
+          type="button"
           onClick={() => onFinishFail ? onFinishFail() : onAct('walk')}
           style={{ ...S.choiceBtn, borderColor: '#b42318' }}
         >
@@ -443,12 +445,13 @@ function NegotiationActions({ done, turn, maxTurns, allowConclude, acceptLabel, 
 
   return (
     <div style={S.choiceList}>
-      <button onClick={() => onAct('aggressive')} style={S.choiceBtn}><div><div style={S.chLabel}>Pression agressive</div><div style={S.chDesc}>Risque : intérêt -15, gain potentiel élevé</div></div></button>
-      <button onClick={() => onAct('balanced')} style={S.choiceBtn}><div><div style={S.chLabel}>Approche équilibrée</div><div style={S.chDesc}>Sûr, gains modérés</div></div></button>
-      <button onClick={() => onAct('bluff')} style={S.choiceBtn}><div><div style={S.chLabel}>Bluff autre club</div><div style={S.chDesc}>Gros risque, très gros gain</div></div></button>
-      <button onClick={() => onAct('concede')} style={S.choiceBtn}><div><div style={S.chLabel}>Concession</div><div style={S.chDesc}>Regagner leur intérêt</div></div></button>
+      <button type="button" onClick={() => onAct('aggressive')} style={S.choiceBtn}><div><div style={S.chLabel}>Pression agressive</div><div style={S.chDesc}>Risque : intérêt -15, gain potentiel élevé</div></div></button>
+      <button type="button" onClick={() => onAct('balanced')} style={S.choiceBtn}><div><div style={S.chLabel}>Approche équilibrée</div><div style={S.chDesc}>Sûr, gains modérés</div></div></button>
+      <button type="button" onClick={() => onAct('bluff')} style={S.choiceBtn}><div><div style={S.chLabel}>Bluff autre club</div><div style={S.chDesc}>Gros risque, très gros gain</div></div></button>
+      <button type="button" onClick={() => onAct('concede')} style={S.choiceBtn}><div><div style={S.chLabel}>Concession</div><div style={S.chDesc}>Regagner leur intérêt</div></div></button>
       <button
-        onClick={() => allowConclude && onAct('accept')}
+        type="button"
+        onClick={() => allowConclude ? (onFinishSuccess ? onFinishSuccess() : onAct('accept')) : null}
         style={{
           ...S.choiceBtn,
           borderColor: allowConclude ? '#00a676' : '#d6dde3',
@@ -461,7 +464,7 @@ function NegotiationActions({ done, turn, maxTurns, allowConclude, acceptLabel, 
           <div style={S.chDesc}>{allowConclude ? acceptHint : 'Disponible après quelques tours de négociation.'}</div>
         </div>
       </button>
-      <button onClick={() => onAct('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div><div style={{ ...S.chLabel, color: '#b42318' }}>Refuser</div><div style={S.chDesc}>Quitter la négociation</div></div></button>
+      <button type="button" onClick={() => onAct('walk')} style={{ ...S.choiceBtn, borderColor: '#b42318' }}><div><div style={{ ...S.chLabel, color: '#b42318' }}>Refuser</div><div style={S.chDesc}>Quitter la négociation</div></div></button>
     </div>
   );
 }

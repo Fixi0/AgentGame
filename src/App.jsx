@@ -340,6 +340,16 @@ export default function FootballAgentGame() {
 
     const result = acceptClubOffer(state, offer.id, outcome);
     if (result.error) {
+      const fallbackOffer = state.clubOffers.find((item) => item.playerId === offer.playerId && item.status === 'open');
+      if (fallbackOffer && fallbackOffer.id !== offer.id) {
+        const retry = acceptClubOffer(state, fallbackOffer.id, outcome);
+        if (!retry.error) {
+          setState(retry.state);
+          setModal(null);
+          showToast('Transfert validé', 'success');
+          return;
+        }
+      }
       showToast(result.error, 'error');
       return;
     }
