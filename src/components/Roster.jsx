@@ -2,7 +2,7 @@ import React from 'react';
 import PlayerCard from './PlayerCard';
 import { S } from './styles';
 
-export default function Roster({ roster, onRelease, onNego, onDetails }) {
+export default function Roster({ state, roster, onRelease, onNego, onDetails }) {
   return (
     <div style={S.vp}>
       <div style={S.et}>
@@ -11,7 +11,7 @@ export default function Roster({ roster, onRelease, onNego, onDetails }) {
       </div>
       <div style={S.cardList}>
         {roster.map((player) => (
-          <PlayerCard key={player.id} player={player} mode="roster" onRelease={() => onRelease(player.id)} onNego={(type) => onNego(player, type)} onDetails={() => onDetails(player)} />
+          <PlayerCard key={player.id} state={state} player={player} mode="roster" onRelease={() => onRelease(player.id)} onNego={(type) => onNego(player, type)} onDetails={() => onDetails(player)} />
         ))}
       </div>
       {!roster.length && <div style={S.empty}>Aucun joueur. Va au marché.</div>}

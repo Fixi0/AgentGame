@@ -5,7 +5,7 @@ import { formatMoney } from '../utils/format';
 import PlayerCard from './PlayerCard';
 import { S } from './styles';
 
-export default function Market({ market, freeAgents = [], money, onSign, onRefresh, onDetails }) {
+export default function Market({ state, market, freeAgents = [], money, onSign, onRefresh, onDetails }) {
   const [filters, setFilters] = useState({ position: 'all', country: 'all', maxCost: 'all', minPotential: 0, sort: 'rating' });
   const [favoriteIds, setFavoriteIds] = useState([]);
   const allPlayers = useMemo(() => [...freeAgents, ...market], [freeAgents, market]);
@@ -81,7 +81,7 @@ export default function Market({ market, freeAgents = [], money, onSign, onRefre
         <div key={player.id} style={{ position: 'relative' }}>
           <button onClick={() => toggleFavorite(player.id)} style={S.favoriteBtn}>{favoriteIds.includes(player.id) ? '★' : '☆'}</button>
           {player.freeAgent && <div style={S.freeTag}>JOUEUR LIBRE</div>}
-          <PlayerCard player={player} mode="sign" money={money} onSign={() => onSign(player)} onDetails={() => onDetails(player)} />
+          <PlayerCard state={state} player={player} mode="sign" money={money} onSign={() => onSign(player)} onDetails={() => onDetails(player)} />
           {player.scoutReport && (
             <div style={S.scoutCard}>
               <div style={S.secTitle}>RAPPORT SCOUT</div>

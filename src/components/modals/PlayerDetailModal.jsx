@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { PERSONALITY_LABELS } from '../../data/players';
 import { getCareerGoalProgress } from '../../systems/playerDevelopmentSystem';
 import { getClubMemorySummary } from '../../systems/clubSystem';
+import { getPlayerDossierStatus, getRelevantDecisionHistory } from '../../systems/dossierSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
@@ -20,7 +21,7 @@ const weekToLabel = (week) => {
   return `${MONTHS[monthIdx]} S${season}`;
 };
 
-export default function PlayerDetailModal({ player, messages, promises, clubRelations, clubMemory, currentWeek, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
+export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
   const [tab, setTab] = useState('profile');
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
   const playerPromises = (promises ?? []).filter((promise) => promise.playerId === player.id && !promise.resolved && !promise.failed);
@@ -32,6 +33,8 @@ export default function PlayerDetailModal({ player, messages, promises, clubRela
   const clubMemoryScore = clubMemory?.[player.club]?.trust ?? 50;
   const clubTension = Math.max(0, 100 - clubRelation + Math.max(0, 55 - (player.trust ?? 50)) + Math.max(0, 55 - clubMemoryScore));
   const tensionColor = clubTension > 68 ? '#b42318' : clubTension > 40 ? '#8a6f1f' : '#00a676';
+  const dossierStatus = getPlayerDossierStatus(player, { week: currentWeek, messages, messageQueue, promises, clubOffers, pendingTransfers, negotiationCooldowns });
+  const relevantDecisions = getRelevantDecisionHistory(decisionHistory, { playerId: player.id }).slice(0, 8);
   const actionGridStyle = {
     ...S.msgActions,
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
@@ -65,6 +68,10 @@ export default function PlayerDetailModal({ player, messages, promises, clubRela
               <h2 style={S.mTitle}>{player.firstName} {player.lastName}</h2>
               <div style={S.mPlayer}>{player.position} · {player.countryFlag} {player.countryLabel} · {PERSONALITY_LABELS[player.personality]}</div>
               <div style={S.profileSub}>{player.roleLabel ?? player.position} · rôle club {player.clubRole ?? 'non défini'}</div>
+              <div style={{ ...S.statusPill, marginTop: 8, display: 'inline-flex' }}>
+                {dossierStatus.label}
+                {dossierStatus.detail ? ` · ${dossierStatus.detail}` : ''}
+              </div>
             </div>
           </div>
           <div style={S.tabRow}>
@@ -226,6 +233,15 @@ export default function PlayerDetailModal({ player, messages, promises, clubRela
                 <strong>S{item.week}</strong>
               </div>
             )) : <div style={S.emptySmall}>Aucun moment clé enregistré.</div>}
+          </div>
+          <div style={S.objCard}>
+            <div style={S.secTitle}>FIL DE DECISION</div>
+            {relevantDecisions.length ? relevantDecisions.map((decision) => (
+              <div key={decision.id} style={S.promiseRow}>
+                <span>{decision.label}</span>
+                <strong>S{decision.week}</strong>
+              </div>
+            )) : <div style={S.emptySmall}>Aucune décision liée à ce dossier.</div>}
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>PROMESSES</div>

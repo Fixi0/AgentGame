@@ -2,14 +2,17 @@ import { X } from 'lucide-react';
 import React from 'react';
 import { CLUBS, getCountry } from '../../data/clubs';
 import { getClubProfile } from '../../systems/clubSystem';
+import { getRelevantDecisionHistory } from '../../systems/dossierSystem';
 import { S } from '../styles';
 
-export default function ClubModal({ clubName, relations, onClose }) {
+export default function ClubModal({ clubName, relations, clubMemory, decisionHistory = [], onClose }) {
   const club = CLUBS.find((item) => item.name === clubName);
   if (!club) return null;
   const country = getCountry(club.countryCode);
   const relation = relations?.[club.name] ?? 50;
   const profile = getClubProfile(club, relation);
+  const memory = clubMemory?.[club.name] ?? { trust: 50, blocks: 0, lies: 0, promisesBroken: 0, lastWeek: 0 };
+  const clubDecisions = getRelevantDecisionHistory(decisionHistory, { clubName: club.name }).slice(0, 6);
 
   return (
     <div style={S.overlay}>
@@ -33,10 +36,26 @@ export default function ClubModal({ clubName, relations, onClose }) {
             <Metric label="Pression" value={profile.mediaPressure} />
           </div>
           <div style={S.objCard}>
+            <div style={S.secTitle}>MEMOIRE CLUB</div>
+            <div style={S.sumRow}><span style={S.sumK}>Lecture</span><strong>{memory.promisesBroken >= 3 || memory.blocks >= 4 ? 'Méfiance forte' : memory.promisesBroken > 0 || memory.blocks > 0 || memory.trust < 45 ? 'Mémoire tendue' : memory.trust > 60 ? 'Mémoire positive' : 'Mémoire neutre'}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Confiance</span><strong>{memory.trust}/100</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Blocages</span><strong>{memory.blocks}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Promesses cassées</span><strong>{memory.promisesBroken}</strong></div>
+          </div>
+          <div style={S.objCard}>
             <div style={S.secTitle}>IDENTITE SPORTIVE</div>
             <div style={S.sumRow}><span style={S.sumK}>Style</span><strong>{profile.style}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Niveau</span><strong>Tier {club.tier}</strong></div>
             <div style={S.emptySmall}>Rivalités : {profile.rivalries.join(', ')}</div>
+          </div>
+          <div style={S.objCard}>
+            <div style={S.secTitle}>FIL DE DECISION</div>
+            {clubDecisions.length ? clubDecisions.map((decision) => (
+              <div key={decision.id} style={S.promiseRow}>
+                <span>{decision.label}</span>
+                <strong>S{decision.week}</strong>
+              </div>
+            )) : <div style={S.emptySmall}>Aucune décision liée à ce club.</div>}
           </div>
           <button onClick={onClose} style={S.primaryBtn}>FERMER</button>
         </div>

@@ -23,6 +23,7 @@ import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/co
 import { awardGems } from '../systems/shopSystem';
 import { generateSeasonObjectives, updateObjectiveProgress, checkObjectiveCompletion } from '../systems/objectivesSystem';
 import { createDefaultContacts } from '../systems/contactsSystem';
+import { getMessagePriority } from '../systems/dossierSystem';
 import { createPublicRep, tickPublicRep, getPublicRepOfferBonus } from '../systems/publicReputationSystem';
 import {
   addDecisionHistory,
@@ -464,6 +465,7 @@ export const createFreshState = () => ({
   clubOffers: [],
   pendingTransfers: [],
   negotiationCooldowns: {},
+  messageQueue: [],
   pendingChainedEvents: [],
   seasonAwards: {},
   worldState: generateWorldState(1),
@@ -519,6 +521,7 @@ export const migrateState = (state) => {
     clubOffers: state.clubOffers ?? [],
     pendingTransfers: state.pendingTransfers ?? [],
     negotiationCooldowns: state.negotiationCooldowns ?? {},
+    messageQueue: state.messageQueue ?? [],
     pendingChainedEvents: state.pendingChainedEvents ?? [],
     seasonAwards: state.seasonAwards ?? {},
     worldState: state.worldState ?? generateWorldState(1),
@@ -769,6 +772,7 @@ const applyCompletedTransferToPlayer = (player, offer, agreement, week) => {
     weeklySalary: Math.floor(player.weeklySalary * agreement.finalSalaryMultiplier),
     moral: clamp(player.moral + 10),
     trust: clamp((player.trust ?? 50) + 5),
+    careerStatus: 'transféré',
     contractWeeksLeft: agreement.contractWeeks,
     contractStartWeek: week,
     signingBonus: agreement.signingBonus ?? 0,
@@ -867,6 +871,10 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
       leagueReputation: applyLeagueReputation(state.leagueReputation, offer.clubCountryCode ?? targetClub?.countryCode, 4),
       clubRelations: applyClubRelation(state.clubRelations, offer.club, 5),
       clubMemory: recordClubMemory(state.clubMemory, offer.club, { trust: 3, week: state.week }),
+      negotiationCooldowns: {
+        ...(state.negotiationCooldowns ?? {}),
+        [player.id]: state.week + 4,
+      },
       segmentReputation: applySegmentReputationChange(state.segmentReputation, { business: 6, sportif: 2 }),
       clubOffers: state.clubOffers.map((item) => (item.id === offerId ? { ...item, status: 'accepted' } : item)),
       roster: nextRoster,
@@ -944,11 +952,12 @@ export const createPlayerMarketAction = (state, playerId, action) => {
   const nextRoster = state.roster.map((item) =>
     item.id === playerId
       ? {
-          ...item,
-          moral: clamp(item.moral + (action === 'transfer_list' ? -4 : 2), 0, 100),
-          trust: clamp((item.trust ?? 50) + trustCost, 0, 100),
-          timeline: [{ week: state.week, type: 'mercato', label: action === 'loan' ? 'Recherche de prêt lancée' : action === 'transfer_list' ? 'Mis sur le marché' : 'Proposé à plusieurs clubs' }, ...(item.timeline ?? [])].slice(0, 18),
-        }
+        ...item,
+        moral: clamp(item.moral + (action === 'transfer_list' ? -4 : 2), 0, 100),
+        trust: clamp((item.trust ?? 50) + trustCost, 0, 100),
+        careerStatus: action === 'loan' ? 'en prêt' : 'en discussion',
+        timeline: [{ week: state.week, type: 'mercato', label: action === 'loan' ? 'Recherche de prêt lancée' : action === 'transfer_list' ? 'Mis sur le marché' : 'Proposé à plusieurs clubs' }, ...(item.timeline ?? [])].slice(0, 18),
+      }
       : item,
   );
   const baseState = {
@@ -1113,6 +1122,9 @@ const createChoiceTransferOffer = (state, player, event, choice) => {
   const cooldownUntil = state.negotiationCooldowns?.[player.id];
   if (cooldownUntil && cooldownUntil > state.week) {
     return { state, error: `${player.firstName} ${player.lastName} est déjà sous verrou de transfert` };
+  }
+  if ((state.pendingTransfers ?? []).some((transfer) => transfer.playerId === player.id) || (state.clubOffers ?? []).some((offer) => offer.playerId === player.id && offer.status === 'open')) {
+    return { state, error: `${player.firstName} ${player.lastName} est déjà engagé dans un autre dossier` };
   }
   const phase = getPhase(state.week);
   const allowedTiers = getClubTierForRating(player.rating, player.potential);
@@ -1714,7 +1726,21 @@ export const playWeek = (state) => {
     });
   });
 
-  const deliveredMessages = generatedMessages.slice(0, 1);
+  const queuedMessages = [...(state.messageQueue ?? []), ...generatedMessages].map((message) => ({
+    ...message,
+    priority: message.priority ?? getMessagePriority(message),
+    queuedWeek: message.queuedWeek ?? state.week + 1,
+  }));
+  queuedMessages.sort((a, b) => {
+    const rank = { urgent: 3, normal: 2, to_process: 1 };
+    const priorityDelta = (rank[b.priority] ?? 2) - (rank[a.priority] ?? 2);
+    if (priorityDelta) return priorityDelta;
+    const weekDelta = (a.week ?? 0) - (b.week ?? 0);
+    if (weekDelta) return weekDelta;
+    return String(a.id).localeCompare(String(b.id));
+  });
+  const deliveredMessages = queuedMessages.slice(0, 1);
+  const remainingMessageQueue = queuedMessages.slice(1);
   // Supprimer les chaînes déjà traitées ou expirées et ajouter les nouvelles
   const processedChainIds = new Set([
     ...chainedPassives.map((_, i) => pendingChains.filter((c) => c.type === 'passive' && c.triggerWeek <= state.week + 1)[i]?.id),
@@ -1764,6 +1790,7 @@ export const playWeek = (state) => {
     ].slice(0, 60),
     messages: [...deliveredMessages, ...state.messages].slice(0, 40),
     promises: promiseEvaluation.promises.slice(-30),
+    messageQueue: remainingMessageQueue,
     clubOffers: [...newClubOffers, ...expiredOffers].slice(0, 30),
     pendingTransfers: remainingPendingTransfers,
     negotiationCooldowns: updatedNegotiationCooldowns,
@@ -1910,6 +1937,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
             weeklySalary: Math.floor(rosterPlayer.weeklySalary * outcome.salMult),
             moral: clamp(rosterPlayer.moral + 15),
             trust: clamp((rosterPlayer.trust ?? 50) + 8),
+            careerStatus: 'transféré',
             contractWeeksLeft: contractWeeks,
             clubRole,
             releaseClause: outcome.releaseClause ?? Math.floor(rosterPlayer.value * 1.8),
@@ -1985,6 +2013,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
               weeklySalary: Math.floor(rosterPlayer.weeklySalary * outcome.salMult),
               moral: clamp(rosterPlayer.moral + 10),
               trust: clamp((rosterPlayer.trust ?? 50) + 6),
+              careerStatus: 'prolongé',
               contractWeeksLeft: contractWeeks,
               contractStartWeek: state.week,
               signingBonus,

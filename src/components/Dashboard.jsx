@@ -1,6 +1,7 @@
 import { Activity, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Target, UserPlus, Zap } from 'lucide-react';
 import React from 'react';
 import { getAgencyCapacity } from '../systems/agencySystem';
+import { getPendingMessageCounts } from '../systems/dossierSystem';
 import { getMarketReachLabel } from '../systems/reputationSystem';
 import { getStrategicSuggestions } from '../systems/suggestionSystem';
 import { getAgencyGoalProgress } from '../systems/agencyGoalsSystem';
@@ -63,6 +64,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
   const activePromises = (state.promises ?? []).filter((promise) => !promise.resolved && !promise.failed);
   const suggestions = getStrategicSuggestions(state);
   const segments = state.segmentReputation ?? {};
+  const pendingCounts = getPendingMessageCounts(state);
   const urgentMessages = state.messages.filter((message) => !message.resolved).slice(0, 3);
   const expiringContracts = state.roster.filter((player) => player.contractWeeksLeft <= 12).slice(0, 3);
   const lowTrustPlayers = state.roster.filter((player) => (player.trust ?? 50) < 45 || player.moral < 45).slice(0, 3);
@@ -75,12 +77,10 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
       value: phase.phase,
       sub: `${phase.month ?? ''} · S${phase.seasonWeek}/38`,
     },
-    urgentMessages.length
-      ? { label: 'Urgence', value: `${urgentMessages.length}`, sub: 'Messages à traiter' }
-      : { label: 'Urgence', value: '0', sub: "Rien d'urgent" },
-    openOffers.length
-      ? { label: 'Offres', value: `${openOffers.length}`, sub: 'Dossiers à suivre' }
-      : { label: 'Offres', value: '0', sub: 'Aucune offre' },
+    { label: 'Messages', value: `${pendingCounts.total}`, sub: pendingCounts.total ? 'File active' : 'Rien à lire' },
+    { label: 'Offres', value: `${openOffers.length}`, sub: openOffers.length ? 'Dossiers à suivre' : 'Aucune offre' },
+    { label: 'Promesses', value: `${activePromises.length}`, sub: activePromises.length ? 'Points sensibles' : 'Aucune' },
+    { label: 'Urgence', value: `${pendingCounts.urgent}`, sub: pendingCounts.urgent ? 'Réponse attendue' : "Rien d'urgent" },
   ];
   const todayActions = [
     urgentMessages.length ? { label: 'Répondre', sub: `${urgentMessages.length} message`, action: () => onNav('messages') } : null,

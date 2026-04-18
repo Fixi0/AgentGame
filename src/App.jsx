@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Briefcase, CalendarDays, DollarSign, Home, Layers, LogOut, MessageCircle, Moon, Network, Newspaper, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
+import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Moon, Network, Newspaper, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
 import Calendar from './components/Calendar';
+import Dossiers from './components/Dossiers';
 import Contacts from './components/Contacts';
 import ContractDashboard from './components/ContractDashboard';
 import DeadlineDay from './components/DeadlineDay';
@@ -57,6 +58,7 @@ import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
 import { createMessage, createStaffConversationMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage } from './systems/promiseSystem';
+import { getPendingMessageCounts } from './systems/dossierSystem';
 import { purchaseShopItem } from './systems/shopSystem';
 import { clamp, makeId } from './utils/helpers';
 import { formatMoney } from './utils/format';
@@ -122,6 +124,7 @@ const moreItems = [
   { key: 'shop', label: 'Boutique', desc: 'Gemmes et bonus', icon: ShoppingBag },
   { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase },
   { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network },
+  { key: 'dossiers', label: 'Dossiers', desc: 'Messages, tensions, mémoire', icon: FileText },
   { key: 'news', label: 'News', desc: 'Médias et réseaux', icon: Newspaper },
   { key: 'media', label: 'Médias', desc: 'Journalistes alliés ou hostiles', icon: Newspaper },
   { key: 'standings', label: 'Ligues', desc: 'Classements et clubs', icon: Trophy },
@@ -752,7 +755,7 @@ export default function FootballAgentGame() {
 
   const phase = getPhase(state.week);
   const calendarSnapshot = getCalendarSnapshot(state.week);
-  const unreadMessages = state.messages.filter((message) => !message.resolved).length;
+  const pendingCounts = getPendingMessageCounts(state);
   const agencyProfile = state.agencyProfile;
 
   if (!agencyProfile.onboarded) {
@@ -801,7 +804,7 @@ export default function FootballAgentGame() {
           <StatCard icon={<DollarSign size={14} />} label="CAPITAL" value={formatMoney(state.money)} accent="#00a676" />
           <StatCard icon={<Star size={14} />} label="REPUTATION" value={`${state.reputation}/100`} accent="#2f80ed" />
           <StatCard icon={<Users size={14} />} label="ROSTER" value={`${state.roster.length}/${getAgencyCapacity(state.agencyLevel)}`} accent="#3f5663" />
-          <StatCard icon={<Trophy size={14} />} label="MESSAGES" value={unreadMessages} accent="#64727d" />
+          <StatCard icon={<Trophy size={14} />} label="MESSAGES" value={pendingCounts.total} accent="#64727d" />
         </div>
       </header>
       <nav style={{ ...S.nav, ...darkNav }}>
@@ -822,22 +825,23 @@ export default function FootballAgentGame() {
           >
             <Icon size={16} />
             <span>{item.label}</span>
-            {key === 'messages' && unreadMessages > 0 && <span style={S.navBadge}>{unreadMessages}</span>}
+            {key === 'messages' && pendingCounts.total > 0 && <span style={S.navBadge}>{pendingCounts.total}</span>}
           </button>
           );
         })}
       </nav>
       <main style={{ ...S.main, ...darkMain }}>
         {view === 'dashboard' && <Dashboard state={state} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} darkMode={state.darkMode} />}
-        {view === 'market' && <Market market={state.market} freeAgents={state.freeAgents} money={state.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
-        {view === 'roster' && <Roster roster={state.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
-        {view === 'messages' && <Messages messages={state.messages} onRespond={handleMessageResponse} focusThreadKey={activeMessageThreadKey} />}
+        {view === 'market' && <Market state={state} market={state.market} freeAgents={state.freeAgents} money={state.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
+        {view === 'roster' && <Roster state={state} roster={state.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
+        {view === 'messages' && <Messages messages={state.messages} messageQueue={state.messageQueue ?? []} onRespond={handleMessageResponse} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
         {view === 'shop' && <Shop state={state} onBuy={handleBuyShopItem} />}
         {view === 'calendar' && <Calendar state={state} onClubDetails={showClubDetails} />}
         {view === 'standings' && <Standings state={state} onClubDetails={showClubDetails} />}
         {view === 'deadline' && <DeadlineDay state={state} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={state} onStartMission={handleStartScoutingMission} />}
+        {view === 'dossiers' && <Dossiers state={state} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} onNav={setView} />}
         {view === 'office' && (
           <Office
             state={state}
@@ -913,9 +917,14 @@ export default function FootballAgentGame() {
           <PlayerDetailModal
             player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
             messages={state.messages}
+            messageQueue={state.messageQueue ?? []}
             promises={state.promises}
             clubRelations={state.clubRelations}
             clubMemory={state.clubMemory}
+            decisionHistory={state.decisionHistory}
+            pendingTransfers={state.pendingTransfers}
+            clubOffers={state.clubOffers}
+            negotiationCooldowns={state.negotiationCooldowns}
             currentWeek={state.week}
             onClose={() => setModal(null)}
             onNego={(type) => startNegotiation(modal.data.player, type)}
@@ -926,7 +935,7 @@ export default function FootballAgentGame() {
           />
         )}
       {modal?.type === 'club_detail' && (
-        <ClubModal clubName={modal.data.clubName} relations={state.clubRelations} onClose={() => setModal(null)} />
+        <ClubModal clubName={modal.data.clubName} relations={state.clubRelations} clubMemory={state.clubMemory} decisionHistory={state.decisionHistory} onClose={() => setModal(null)} />
       )}
       {modal?.type === 'offer_compare' && (
         <OfferCompareModal

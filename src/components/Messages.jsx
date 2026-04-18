@@ -1,6 +1,7 @@
 import { ChevronLeft, MessageCircle, PhoneCall, UserRound } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { getMessageResponseOptions, getResponseCopy } from '../systems/messageSystem';
+import { getPendingMessageCounts, getMessageQueueLabel } from '../systems/dossierSystem';
 import { S } from './styles';
 
 const responseLabels = {
@@ -11,7 +12,7 @@ const responseLabels = {
 
 const URGENT_TYPES = ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning', 'staff_dialogue', 'coach_dialogue', 'ds_dialogue'];
 
-export default function Messages({ messages, onRespond, focusThreadKey = null }) {
+export default function Messages({ messages, messageQueue = [], onRespond, focusThreadKey = null }) {
   const [filter, setFilter] = useState('all');
   const [selectedThreadKey, setSelectedThreadKey] = useState(null);
   const [mobileScreen, setMobileScreen] = useState('list');
@@ -91,6 +92,7 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
   const selectedThread = threads.find((thread) => thread.key === selectedThreadKey) ?? null;
   const threadLimit = selectedThread ? (visibleCounts[selectedThread.key] ?? 5) : 5;
   const visibleThreadItems = selectedThread ? selectedThread.items.slice(Math.max(0, selectedThread.items.length - threadLimit)) : [];
+  const queueCounts = getPendingMessageCounts({ messages, messageQueue });
   const showList = !isMobile || mobileScreen === 'list';
   const showThread = !isMobile || mobileScreen === 'thread';
   const messageNeedsResponse = (message) => !message.resolved && (
@@ -102,6 +104,10 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
   const actionGridStyle = {
     ...S.msgActions,
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
+  };
+  const summaryStripStyle = {
+    ...S.summaryStrip,
+    gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,minmax(0,1fr))',
   };
   const actionBtnStyle = {
     ...S.msgBtn,
@@ -143,6 +149,25 @@ export default function Messages({ messages, onRespond, focusThreadKey = null })
           </button>
         ))}
       </div>
+
+      <div style={summaryStripStyle}>
+        <div style={S.summaryChip}><strong>{queueCounts.urgent}</strong><span>Urgent</span></div>
+        <div style={S.summaryChip}><strong>{queueCounts.normal}</strong><span>Normal</span></div>
+        <div style={S.summaryChip}><strong>{queueCounts.toProcess}</strong><span>À traiter</span></div>
+        <div style={S.summaryChip}><strong>{messageQueue.length}</strong><span>File</span></div>
+      </div>
+
+      {messageQueue.length > 0 && (
+        <div style={S.objCard}>
+          <div style={S.secTitle}>FILE D'ATTENTE</div>
+          {messageQueue.slice(0, 3).map((message) => (
+            <div key={message.id} style={S.promiseRow}>
+              <span>{getMessageQueueLabel(message)} · {message.playerName}</span>
+              <strong>{message.subject}</strong>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={S.messagesLayout}>
         {showList && (

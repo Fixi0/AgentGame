@@ -1,15 +1,18 @@
 import { ArrowUpRight, Handshake, X } from 'lucide-react';
 import React from 'react';
 import { PERSONALITY_LABELS } from '../data/players';
+import { getPlayerDossierStatus } from '../systems/dossierSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
 
-export default function PlayerCard({ player, mode, money, onSign, onRelease, onNego, onDetails }) {
+export default function PlayerCard({ player, state, mode, money, onSign, onRelease, onNego, onDetails }) {
   const ratingColor = player.rating >= 85 ? '#00a676' : player.rating >= 75 ? '#2f80ed' : '#9aa7b2';
   const moralColor = player.moral >= 60 ? '#00a676' : player.moral >= 40 ? '#8a6f1f' : '#b42318';
   const trustColor = player.trust >= 60 ? '#00a676' : player.trust >= 40 ? '#8a6f1f' : '#b42318';
   const canSign = mode === 'sign' ? money >= player.signingCost : true;
   const isFreeInRoster = mode === 'roster' && (player.freeAgent || player.club === 'Libre');
+  const dossierStatus = getPlayerDossierStatus(player, state);
+  const statusColor = dossierStatus.tone === 'good' ? '#00a676' : dossierStatus.tone === 'warn' ? '#b45309' : dossierStatus.tone === 'danger' ? '#b42318' : '#64727d';
 
   return (
     <div style={S.pCard}>
@@ -38,6 +41,10 @@ export default function PlayerCard({ player, mode, money, onSign, onRelease, onN
             <span style={{ color: moralColor }}>Moral {player.moral}</span>
             <span>·</span>
             <span style={{ color: trustColor }}>Confiance {player.trust}</span>
+          </div>
+          <div style={{ ...S.statusPill, color: statusColor, background: `${statusColor}12`, borderColor: `${statusColor}26` }}>
+            {dossierStatus.label}
+            {dossierStatus.weeksUntilReopen > 0 ? ` · ${dossierStatus.weeksUntilReopen} sem.` : ''}
           </div>
           <div style={S.meterRow}>
             <span>Forme</span>
