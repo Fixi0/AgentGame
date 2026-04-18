@@ -4,7 +4,6 @@ import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
 export default function TransferOfferModal({ offer, player, readiness, onClose, onAccept, onNegotiate, onReject }) {
-  const canSign = readiness?.ok ?? false;
   const toneColor = readiness?.tone === 'good' ? '#00a676' : readiness?.tone === 'warn' ? '#b45309' : '#b42318';
   const toneBg = readiness?.tone === 'good' ? '#f0fdf8' : readiness?.tone === 'warn' ? '#fffbeb' : '#fef2f2';
 
@@ -40,12 +39,11 @@ export default function TransferOfferModal({ offer, player, readiness, onClose, 
             <button
               type="button"
               onClick={onAccept}
-              disabled={!canSign}
               style={{
                 ...S.choiceBtn,
-                borderColor: canSign ? '#00a676' : '#d6dde3',
-                opacity: canSign ? 1 : 0.55,
-                cursor: canSign ? 'pointer' : 'not-allowed',
+                borderColor: '#00a676',
+                opacity: 1,
+                cursor: 'pointer',
               }}
             >
               <div>

@@ -70,6 +70,27 @@ export const getPendingMessageCounts = (state) => {
 
 export const messageNeedsResponse = (message) => RESPONSE_REQUIRED_TYPES.has(message?.type) && !message?.resolved;
 
+export const getActiveDossierPlayerIds = (state = {}) => {
+  const ids = new Set();
+  (state?.pendingTransfers ?? []).forEach((transfer) => ids.add(transfer.playerId));
+  (state?.clubOffers ?? []).forEach((offer) => {
+    if (['open', 'accepted_pending'].includes(offer.status)) ids.add(offer.playerId);
+  });
+  return ids;
+};
+
+export const getMarketLockedPlayerIds = (state = {}) => {
+  const ids = new Set(getActiveDossierPlayerIds(state));
+  (state?.messages ?? []).forEach((message) => {
+    if (messageNeedsResponse(message) && ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure'].includes(message.type)) {
+      ids.add(message.playerId);
+    }
+  });
+  return ids;
+};
+
+export const hasActiveDossierForPlayer = (state = {}, playerId) => getActiveDossierPlayerIds(state).has(playerId);
+
 export const getWeeksUntilMessageReopen = (state, playerId) => {
   const cooldownUntil = state?.negotiationCooldowns?.[playerId];
   if (!cooldownUntil) return 0;

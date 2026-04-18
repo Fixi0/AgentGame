@@ -57,7 +57,7 @@ import { applyClubRelation, recordClubMemory } from './systems/clubSystem';
 import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
 import { createMessage, createStaffConversationMessage, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
-import { createPromiseFromMessage } from './systems/promiseSystem';
+import { createPromiseFromMessage, normalizePromises } from './systems/promiseSystem';
 import { getOfferAcceptanceReadiness, getPendingMessageCounts } from './systems/dossierSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
 import { purchaseShopItem } from './systems/shopSystem';
@@ -391,6 +391,11 @@ export default function FootballAgentGame() {
   };
 
   const handleAcceptOfferDirect = (offer) => {
+    const readiness = getOfferAcceptanceReadiness(state, offer);
+    if (!readiness.ok) {
+      showToast(readiness.reason, readiness.tone === 'danger' ? 'error' : 'info');
+      return;
+    }
     const result = acceptClubOffer(state, offer.id, null);
     if (result.error) {
       showToast(result.error, 'error');
@@ -452,7 +457,7 @@ export default function FootballAgentGame() {
     setState((current) => {
       const message = current.messages.find((item) => item.id === messageId);
       if (!message) return current;
-      const promise = createPromiseFromMessage({ message, week: current.week, responseType });
+      const promise = createPromiseFromMessage({ message, week: current.week, responseType, existingPromises: current.promises });
       const responseAction = getMessageResponseAction(message, responseType);
       const responseText = getResponseCopy(message, responseType);
       const targetPlayer = current.roster.find((player) => player.id === message.playerId);
@@ -520,7 +525,7 @@ export default function FootballAgentGame() {
           ...withMarketAction.messages.map((item) => (item.id === messageId ? { ...item, resolved: true, responseType, responseAction, responseText } : item)),
           ...(staffReply ? [staffReply] : []),
         ].slice(0, 40),
-        promises: [...(promise ? [promise] : []), ...(withMarketAction.promises ?? [])].slice(0, 30),
+        promises: normalizePromises([...(promise ? [promise] : []), ...(withMarketAction.promises ?? [])]).slice(0, 30),
       };
     });
     if (currentMessage) setActiveMessageThreadKey(currentMessage.threadKey ?? currentMessage.playerId);
@@ -560,7 +565,7 @@ export default function FootballAgentGame() {
       const currentMessage = current.messages.find((item) => item.id === message.id);
       const currentPlayer = current.roster.find((item) => item.id === player.id) ?? player;
       if (!currentMessage || !currentPlayer) return current;
-      const promise = createPromiseFromMessage({ message: currentMessage, week: current.week, responseType });
+      const promise = createPromiseFromMessage({ message: currentMessage, week: current.week, responseType, existingPromises: current.promises });
       const nextClubRelations = selectedClubs.reduce(
         (relations, club) => applyClubRelation(relations, club.name, satisfied ? 1 : -1),
         proposal.state.clubRelations,
@@ -611,7 +616,7 @@ export default function FootballAgentGame() {
             : item,
         ),
         messages: [playerReply, ...proposal.state.messages.map((item) => (item.id === message.id ? resolvedMessage : item))].slice(0, 40),
-        promises: [...(promise ? [promise] : []), ...(proposal.state.promises ?? [])].slice(0, 30),
+        promises: normalizePromises([...(promise ? [promise] : []), ...(proposal.state.promises ?? [])]).slice(0, 30),
         clubRelations: nextClubRelations,
         clubMemory: nextClubMemory,
         decisionHistory: addDecisionHistory(proposal.state.decisionHistory, {

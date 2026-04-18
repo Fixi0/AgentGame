@@ -23,7 +23,7 @@ import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/co
 import { awardGems } from '../systems/shopSystem';
 import { generateSeasonObjectives, updateObjectiveProgress, checkObjectiveCompletion } from '../systems/objectivesSystem';
 import { createDefaultContacts } from '../systems/contactsSystem';
-import { getMessagePriority } from '../systems/dossierSystem';
+import { getActiveDossierPlayerIds, getMarketLockedPlayerIds, getMessagePriority } from '../systems/dossierSystem';
 import { createPublicRep, tickPublicRep, getPublicRepOfferBonus } from '../systems/publicReputationSystem';
 import {
   addDecisionHistory,
@@ -40,6 +40,7 @@ import {
 import { generateLivingWeek } from '../systems/livingEventSystem';
 import { clamp, makeId, pick, rand } from '../utils/helpers';
 import { formatMoney } from '../utils/format';
+import { normalizePromises } from '../systems/promiseSystem';
 
 export const STORAGE_KEY = 'agent_fc_v4';
 
@@ -530,7 +531,7 @@ export const migrateState = (state) => {
     decisionHistory: state.decisionHistory ?? [],
     activeNarratives: state.activeNarratives ?? [],
     staff: { ...createDefaultStaff(), ...(state.staff ?? {}) },
-    promises: state.promises ?? [],
+    promises: normalizePromises(state.promises ?? []),
     clubOffers: state.clubOffers ?? [],
     pendingTransfers: state.pendingTransfers ?? [],
     negotiationCooldowns: state.negotiationCooldowns ?? {},
@@ -939,6 +940,9 @@ export const rejectClubOffer = (state, offerId) => ({
 export const createPlayerMarketAction = (state, playerId, action) => {
   const player = state.roster.find((item) => item.id === playerId);
   if (!player) return { state, error: 'Joueur introuvable' };
+  if (getActiveDossierPlayerIds(state).has(playerId) && action !== 'loan') {
+    return { state, error: `${player.firstName} ${player.lastName} a déjà un dossier ouvert.` };
+  }
   const phase = getPhase(state.week);
   const allowedTiers = getClubTierForRating(player.rating, player.potential);
   const targetClubs = CLUBS
@@ -1044,6 +1048,9 @@ export const proposePlayerToClubs = (state, playerId, clubNames = []) => {
   const player = state.roster.find((item) => item.id === playerId);
   if (!player) return { state, error: 'Joueur introuvable' };
   if (!clubNames.length) return { state, error: 'Choisis au moins un club' };
+  if (getActiveDossierPlayerIds(state).has(playerId)) {
+    return { state, error: `${player.firstName} ${player.lastName} a déjà un dossier en cours.` };
+  }
 
   const phase = getPhase(state.week);
   const allowedTiers = getClubTierForRating(player.rating, player.potential);
@@ -1270,6 +1277,7 @@ export const playWeek = (state) => {
   const weeklyFixtures = weeklySimulation.fixtures;
   const weeklyMatchResults = weeklySimulation.matchResults;
   const matchByPlayerId = new Map(weeklyMatchResults.map((match) => [match.playerId, match]));
+  const activeDossierPlayerIds = [...getMarketLockedPlayerIds(state)];
 
   const updatedRoster = state.roster.map((player) => {
     let updatedPlayer = {
@@ -1604,6 +1612,7 @@ export const playWeek = (state) => {
     existingOffers: activeOffers,
     worldState: state.worldState,
     cooldowns: state.negotiationCooldowns ?? {},
+    lockedPlayerIds: activeDossierPlayerIds,
   });
 
   // Offre surprise hors mercato
@@ -1613,6 +1622,7 @@ export const playWeek = (state) => {
     reputation: state.reputation,
     worldState: state.worldState,
     cooldowns: state.negotiationCooldowns ?? {},
+    lockedPlayerIds: activeDossierPlayerIds,
   });
   if (surpriseOffer) newClubOffers.push(surpriseOffer);
   const nextFixtures = buildWeeklyFixtures(finalRoster, state.week + 1);
@@ -1801,7 +1811,7 @@ export const playWeek = (state) => {
       ...state.news,
     ].slice(0, 60),
     messages: [...deliveredMessages, ...state.messages].slice(0, 40),
-    promises: promiseEvaluation.promises.slice(-30),
+    promises: normalizePromises(promiseEvaluation.promises.slice(-30)),
     messageQueue: remainingMessageQueue,
     clubOffers: [...newClubOffers, ...expiredOffers].slice(0, 30),
     pendingTransfers: remainingPendingTransfers,

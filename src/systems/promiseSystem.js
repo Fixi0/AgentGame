@@ -18,9 +18,66 @@ const PROMISE_LABELS = {
   ds_dialogue: 'Projet club clarifié',
 };
 
-export const createPromiseFromMessage = ({ message, week, responseType }) => {
+const PROMISE_REPEAT_GAP = {
+  transfer_request: 8,
+  raise_request: 6,
+  complaint: 5,
+  staff_dialogue: 6,
+  coach_dialogue: 6,
+  ds_dialogue: 6,
+};
+
+const PROMISE_PRIORITY = {
+  transfer_request: 4,
+  raise_request: 3,
+  staff_dialogue: 2,
+  coach_dialogue: 2,
+  ds_dialogue: 2,
+  complaint: 1,
+};
+
+export const normalizePromises = (promises = []) => {
+  if (!Array.isArray(promises) || !promises.length) return promises ?? [];
+
+  const sorted = [...promises].sort((a, b) => {
+    const activeA = a.resolved || a.failed ? 0 : 1;
+    const activeB = b.resolved || b.failed ? 0 : 1;
+    if (activeA !== activeB) return activeB - activeA;
+    const priorityDelta = (PROMISE_PRIORITY[b.type] ?? 0) - (PROMISE_PRIORITY[a.type] ?? 0);
+    if (priorityDelta) return priorityDelta;
+    const weekDelta = (b.createdWeek ?? 0) - (a.createdWeek ?? 0);
+    if (weekDelta) return weekDelta;
+    return String(b.id ?? '').localeCompare(String(a.id ?? ''));
+  });
+
+  const activeByPlayer = new Set();
+  const normalized = [];
+
+  for (const promise of sorted) {
+    if (promise.resolved || promise.failed) {
+      normalized.push(promise);
+      continue;
+    }
+
+    if (activeByPlayer.has(promise.playerId)) continue;
+    activeByPlayer.add(promise.playerId);
+    normalized.push(promise);
+  }
+
+  return normalized.sort((a, b) => (a.createdWeek ?? 0) - (b.createdWeek ?? 0));
+};
+
+export const createPromiseFromMessage = ({ message, week, responseType, existingPromises = [] }) => {
   if (!['professionnel', 'empathique'].includes(responseType)) return null;
   if (!PROMISE_DURATIONS[message.type]) return null;
+  const normalizedPromises = normalizePromises(existingPromises ?? []);
+  const repeatGap = PROMISE_REPEAT_GAP[message.type] ?? 6;
+  if (normalizedPromises.some((promise) => {
+    if (promise.playerId !== message.playerId) return false;
+    if (!promise.resolved && !promise.failed) return true;
+    const age = week - (promise.createdWeek ?? week);
+    return age >= 0 && age < repeatGap;
+  })) return null;
 
   if (['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(message.type) && message.context && !String(message.context).includes('coach') && !String(message.context).includes('playing') && !String(message.context).includes('ds')) {
     return null;
