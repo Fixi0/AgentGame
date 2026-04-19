@@ -21,6 +21,15 @@ const URGENT_TYPES = [
   'welcome',
 ];
 
+const RESPONSE_REQUIRED_TYPES = new Set([
+  ...URGENT_TYPES,
+  'shortlist_reply',
+  'voice_call',
+  'thanks',
+]);
+
+const messageNeedsResponse = (message) => RESPONSE_REQUIRED_TYPES.has(message?.type) && !message?.resolved;
+
 export default function Messages({ messages, messageQueue = [], onRespond, onAction, focusThreadKey = null }) {
   const [filter, setFilter] = useState('all');
   const [selectedThreadKey, setSelectedThreadKey] = useState(null);
@@ -57,6 +66,7 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
         const items = [...thread.items].sort((a, b) => (a.sortWeek ?? a.week ?? 0) - (b.sortWeek ?? b.week ?? 0));
         const latest = items[items.length - 1];
         const unresolvedCount = items.filter((item) => !item.resolved).length;
+        const actionableCount = items.filter(messageNeedsResponse).length;
         const isStaff = thread.key.includes(':staff:');
         const participant = isStaff
           ? getConversationParticipant(latest ?? items[0])
@@ -67,6 +77,7 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
           latestWeek: latest?.week ?? 0,
           latestLabel: latest?.subject ?? 'Conversation',
           unresolvedCount,
+          actionableCount,
           hasUnread: unresolvedCount > 0,
           isStaff,
           participant,
@@ -81,6 +92,7 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
         return true;
       })
       .sort((a, b) => {
+        if (b.actionableCount !== a.actionableCount) return b.actionableCount - a.actionableCount;
         if (b.unresolvedCount !== a.unresolvedCount) return b.unresolvedCount - a.unresolvedCount;
         return b.latestWeek - a.latestWeek;
       });
@@ -101,7 +113,7 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
 
     setSelectedThreadKey((current) => {
       if (current && threads.some((thread) => thread.key === current)) return current;
-      return threads.find((thread) => thread.unresolvedCount > 0)?.key ?? threads[0].key;
+      return threads.find((thread) => thread.actionableCount > 0)?.key ?? threads.find((thread) => thread.unresolvedCount > 0)?.key ?? threads[0].key;
     });
   }, [focusThreadKey, threads]);
 
@@ -111,11 +123,6 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
   const queueCounts = getPendingMessageCounts({ messages, messageQueue });
   const showList = !isMobile || mobileScreen === 'list';
   const showThread = !isMobile || mobileScreen === 'thread';
-  const messageNeedsResponse = (message) => !message.resolved && (
-    URGENT_TYPES.includes(message.type)
-    || ['coach_dialogue', 'ds_dialogue', 'staff_dialogue'].includes(message.type)
-    || message.type === 'secret_offer'
-  );
   const latestPendingMessage = selectedThread
     ? [...selectedThread.items].reverse().find((message) => messageNeedsResponse(message))
     : null;
@@ -221,10 +228,10 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                         {thread.participant?.role === 'staff' ? `${thread.participant.label} · ${thread.contextLabel || thread.playerName}` : thread.contextLabel || thread.playerName}
                       </div>
                     </div>
-                    {thread.unresolvedCount > 0 && <span style={S.threadBadge}>{thread.unresolvedCount}</span>}
+                    {thread.actionableCount > 0 && <span style={S.threadBadge}>{thread.actionableCount}</span>}
                   </div>
                   <div style={S.threadContactMeta}>{thread.latestLabel}</div>
-                  {threadNeedsResponseCount(thread) > 0 && (
+                  {thread.actionableCount > 0 && (
                     <div style={S.threadAttention}>
                       Réponse attendue
                     </div>

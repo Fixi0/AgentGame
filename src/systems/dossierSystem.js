@@ -60,17 +60,18 @@ export const getMessageQueueLabel = (message) => {
 export const getPendingMessageCounts = (state) => {
   const inbox = state?.messages ?? [];
   const queue = state?.messageQueue ?? [];
-  // Count only inbox messages for the badge — queue items haven't been delivered
-  // yet so they don't need immediate user action (they'll arrive next week).
+  // The main badge should reflect messages that genuinely need a reply.
+  // Queue items are future deliveries, so they are tracked separately.
   const unresolved = inbox.filter((message) => !message.resolved);
   const urgent = unresolved.filter((message) => URGENT_MESSAGE_TYPES.has(message.type)).length;
   const awaitingResponse = unresolved.filter((message) => RESPONSE_REQUIRED_TYPES.has(message.type)).length;
-  const queued = queue.length; // future items — not shown in main badge
+  const queued = queue.length;
   return {
     urgent,
     awaitingResponse,
     queued,
-    total: unresolved.length, // badge only reflects inbox messages
+    total: awaitingResponse,
+    unresolved: unresolved.length,
   };
 };
 
