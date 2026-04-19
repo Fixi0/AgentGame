@@ -28,6 +28,7 @@ import OfferCompareModal from './components/modals/OfferCompareModal';
 import OfferContractModal from './components/modals/OfferContractModal';
 import ShortlistModal from './components/modals/ShortlistModal';
 import RetirementModal from './components/modals/RetirementModal';
+import ConfirmModal from './components/modals/ConfirmModal';
 import TransferOfferModal from './components/modals/TransferOfferModal';
 import { NegotiationExtend, NegotiationTransfer } from './components/modals/NegotiationModals';
 import PlayerDetailModal from './components/modals/PlayerDetailModal';
@@ -186,6 +187,7 @@ export default function FootballAgentGame() {
   const [state, setState] = useState(null);
   const [view, setView] = useState('dashboard');
   const [modal, setModal] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
   const [toast, setToast] = useState(null);
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const [hasSave, setHasSave] = useState(false);
@@ -428,6 +430,16 @@ export default function FootballAgentGame() {
         week: (playableState.week ?? 1) + 1,
         roster: (playableState.roster ?? []).map((player) => ({
           ...player,
+          seasonStatus: (() => {
+            const nextPhase = getPhase((playableState.week ?? 1) + 1);
+            const worldCupActive = Boolean(playableState.worldCupState && playableState.worldCupState.phase !== 'done');
+            const worldCupSelection = playableState.worldCupState?.selectedPlayers?.find((entry) => entry.playerId === player.id);
+            if ((player.injured ?? 0) > 0) return player.seasonStatus ?? 'club';
+            if (worldCupActive && worldCupSelection && !worldCupSelection.eliminated) return 'international';
+            if (worldCupActive) return 'vacation';
+            if (nextPhase.mercato && nextPhase.window === 'été') return 'vacation';
+            return player.seasonStatus ?? 'club';
+          })(),
           fatigue: Math.max(0, (player.fatigue ?? 20) - 4),
           contractWeeksLeft: Math.max(0, (player.contractWeeksLeft ?? 0) - 1),
           injured: Math.max(0, (player.injured ?? 0) - 1),
@@ -925,21 +937,39 @@ export default function FootballAgentGame() {
   };
 
   const handleResetGame = () => {
-    if (!confirm('Réinitialiser ?')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    setState(createFreshState());
-    setView('dashboard');
-    setSaveMenuOpen(false);
-    showToast('Nouvelle partie', 'success');
+    setConfirmDialog({
+      title: 'Réinitialiser la partie ?',
+      body: 'Cette action remet l’agence à zéro et efface la sauvegarde locale. Tu repars au départ de carrière.',
+      confirmLabel: 'Réinitialiser',
+      tone: 'danger',
+      onConfirm: () => {
+        localStorage.removeItem(STORAGE_KEY);
+        setState(createFreshState());
+        setView('dashboard');
+        setSaveMenuOpen(false);
+        setConfirmDialog(null);
+        showToast('Nouvelle partie', 'success');
+      },
+    });
   };
 
   const handleNewGame = () => {
-    if (hasSave && !confirm('Commencer une nouvelle partie et remplacer la sauvegarde ?')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    setState(createFreshState());
-    setView('dashboard');
-    setSaveMenuOpen(false);
-    setHasSave(false);
+    setConfirmDialog({
+      title: 'Commencer une nouvelle partie ?',
+      body: hasSave
+        ? 'La sauvegarde actuelle sera remplacée. Tu peux relancer une nouvelle agence juste après.'
+        : 'Tu démarres une nouvelle partie et tu repars de zéro.',
+      confirmLabel: 'Nouvelle partie',
+      tone: 'danger',
+      onConfirm: () => {
+        localStorage.removeItem(STORAGE_KEY);
+        setState(createFreshState());
+        setView('dashboard');
+        setSaveMenuOpen(false);
+        setHasSave(false);
+        setConfirmDialog(null);
+      },
+    });
   };
 
   const startNegotiation = (player, type) => {
@@ -1401,6 +1431,17 @@ export default function FootballAgentGame() {
             showToast(`${modal.data.player.firstName} ${modal.data.player.lastName} — ${RETIREMENT_LABELS[pathId] ?? pathId}`, 'success');
           }}
           onClose={() => setModal(null)}
+        />
+      )}
+      {confirmDialog && (
+        <ConfirmModal
+          title={confirmDialog.title}
+          body={confirmDialog.body}
+          confirmLabel={confirmDialog.confirmLabel}
+          cancelLabel="Annuler"
+          tone={confirmDialog.tone}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
         />
       )}
       {/* Floating Action Button — play week from any view */}
