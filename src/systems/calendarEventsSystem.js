@@ -18,6 +18,7 @@
  */
 
 import { makeId } from '../utils/helpers';
+import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
 
 // ── Définitions des périodes saisonnières ────────────────────────────────────
 
@@ -104,13 +105,17 @@ const SEASONAL_NARRATIVES = {
  * @param {boolean} alreadyHasMessage - évite le spam
  * @returns message | null
  */
-export const maybeCreateSeasonalMessage = (player, periodKey, week, alreadyHasMessage) => {
+export const maybeCreateSeasonalMessage = (player, periodKey, week, alreadyHasMessage, state = null) => {
   if (alreadyHasMessage) return null;
   const narratives = SEASONAL_NARRATIVES[periodKey];
   if (!narratives?.length) return null;
   if (Math.random() > 0.35) return null; // 35% de chance qu'un seul joueur déclenche
 
   const narrative = narratives[Math.floor(Math.random() * narratives.length)];
+  if (narrative.type === 'media_pressure'
+      && (hasOpenMediaPressure(state, player.id) || getMediaCrisisCooldownWeeks(state, player.id) > 0)) {
+    return null;
+  }
   return {
     id: makeId('msg'),
     week,

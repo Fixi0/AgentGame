@@ -2129,7 +2129,7 @@ export const playWeek = (state) => {
     const alreadyHadSeasonalMsg = (state.sentSeasonalMessages ?? []).includes(weekKey);
     if (!alreadyHadSeasonalMsg && periodRoster.length > 0) {
       const targetPlayer = periodRoster[Math.floor(Math.random() * periodRoster.length)];
-      const seasonalMsg = maybeCreateSeasonalMessage(targetPlayer, activePeriod.key, state.week + 1, false);
+      const seasonalMsg = maybeCreateSeasonalMessage(targetPlayer, activePeriod.key, state.week + 1, false, state);
       if (seasonalMsg) generatedMessages.push(seasonalMsg);
     }
 

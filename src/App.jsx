@@ -649,6 +649,9 @@ export default function FootballAgentGame() {
         label: `${message.playerName}: ${responseAction?.label ?? responseText.split('\n')[0]}`,
         impact: mergedEffects.trust + mergedEffects.moral,
       });
+      const nextSocialCrisisCooldowns = message.type === 'media_pressure' && message.playerId
+        ? { ...(withMarketAction.socialCrisisCooldowns ?? {}), [message.playerId]: current.week + 6 }
+        : withMarketAction.socialCrisisCooldowns;
       const contextualFollowup = contextOutcome.followup
         ? {
             id: makeId('msg'),
@@ -688,6 +691,7 @@ export default function FootballAgentGame() {
         clubRelations: nextClubRelationsWithContext,
         clubMemory: nextClubMemoryWithContext,
         decisionHistory: nextDecisionHistory,
+        socialCrisisCooldowns: nextSocialCrisisCooldowns,
         roster: withMarketAction.roster.map((player) =>
           player.id === message.playerId
             ? {

@@ -4,6 +4,7 @@ import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, applyPl
 import { applyClubRelation } from './clubSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
 import { createNarrativeArc, mergeNarrativeArc } from './consequenceSystem';
+import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
 import { clamp, makeId, pick } from '../utils/helpers';
 
 const mediaAccounts = [
@@ -213,13 +214,19 @@ const worldTemplates = [
   },
 ];
 
-const getTemplatePool = ({ phase, player }) => worldTemplates.filter((template) => {
-  if (template.id === 'hidden_ambition') return (player.hiddenAmbition ?? 40) > 62;
-  if (template.id === 'professional_week') return player.personality === 'professionnel' || player.pressureTolerance > 65;
-  if (template.id === 'club_need') return phase.mercato;
-  if (template.id === 'supporters_pressure') return player.club !== 'Libre';
-  return true;
-});
+const MEDIA_PRESSURE_TEMPLATE_IDS = new Set(['media_phone', 'bad_press', 'fake_news', 'salary_leak']);
+
+const getTemplatePool = ({ phase, player, state }) => {
+  const mediaCooldownActive = hasOpenMediaPressure(state, player.id) || getMediaCrisisCooldownWeeks(state, player.id) > 0;
+  return worldTemplates.filter((template) => {
+    if (mediaCooldownActive && MEDIA_PRESSURE_TEMPLATE_IDS.has(template.id)) return false;
+    if (template.id === 'hidden_ambition') return (player.hiddenAmbition ?? 40) > 62;
+    if (template.id === 'professional_week') return player.personality === 'professionnel' || player.pressureTolerance > 65;
+    if (template.id === 'club_need') return phase.mercato;
+    if (template.id === 'supporters_pressure') return player.club !== 'Libre';
+    return true;
+  });
+};
 
 export const generateLivingWeek = ({ state, roster, phase }) => {
   if (!roster.length) {
@@ -246,7 +253,7 @@ export const generateLivingWeek = ({ state, roster, phase }) => {
     const club = CLUBS.find((item) => item.name === player.club) ?? pick(CLUBS);
     const media = pick(mediaAccounts);
     const rival = pickRivalAgent(rivalAgents);
-    const template = pick(getTemplatePool({ phase, player }));
+    const template = pick(getTemplatePool({ phase, player, state }));
     const text = template.text
       .replaceAll('{player}', `${player.firstName} ${player.lastName}`)
       .replaceAll('{club}', club.name)
