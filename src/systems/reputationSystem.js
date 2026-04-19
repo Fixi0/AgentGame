@@ -1,5 +1,7 @@
 import { clamp } from '../utils/helpers';
 
+export const AGENCY_REPUTATION_MAX = 1000;
+
 export const createDefaultSegmentReputation = () => ({
   sportif: 15,
   business: 15,
@@ -7,7 +9,9 @@ export const createDefaultSegmentReputation = () => ({
   ethique: 15,
 });
 
-export const applyReputationChange = (reputation, delta) => clamp(reputation + delta, 0, 100);
+export const normalizeAgencyReputation = (reputation = 0) => Math.floor((reputation ?? 0) / 10);
+
+export const applyReputationChange = (reputation, delta) => clamp(reputation + delta, 0, AGENCY_REPUTATION_MAX);
 
 export const applySegmentReputationChange = (segments = createDefaultSegmentReputation(), deltas = {}) =>
   Object.entries(createDefaultSegmentReputation()).reduce(
@@ -27,8 +31,8 @@ export const getSegmentDeltaForEvent = (event, reputationImpact = 0) => {
 };
 
 export const getMarketReachLabel = (reputation) => {
-  if (reputation >= 70) return 'Influence mondiale';
-  if (reputation >= 45) return 'Réseau international';
-  if (reputation >= 25) return 'Agence reconnue';
+  if (reputation >= 700) return 'Influence mondiale';
+  if (reputation >= 450) return 'Réseau international';
+  if (reputation >= 250) return 'Agence reconnue';
   return 'Agence locale';
 };

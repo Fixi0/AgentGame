@@ -1,5 +1,5 @@
 import { createMessage } from './messageSystem';
-import { applyReputationChange } from './reputationSystem';
+import { applyReputationChange, normalizeAgencyReputation } from './reputationSystem';
 import { addDecisionHistory, applyCredibilityChange, applyPlayerSegmentReputation, getPlayerSegment } from './agencyReputationSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
 import { signPlayer } from '../game/gameLogic';
@@ -77,7 +77,7 @@ const getAgencyBonus = (state, player) => {
   const profile = state.agencyProfile ?? {};
   const cityMatch = (player.preferredCities ?? []).includes(profile.city) ? 10 : 0;
   const countryMatch = (player.preferredCountries ?? []).includes(profile.countryCode) ? 10 : 0;
-  const repBonus = Math.floor((state.reputation ?? 0) / 8);
+  const repBonus = Math.floor(normalizeAgencyReputation(state.reputation ?? 0) / 8);
   const credBonus = Math.floor((state.credibility ?? 50) / 12);
   const marketReachBonus = profile.countryCode === player.countryCode ? 4 : 0;
   return cityMatch + countryMatch + repBonus + credBonus + marketReachBonus;

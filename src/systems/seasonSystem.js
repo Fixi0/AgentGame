@@ -1,6 +1,7 @@
 import { CLUBS, getCountry } from '../data/clubs';
 import { makeId, pick, rand } from '../utils/helpers';
 import { getWorldStateOfferModifier } from './worldStateSystem';
+import { normalizeAgencyReputation } from './reputationSystem';
 
 const SEASON_START_MONTH = 7; // August (0-indexed month)
 const SEASON_START_DAY = 1;
@@ -102,7 +103,7 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
 
     const ambitionBoost = ['ambitieux', 'mercenaire'].includes(player.personality) ? 0.1 : 0;
     const worldStateBoost = getWorldStateOfferModifier(worldState, player);
-    const repBoost = reputation / 400;
+    const repBoost = normalizeAgencyReputation(reputation) / 400;
     const totalChance = (isPreWindow ? preWindowChance : baseChance) + deadlineDayBonus + hotWeekBonus + ambitionBoost + worldStateBoost + repBoost;
 
     if (Math.random() > totalChance) continue;

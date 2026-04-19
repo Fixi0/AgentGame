@@ -1,6 +1,7 @@
 import { COUNTRIES } from '../data/clubs';
 import { getClubMemoryScore } from './clubSystem';
 import { clamp, makeId, pick, rand } from '../utils/helpers';
+import { normalizeAgencyReputation } from './reputationSystem';
 
 export const DIFFICULTIES = {
   facile: {
@@ -154,8 +155,9 @@ export const applyStartingProfileToState = (state, profilePatch) => {
   const difficulty = DIFFICULTIES[profilePatch.difficulty ?? 'realiste'] ?? DIFFICULTIES.realiste;
   const startProfile = STARTING_PROFILES[profilePatch.startProfile ?? 'ancien_joueur'] ?? STARTING_PROFILES.ancien_joueur;
   const segmentReputation = { ...(state.segmentReputation ?? {}) };
+  const reputationBase = normalizeAgencyReputation(state.reputation ?? difficulty.reputation * 10);
   Object.entries(startProfile.segment ?? {}).forEach(([key, delta]) => {
-    segmentReputation[key] = clamp((segmentReputation[key] ?? state.reputation) + delta, 0, 100);
+    segmentReputation[key] = clamp((segmentReputation[key] ?? reputationBase) + delta, 0, 100);
   });
 
   let playerSegmentReputation = createDefaultPlayerSegmentReputation();
@@ -166,7 +168,7 @@ export const applyStartingProfileToState = (state, profilePatch) => {
   return {
     ...state,
     money: difficulty.money,
-    reputation: difficulty.reputation,
+    reputation: difficulty.reputation * 10,
     credibility: applyCredibilityChange(difficulty.credibility, startProfile.credibility ?? 0),
     segmentReputation,
     playerSegmentReputation,

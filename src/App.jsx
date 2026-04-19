@@ -1122,7 +1122,7 @@ export default function FootballAgentGame() {
         </div>
         <div style={S.statsGrid}>
           <StatCard icon={<DollarSign size={14} />} label="CAPITAL" value={formatMoney(state.money)} accent="#00a676" />
-          <StatCard icon={<Star size={14} />} label="REPUTATION" value={`${state.reputation}/100`} accent="#2f80ed" />
+          <StatCard icon={<Star size={14} />} label="REPUTATION" value={`${state.reputation}/1000`} accent="#2f80ed" />
           <StatCard icon={<Users size={14} />} label="ROSTER" value={`${state.roster.length}/${getAgencyCapacity(state.agencyLevel)}`} accent="#3f5663" />
           <StatCard icon={<Trophy size={14} />} label="MESSAGES" value={pendingCounts.total} accent="#64727d" />
         </div>

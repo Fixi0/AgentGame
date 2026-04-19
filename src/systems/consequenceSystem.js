@@ -1,4 +1,5 @@
 import { MEDIA_RELATION_TEMPLATES, addDecisionHistory, applyCredibilityChange, applyMediaRelation, applyPlayerSegmentReputation, createDefaultCountryReputation, getPlayerSegment } from './agencyReputationSystem';
+import { normalizeAgencyReputation } from './reputationSystem';
 import { applyClubRelation } from './clubSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
 import { createMessage } from './messageSystem';
@@ -118,7 +119,7 @@ export const applyNewsConsequences = ({ state, roster, posts, week }) => {
   let nextRoster = roster;
   let mediaRelations = state.mediaRelations;
   let clubRelations = state.clubRelations;
-  let countryReputation = state.countryReputation ?? createDefaultCountryReputation(state.agencyProfile?.countryCode ?? 'FR', state.reputation ?? 12);
+  let countryReputation = state.countryReputation ?? createDefaultCountryReputation(state.agencyProfile?.countryCode ?? 'FR', normalizeAgencyReputation(state.reputation ?? 120));
   let leagueReputation = state.leagueReputation;
   let playerSegmentReputation = state.playerSegmentReputation;
   let credibility = state.credibility ?? 50;

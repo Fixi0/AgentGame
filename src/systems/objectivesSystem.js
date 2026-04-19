@@ -1,4 +1,5 @@
 import { makeId, pick, rand } from '../utils/helpers';
+import { normalizeAgencyReputation } from './reputationSystem';
 
 const OBJECTIVE_POOL = [
   'earn_money',
@@ -11,7 +12,8 @@ const OBJECTIVE_POOL = [
 ];
 
 function buildObjective(type, season, expiresWeek, rep) {
-  const difficulty = Math.max(1, Math.min(3, Math.ceil(rep / 35)));
+  const repScore = normalizeAgencyReputation(rep);
+  const difficulty = Math.max(1, Math.min(3, Math.ceil(repScore / 35)));
   const base = {
     id: makeId('obj'),
     type,
@@ -36,7 +38,7 @@ function buildObjective(type, season, expiresWeek, rep) {
       return { ...base, label: 'Signer un joueur libre', desc: `Recruter ${target} joueur(s) du marché des libres.`, target, reward: { money: 10000, rep: 3, gems: 4 } };
     }
     case 'reputation_gain': {
-      const target = rand(4, 6) * difficulty;
+      const target = rand(4, 6) * difficulty * 10;
       return { ...base, label: 'Gagner en réputation', desc: `Gagner +${target} points de réputation cette saison.`, target, reward: { money: 8000, rep: 6, gems: 5 } };
     }
     case 'keep_trust': {
@@ -57,7 +59,7 @@ function buildObjective(type, season, expiresWeek, rep) {
 export function generateSeasonObjectives(state) {
   const season = Math.ceil(state.week / 38);
   const expiresWeek = season * 38;
-  const rep = state.reputation ?? 30;
+  const rep = state.reputation ?? 300;
 
   const shuffled = [...OBJECTIVE_POOL].sort(() => Math.random() - 0.5);
   const chosen = shuffled.slice(0, 3);

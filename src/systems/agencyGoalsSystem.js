@@ -1,7 +1,7 @@
 export const createLongTermAgencyGoals = () => [
   { id: 'fr_top', label: 'Top agent France', target: 65, metric: 'FR', reward: 120000 },
   { id: 'eu_top', label: 'Top agent Europe', target: 55, metric: 'EU', reward: 250000 },
-  { id: 'world_top', label: 'Agence mondiale', target: 75, metric: 'GLOBAL', reward: 500000 },
+  { id: 'world_top', label: 'Agence mondiale', target: 750, metric: 'GLOBAL', reward: 500000 },
 ];
 
 export const getAgencyGoalProgress = (goal, state) => {

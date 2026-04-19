@@ -2,7 +2,7 @@ import { Activity, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Target, 
 import React from 'react';
 import { getAgencyCapacity } from '../systems/agencySystem';
 import { getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
-import { getMarketReachLabel } from '../systems/reputationSystem';
+import { getMarketReachLabel, normalizeAgencyReputation } from '../systems/reputationSystem';
 import { getStrategicSuggestions } from '../systems/suggestionSystem';
 import { getAgencyGoalProgress } from '../systems/agencyGoalsSystem';
 import { MEDIA_RELATION_TEMPLATES } from '../systems/agencyReputationSystem';
@@ -485,17 +485,17 @@ function RivalLeaderboard({ reputation, week, agencyProfile }) {
             </div>
             <div style={{ fontSize: 10, color: '#9aa7b2', fontFamily: 'system-ui,sans-serif' }}>{entry.city}</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ ...S.progBar, width: 50, margin: 0 }}>
-              <div style={{ ...S.progFill, width: `${entry.rep}%`, background: entry.isPlayer ? '#00a676' : entry.color }} />
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: entry.isPlayer ? '#00a676' : '#172026', fontFamily: 'system-ui,sans-serif', width: 24, textAlign: 'right' }}>{entry.rep}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ ...S.progBar, width: 50, margin: 0 }}>
+              <div style={{ ...S.progFill, width: `${Math.min(100, Math.round(entry.rep / 10))}%`, background: entry.isPlayer ? '#00a676' : entry.color }} />
+              </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: entry.isPlayer ? '#00a676' : '#172026', fontFamily: 'system-ui,sans-serif', width: 36, textAlign: 'right' }}>{entry.rep}</span>
           </div>
         </div>
       ))}
       {playerEntry && playerEntry.rank > 1 && (
         <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 6, textAlign: 'center' }}>
-          Tu es à <strong>{playerEntry.rank - 1}</strong> place{playerEntry.rank - 1 > 1 ? 's' : ''} du sommet · Réputation {playerEntry.rep}/100
+          Tu es à <strong>{playerEntry.rank - 1}</strong> place{playerEntry.rank - 1 > 1 ? 's' : ''} du sommet · Réputation {playerEntry.rep}/1000
         </div>
       )}
       {playerEntry && playerEntry.rank === 1 && (
@@ -589,10 +589,10 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           <div key={key} style={S.segmentCard}>
             <div style={S.segmentHead}>
               <span>{label}</span>
-              <strong>{segments[key] ?? state.reputation}</strong>
+              <strong>{segments[key] ?? normalizeAgencyReputation(state.reputation)}</strong>
             </div>
             <div style={S.progBar}>
-              <div style={{ ...S.progFill, width: `${segments[key] ?? state.reputation}%`, background: key === 'media' ? '#2f80ed' : key === 'business' ? '#172026' : key === 'ethique' ? '#00a676' : '#3f5663' }} />
+              <div style={{ ...S.progFill, width: `${segments[key] ?? normalizeAgencyReputation(state.reputation)}%`, background: key === 'media' ? '#2f80ed' : key === 'business' ? '#172026' : key === 'ethique' ? '#00a676' : '#3f5663' }} />
             </div>
           </div>
         ))}
@@ -706,11 +706,8 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           <Target size={14} />
           <span>OBJECTIFS SAISON {phase.season}</span>
         </div>
-        {state.objectives.map((objective) => {
-          let progress = 0;
-          if (objective.type === 'money') progress = state.stats.totalEarned;
-          else if (objective.type === 'rep') progress = state.reputation;
-          else progress = state.stats.transfersDone;
+        {(state.seasonObjectives ?? []).map((objective) => {
+          const progress = objective.current ?? 0;
           const percent = Math.min(100, Math.round((progress / objective.target) * 100));
 
           return (

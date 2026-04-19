@@ -55,11 +55,11 @@ function seededRandom(seed) {
 
 function getRivalRep(agency, week) {
   // Légère dérive chaque semaine — jamais trop loin de la base
-  let rep = agency.baseRep;
+  let rep = agency.baseRep * 10;
   for (let i = 1; i <= week; i++) {
     const hash = i * 13 + agency.id.charCodeAt(0) * 7;
-    const delta = (seededRandom(hash) - 0.48) * 2.5; // -1.2 à +1.3 par semaine
-    rep = Math.min(100, Math.max(30, rep + delta));
+    const delta = (seededRandom(hash) - 0.48) * 25; // -12 à +13 par semaine
+    rep = Math.min(1000, Math.max(300, rep + delta));
   }
   return Math.round(rep);
 }

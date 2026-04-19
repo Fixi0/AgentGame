@@ -1,4 +1,5 @@
 import { makeId, pick, rand } from '../utils/helpers';
+import { normalizeAgencyReputation } from './reputationSystem';
 
 const COOLDOWN_WEEKS = 2;
 
@@ -143,7 +144,7 @@ export function callContact(state, contactId) {
 }
 
 export function getContactTip(contact, state) {
-  const rep = state.reputation ?? 30;
+  const rep = normalizeAgencyReputation(state.reputation ?? 300);
   const week = state.week ?? 1;
   const highTrust = contact.trust >= 50;
 

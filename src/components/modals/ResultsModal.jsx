@@ -125,7 +125,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               <div style={S.recapGrid}>
                 <div style={S.recapItem}><strong>{data.seasonRecap.transfers}</strong><span> transferts</span></div>
                 <div style={S.recapItem}><strong>{formatMoney(data.seasonRecap.earned)}</strong><span> gagnés</span></div>
-                <div style={S.recapItem}><strong>{data.seasonRecap.reputation}</strong><span> réputation</span></div>
+                <div style={S.recapItem}><strong>{data.seasonRecap.reputation}</strong><span> réputation /1000</span></div>
                 <div style={S.recapItem}><strong>{data.seasonRecap.objectivesCompleted}/3</strong><span> objectifs</span></div>
               </div>
             </div>

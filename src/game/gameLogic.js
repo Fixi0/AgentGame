@@ -3,7 +3,7 @@ import { COUNTRY_NAME_POOLS, FIRST_NAMES, HIDDEN_TRAITS, LAST_NAMES, LEGENDARY_P
 import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
 import { getAgencyCapacity, getAgencyUpgradeCost } from '../systems/agencySystem';
-import { applyReputationChange, applySegmentReputationChange, createDefaultSegmentReputation, getSegmentDeltaForEvent } from '../systems/reputationSystem';
+import { applyReputationChange, applySegmentReputationChange, createDefaultSegmentReputation, getSegmentDeltaForEvent, normalizeAgencyReputation } from '../systems/reputationSystem';
 import { getDepartureRisk, getInitialTrust } from '../systems/relationshipSystem';
 import { createManualNewsPost, createNewsPost } from '../systems/newsSystem';
 import { createMessage, maybeCreateContextualMessage, MIN_PLAYER_MSG_COOLDOWN, MAX_WEEKLY_MESSAGES } from '../systems/messageSystem';
@@ -75,7 +75,7 @@ const scaleReputationDelta = (delta) => {
 };
 
 const getWeightedCountry = (reputation) => {
-  const unlocked = getUnlockedCountries(reputation);
+  const unlocked = getUnlockedCountries(normalizeAgencyReputation(reputation));
   const weightedPool = unlocked.flatMap((country) => Array.from({ length: country.marketWeight }, () => country));
   return pick(weightedPool);
 };
@@ -99,9 +99,10 @@ const getClubForPlayerLevel = (countryCode, rating, potential) => {
 };
 
 const generateRealisticRating = (reputation, scoutLevel, young) => {
+  const repTier = normalizeAgencyReputation(reputation);
   // Base range tightened — young players are raw prospects, not stars
   const base = young ? rand(52, 63) : rand(55, 68);
-  const repBoost = Math.floor(Math.min(40, reputation) / 9);
+  const repBoost = Math.floor(Math.min(40, repTier) / 9);
   const scoutBoost = Math.floor(scoutLevel * 1.0);
   let rating = base + repBoost + scoutBoost + rand(-2, 3);
 
@@ -111,11 +112,11 @@ const generateRealisticRating = (reputation, scoutLevel, young) => {
   // 80-85: unlocks at rep 50  (~mid game, 1-2 seasons in)
   // 86-91: unlocks at rep 75  (~late game, 3+ seasons)
   const eliteRoll = Math.random();
-  if (reputation >= 75 && eliteRoll < 0.018 + (reputation - 75) / 1500 + scoutLevel / 900) {
+  if (repTier >= 75 && eliteRoll < 0.018 + (repTier - 75) / 1500 + scoutLevel / 900) {
     rating = rand(86, 91);
-  } else if (reputation >= 50 && eliteRoll < 0.026 + (reputation - 50) / 2000 + scoutLevel / 700) {
+  } else if (repTier >= 50 && eliteRoll < 0.026 + (repTier - 50) / 2000 + scoutLevel / 700) {
     rating = rand(80, 85);
-  } else if (reputation >= 32 && eliteRoll < 0.038 + (reputation - 32) / 2500) {
+  } else if (repTier >= 32 && eliteRoll < 0.038 + (repTier - 32) / 2500) {
     rating = rand(76, 79);
   }
 
@@ -485,7 +486,7 @@ export const createFreshState = () => ({
   money: 25000,
   gems: 0,
   legendarySeenIds: [],
-  reputation: 12,
+  reputation: 120,
   credibility: 52,
   difficulty: 'realiste',
   startProfile: 'ancien_joueur',
@@ -512,10 +513,10 @@ export const createFreshState = () => ({
   worldState: generateWorldState(1),
   worldCupState: null,
   contacts: createDefaultContacts(),
-  seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 12 }),
+  seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 120 }),
   roster: [],
-  market: generateMarket(12, 0),
-  freeAgents: generateFreeAgents(12),
+  market: generateMarket(120, 0),
+  freeAgents: generateFreeAgents(120),
   leagueTables: createInitialLeagueTables(),
   leagueReputation: createDefaultLeagueReputation(DEFAULT_AGENCY_PROFILE.countryCode),
   clubRelations: createDefaultClubRelations(),
@@ -545,6 +546,20 @@ export const migrateState = (state) => {
   if (!state) return createFreshState();
 
   const asArray = (value, fallback = []) => (Array.isArray(value) ? value : fallback);
+  const rawReputation = state.reputation ?? 120;
+  const reputation = rawReputation <= 100 ? rawReputation * 10 : rawReputation;
+  const repTier = normalizeAgencyReputation(reputation);
+  const convertLegacyObjective = (objective) => {
+    if (!objective) return objective;
+    if (objective.type === 'rep' || objective.type === 'reputation_gain') {
+      return {
+        ...objective,
+        target: typeof objective.target === 'number' ? objective.target * 10 : objective.target,
+        current: typeof objective.current === 'number' ? objective.current * 10 : objective.current,
+      };
+    }
+    return objective;
+  };
 
   return {
     ...state,
@@ -553,7 +568,7 @@ export const migrateState = (state) => {
     credibility: state.credibility ?? 52,
     difficulty: state.difficulty ?? state.agencyProfile?.difficulty ?? 'realiste',
     startProfile: state.startProfile ?? state.agencyProfile?.startProfile ?? 'ancien_joueur',
-    countryReputation: state.countryReputation ?? createDefaultCountryReputation(state.agencyProfile?.countryCode ?? 'FR', state.reputation ?? 12),
+    countryReputation: state.countryReputation ?? createDefaultCountryReputation(state.agencyProfile?.countryCode ?? 'FR', normalizeAgencyReputation(state.reputation ?? 120)),
     mediaRelations: { ...createDefaultMediaRelations(), ...(state.mediaRelations ?? {}) },
     playerSegmentReputation: { ...createDefaultPlayerSegmentReputation(), ...(state.playerSegmentReputation ?? {}) },
     rivalAgents: state.rivalAgents ?? createDefaultRivalAgents(),
@@ -570,7 +585,7 @@ export const migrateState = (state) => {
     pendingChainedEvents: state.pendingChainedEvents ?? [],
     seasonAwards: state.seasonAwards ?? {},
     worldState: state.worldState ?? generateWorldState(1),
-    freeAgents: state.freeAgents ?? generateFreeAgents(state.reputation ?? 12),
+    freeAgents: state.freeAgents ?? generateFreeAgents(reputation),
     leagueTables: mergeWithInitialLeagueTables(state.leagueTables),
     leagueReputation: state.leagueReputation ?? createDefaultLeagueReputation(state.agencyProfile?.countryCode ?? 'FR'),
     clubRelations: state.clubRelations ?? createDefaultClubRelations(),
@@ -580,12 +595,14 @@ export const migrateState = (state) => {
     lastFixtures: asArray(state.lastFixtures),
     nextFixtures: asArray(state.nextFixtures),
     agencyLevel: state.agencyLevel ?? 4,
-    history: asArray(state.history),
+    history: asArray(state.history).map((entry) => (entry && typeof entry === 'object' && typeof entry.rep === 'number'
+      ? { ...entry, rep: entry.rep <= 100 ? entry.rep * 10 : entry.rep }
+      : entry)),
     news: asArray(state.news),
     messages: asArray(state.messages),
-    agencyGoals: state.agencyGoals ?? createLongTermAgencyGoals(),
+    agencyGoals: asArray(state.agencyGoals, createLongTermAgencyGoals()).map((goal) => (goal.metric === 'GLOBAL' && goal.target <= 100 ? { ...goal, target: goal.target * 10 } : goal)),
     contacts: state.contacts ?? createDefaultContacts(),
-    seasonObjectives: state.seasonObjectives ?? generateSeasonObjectives({ week: state.week ?? 1, reputation: state.reputation ?? 12 }),
+    seasonObjectives: (asArray(state.seasonObjectives).length ? asArray(state.seasonObjectives) : generateSeasonObjectives({ week: state.week ?? 1, reputation })).map(convertLegacyObjective),
     gems: state.gems ?? 0,
     lastInteractiveEventWeek: state.lastInteractiveEventWeek ?? 0,
     legendarySeenIds: state.legendarySeenIds ?? [],
@@ -614,7 +631,7 @@ export const migrateState = (state) => {
     freeAgents: asArray(state.freeAgents),
     promises: normalizePromises(asArray(state.promises)),
     roster: asArray(state.roster).map((player) => {
-      const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
+      const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
 
@@ -648,8 +665,8 @@ export const migrateState = (state) => {
         europeanCompetition: player.europeanCompetition ?? getEuropeanCompetition(player),
       };
     }),
-    market: (asArray(state.market).length ? asArray(state.market) : generateMarket(state.reputation ?? 15, state.office?.scoutLevel ?? 0)).map((player) => {
-      const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
+    market: (asArray(state.market).length ? asArray(state.market) : generateMarket(reputation, state.office?.scoutLevel ?? 0)).map((player) => {
+      const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
 
@@ -760,7 +777,7 @@ export const refreshMarket = (state) => {
     (l) => !seenIds.includes(l.id) && !state.roster.some((p) => p.id === l.id),
   );
   let nextSeenIds = seenIds;
-  if (availableLegends.length > 0 && state.reputation >= 80 && Math.random() < 0.015) {
+  if (availableLegends.length > 0 && normalizeAgencyReputation(state.reputation) >= 80 && Math.random() < 0.015) {
     const legend = availableLegends[Math.floor(Math.random() * availableLegends.length)];
     newMarket = [legend, ...newMarket];
     nextSeenIds = [...seenIds, legend.id];
@@ -2258,6 +2275,9 @@ export const playWeek = (state) => {
   if (totalIncome > 0) {
     currentObjectives = updateObjectiveProgress(currentObjectives, { type: 'earn_money', amount: totalIncome });
   }
+  if (reputationChange > 0) {
+    currentObjectives = updateObjectiveProgress(currentObjectives, { type: 'reputation_gain', amount: reputationChange });
+  }
   const objectiveCheck = checkObjectiveCompletion(currentObjectives);
   currentObjectives = objectiveCheck.objectives;
   if (objectiveCheck.rewards.money > 0) {
@@ -2671,7 +2691,7 @@ export const applyChoice = (state, event, player, choice) => {
   }
 
   if (effects.repCheck) {
-    if (nextState.reputation >= effects.repCheck) {
+    if (normalizeAgencyReputation(nextState.reputation) >= effects.repCheck) {
       nextState = {
         ...nextState,
         money: nextState.money + 5000,
