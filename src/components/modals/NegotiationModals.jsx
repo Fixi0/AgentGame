@@ -3,7 +3,7 @@ import { ArrowUpRight, ChevronDown, ChevronUp, Handshake, X } from 'lucide-react
 import { CLUBS, getCountry } from '../../data/clubs';
 import { getNegotiationModifier } from '../../systems/relationshipSystem';
 import { formatMoney } from '../../utils/format';
-import { pick, rand } from '../../utils/helpers';
+import { clamp, pick, rand } from '../../utils/helpers';
 import { S } from '../styles';
 
 const CONTRACT_ROLES = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
