@@ -18,6 +18,59 @@ const getBaseTerms = (offer, player) => ({
   bonusPackage: Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * 10)),
 });
 
+const ROLE_ORDER = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
+
+const roleIndex = (role) => Math.max(0, ROLE_ORDER.indexOf(role));
+
+const getClubAssessment = (terms, baseTerms, round, player) => {
+  const roleGap = roleIndex(terms.role) - roleIndex(baseTerms.role);
+  const yearsGap = terms.contractYears - baseTerms.contractYears;
+  const salaryGap = terms.salMult - baseTerms.salMult;
+  const bonusGap = (terms.signingBonus - baseTerms.signingBonus) / Math.max(1, player.weeklySalary ?? 1);
+  const clauseGap = Math.max(0, (baseTerms.releaseClause * 0.95) - terms.releaseClause) / Math.max(1, player.value ?? 1);
+  const sellOnGap = Math.max(0, terms.sellOnPercent - baseTerms.sellOnPercent) / 10;
+
+  const pressure =
+    Math.max(0, roleGap) * 0.28
+    + Math.max(0, yearsGap) * 0.10
+    + Math.max(0, salaryGap) * 0.45
+    + Math.max(0, bonusGap) * 0.16
+    + clauseGap * 0.25
+    + sellOnGap * 0.12
+    - Math.max(0, -yearsGap) * 0.05
+    - Math.max(0, -salaryGap) * 0.10;
+
+  const patience = 0.24 + (round - 1) * 0.08;
+  const accepted = pressure <= patience;
+  const roleShifted = roleGap !== 0;
+  const durationShifted = yearsGap !== 0;
+
+  let label = 'Le club écoute sans se prononcer.';
+  if (accepted) {
+    if (roleShifted && durationShifted) {
+      label = 'Le club accepte de discuter le rôle et la durée, mais veut cadrer les derniers détails.';
+    } else if (roleShifted) {
+      label = 'Le club accepte le principe, mais veut un vrai accord sur le rôle.';
+    } else if (durationShifted) {
+      label = 'Le club accepte la durée demandée, sous réserve des dernières clauses.';
+    } else {
+      label = 'Le club valide les termes. Tu peux signer.';
+    }
+  } else if (roleIndex(terms.role) >= roleIndex('Star')) {
+    label = 'Le club refuse de promettre un statut Star à ce stade.';
+  } else if (roleShifted) {
+    label = `Le club veut ramener le rôle à ${baseTerms.role} ou Titulaire.`;
+  } else if (yearsGap > 0) {
+    label = `Le club préfère ${baseTerms.contractYears} ans, pas ${terms.contractYears}.`;
+  } else if (salaryGap > 0.1) {
+    label = 'Le club trouve le salaire trop haut et veut une contrepartie.';
+  } else {
+    label = 'Le club demande un tour de négociation supplémentaire.';
+  }
+
+  return { accepted, label, roleShifted, durationShifted };
+};
+
 const buildOutcome = (terms) => ({
   success: true,
   price: Math.floor(terms.price),
@@ -33,15 +86,22 @@ const buildOutcome = (terms) => ({
     appearances: Math.floor(terms.bonusPackage * 0.35),
     europe: Math.floor(terms.bonusPackage * 0.3),
   },
+  contractClauses: {
+    rolePromise: terms.role,
+    rolePromiseStrength: terms.role === 'Star' ? 'forte' : terms.role === 'Titulaire' ? 'normale' : 'limitée',
+    coachRoleProtection: true,
+  },
 });
 
 export default function OfferContractModal({ offer, player, readiness, onClose, onSign, onReject }) {
+  const baseTerms = useMemo(() => getBaseTerms(offer, player), [offer, player]);
   const [terms, setTerms] = useState(() => getBaseTerms(offer, player));
   const [status, setStatus] = useState({
     tone: readiness?.tone ?? 'good',
     label: readiness?.reason ?? 'Offre prête.',
   });
   const [round, setRound] = useState(1);
+  const clubAssessment = useMemo(() => getClubAssessment(terms, baseTerms, round, player), [terms, baseTerms, round, player]);
 
   const warningTone = status.tone === 'danger';
   const statusColor = warningTone ? '#b42318' : status.tone === 'warn' ? '#b45309' : '#00a676';
@@ -49,21 +109,11 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
 
   const editField = (key, value) => setTerms((prev) => ({ ...prev, [key]: value }));
 
-  const negotiationPressure = useMemo(() => {
-    const priceDelta = (terms.price - offer.price) / Math.max(1, offer.price);
-    const salaryDelta = terms.salMult - (offer.salMult ?? 1.2);
-    const bonusDelta = (terms.signingBonus - Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * 8))) / Math.max(1, player.value || 1);
-    const clauseDelta = terms.releaseClause < (player.value ?? 1000000) * 1.2 ? 0.14 : 0;
-    const roleDelta = terms.role === 'Star' ? 0.14 : terms.role === 'Titulaire' ? 0.06 : -0.03;
-    return priceDelta * 1.1 + salaryDelta * 0.85 + bonusDelta * 2.4 + clauseDelta + roleDelta;
-  }, [terms, offer, player]);
-
   const handleCounter = () => {
-    const patience = clamp(0.74 - round * 0.12 - Math.max(0, negotiationPressure), 0.08, 0.9);
-    if (Math.random() <= patience) {
+    if (clubAssessment.accepted) {
       setStatus({
         tone: 'good',
-        label: `Contre-proposition acceptée (${round}/3). Tu peux signer maintenant.`,
+        label: clubAssessment.label,
       });
       setRound((value) => Math.min(3, value + 1));
       return;
@@ -71,22 +121,47 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
 
     const tonedDown = {
       ...terms,
-      price: Math.floor(terms.price * 0.97),
-      salMult: clamp(terms.salMult * 0.98, 0.9, 2.6),
-      signingBonus: Math.floor(terms.signingBonus * 0.95),
-      releaseClause: Math.floor(Math.max((player.value ?? 1000000) * 1.15, terms.releaseClause)),
     };
+    if (clubAssessment.roleShifted) {
+      tonedDown.role = baseTerms.role === 'Star' ? 'Titulaire' : baseTerms.role;
+    }
+    if (clubAssessment.durationShifted && terms.contractYears > baseTerms.contractYears) {
+      tonedDown.contractYears = Math.max(baseTerms.contractYears, terms.contractYears - 1);
+    }
+    if (terms.salMult > baseTerms.salMult) {
+      tonedDown.salMult = clamp(terms.salMult - 0.04, 0.9, 2.8);
+    }
+    if (terms.signingBonus > baseTerms.signingBonus) {
+      tonedDown.signingBonus = Math.floor(Math.max(baseTerms.signingBonus, terms.signingBonus * 0.92));
+    }
+    if (terms.releaseClause < baseTerms.releaseClause) {
+      tonedDown.releaseClause = Math.floor(Math.max(baseTerms.releaseClause, terms.releaseClause * 1.08));
+    }
+    if (terms.sellOnPercent < baseTerms.sellOnPercent) {
+      tonedDown.sellOnPercent = clamp(baseTerms.sellOnPercent, 0, 25);
+    }
+    tonedDown.price = Math.floor(terms.price * 0.97);
     setTerms(tonedDown);
     setStatus({
       tone: round >= 3 ? 'danger' : 'warn',
       label: round >= 3
-        ? 'Le club est au bord de la rupture. Dernière chance avant retrait.'
-        : 'Le club refuse ces conditions et renvoie une contre-proposition.',
+        ? `${clubAssessment.label} Dernière chance avant retrait.`
+        : clubAssessment.label,
     });
     setRound((value) => Math.min(3, value + 1));
   };
 
-  const handleSign = () => onSign(buildOutcome(terms));
+  const handleSign = () => {
+    if (!clubAssessment.accepted) {
+      setStatus({
+        tone: clubAssessment.roleShifted || clubAssessment.durationShifted ? 'warn' : 'danger',
+        label: clubAssessment.label,
+      });
+      setRound((value) => Math.min(3, value + 1));
+      return;
+    }
+    onSign(buildOutcome(terms));
+  };
 
   return (
     <div style={S.overlay}>
@@ -156,6 +231,11 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
             <div style={{ fontSize: 13, color: '#172026', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
               {status.label}
             </div>
+            <div style={{ marginTop: 8, fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45 }}>
+              {clubAssessment.accepted
+                ? 'Le bouton signer devient logique uniquement quand le club a validé les points sensibles.'
+                : 'Tu dois laisser le club répondre avant de conclure si tu modifies le rôle ou la durée.'}
+            </div>
           </div>
 
           <div style={S.choiceList}>
@@ -168,7 +248,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
             <button type="button" onClick={handleCounter} style={S.choiceBtn}>
               <div>
                 <div style={S.chLabel}><RefreshCcw size={14} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />Envoyer une contre-offre</div>
-                <div style={S.chDesc}>Le club peut accepter, renvoyer ou casser le dossier</div>
+                <div style={S.chDesc}>Le club répond vraiment au rôle, à la durée et au salaire</div>
               </div>
             </button>
             <button type="button" onClick={onReject} style={{ ...S.choiceBtn, borderColor: '#b42318' }}>

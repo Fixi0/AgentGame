@@ -859,6 +859,7 @@ const buildTransferAgreement = (player, offer, negotiatedOutcome = null) => {
     ballonDorBonus: Math.floor(player.weeklySalary * 16),
     noCutClause: player.age <= 25,
     coachRoleProtection: true,
+    rolePromise: clubRole,
   };
   const commission = Math.floor(finalPrice * 0.08 + signingBonus * 0.05 + (clubBonuses.total ?? 0) * 0.02);
   return {
@@ -1679,10 +1680,12 @@ export const playWeek = (state) => {
     if (matchResult?.matchRating) {
       const resultMoral = matchResult.result === 'win' ? 2 : matchResult.result === 'loss' ? -2 : 0;
       const contributionMoral = matchResult.goals || matchResult.assists ? 2 : 0;
+      const promisedRole = updatedPlayer.contractClauses?.rolePromise ?? updatedPlayer.clubRole;
+      const roleProtection = updatedPlayer.contractClauses?.coachRoleProtection ?? false;
       const promisedRolePenalty =
-        (updatedPlayer.clubRole === 'Star' && matchResult.minutes < 70)
+        ((promisedRole === 'Star' || (roleProtection && updatedPlayer.clubRole === 'Star')) && matchResult.minutes < 70)
           ? { moral: -5, trust: -4, label: 'Rôle Star non respecté' }
-          : (updatedPlayer.clubRole === 'Titulaire' && matchResult.minutes < 55)
+          : ((promisedRole === 'Titulaire' || (roleProtection && updatedPlayer.clubRole === 'Titulaire')) && matchResult.minutes < 55)
             ? { moral: -3, trust: -3, label: 'Temps de jeu inférieur au rôle promis' }
             : null;
       const matchOutcome = matchResult.result === 'win' ? 'W' : matchResult.result === 'loss' ? 'L' : 'D';
@@ -1695,7 +1698,7 @@ export const playWeek = (state) => {
         brandValue: clamp((updatedPlayer.brandValue ?? 10) + (matchResult.matchRating >= 7.5 ? 2 : matchResult.matchRating < 5.8 ? -1 : 0) + (matchResult.goals ? 1 : 0), 0, 100),
         fatigue: clamp((updatedPlayer.fatigue ?? 20) + Math.floor(matchResult.minutes / 12) + (matchResult.result === 'loss' ? 2 : 0), 0, 100),
         seasonStats: updateSeasonStats(updatedPlayer.seasonStats, matchResult),
-        matchHistory: matchResult ? [{ week: state.week, roleExpectation: promisedRolePenalty?.label, ...matchResult }, ...(updatedPlayer.matchHistory ?? [])].slice(0, 12) : updatedPlayer.matchHistory ?? [],
+        matchHistory: matchResult ? [{ week: state.week, roleExpectation: promisedRolePenalty?.label ?? promisedRole, ...matchResult }, ...(updatedPlayer.matchHistory ?? [])].slice(0, 12) : updatedPlayer.matchHistory ?? [],
         recentResults: updatedRecentResults,
       };
       if (promisedRolePenalty) {
@@ -2775,6 +2778,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
       ballonDorBonus: Math.floor(player.weeklySalary * 16),
       noCutClause: player.age <= 25,
       coachRoleProtection: true,
+      rolePromise: clubRole,
     };
     const commission = Math.floor(outcome.price * 0.08 + signingBonus * 0.05 + (clubBonuses.total ?? 0) * 0.02);
     const nextRoster = nextState.roster.map((rosterPlayer) =>
@@ -2845,6 +2849,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
       ballonDorBonus: Math.floor(player.weeklySalary * 16),
       noCutClause: player.age <= 25,
       coachRoleProtection: true,
+      rolePromise: clubRole,
     };
     const bonus = Math.floor(signingBonus * 0.08 + (clubBonuses.total ?? 0) * 0.02 + player.value * 0.01);
     const contractWeeks = outcome.contractWeeks ?? 104;

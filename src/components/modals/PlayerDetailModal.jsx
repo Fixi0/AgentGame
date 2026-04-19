@@ -262,6 +262,12 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                     <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>RÔLE PROTÉGÉ</div>
                     <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{player.contractClauses.coachRoleProtection ? 'Oui' : 'Non'}</div>
                   </div>
+                  {player.contractClauses.rolePromise && (
+                    <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '6px 8px', gridColumn: '1 / -1' }}>
+                      <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>RÔLE PROMIS</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{player.contractClauses.rolePromise}</div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
