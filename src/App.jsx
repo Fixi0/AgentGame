@@ -110,6 +110,9 @@ const getExtensionReadiness = (state, player) => {
 
 const buildResponseContextTail = ({ message, player, responseAction }) => {
   const participant = getConversationParticipant(message);
+  const weeksAtClub = player?.contractStartWeek != null
+    ? Math.max(0, (message?.week ?? 0) - player.contractStartWeek)
+    : null;
   const dossierLabel = player?.clubRole
     ? `statut ${player.clubRole}`
     : player?.careerStatus
@@ -124,7 +127,10 @@ const buildResponseContextTail = ({ message, player, responseAction }) => {
         : 'staff'
     : 'joueur';
   const threadContext = message?.context ? `contexte ${String(message.context).replace(/_/g, ' ')}` : 'contexte direct';
-  const pieces = [`Réponse alignée avec ${targetLabel}`, threadContext, dossierLabel];
+  const arrivalLabel = weeksAtClub != null && weeksAtClub < 10
+    ? `arrivée récente (${weeksAtClub} sem.)`
+    : null;
+  const pieces = [`Réponse alignée avec ${targetLabel}`, threadContext, dossierLabel, arrivalLabel].filter(Boolean);
   if (lastAction) pieces.push(`dernière action: ${lastAction}`);
   return `\n\n[${pieces.join(' · ')}]`;
 };
@@ -556,9 +562,24 @@ export default function FootballAgentGame() {
   const handleMessageResponse = (messageId, responseType) => {
     const effects = responseEffects[responseType];
     const currentMessage = state.messages.find((item) => item.id === messageId);
-    const responseAction = currentMessage ? getMessageResponseAction(currentMessage, responseType) : null;
+    const currentMessageContext = String(currentMessage?.context ?? '');
+    const isDealContext = ['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(currentMessageContext);
+    let responseAction = currentMessage ? getMessageResponseAction(currentMessage, responseType) : null;
     const targetPlayer = currentMessage ? state.roster.find((player) => player.id === currentMessage.playerId) : null;
-    if (currentMessage && responseAction?.type === 'market_watch' && targetPlayer) {
+    const weeksAtClub = targetPlayer?.contractStartWeek != null
+      ? Math.max(0, current.week - targetPlayer.contractStartWeek)
+      : null;
+    const freshArrivalTransfer = Boolean(
+      currentMessage?.type === 'transfer_request'
+      && targetPlayer
+      && !isDealContext
+      && weeksAtClub != null
+      && weeksAtClub < 10,
+    );
+    if (freshArrivalTransfer) {
+      responseAction = { type: 'deal_followup', label: 'Intégration du nouveau contrat' };
+    }
+    if (currentMessage && responseAction?.type === 'market_watch' && targetPlayer && !freshArrivalTransfer) {
       setModal({
         type: 'shortlist',
         data: {
@@ -605,7 +626,7 @@ export default function FootballAgentGame() {
       if (!message) return current;
       const targetPlayer = current.roster.find((player) => player.id === message.playerId);
       const contextOutcome = getMessageContextOutcome({ message, responseType, player: targetPlayer });
-      const promise = createPromiseFromMessage({ message, week: current.week, responseType, existingPromises: current.promises });
+      const promise = createPromiseFromMessage({ message, week: current.week, responseType, existingPromises: current.promises, player: targetPlayer });
       const responseAction = contextOutcome.actionOverride ?? getMessageResponseAction(message, responseType);
       const responseTextBase = contextOutcome.responseTextOverride ?? getResponseCopy(message, responseType, targetPlayer);
       const responseText = `${responseTextBase}${buildResponseContextTail({ message, player: targetPlayer, responseAction })}`;
@@ -822,7 +843,7 @@ export default function FootballAgentGame() {
       const currentMessage = current.messages.find((item) => item.id === message.id);
       const currentPlayer = current.roster.find((item) => item.id === player.id) ?? player;
       if (!currentMessage || !currentPlayer) return current;
-      const promise = createPromiseFromMessage({ message: currentMessage, week: current.week, responseType, existingPromises: current.promises });
+      const promise = createPromiseFromMessage({ message: currentMessage, week: current.week, responseType, existingPromises: current.promises, player: currentPlayer });
       const nextClubRelations = selectedClubs.reduce(
         (relations, club) => applyClubRelation(relations, club.name, satisfied ? 1 : -1),
         proposal.state.clubRelations,

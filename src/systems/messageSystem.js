@@ -304,6 +304,11 @@ const RESPONSE_OPTIONS_BY_TYPE = {
 
 const isDealContext = (message) => ['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(message?.context);
 
+const getWeeksAtClub = (player, week = 0) => {
+  if (!player) return 0;
+  return Math.max(0, week - (player.contractStartWeek ?? week));
+};
+
 export const getConversationParticipant = (message) => {
   if (!message) return { label: 'Contact', role: 'unknown', audience: 'unknown' };
   const rawContext = String(message.context ?? '');
@@ -363,9 +368,9 @@ export const getContextualResponseOptions = (message) => {
 
   if (message.type === 'transfer_request') {
     return {
-      professionnel: 'Valider le plan',
-      empathique: 'Rassurer le joueur',
-      ferme: 'Focus performance',
+      professionnel: 'Valider la transition',
+      empathique: 'Rassurer sur le projet',
+      ferme: 'Clore le dossier',
     };
   }
 
@@ -470,6 +475,11 @@ export const getResponseCopy = (message, responseType, player = null) => {
     if (responseType === 'professionnel') return `Parfait, on verrouille la suite proprement.\n\nJe valide le plan de transition avec le club et je te protège sur toute la phase avant l'arrivée officielle: communication, temps de jeu, et aucun bruit inutile.\n\n${lastContactWeeks != null && lastContactWeeks > 4 ? 'Je sais qu’on a manqué de suivi récemment, je corrige ça.' : 'Tu restes concentré, je gère la partie contractuelle et média.'}`;
     if (responseType === 'empathique') return "Je suis content pour toi, vraiment.\n\nTu as mérité ce deal et on va le vivre proprement jusqu'au bout. Si tu as une inquiétude (ville, rythme, pression), tu me l'envoies direct et je la traite.\n\nOn avance ensemble, sans te laisser seul dans cette transition.";
     return "Le deal est signé, maintenant on passe en mode performance.\n\nPas de distraction, pas de drama. Tu montres que le club a fait le bon choix et moi je sécurise tout le reste autour de toi.\n\nOn garde la tête froide et on enchaîne.";
+  }
+  if (message.type === 'transfer_request' && player && getWeeksAtClub(player, message.week) < 10) {
+    if (responseType === 'professionnel') return "Tu viens d'arriver, donc on ne parle pas de départ maintenant.\n\nMon job, c'est de t'aider à t'installer, comprendre le rôle, et faire monter ta valeur dans le bon contexte. On reviendra sur le marché plus tard si le projet ne colle plus, pas tout de suite.\n\nPour l'instant, on construit proprement.";
+    if (responseType === 'empathique') return "Je comprends que tu veuilles être rassuré, mais on doit laisser le temps à ce nouveau chapitre de démarrer.\n\nTu viens d'arriver dans un nouveau club, et je veux d'abord te protéger, t'installer et clarifier ton rôle. On fera le point quand le contexte sera plus lisible.\n\nLà, on évite de parler de départ trop tôt.";
+    return "Tu viens d'arriver au club, donc on ne va pas parler de sortie maintenant.\n\nJe veux te voir t'installer, prendre le rythme et faire parler le terrain. Si le projet doit être réévalué plus tard, on le fera avec du recul.\n\nPour l'instant, focus sur l'intégration.";
   }
 
   if (isDealContext(message) && message.type === 'ds_dialogue') {

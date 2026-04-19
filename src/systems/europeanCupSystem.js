@@ -1,22 +1,14 @@
 /**
  * europeanCupSystem.js
  * Gère les Coupes Européennes (Champions League, Europa League, Conference League)
- * en parallèle du championnat.
+ * avec une structure proche du format UEFA moderne.
  *
- * Règles de qualification :
- *   CL    — clubs tier 1 des 5 grands championnats (FR,ES,EN,DE,IT,PT)
- *   EL    — clubs tier 2 des 5 grands / tier 1 des championnats secondaires
- *   ECL   — clubs tier 3 des 5 grands / tier 2 des championnats secondaires
- *
- * Calendrier (semaine de saison) :
- *   Phase de groupes CL  : semaines 3,5,7,9,11,13
- *   Huitièmes CL         : semaines 22,23
- *   Quarts CL            : semaines 25,26
- *   Demi-finales CL      : semaines 28,29
- *   Finale CL            : semaine 33
- *
- *   EL : décalé d'une semaine (4,6,8,10,12,14 … 24,25 … 27,28 … 32)
- *   ECL : semaines 5,7,9,11,13 … 25 … 30 … 31
+ * Format pris en compte :
+ *   - phase de ligue à 36 équipes
+ *   - Ligue des Champions / Europa League : 8 matches de ligue
+ *   - Conference League : 6 matches de ligue
+ *   - barrages / play-offs pour les équipes du milieu de tableau
+ *   - puis élimination directe
  */
 
 import { rand, makeId } from '../utils/helpers';
@@ -24,10 +16,32 @@ import { rand, makeId } from '../utils/helpers';
 // Pays dont les clubs accèdent à la CL (top 5 + Portugal)
 const TOP_LEAGUE_COUNTRIES = new Set(['FR', 'ES', 'EN', 'DE', 'IT', 'PT', 'NL']);
 
-// Semaines de saison où se jouent les matchs européens par compétition
-const CL_WEEKS = new Set([3, 5, 7, 9, 11, 13, 22, 23, 25, 26, 28, 29, 33]);
-const EL_WEEKS = new Set([4, 6, 8, 10, 12, 14, 24, 25, 27, 28, 32]);
-const ECL_WEEKS = new Set([5, 7, 9, 11, 13, 25, 30, 31]);
+const EURO_SCHEDULE = {
+  CL: {
+    league: new Set([3, 5, 7, 9, 11, 13, 15, 17]),
+    playoff: new Set([20, 21]),
+    roundOf16: new Set([23, 24]),
+    quarters: new Set([26, 27]),
+    semis: new Set([29, 30]),
+    final: new Set([33]),
+  },
+  EL: {
+    league: new Set([4, 6, 8, 10, 12, 14, 16, 18]),
+    playoff: new Set([20, 21]),
+    roundOf16: new Set([23, 24]),
+    quarters: new Set([26, 27]),
+    semis: new Set([29, 30]),
+    final: new Set([33]),
+  },
+  ECL: {
+    league: new Set([5, 7, 9, 11, 13, 15]),
+    playoff: new Set([20, 21]),
+    roundOf16: new Set([23, 24]),
+    quarters: new Set([26, 27]),
+    semis: new Set([29, 30]),
+    final: new Set([33]),
+  },
+};
 
 export const EURO_CUP_LABELS = {
   CL: { name: 'Ligue des Champions', short: 'UCL', color: '#1a1a6e', icon: '⭐' },
@@ -55,31 +69,34 @@ export const getEuropeanCompetition = (player) => {
  */
 export const isEuropeanMatchWeek = (seasonWeek, competition) => {
   if (!competition) return false;
-  if (competition === 'CL') return CL_WEEKS.has(seasonWeek);
-  if (competition === 'EL') return EL_WEEKS.has(seasonWeek);
-  if (competition === 'ECL') return ECL_WEEKS.has(seasonWeek);
-  return false;
+  const schedule = EURO_SCHEDULE[competition];
+  if (!schedule) return false;
+  return ['league', 'playoff', 'roundOf16', 'quarters', 'semis', 'final']
+    .some((stage) => schedule[stage]?.has(seasonWeek));
+};
+
+export const getEuropeanStage = (seasonWeek, competition) => {
+  const schedule = EURO_SCHEDULE[competition];
+  if (!schedule) return 'league';
+  if (schedule.final.has(seasonWeek)) return 'final';
+  if (schedule.semis.has(seasonWeek)) return 'semis';
+  if (schedule.quarters.has(seasonWeek)) return 'quarters';
+  if (schedule.roundOf16.has(seasonWeek)) return 'roundOf16';
+  if (schedule.playoff.has(seasonWeek)) return 'playoff';
+  return 'league';
 };
 
 /**
  * Retourne le nom de la phase selon la semaine de saison.
  */
 export const getEuropeanPhaseLabel = (seasonWeek, competition) => {
-  if (competition === 'CL') {
-    if (seasonWeek <= 13) return 'Phase de groupes';
-    if (seasonWeek <= 23) return '1/8 de finale';
-    if (seasonWeek <= 26) return 'Quarts de finale';
-    if (seasonWeek <= 29) return 'Demi-finales';
-    return 'FINALE';
-  }
-  if (competition === 'EL') {
-    if (seasonWeek <= 14) return 'Phase de groupes';
-    if (seasonWeek <= 25) return '1/8 de finale';
-    if (seasonWeek <= 28) return 'Quarts / Demies';
-    return 'FINALE';
-  }
-  if (seasonWeek <= 13) return 'Phase de groupes';
-  return 'Élimination';
+  const stage = getEuropeanStage(seasonWeek, competition);
+  if (stage === 'league') return 'Phase de ligue';
+  if (stage === 'playoff') return 'Barrages / play-off';
+  if (stage === 'roundOf16') return '1/8 de finale';
+  if (stage === 'quarters') return 'Quarts de finale';
+  if (stage === 'semis') return 'Demi-finales';
+  return 'FINALE';
 };
 
 /** Génère un adversaire fictif (club européen) pour le match */
@@ -111,12 +128,23 @@ const EURO_OPPONENTS = [
  * Retourne un objet match result compatible avec matchSystem.
  */
 export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
+  const stage = getEuropeanStage(seasonWeek, competition);
   const phase = getEuropeanPhaseLabel(seasonWeek, competition);
-  const isFinal = seasonWeek >= 33 && competition === 'CL';
-  const isSF = seasonWeek >= 28 && seasonWeek <= 29 && competition === 'CL';
+  const isFinal = stage === 'final';
+  const isSF = stage === 'semis';
+  const isQuarter = stage === 'quarters';
+  const isPlayoff = stage === 'playoff';
 
   // Qualité de l'adversaire — plus fort en phase finale
-  const opponentStrength = isFinal ? rand(75, 88) : isSF ? rand(68, 80) : rand(55, 75);
+  const opponentStrength = isFinal
+    ? rand(78, 92)
+    : isSF
+      ? rand(74, 88)
+      : isQuarter
+        ? rand(70, 84)
+        : isPlayoff
+          ? rand(64, 80)
+          : rand(55, 75);
   const playerStrength = player.rating + (player.form - 60) / 5;
   const homeBonus = Math.random() < 0.5 ? 0.3 : 0;
 
@@ -166,6 +194,7 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
     competition,
     competitionLabel: EURO_CUP_LABELS[competition]?.name ?? competition,
     phase,
+    stage,
     isFinal,
     opponent: opponent.name,
     opponentCountry: opponent.country,
@@ -178,6 +207,7 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
     goals,
     assists,
     matchRating,
+    isKnockout: stage !== 'league',
     selectionStatus: starts ? 'titulaire' : 'remplaçant',
   };
 };

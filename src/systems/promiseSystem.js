@@ -36,6 +36,14 @@ const PROMISE_PRIORITY = {
   complaint: 1,
 };
 
+const getWeeksAtClub = (player, week) => {
+  if (!player) return 0;
+  return Math.max(0, week - (player.contractStartWeek ?? week));
+};
+
+const isDealContext = (context) =>
+  ['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(String(context ?? ''));
+
 export const normalizePromises = (promises = []) => {
   if (!Array.isArray(promises) || !promises.length) return promises ?? [];
 
@@ -67,9 +75,13 @@ export const normalizePromises = (promises = []) => {
   return normalized.sort((a, b) => (a.createdWeek ?? 0) - (b.createdWeek ?? 0));
 };
 
-export const createPromiseFromMessage = ({ message, week, responseType, existingPromises = [] }) => {
+export const createPromiseFromMessage = ({ message, week, responseType, existingPromises = [], player = null }) => {
   if (!['professionnel', 'empathique'].includes(responseType)) return null;
   if (!PROMISE_DURATIONS[message.type]) return null;
+  if (message.type === 'transfer_request') {
+    const weeksAtClub = getWeeksAtClub(player, week);
+    if (isDealContext(message.context) || weeksAtClub < 10) return null;
+  }
   const normalizedPromises = normalizePromises(existingPromises ?? []);
   const repeatGap = PROMISE_REPEAT_GAP[message.type] ?? 6;
   if (normalizedPromises.some((promise) => {
@@ -111,7 +123,11 @@ export const evaluatePromises = ({ promises = [], roster = [], week }) => {
     if (promise.resolved || promise.failed || promise.dueWeek > week) return promise;
 
     const player = roster.find((item) => item.id === promise.playerId);
+    const weeksAtClub = getWeeksAtClub(player, week);
     const isHealthyRelationship = player && player.moral >= 55 && (player.trust ?? 50) >= 55;
+    if (promise.type === 'transfer_request' && player && weeksAtClub < 10) {
+      return { ...promise, resolved: true };
+    }
     if (promise.type === 'complaint' && isHealthyRelationship) {
       return { ...promise, resolved: true };
     }
