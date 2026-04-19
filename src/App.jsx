@@ -1399,8 +1399,8 @@ export default function FootballAgentGame() {
           player={modal.data.player}
           readiness={modal.data.readiness}
           onClose={() => setModal(null)}
-          onAccept={() => handleAcceptOfferDirect(modal.data.offer)}
-          onNegotiate={() => setModal({ type: 'nego_offer', data: { offer: modal.data.offer, player: modal.data.player } })}
+          onAccept={() => setModal({ type: 'offer_contract', data: { offer: modal.data.offer, player: modal.data.player, readiness: modal.data.readiness } })}
+          onNegotiate={() => setModal({ type: 'offer_contract', data: { offer: modal.data.offer, player: modal.data.player, readiness: modal.data.readiness } })}
           onReject={() => { commitResult(rejectClubOffer(state, modal.data.offer.id), 'Offre refusée'); setModal(null); }}
         />
       )}
