@@ -691,7 +691,9 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
   const urgentMessages = (state.messages ?? []).filter(messageNeedsResponse).slice(0, 3);
   const expiringContracts = state.roster.filter((player) => player.contractWeeksLeft <= 12).slice(0, 3);
   const lowTrustPlayers = state.roster.filter((player) => (player.trust ?? 50) < 45 || player.moral < 45).slice(0, 3);
-  const marketQueue = getMarketOfferQueue(state).slice(0, 4);
+  const marketQueue = getMarketOfferQueue(state)
+    .filter((offer) => ['open', 'accepted_pending'].includes(offer.status))
+    .slice(0, 4);
   const competitorThreats = (state.competitorThreats ?? []).slice(0, 2);
   const spotlightNews = (state.news ?? []).slice(0, 3);
   const todayTimeline = [

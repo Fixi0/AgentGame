@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
+import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Play, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
 import Calendar from './components/Calendar';
@@ -132,7 +132,7 @@ const buildResponseContextTail = ({ message, player, responseAction }) => {
     : null;
   const pieces = [`Réponse alignée avec ${targetLabel}`, threadContext, dossierLabel, arrivalLabel].filter(Boolean);
   if (lastAction) pieces.push(`dernière action: ${lastAction}`);
-  return `\n\n[${pieces.join(' · ')}]`;
+  return '';
 };
 
 const views = {
@@ -187,6 +187,7 @@ export default function FootballAgentGame() {
   const [hasSave, setHasSave] = useState(false);
   const [activeMessageThreadKey, setActiveMessageThreadKey] = useState(null);
   const [weekTickerData, setWeekTickerData] = useState(null);
+  const [saveFlash, setSaveFlash] = useState(false);
 
   useEffect(() => {
     try {
@@ -203,7 +204,15 @@ export default function FootballAgentGame() {
 
   useEffect(() => {
     if (!loaded || !state) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const serialized = JSON.stringify(state);
+    localStorage.setItem(STORAGE_KEY, serialized);
+    // Rotate 3 backup slots keyed by week mod 3
+    const slot = (state.week ?? 0) % 3;
+    localStorage.setItem(`${STORAGE_KEY}_bak_${slot}`, serialized);
+    // Brief save flash indicator
+    setSaveFlash(true);
+    const t = setTimeout(() => setSaveFlash(false), 1200);
+    return () => clearTimeout(t);
   }, [state, loaded]);
 
   const showToast = (message, type = 'info') => {
@@ -1098,7 +1107,12 @@ export default function FootballAgentGame() {
               <div style={S.brandSub}>{agencyProfile.city} · {agencyProfile.ownerName}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            {saveFlash && (
+              <span style={{ fontSize: 10, fontWeight: 800, color: '#00a676', background: '#f0fdf8', border: '1px solid #cfeee3', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', transition: 'opacity .3s' }}>
+                💾 Sauvegardé
+              </span>
+            )}
             <button onClick={handleResetGame} style={S.iconBtn}>
               <LogOut size={16} />
             </button>
@@ -1374,6 +1388,33 @@ export default function FootballAgentGame() {
           }}
           onClose={() => setModal(null)}
         />
+      )}
+      {/* Floating Action Button — play week from any view */}
+      {!weekTickerData && !modal && view !== 'dashboard' && loaded && state?.roster?.length > 0 && (
+        <button
+          onClick={handlePlayWeek}
+          title="Jouer la semaine"
+          style={{
+            position: 'fixed',
+            bottom: 72,
+            right: 20,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            background: 'linear-gradient(135deg,#00a676,#0dba8a)',
+            color: '#ffffff',
+            border: 'none',
+            boxShadow: '0 8px 24px rgba(0,166,118,.45)',
+            cursor: 'pointer',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            animation: 'pulseGlow 2.2s ease-in-out infinite',
+          }}
+        >
+          <Play size={22} fill="#ffffff" />
+        </button>
       )}
       {toast && (
         <div

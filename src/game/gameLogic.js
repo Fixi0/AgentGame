@@ -6,7 +6,7 @@ import { getAgencyCapacity, getAgencyUpgradeCost } from '../systems/agencySystem
 import { applyReputationChange, applySegmentReputationChange, createDefaultSegmentReputation, getSegmentDeltaForEvent, normalizeAgencyReputation } from '../systems/reputationSystem';
 import { getDepartureRisk, getInitialTrust } from '../systems/relationshipSystem';
 import { createManualNewsPost, createNewsPost } from '../systems/newsSystem';
-import { createMessage, maybeCreateContextualMessage, MIN_PLAYER_MSG_COOLDOWN, MAX_WEEKLY_MESSAGES } from '../systems/messageSystem';
+import { createMessage, maybeCreateContextualMessage, MIN_PLAYER_MSG_COOLDOWN, MAX_WEEKLY_MESSAGES, normalizeMessageRecord } from '../systems/messageSystem';
 import { createDefaultStaff, getStaffEffect, getStaffWeeklyCost, upgradeStaff as upgradeStaffMember } from '../systems/staffSystem';
 import { createInitialLeagueTables, mergeWithInitialLeagueTables, updateLeagueTables } from '../systems/leagueSystem';
 import { applyClubRelation, createDefaultClubMemory, createDefaultClubRelations, recordClubMemory } from '../systems/clubSystem';
@@ -599,7 +599,7 @@ export const migrateState = (state) => {
       ? { ...entry, rep: entry.rep <= 100 ? entry.rep * 10 : entry.rep }
       : entry)),
     news: asArray(state.news),
-    messages: asArray(state.messages),
+    messages: asArray(state.messages).map(normalizeMessageRecord),
     agencyGoals: asArray(state.agencyGoals, createLongTermAgencyGoals()).map((goal) => (goal.metric === 'GLOBAL' && goal.target <= 100 ? { ...goal, target: goal.target * 10 } : goal)),
     contacts: state.contacts ?? createDefaultContacts(),
     seasonObjectives: (asArray(state.seasonObjectives).length ? asArray(state.seasonObjectives) : generateSeasonObjectives({ week: state.week ?? 1, reputation })).map(convertLegacyObjective),
@@ -623,7 +623,7 @@ export const migrateState = (state) => {
     clubOffers: asArray(state.clubOffers),
     pendingTransfers: asArray(state.pendingTransfers),
     negotiationCooldowns: state.negotiationCooldowns ?? {},
-    messageQueue: asArray(state.messageQueue),
+    messageQueue: asArray(state.messageQueue).map(normalizeMessageRecord),
     socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
     dossierMemory: state.dossierMemory ?? createDefaultDossierMemory(),
     pendingChainedEvents: asArray(state.pendingChainedEvents),
@@ -2533,7 +2533,7 @@ export const playWeek = (state) => {
     });
   });
 
-  const queuedMessages = [...(state.messageQueue ?? []), ...generatedMessages].map((message) => ({
+  const queuedMessages = [...(state.messageQueue ?? []), ...generatedMessages].map((message) => normalizeMessageRecord({
     ...message,
     priority: message.priority ?? getMessagePriority(message),
     queuedWeek: message.queuedWeek ?? state.week + 1,

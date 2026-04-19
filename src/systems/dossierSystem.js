@@ -31,6 +31,13 @@ const RESPONSE_REQUIRED_TYPES = new Set([
   'ds_dialogue',
   'secret_offer',
   'shortlist_reply',
+  'voice_call',
+  'thanks',
+  'welcome',
+  'national_pride',
+  'life_event',
+  'form_slump',
+  'retirement_thoughts',
 ]);
 
 export const getMessagePriority = (message) => {

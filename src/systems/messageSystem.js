@@ -270,6 +270,16 @@ const RESPONSE_OPTIONS_BY_TYPE = {
     empathique: 'Écouter ses attentes',
     ferme: 'Fixer le cadre',
   },
+  voice_call: {
+    professionnel: 'Rappeler aujourd\'hui',
+    empathique: 'Prendre le temps',
+    ferme: 'Appel rapide',
+  },
+  thanks: {
+    professionnel: 'Encourager',
+    empathique: 'Répondre avec chaleur',
+    ferme: 'Garder le cap',
+  },
   transfer_request: {
     professionnel: 'Préparer shortlist',
     empathique: 'Appeler ce soir',
@@ -360,6 +370,31 @@ const RESPONSE_OPTIONS_BY_TYPE = {
 const buildStoredResponseOptions = (message) =>
   Object.entries(getContextualResponseOptions(message)).map(([id, label]) => ({ id, label }));
 
+const inferSenderRole = (message) => {
+  if (!message) return 'player';
+  if (message.senderRole) return message.senderRole;
+  if (['coach_dialogue', 'ds_dialogue', 'staff_dialogue'].includes(message.type)) return 'staff';
+  return 'player';
+};
+
+export const normalizeMessageRecord = (message) => {
+  if (!message) return message;
+  const senderRole = inferSenderRole(message);
+  const normalized = { ...message, senderRole };
+  if (typeof normalized.responseText === 'string') {
+    normalized.responseText = normalized.responseText.replace(/\n\n\[[^\]]*\]\s*$/, '').trimEnd();
+  }
+  if (!Array.isArray(normalized.responseOptions) || !normalized.responseOptions.length) {
+    normalized.responseOptions = buildStoredResponseOptions(normalized);
+  }
+  if (!normalized.threadLabel) {
+    normalized.threadLabel = senderRole === 'staff'
+      ? (normalized.threadContextLabel ?? normalized.senderName ?? normalized.playerName ?? 'Staff')
+      : (normalized.playerName ?? normalized.senderName ?? 'Contact');
+  }
+  return normalized;
+};
+
 const isDealContext = (message) => ['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(message?.context);
 
 const getWeeksAtClub = (player, week = 0) => {
@@ -370,13 +405,14 @@ const getWeeksAtClub = (player, week = 0) => {
 export const getConversationParticipant = (message) => {
   if (!message) return { label: 'Contact', role: 'unknown', audience: 'unknown' };
   const rawContext = String(message.context ?? '');
-  const senderRole = message.senderRole ?? null;
-  const fromStaff = senderRole ? senderRole === 'staff' : ['coach_dialogue', 'ds_dialogue', 'staff_dialogue'].includes(message.type);
+  const senderRole = inferSenderRole(message);
+  const threadKey = String(message.threadKey ?? '');
+  const fromStaff = senderRole === 'staff' || threadKey.includes(':staff:');
   if (fromStaff) {
-    if (message.type === 'coach_dialogue' || rawContext.includes('coach')) {
+    if (message.type === 'coach_dialogue' || rawContext.includes('coach') || threadKey.endsWith(':coach')) {
       return { label: 'Coach', role: 'staff', audience: 'coach' };
     }
-    if (message.type === 'ds_dialogue' || rawContext.includes('ds')) {
+    if (message.type === 'ds_dialogue' || rawContext.includes('ds') || threadKey.endsWith(':ds')) {
       return { label: 'Directeur sportif', role: 'staff', audience: 'ds' };
     }
     return { label: 'Staff club', role: 'staff', audience: 'staff' };

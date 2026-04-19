@@ -56,8 +56,10 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
         const items = [...thread.items].sort((a, b) => (a.sortWeek ?? a.week ?? 0) - (b.sortWeek ?? b.week ?? 0));
         const latest = items[items.length - 1];
         const unresolvedCount = items.filter((item) => !item.resolved).length;
-        const participant = getConversationParticipant(latest ?? items[0]);
-        const isStaff = participant.role === 'staff';
+        const isStaff = thread.key.includes(':staff:');
+        const participant = isStaff
+          ? getConversationParticipant(latest ?? items[0])
+          : { label: thread.playerName, role: 'player', audience: 'player' };
         return {
           ...thread,
           items,
