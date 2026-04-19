@@ -94,13 +94,26 @@ const getClubForPlayerLevel = (countryCode, rating, potential) => {
 };
 
 const generateRealisticRating = (reputation, scoutLevel, young) => {
-  const base = young ? rand(52, 67) : rand(55, 72);
-  const repBoost = Math.floor(Math.min(35, reputation) / 8);
-  const scoutBoost = Math.floor(scoutLevel * 1.2);
-  let rating = base + repBoost + scoutBoost + rand(-3, 4);
+  // Base range tightened — young players are raw prospects, not stars
+  const base = young ? rand(52, 63) : rand(55, 68);
+  const repBoost = Math.floor(Math.min(40, reputation) / 9);
+  const scoutBoost = Math.floor(scoutLevel * 1.0);
+  let rating = base + repBoost + scoutBoost + rand(-2, 3);
+
+  // Elite rolls are strictly gated behind reputation thresholds.
+  // At rep 12 (game start) NO 80+ players ever appear.
+  // 76-79: unlocks at rep 32  (~early season 2)
+  // 80-85: unlocks at rep 50  (~mid game, 1-2 seasons in)
+  // 86-91: unlocks at rep 75  (~late game, 3+ seasons)
   const eliteRoll = Math.random();
-  if (eliteRoll < 0.015 + reputation / 6000 + scoutLevel / 1000) rating = rand(86, 91);
-  else if (eliteRoll < 0.055 + reputation / 1800 + scoutLevel / 450) rating = rand(80, 85);
+  if (reputation >= 75 && eliteRoll < 0.018 + (reputation - 75) / 1500 + scoutLevel / 900) {
+    rating = rand(86, 91);
+  } else if (reputation >= 50 && eliteRoll < 0.026 + (reputation - 50) / 2000 + scoutLevel / 700) {
+    rating = rand(80, 85);
+  } else if (reputation >= 32 && eliteRoll < 0.038 + (reputation - 32) / 2500) {
+    rating = rand(76, 79);
+  }
+
   return clamp(rating, 50, 93);
 };
 
