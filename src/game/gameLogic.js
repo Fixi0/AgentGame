@@ -371,6 +371,25 @@ export const migrateState = (state) => {
   if (!state) return createFreshState();
 
   const asArray = (value, fallback = []) => (Array.isArray(value) ? value : fallback);
+  const normalizePendingTransfer = (transfer) => {
+    if (!transfer || typeof transfer !== 'object') return null;
+    const player = asArray(state.roster).find((item) => item?.id === transfer.playerId)
+      ?? asArray(state.freeAgents).find((item) => item?.id === transfer.playerId)
+      ?? asArray(state.market).find((item) => item?.id === transfer.playerId)
+      ?? null;
+    const offer = transfer.offer
+      ?? asArray(state.clubOffers).find((item) => item?.id === transfer.offerId)
+      ?? asArray(state.clubOffers).find((item) => item?.playerId === transfer.playerId && (item?.status === 'accepted_pending' || item?.status === 'open'))
+      ?? null;
+    if (!player || !offer) return null;
+    return {
+      ...transfer,
+      playerName: transfer.playerName ?? `${player.firstName} ${player.lastName}`,
+      offer,
+      agreement: transfer.agreement ?? buildTransferAgreementFromEngine(player, offer, transfer.negotiatedOutcome ?? null),
+      effectiveWeek: Number.isFinite(transfer.effectiveWeek) ? transfer.effectiveWeek : offer.effectiveWeek ?? (state.week ?? 1) + 1,
+    };
+  };
   const rawReputation = state.reputation ?? 120;
   const reputation = rawReputation <= 100 ? rawReputation * 10 : rawReputation;
   const convertLegacyObjective = (objective) => {
@@ -445,7 +464,7 @@ export const migrateState = (state) => {
       seasonsPlayed: state.stats?.seasonsPlayed ?? 0,
     },
     clubOffers: asArray(state.clubOffers),
-    pendingTransfers: asArray(state.pendingTransfers),
+    pendingTransfers: asArray(state.pendingTransfers).map(normalizePendingTransfer).filter(Boolean),
     negotiationCooldowns: state.negotiationCooldowns ?? {},
     messageQueue: asArray(state.messageQueue).map(normalizeMessageRecord),
     socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
@@ -2133,8 +2152,27 @@ export const playWeek = (state) => {
   events.push(...socialConsequences.events);
   generatedMessages.push(...socialConsequences.messages);
 
-  const duePendingTransfers = (state.pendingTransfers ?? []).filter((transfer) => transfer.effectiveWeek <= state.week + 1);
-  const remainingPendingTransfers = (state.pendingTransfers ?? []).filter((transfer) => transfer.effectiveWeek > state.week + 1);
+  const normalizedPendingTransfers = (state.pendingTransfers ?? []).map((transfer) => {
+    if (!transfer || typeof transfer !== 'object') return null;
+    const player = finalRoster.find((item) => item.id === transfer.playerId)
+      ?? state.freeAgents?.find((item) => item.id === transfer.playerId)
+      ?? state.market?.find((item) => item.id === transfer.playerId)
+      ?? null;
+    const offer = transfer.offer
+      ?? state.clubOffers?.find((item) => item.id === transfer.offerId)
+      ?? state.clubOffers?.find((item) => item.playerId === transfer.playerId && (item.status === 'accepted_pending' || item.status === 'open'))
+      ?? null;
+    if (!player || !offer) return null;
+    return {
+      ...transfer,
+      playerName: transfer.playerName ?? `${player.firstName} ${player.lastName}`,
+      offer,
+      agreement: transfer.agreement ?? buildTransferAgreementFromEngine(player, offer, transfer.negotiatedOutcome ?? null),
+      effectiveWeek: Number.isFinite(transfer.effectiveWeek) ? transfer.effectiveWeek : offer.effectiveWeek ?? state.week + 1,
+    };
+  }).filter(Boolean);
+  const duePendingTransfers = normalizedPendingTransfers.filter((transfer) => transfer.effectiveWeek <= state.week + 1);
+  const remainingPendingTransfers = normalizedPendingTransfers.filter((transfer) => transfer.effectiveWeek > state.week + 1);
   let pendingTransferIncome = 0;
   let pendingTransferReputation = 0;
   const completedOfferIds = [];
