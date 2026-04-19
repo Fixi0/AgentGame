@@ -3,6 +3,69 @@ import { makeId, rand } from '../utils/helpers';
 
 const clubKey = (club) => `${club.countryCode}:${club.name}`;
 
+const hashString = (value = '') => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const createSeededRandom = (seed) => {
+  let state = seed >>> 0;
+  return () => {
+    state += 0x6d2b79f5;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const seededShuffle = (items, seed) => {
+  const array = [...items];
+  const random = createSeededRandom(seed);
+  for (let index = array.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [array[index], array[swapIndex]] = [array[swapIndex], array[index]];
+  }
+  return array;
+};
+
+const buildRoundRobinPairings = (clubs, seed) => {
+  let teams = seededShuffle(clubs, seed);
+  if (teams.length < 2) return [];
+  if (teams.length % 2 === 1) teams = [...teams, null];
+
+  const totalRounds = teams.length - 1;
+  const pairRounds = [];
+  let rotating = teams.slice(1);
+
+  for (let round = 0; round < totalRounds; round += 1) {
+    const current = [teams[0], ...rotating];
+    const pairings = [];
+    for (let index = 0; index < teams.length / 2; index += 1) {
+      const first = current[index];
+      const second = current[teams.length - 1 - index];
+      if (!first || !second) continue;
+      const homeFirst = (round + index) % 2 === 0;
+      pairings.push({
+        homeClub: homeFirst ? first : second,
+        awayClub: homeFirst ? second : first,
+      });
+    }
+    pairRounds.push(pairings);
+    rotating = [rotating[rotating.length - 1], ...rotating.slice(0, -1)];
+  }
+
+  const mirrored = pairRounds.map((round) => round.map((pairing) => ({
+    homeClub: pairing.awayClub,
+    awayClub: pairing.homeClub,
+  })));
+
+  return [...pairRounds, ...mirrored];
+};
+
 const getPlayerClub = (player) => ({
   name: player.club,
   tier: player.clubTier,
@@ -276,25 +339,14 @@ export const buildWeeklyFixtures = (roster = [], week = 1) => {
     return map;
   }, new Map());
   const fixtures = [];
+  const season = Math.floor((week - 1) / 38) + 1;
+  const seasonWeek = ((week - 1) % 38) + 1;
 
   clubsByCountry.forEach((countryClubs, countryCode) => {
-    const used = new Set();
-    const orderedClubs = [...countryClubs].sort((a, b) => a.name.localeCompare(b.name));
-    const rotation = orderedClubs.length ? (week - 1) % orderedClubs.length : 0;
-    const rotatedClubs = [...orderedClubs.slice(rotation), ...orderedClubs.slice(0, rotation)];
-
-    rotatedClubs.forEach((club, index) => {
-      const key = clubKey(club);
-      if (used.has(key)) return;
-
-      const opponent = [...rotatedClubs.slice(index + 1), ...rotatedClubs.slice(0, index)]
-        .find((candidate) => candidate.name !== club.name && !used.has(clubKey(candidate)));
-      if (!opponent) return;
-
-      used.add(key);
-      used.add(clubKey(opponent));
-      const homeClub = Math.random() > 0.5 ? club : opponent;
-      const awayClub = homeClub.name === club.name && homeClub.countryCode === club.countryCode ? opponent : club;
+    const rounds = buildRoundRobinPairings(countryClubs, hashString(`${season}:${countryCode}`));
+    const round = rounds[seasonWeek - 1];
+    if (!round?.length) return;
+    round.forEach(({ homeClub, awayClub }) => {
       fixtures.push(createFixture({ homeClub, awayClub, playersByClub }));
     });
   });

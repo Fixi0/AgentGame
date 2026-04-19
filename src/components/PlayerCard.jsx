@@ -157,10 +157,8 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
             <div style={S.progBar}><div style={{ ...S.progFill, width: `${player.form}%`, background: '#7aa7b8' }} /></div>
             <strong>{player.form}</strong>
           </div>
-          <div style={S.meterRow}>
-            <span>Potentiel</span>
-            <div style={S.progBar}><div style={{ ...S.progFill, width: `${player.potential}%`, background: '#00a676' }} /></div>
-            <strong>{player.potential}</strong>
+          <div style={S.pMeta2}>
+            <span>{player.scoutReport ? `Lecture scout ${player.scoutReport.confidence}%` : 'Projection cachée'}</span>
           </div>
           {mode === 'roster' && (
             <div style={S.pMeta2}>

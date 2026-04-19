@@ -6,26 +6,24 @@ import PlayerCard from './PlayerCard';
 import { S } from './styles';
 
 export default function Market({ state, market, freeAgents = [], money, onSign, onRefresh, onDetails }) {
-  const [filters, setFilters] = useState({ position: 'all', country: 'all', maxCost: 'all', minPotential: 0, sort: 'rating' });
+  const [filters, setFilters] = useState({ position: 'all', country: 'all', maxCost: 'all', sort: 'rating' });
   const [favoriteIds, setFavoriteIds] = useState([]);
   const allPlayers = useMemo(() => [...freeAgents, ...market], [freeAgents, market]);
   const countries = useMemo(() => [...new Map(allPlayers.map((player) => [player.countryCode, player])).values()], [allPlayers]);
   const filteredMarket = allPlayers
-    .filter((player) => {
-      if (filters.position !== 'all' && player.position !== filters.position) return false;
-      if (filters.country !== 'all' && player.countryCode !== filters.country) return false;
-      if (filters.maxCost !== 'all' && player.signingCost > Number(filters.maxCost)) return false;
-      if (player.potential < Number(filters.minPotential)) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      if (favoriteIds.includes(a.id) && !favoriteIds.includes(b.id)) return -1;
-      if (!favoriteIds.includes(a.id) && favoriteIds.includes(b.id)) return 1;
-      if (filters.sort === 'price') return a.signingCost - b.signingCost;
-      if (filters.sort === 'potential') return b.potential - a.potential;
-      if (filters.sort === 'age') return a.age - b.age;
-      return b.rating - a.rating;
-    });
+      .filter((player) => {
+        if (filters.position !== 'all' && player.position !== filters.position) return false;
+        if (filters.country !== 'all' && player.countryCode !== filters.country) return false;
+        if (filters.maxCost !== 'all' && player.signingCost > Number(filters.maxCost)) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (favoriteIds.includes(a.id) && !favoriteIds.includes(b.id)) return -1;
+        if (!favoriteIds.includes(a.id) && favoriteIds.includes(b.id)) return 1;
+        if (filters.sort === 'price') return a.signingCost - b.signingCost;
+        if (filters.sort === 'age') return a.age - b.age;
+        return b.rating - a.rating;
+      });
 
   const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
   const toggleFavorite = (playerId) => {
@@ -64,13 +62,9 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
               <option value="50000">≤ €50k</option>
             </select>
           </label>
-          <label style={S.fieldLabel}>Potentiel min.
-            <input type="number" min="0" max="99" value={filters.minPotential} onChange={(event) => updateFilter('minPotential', event.target.value)} style={S.textInput} />
-          </label>
           <label style={S.fieldLabel}>Tri
             <select value={filters.sort} onChange={(event) => updateFilter('sort', event.target.value)} style={S.textInput}>
               <option value="rating">Note</option>
-              <option value="potential">Potentiel</option>
               <option value="price">Prix</option>
               <option value="age">Âge</option>
             </select>
@@ -86,7 +80,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
             <div style={S.scoutCard}>
               <div style={S.secTitle}>RAPPORT SCOUT</div>
               <div style={S.fixtureMeta}>
-                Potentiel estimé {player.scoutReport.potentialMin}-{player.scoutReport.potentialMax} · confiance {player.scoutReport.confidence}%
+                Lecture scout · confiance {player.scoutReport.confidence}% · {player.scoutReport.note}
               </div>
             </div>
           )}

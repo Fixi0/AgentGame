@@ -4,23 +4,68 @@ import { CLUBS, getCountry } from '../../data/clubs';
 import { S } from '../styles';
 
 const getEligibleBuyerTiers = (player) => {
-  if (player.rating >= 84 || player.potential >= 90) return [1, 2];
-  if (player.rating >= 77 || player.potential >= 85) return [2, 3];
-  if (player.rating >= 68 || player.potential >= 79) return [3, 4];
+  if (player.rating >= 84) return [1, 2];
+  if (player.rating >= 77) return [2, 3];
+  if (player.rating >= 68) return [3, 4];
   return [4];
 };
 
-export default function ShortlistModal({ player, onConfirm, onClose }) {
+const hashString = (value = '') => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const createSeededRandom = (seed) => {
+  let state = seed >>> 0;
+  return () => {
+    state += 0x6d2b79f5;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const shuffle = (items, seed) => {
+  const array = [...items];
+  const random = createSeededRandom(seed);
+  for (let index = array.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [array[index], array[swapIndex]] = [array[swapIndex], array[index]];
+  }
+  return array;
+};
+
+const scoreClub = (club, player, state) => {
+  let score = 0;
+  if ((player.preferredCountries ?? []).includes(club.countryCode)) score += 8;
+  if ((player.preferredCities ?? []).includes(club.city)) score += 7;
+  const relation = state?.clubRelations?.[club.name] ?? 50;
+  score += Math.max(0, relation - 45) / 8;
+  score += Math.max(0, 6 - club.tier) * 2;
+  if (player.personality === 'ambitieux' && club.tier <= 2) score += 6;
+  if (player.personality === 'loyal' && club.countryCode === player.countryCode) score += 5;
+  if (player.personality === 'mercenaire') score += club.tier <= 2 ? 4 : 1;
+  if (player.personality === 'professionnel') score += 2;
+  return score;
+};
+
+export default function ShortlistModal({ player, state, currentWeek = 1, onConfirm, onClose }) {
   const [selected, setSelected] = useState([]);
 
   const suggestions = useMemo(() => {
     const tiers = getEligibleBuyerTiers(player);
-    return CLUBS
+    const pool = CLUBS
       .filter((club) => club.name !== player.club)
       .filter((club) => tiers.includes(club.tier))
-      .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name))
-      .slice(0, 8);
-  }, [player]);
+      .map((club) => ({ club, score: scoreClub(club, player, state) }))
+      .sort((a, b) => b.score - a.score || a.club.tier - b.club.tier || a.club.name.localeCompare(b.club.name));
+    const top = pool.slice(0, 12).map((item) => item.club);
+    return shuffle(top, hashString(`${currentWeek}:${player.id}:${player.club}`)).slice(0, 8);
+  }, [player, state, currentWeek]);
 
   const toggleClub = (club) => {
     setSelected((current) => {
@@ -41,7 +86,7 @@ export default function ShortlistModal({ player, onConfirm, onClose }) {
         <div style={S.mBody}>
           <h2 style={S.mTitle}>{player.firstName} {player.lastName}</h2>
           <div style={S.mPlayer}>{player.clubCountry} {player.club} · {player.rating}/100</div>
-          <p style={S.mText}>Choisis 1 ou 2 clubs à cibler. On peut ensuite proposer le joueur à ces clubs, si son niveau colle au projet.</p>
+          <p style={S.mText}>Choisis 1 ou 2 clubs à cibler. La shortlist change selon le moment, le projet et les contacts du dossier.</p>
 
           <div style={S.swipeHint}>
             Sélection actuelle: {selected.length}/2 {selected.length === 0 ? 'club' : 'clubs'}

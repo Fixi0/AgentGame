@@ -1134,10 +1134,12 @@ export default function FootballAgentGame() {
       {modal?.type === 'shortlist' && (
         <ShortlistModal
           player={modal.data.player}
+          state={state}
+          currentWeek={state.week}
           onClose={() => setModal(null)}
-    onConfirm={(selectedClubs) => handleShortlistConfirm(modal.data.message, modal.data.player, modal.data.responseType, selectedClubs)}
-          />
-        )}
+          onConfirm={(selectedClubs) => handleShortlistConfirm(modal.data.message, modal.data.player, modal.data.responseType, selectedClubs)}
+        />
+      )}
       {modal?.type === 'recruit_player' && (
         <RecruitmentModal
           state={state}

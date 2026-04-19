@@ -93,7 +93,6 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             <>
           <div style={S.kpiGrid}>
             <DetailMetric label="Note" value={player.rating} />
-            <DetailMetric label="Potentiel" value={player.potential} />
             <DetailMetric label="Valeur" value={formatMoney(player.value)} />
             <DetailMetric label="Salaire" value={`${formatMoney(player.weeklySalary)}/s`} />
             <DetailMetric label="Marque" value={`${player.brandValue ?? 0}/100`} />
@@ -184,7 +183,6 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
           {player.scoutReport && (
             <div style={S.objCard}>
               <div style={S.secTitle}>RAPPORT SCOUT</div>
-              <div style={S.sumRow}><span style={S.sumK}>Potentiel estimé</span><strong>{player.scoutReport.potentialMin}-{player.scoutReport.potentialMax}</strong></div>
               <div style={S.sumRow}><span style={S.sumK}>Confiance scout</span><strong>{player.scoutReport.confidence}%</strong></div>
               <div style={S.emptySmall}>{player.scoutReport.note}</div>
             </div>
