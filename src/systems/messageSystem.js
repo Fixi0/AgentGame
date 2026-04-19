@@ -518,6 +518,48 @@ export const getMessageContextOutcome = ({ message, responseType, player }) => {
   const context = String(message?.context ?? '');
   const playerName = player ? `${player.firstName} ${player.lastName}` : message?.playerName ?? 'Le joueur';
 
+  if (context.includes('world_cup_selection')) {
+    outcome.actionOverride = responseType === 'professionnel'
+      ? { type: 'club_check', label: 'Plan sélection cadré' }
+      : { type: 'deal_followup', label: 'Communiquer sur la sélection' };
+    outcome.effects.trust += responseType === 'empathique' ? 5 : responseType === 'professionnel' ? 3 : 1;
+    outcome.effects.moral += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 2 : 0;
+    outcome.effects.reputation += responseType === 'professionnel' ? 2 : 1;
+    outcome.effects.credibility += 1;
+    outcome.news = {
+      type: 'media',
+      impact: 2,
+      text: `La convocation de ${playerName} en sélection fait monter l'attention autour de son dossier.`,
+      account: { name: 'World Cup Chronicle', kind: 'journal', icon: 'WC', color: '#1a1a6e' },
+    };
+    outcome.followup = {
+      type: 'thanks',
+      senderRole: 'player',
+      senderName: message.playerName,
+      subject: 'Sélection validée',
+      body: responseType === 'empathique'
+        ? "Merci. Cette sélection compte énormément pour moi et je sens que tu comprends l'importance du moment."
+        : "La sélection me motive encore plus. On doit maintenant capitaliser correctement.",
+    };
+    return outcome;
+  }
+
+  if (context.includes('world_cup')) {
+    outcome.actionOverride = responseType === 'professionnel'
+      ? { type: 'deal_followup', label: 'Cap sur le tournoi' }
+      : { type: 'voice_call', label: 'Appel CdM' };
+    outcome.effects.trust += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 3 : 1;
+    outcome.effects.moral += responseType === 'empathique' ? 3 : responseType === 'professionnel' ? 2 : 0;
+    outcome.effects.pressure += responseType === 'ferme' ? 1 : -1;
+    outcome.news = {
+      type: 'media',
+      impact: 1,
+      text: `${playerName} reste au centre de la Coupe du Monde. Le dossier attire plus de regards qu'avant.`,
+      account: { name: 'World Cup Chronicle', kind: 'journal', icon: 'WC', color: '#1a1a6e' },
+    };
+    return outcome;
+  }
+
   if (['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(context)) {
     outcome.actionOverride = responseType === 'ferme'
       ? { type: 'focus_reset', label: 'Cadre performance fixé après signature' }

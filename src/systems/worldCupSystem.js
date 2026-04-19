@@ -73,6 +73,7 @@ export const shouldTriggerWorldCup = (season, worldCupState) => {
  */
 export const createWorldCupState = (season, roster) => {
   const year = 2026 + (season - 1) * 4;
+  const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   // Sélectionner les joueurs éligibles (rating >= 65 + probabilité basée sur note)
   const selectedPlayers = roster
     .filter((p) => p.rating >= 65 && !p.freeAgent)
@@ -80,12 +81,14 @@ export const createWorldCupState = (season, roster) => {
       const selectionChance = 0.3 + (p.rating - 65) / 70 + (p.moral - 50) / 200;
       return Math.random() < selectionChance;
     })
+    .sort((a, b) => b.rating - a.rating)
     .map((p) => ({
       playerId: p.id,
       playerName: `${p.firstName} ${p.lastName}`,
       countryCode: p.countryCode,
       countryFlag: p.countryFlag,
       rating: p.rating,
+      group: groupLetters[Math.floor(Math.random() * groupLetters.length)],
       goals: 0,
       assists: 0,
       avgRating: 0,
@@ -100,8 +103,15 @@ export const createWorldCupState = (season, roster) => {
     phase: 'groupes',
     weekOffset: 0,
     selectedPlayers,
+    drawGroups: groupLetters.reduce((acc, group) => ({ ...acc, [group]: [] }), {}),
+    countryPressure: roster.reduce((acc, player) => {
+      if (!player.countryCode) return acc;
+      const base = player.rating >= 80 ? 72 : player.rating >= 72 ? 60 : 48;
+      return { ...acc, [player.countryCode]: Math.max(acc[player.countryCode] ?? 0, base) };
+    }, {}),
     results: [], // matchs joués
     champion: null, // pays vainqueur
+    heritageCards: [],
   };
 };
 
@@ -189,11 +199,11 @@ export const advanceWorldCupPhase = (wcState) => {
  */
 export const getWorldCupValueMultiplier = (playerResult) => {
   if (!playerResult) return 1;
-  if (playerResult.isChampion) return 1.35;
-  if (playerResult.goals >= 3) return 1.25;
-  if (playerResult.goals >= 1 || playerResult.assists >= 2) return 1.15;
-  if (playerResult.avgRating >= 8) return 1.12;
-  if (playerResult.avgRating >= 7) return 1.06;
+  if (playerResult.isChampion) return 1.45;
+  if (playerResult.goals >= 3) return 1.32;
+  if (playerResult.goals >= 1 || playerResult.assists >= 2) return 1.18;
+  if (playerResult.avgRating >= 8) return 1.15;
+  if (playerResult.avgRating >= 7) return 1.08;
   return 1.0;
 };
 

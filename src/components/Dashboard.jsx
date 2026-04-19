@@ -319,9 +319,10 @@ function EuropeanCupWidget({ roster }) {
 }
 
 function WorldCupWidget({ worldCupState }) {
-  if (!worldCupState || worldCupState.phase === 'done') return null;
+  if (!worldCupState) return null;
 
-  const { year, phase, selectedPlayers } = worldCupState;
+  const { year, phase, selectedPlayers, heritageCards = [], countryPressure = {}, drawGroups = {} } = worldCupState;
+  if (phase === 'done' && !heritageCards.length) return null;
   const phaseIdx = WC_PHASES.indexOf(phase);
   const champions = selectedPlayers.filter((p) => p.champion);
   const eliminated = selectedPlayers.filter((p) => p.eliminated);
@@ -348,12 +349,31 @@ function WorldCupWidget({ worldCupState }) {
         </div>
       </div>
 
-      {/* Progress bar de phases */}
-      <div style={{ display: 'flex', gap: 3, marginBottom: 10 }}>
-        {WC_PHASES.map((p, i) => (
-          <div key={p} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= phaseIdx ? '#f5c842' : 'rgba(255,255,255,.2)' }} />
-        ))}
-      </div>
+      {phase !== 'done' && (
+        <>
+          {/* Progress bar de phases */}
+          <div style={{ display: 'flex', gap: 3, marginBottom: 10 }}>
+            {WC_PHASES.map((p, i) => (
+              <div key={p} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= phaseIdx ? '#f5c842' : 'rgba(255,255,255,.2)' }} />
+            ))}
+          </div>
+
+          {!!Object.keys(drawGroups).length && (
+            <div style={{ marginBottom: 10, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)' }}>
+              <div style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif', marginBottom: 4, letterSpacing: '.08em' }}>
+                TIRAGE ET GROUPES
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {Object.entries(drawGroups).slice(0, 4).map(([group, players]) => (
+                  <span key={group} style={{ fontSize: 10, color: '#fff', background: 'rgba(255,255,255,.12)', borderRadius: 999, padding: '4px 8px', fontFamily: 'system-ui,sans-serif' }}>
+                    Groupe {group} · {players.length}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {selectedPlayers.length > 0 && (
         <div>
@@ -384,9 +404,46 @@ function WorldCupWidget({ worldCupState }) {
         </div>
       )}
 
+      {phase !== 'done' && Object.keys(countryPressure).length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif', marginBottom: 4 }}>
+            PRESSION MÉDIA PAR PAYS
+          </div>
+          {Object.entries(countryPressure).slice(0, 4).map(([code, value]) => {
+            const team = NATIONAL_TEAMS.find((t) => t.code === code);
+            return (
+              <div key={code} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                <span style={{ fontSize: 12 }}>{team?.flag ?? '🌍'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                    <span style={{ fontSize: 10, color: '#fff', fontFamily: 'system-ui,sans-serif' }}>{team?.name ?? code}</span>
+                    <span style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif' }}>{value}/100</span>
+                  </div>
+                  <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,.15)' }}>
+                    <div style={{ width: `${value}%`, height: 4, borderRadius: 999, background: value >= 70 ? '#f5c842' : '#a0c4d8' }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {champions.length > 0 && (
         <div style={{ marginTop: 8, padding: '6px 8px', background: 'rgba(245,200,66,.15)', borderRadius: 6, fontSize: 11, color: '#f5c842', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>
           🏆 CHAMPIONS DU MONDE : {champions.map((p) => p.playerName).join(', ')}
+        </div>
+      )}
+
+      {phase === 'done' && heritageCards.length > 0 && (
+        <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.15)' }}>
+          <div style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif', marginBottom: 5 }}>CARTE HÉRITAGE</div>
+          {heritageCards.slice(0, 3).map((card) => (
+            <div key={card.playerId} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '4px 0', color: '#fff', fontSize: 11, fontFamily: 'system-ui,sans-serif' }}>
+              <span>{card.countryFlag} {card.playerName}</span>
+              <span>{card.label}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

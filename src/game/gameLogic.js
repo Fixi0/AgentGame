@@ -1940,6 +1940,14 @@ export const playWeek = (state) => {
   // Déclencher la CdM après la fin de la saison 1 (et toutes les 4 saisons ensuite)
   if (phase.seasonWeek === 38 && shouldTriggerWorldCup(phase.season, wcState)) {
     wcState = createWorldCupState(phase.season, euRoster);
+    const drawGroups = wcState.selectedPlayers.reduce((acc, player, index) => {
+      const group = player.group ?? String.fromCharCode(65 + (index % 8));
+      if (!acc[group]) acc[group] = [];
+      acc[group].push(player);
+      return acc;
+    }, {});
+    wcState = { ...wcState, drawGroups };
+    const selectedForMessages = [...wcState.selectedPlayers].sort((a, b) => b.rating - a.rating).slice(0, 5);
     generatedMessages.push({
       id: makeId('msg'),
       week: state.week + 1,
@@ -1956,6 +1964,34 @@ export const playWeek = (state) => {
       read: false,
       resolved: true,
     });
+    selectedForMessages.forEach((selected) => {
+      const selectedPlayer = euRoster.find((player) => player.id === selected.playerId);
+      if (!selectedPlayer) return;
+      generatedMessages.push({
+        id: makeId('msg'),
+        week: state.week + 1,
+        sortWeek: state.week + 1 + 0.005,
+        type: 'national_pride',
+        context: 'world_cup_selection',
+        threadKey: selectedPlayer.id,
+        threadLabel: `${selectedPlayer.firstName} ${selectedPlayer.lastName}`,
+        playerId: selectedPlayer.id,
+        playerName: `${selectedPlayer.firstName} ${selectedPlayer.lastName}`,
+        senderRole: 'player',
+        senderName: `${selectedPlayer.firstName} ${selectedPlayer.lastName}`,
+        subject: `Sélection ${selected.countryName}`,
+        body: `${selectedPlayer.firstName} ${selectedPlayer.lastName} vient d'être convoqué avec ${selected.countryName}. Le tournoi change le dossier. On doit gérer la pression et la fatigue.`,
+        read: false,
+        resolved: false,
+      });
+    });
+    generatedNews.push(createManualNewsPost({
+      type: 'media',
+      week: state.week + 1,
+      text: `🌍 Tirage de la Coupe du Monde ${wcState.year} : groupes en place, la pression monte déjà pour les sélectionnés.`,
+      reputationImpact: 2,
+      account: { name: 'FIFA Draw Room', kind: 'journal', icon: 'FD', color: '#1a1a6e' },
+    }));
   }
 
   // Simuler la phase CdM en cours (1 semaine = 1 phase de plus)
@@ -2001,6 +2037,13 @@ export const playWeek = (state) => {
           account: { name: 'Coupe du Monde', kind: 'media', icon: '🌍', color: '#1a1a6e' },
         }));
         reputationChange += scaleReputationDelta(wcNews.reputationImpact);
+        wcState = {
+          ...wcState,
+          countryPressure: {
+            ...(wcState.countryPressure ?? {}),
+            [player.countryCode]: clamp((wcState.countryPressure?.[player.countryCode] ?? 50) + (wcMatch.matchRating >= 8 ? 8 : wcMatch.goals > 0 ? 5 : wcMatch.result === 'loss' ? -4 : 2), 0, 100),
+          },
+        };
         if (wcMatch.isChampion || wcMatch.matchRating >= 8 || wcMatch.goals >= 2) {
           generatedMessages.push({
             id: makeId('msg'),
@@ -2017,16 +2060,52 @@ export const playWeek = (state) => {
             subject: wcMatch.isChampion ? 'On l\'a fait !' : 'La sélection me booste',
             body: wcMatch.isChampion
               ? `On est champions du monde... je n'oublierai jamais ça. Merci d'avoir cru en moi.`
-              : `Cette sélection me donne faim pour la suite. On sent que le niveau monte. Merci pour le suivi.`,
+              : player.personality === 'ambitieux'
+                ? `Cette sélection me montre que je peux aller encore plus haut. Il faut qu'on transforme ça en vraie opportunité.`
+                : player.personality === 'loyal'
+                  ? `Je suis fier de représenter mon pays. Merci de m'avoir accompagné jusqu'ici.`
+                  : player.personality === 'mercenaire'
+                    ? `La vitrine est énorme. Il faudra bien capitaliser sur ce tournoi.`
+                    : `Cette sélection me donne faim pour la suite. On sent que le niveau monte. Merci pour le suivi.`,
             read: false,
             resolved: wcMatch.isChampion,
           });
+          generatedNews.push(createManualNewsPost({
+            type: 'transfert',
+            week: state.week + 1,
+            text: `${player.firstName} ${player.lastName} attire des regards étrangers après son match de Coupe du Monde. Les clubs surveillent de près son dossier.`,
+            reputationImpact: 3,
+            account: { name: 'Mercato Insider', kind: 'journal', icon: 'MI', color: '#172026' },
+          }));
         }
       }
     }
 
     // Avancer la phase CdM
     wcState = advanceWorldCupPhase(wcState);
+    if (wcState.phase === 'done') {
+      const heritageCards = [...wcState.selectedPlayers]
+        .sort((a, b) => (b.goals + b.assists * 0.5 + b.avgRating) - (a.goals + a.assists * 0.5 + a.avgRating))
+        .slice(0, 5)
+        .map((player) => ({
+          playerId: player.playerId,
+          playerName: player.playerName,
+          countryName: player.countryName,
+          countryFlag: player.countryFlag,
+          goals: player.goals,
+          assists: player.assists,
+          avgRating: Number((player.avgRating || 0).toFixed(1)),
+          label: player.champion ? 'Champion du monde' : player.goals >= 2 ? 'Tournoi XXL' : 'Parcours marquant',
+        }));
+      wcState = { ...wcState, heritageCards };
+      generatedNews.push(createManualNewsPost({
+        type: 'media',
+        week: state.week + 1,
+        text: `🏆 Fin de la Coupe du Monde ${wcState.year}. Des cartes héritage sont créées pour les plus gros parcours du tournoi.`,
+        reputationImpact: 4,
+        account: { name: 'World Cup Chronicle', kind: 'journal', icon: 'WC', color: '#1a1a6e' },
+      }));
+    }
   }
 
   // ── Événements Calendrier Saisonnier ──────────────────────────────────────
