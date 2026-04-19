@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, Clock, CheckCircle, TrendingUp } from 'lucide-react';
 import { formatMoney } from '../utils/format';
+import { getActiveDossierPlayerIds, getPlayerLifecycleState } from '../systems/dossierSystem';
 import { S } from './styles';
 
 function contractColor(weeksLeft) {
@@ -45,10 +46,12 @@ function SummaryPill({ count, label, color, icon: Icon }) {
   );
 }
 
-function PlayerContractCard({ player, onNego }) {
+function PlayerContractCard({ player, state, onNego }) {
   const weeksLeft = player.contractWeeksLeft ?? 0;
   const color = contractColor(weeksLeft);
   const label = contractLabel(weeksLeft);
+  const lifecycle = getPlayerLifecycleState(player, state);
+  const locked = ['predeal', 'transferred'].includes(lifecycle.key) || getActiveDossierPlayerIds(state).has(player.id);
 
   return (
     <div style={{
@@ -104,6 +107,7 @@ function PlayerContractCard({ player, onNego }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
         <button
           onClick={() => onNego(player, 'extend')}
+          disabled={locked}
           style={{
             background: color,
             color: '#ffffff',
@@ -114,11 +118,12 @@ function PlayerContractCard({ player, onNego }) {
             fontWeight: 900,
             letterSpacing: '.1em',
             fontFamily: 'system-ui,sans-serif',
-            cursor: 'pointer',
+            cursor: locked ? 'not-allowed' : 'pointer',
             boxShadow: `0 8px 20px ${color}40`,
+            opacity: locked ? 0.45 : 1,
           }}
         >
-          PROLONGER →
+          {locked ? 'DÉJÀ LIÉ' : 'PROLONGER →'}
         </button>
       </div>
     </div>
@@ -170,7 +175,7 @@ export default function ContractDashboard({ state, currentWeek, onOpenPlayer, on
               {urgent
                 .sort((a, b) => (a.contractWeeksLeft ?? 0) - (b.contractWeeksLeft ?? 0))
                 .map(p => (
-                  <PlayerContractCard key={p.id} player={p} onNego={onNego} />
+                <PlayerContractCard key={p.id} player={p} state={state} onNego={onNego} />
                 ))}
             </div>
           )}
@@ -185,7 +190,7 @@ export default function ContractDashboard({ state, currentWeek, onOpenPlayer, on
               {warning
                 .sort((a, b) => (a.contractWeeksLeft ?? 0) - (b.contractWeeksLeft ?? 0))
                 .map(p => (
-                  <PlayerContractCard key={p.id} player={p} onNego={onNego} />
+                <PlayerContractCard key={p.id} player={p} state={state} onNego={onNego} />
                 ))}
             </div>
           )}
@@ -200,7 +205,7 @@ export default function ContractDashboard({ state, currentWeek, onOpenPlayer, on
               {safe
                 .sort((a, b) => (a.contractWeeksLeft ?? 0) - (b.contractWeeksLeft ?? 0))
                 .map(p => (
-                  <PlayerContractCard key={p.id} player={p} onNego={onNego} />
+                <PlayerContractCard key={p.id} player={p} state={state} onNego={onNego} />
                 ))}
             </div>
           )}

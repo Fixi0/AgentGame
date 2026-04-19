@@ -61,7 +61,7 @@ import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
 import { createMessage, createStaffConversationMessage, getConversationParticipant, getMessageContextOutcome, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage, normalizePromises } from './systems/promiseSystem';
-import { getOfferAcceptanceReadiness, getPendingMessageCounts } from './systems/dossierSystem';
+import { getActiveDossierPlayerIds, getOfferAcceptanceReadiness, getPendingMessageCounts, getPlayerLifecycleState } from './systems/dossierSystem';
 import { recordDossierEvent } from './systems/coherenceSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
 import { purchaseShopItem } from './systems/shopSystem';
@@ -98,6 +98,10 @@ const getTransferReadiness = (state, player, phase) => {
 
 const getExtensionReadiness = (state, player) => {
   if (player.freeAgent || player.club === 'Libre') return { ok: false, message: "Impossible de prolonger sans club. Trouve-lui d'abord une équipe." };
+  const lifecycle = getPlayerLifecycleState(player, state);
+  if (['predeal', 'transferred'].includes(lifecycle.key) || getActiveDossierPlayerIds(state).has(player.id)) {
+    return { ok: false, message: 'Ce joueur a déjà un dossier actif. Termine le pré-accord ou le transfert en cours avant de prolonger.' };
+  }
   const clubOpen = player.contractWeeksLeft <= 26 || player.rating >= 74 || (player.trust ?? 50) >= 62;
   const playerOpen = (player.trust ?? 50) >= 45 && player.moral >= 42;
   if (!clubOpen && !playerOpen) return { ok: false, message: "Ni le club ni le joueur ne veulent prolonger maintenant." };
@@ -943,6 +947,16 @@ export default function FootballAgentGame() {
     const cooldownUntil = state.negotiationCooldowns?.[latestPlayer.id];
     if (cooldownUntil && cooldownUntil > state.week) {
       showToast(`Négociation en pause jusqu'en S${cooldownUntil}`, 'error');
+      return;
+    }
+    if (getActiveDossierPlayerIds(state).has(latestPlayer.id)) {
+      const lifecycle = getPlayerLifecycleState(latestPlayer, state);
+      const message = lifecycle.key === 'predeal'
+        ? 'Ce joueur a déjà un pré-accord en cours.'
+        : lifecycle.key === 'transferred'
+          ? 'Ce joueur est déjà transféré.'
+          : 'Ce joueur a déjà un dossier actif.';
+      showToast(message, 'error');
       return;
     }
     const readiness = type === 'transfer' ? getTransferReadiness(state, latestPlayer, phase) : getExtensionReadiness(state, latestPlayer);

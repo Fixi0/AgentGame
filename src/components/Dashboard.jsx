@@ -1,7 +1,7 @@
 import { Activity, ArrowRight, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Heart, MessageCircle, Play, Target, Trophy, UserPlus, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { getAgencyCapacity } from '../systems/agencySystem';
-import { getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
+import { getActiveDossierPlayerIds, getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
 import { getMarketReachLabel, normalizeAgencyReputation } from '../systems/reputationSystem';
 import { getStrategicSuggestions } from '../systems/suggestionSystem';
 import { getAgencyGoalProgress } from '../systems/agencyGoalsSystem';
@@ -690,7 +690,8 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
   const segments = state.segmentReputation ?? {};
   const pendingCounts = getPendingMessageCounts(state);
   const urgentMessages = (state.messages ?? []).filter(messageNeedsResponse).slice(0, 3);
-  const expiringContracts = state.roster.filter((player) => player.contractWeeksLeft <= 12).slice(0, 3);
+  const activeDossierIds = getActiveDossierPlayerIds(state);
+  const expiringContracts = state.roster.filter((player) => player.contractWeeksLeft <= 12 && !activeDossierIds.has(player.id)).slice(0, 3);
   const marketQueue = getMarketOfferQueue(state)
     .filter((offer) => offer.status === 'open')
     .slice(0, 4);

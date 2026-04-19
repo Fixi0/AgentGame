@@ -134,6 +134,15 @@ export const getPlayerLifecycleState = (player, state) => {
       weeksUntilReopen: weeksToReopen,
     };
   }
+  if (openOffer?.preWindow) {
+    return {
+      key: 'predeal',
+      label: 'Pré-accord',
+      tone: 'warn',
+      detail: `Activation prévue en S${openOffer.effectiveWeek}`,
+      weeksUntilReopen: weeksToReopen,
+    };
+  }
   if (player.careerStatus === 'prolongé') {
     return {
       key: 'prolonged',
