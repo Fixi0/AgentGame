@@ -36,6 +36,14 @@ const PROMISE_PRIORITY = {
   complaint: 1,
 };
 
+const ROLE_MINUTE_THRESHOLDS = {
+  Star: 68,
+  Titulaire: 50,
+  Rotation: 24,
+  'Projet jeune': 18,
+  Indésirable: 8,
+};
+
 const getWeeksAtClub = (player, week) => {
   if (!player) return 0;
   return Math.max(0, week - (player.contractStartWeek ?? week));
@@ -43,6 +51,54 @@ const getWeeksAtClub = (player, week) => {
 
 const isDealContext = (context) =>
   ['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(String(context ?? ''));
+
+export const getRoleExpectationState = (player) => {
+  if (!player) {
+    return {
+      promisedRole: 'Rotation',
+      expectedMinutes: 24,
+      averageMinutes: 0,
+      appearances: 0,
+      starts: 0,
+      actualRole: 'banc',
+      roleMismatch: false,
+    };
+  }
+
+  const recentMatches = (player.matchHistory ?? []).slice(0, 3).filter((match) => Number.isFinite(match?.minutes));
+  const appearances = recentMatches.filter((match) => (match.minutes ?? 0) > 0).length;
+  const starts = recentMatches.filter((match) => (match.minutes ?? 0) >= 60).length;
+  const totalMinutes = recentMatches.reduce((sum, match) => sum + (match.minutes ?? 0), 0);
+  const averageMinutes = appearances ? totalMinutes / appearances : 0;
+  const promisedRole = player.contractClauses?.rolePromise ?? player.clubRole ?? 'Rotation';
+  const expectedMinutes = ROLE_MINUTE_THRESHOLDS[promisedRole] ?? 24;
+
+  const actualRole = averageMinutes >= 68
+    ? 'temps de jeu réel'
+    : averageMinutes >= 40
+      ? 'rotation active'
+      : averageMinutes >= 15
+        ? 'minutes limitées'
+        : 'banc';
+
+  const roleMismatch = appearances >= 2
+    && (
+      averageMinutes < expectedMinutes - 8
+      || (promisedRole === 'Star' && starts === 0 && averageMinutes < 75)
+      || (promisedRole === 'Titulaire' && starts === 0 && averageMinutes < 55)
+      || (promisedRole === 'Rotation' && averageMinutes < 18)
+    );
+
+  return {
+    promisedRole,
+    expectedMinutes,
+    averageMinutes,
+    appearances,
+    starts,
+    actualRole,
+    roleMismatch,
+  };
+};
 
 export const normalizePromises = (promises = []) => {
   if (!Array.isArray(promises) || !promises.length) return promises ?? [];
@@ -131,13 +187,14 @@ export const evaluatePromises = ({ promises = [], roster = [], week }) => {
     if (promise.type === 'complaint' && isHealthyRelationship) {
       return { ...promise, resolved: true };
     }
-    if (['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(promise.type) && player) {
-      const recentMinutes = (player.matchHistory ?? []).slice(0, 3).reduce((sum, match) => sum + (match.minutes ?? 0), 0);
-      const recentAppearances = (player.matchHistory ?? []).slice(0, 3).length || 1;
-      const averageMinutes = recentMinutes / recentAppearances;
-      const roleIsHonored = averageMinutes >= 55 || (player.clubRole ?? '').toLowerCase().includes('star');
+  if (['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(promise.type) && player) {
+      const roleState = getRoleExpectationState(player);
+      const roleIsHonored = !roleState.roleMismatch;
       if (roleIsHonored && isHealthyRelationship) {
         return { ...promise, resolved: true };
+      }
+      if (roleState.appearances < 2) {
+        return promise;
       }
     }
 

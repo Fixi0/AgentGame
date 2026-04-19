@@ -15,7 +15,7 @@ import { createAgentContract, tickAgentContract } from '../systems/agentContract
 import { rollCompetitorThreat } from '../systems/competitorSystem';
 import { createLongTermAgencyGoals } from '../systems/agencyGoalsSystem';
 import { createCareerGoal, createScoutReport, updateSeasonStats } from '../systems/playerDevelopmentSystem';
-import { evaluatePromises, resolvePromisesForPlayer } from '../systems/promiseSystem';
+import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } from '../systems/promiseSystem';
 import { buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
 import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, EURO_CUP_LABELS } from '../systems/europeanCupSystem';
@@ -1680,14 +1680,19 @@ export const playWeek = (state) => {
     if (matchResult?.matchRating) {
       const resultMoral = matchResult.result === 'win' ? 2 : matchResult.result === 'loss' ? -2 : 0;
       const contributionMoral = matchResult.goals || matchResult.assists ? 2 : 0;
-      const promisedRole = updatedPlayer.contractClauses?.rolePromise ?? updatedPlayer.clubRole;
-      const roleProtection = updatedPlayer.contractClauses?.coachRoleProtection ?? false;
-      const promisedRolePenalty =
-        ((promisedRole === 'Star' || (roleProtection && updatedPlayer.clubRole === 'Star')) && matchResult.minutes < 70)
-          ? { moral: -5, trust: -4, label: 'Rôle Star non respecté' }
-          : ((promisedRole === 'Titulaire' || (roleProtection && updatedPlayer.clubRole === 'Titulaire')) && matchResult.minutes < 55)
-            ? { moral: -3, trust: -3, label: 'Temps de jeu inférieur au rôle promis' }
-            : null;
+      const roleState = getRoleExpectationState(updatedPlayer);
+      const promisedRole = roleState.promisedRole;
+      const promisedRolePenalty = roleState.roleMismatch
+        ? (
+            promisedRole === 'Star'
+              ? { moral: -5, trust: -4, label: roleState.actualRole === 'banc' ? 'Rôle de star non respecté' : 'Rôle de star trop léger' }
+              : promisedRole === 'Titulaire'
+                ? { moral: -3, trust: -3, label: roleState.actualRole === 'banc' ? 'Temps de jeu promis non respecté' : 'Statut de titulaire contesté' }
+                : promisedRole === 'Rotation'
+                  ? { moral: -2, trust: -2, label: 'Rotation non assurée' }
+                  : { moral: -2, trust: -2, label: 'Temps de jeu insuffisant' }
+          )
+        : null;
       const matchOutcome = matchResult.result === 'win' ? 'W' : matchResult.result === 'loss' ? 'L' : 'D';
       const updatedRecentResults = [...(updatedPlayer.recentResults ?? []), matchOutcome].slice(-5);
       updatedPlayer = {
@@ -1701,7 +1706,7 @@ export const playWeek = (state) => {
         matchHistory: matchResult ? [{ week: state.week, roleExpectation: promisedRolePenalty?.label ?? promisedRole, ...matchResult }, ...(updatedPlayer.matchHistory ?? [])].slice(0, 12) : updatedPlayer.matchHistory ?? [],
         recentResults: updatedRecentResults,
       };
-      if (promisedRolePenalty) {
+      if (promisedRolePenalty && roleState.appearances >= 2) {
         generatedMessages.push(createMessage({ player: updatedPlayer, type: 'role_frustration', week: state.week + 1, context: 'club_role' }));
       }
     } else {

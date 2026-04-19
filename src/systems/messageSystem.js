@@ -1,5 +1,6 @@
 import { makeId, pick } from '../utils/helpers';
 import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
+import { getRoleExpectationState } from './promiseSystem';
 
 const MESSAGE_TYPES = {
   transfer_request: [
@@ -96,8 +97,8 @@ const MESSAGE_TYPES = {
     { subject: 'Plus deux fois', body: "J'ai fait confiance, c'était une erreur. Une promesse, ça se respecte. J'attends une explication." },
   ],
   role_frustration: [
-    { subject: 'Le rôle promis ?', body: "On m'a vendu un rôle important, mais je ne joue pas assez. Tu peux parler au coach ou au club ?" },
-    { subject: 'Je ne suis pas venu pour le banc', body: "Je comprends la concurrence, mais là le temps de jeu ne correspond pas à ce qu'on m'a promis." },
+    { subject: 'Le rôle promis ?', body: "On m'a vendu un vrai rôle, mais j'ai besoin que les minutes suivent. Tu peux parler au coach ou au club ?" },
+    { subject: 'Le temps de jeu ne colle pas', body: "Je comprends la concurrence, mais là le rôle promis ne correspond pas à la réalité du terrain." },
   ],
   voice_call: [
     { subject: 'Appel demandé', body: "J'ai besoin de t'avoir au téléphone. Pas un long message — un vrai échange." },
@@ -598,9 +599,17 @@ export const getResponseCopy = (message, responseType, player = null) => {
     return "Bienvenue.\n\nJe vais être direct : si tu veux que je t'emmène plus haut, il faudra être irréprochable. Entraînement, communication, entourage, réseaux sociaux — tout compte.\n\nMoi je gère les opportunités. Toi, tu me donnes des arguments sur le terrain.";
   }
   if (message.type === 'role_frustration') {
-    if (responseType === 'professionnel') return `Tu as raison de soulever le sujet.\n\nJe vais parler au coach et au directeur sportif pour comprendre où tu te situes réellement dans la hiérarchie. Avec ton ${situationHint()}, le rôle promis doit être cohérent.\n\nEn attendant, reste prêt. Je veux des arguments quand j'appelle.`;
-    if (responseType === 'empathique') return "Je comprends ta frustration.\n\nQuand on signe pour un rôle, on a besoin de sentir que le club tient parole. Je t'appelle ce soir, on regarde les minutes, le calendrier et la meilleure manière de mettre la pression sans te griller.\n\nTu n'es pas seul là-dessus.";
-    return "Je vais regarder la situation, mais tu dois aussi répondre sur le terrain.\n\nLe rôle promis donne un cadre, pas un passe-droit. Tu restes irréprochable à l'entraînement, et moi je mets le club devant ses responsabilités si ça continue.";
+    const roleState = getRoleExpectationState(player);
+    const roleSummary = roleState.actualRole === 'banc'
+      ? 'au banc'
+      : roleState.actualRole === 'minutes limitées'
+        ? 'avec un temps de jeu limité'
+        : roleState.actualRole === 'rotation active'
+          ? 'en rotation'
+          : 'avec du vrai temps de jeu';
+    if (responseType === 'professionnel') return `Tu as raison de soulever le sujet.\n\nJe vais parler au coach et au directeur sportif pour comprendre où tu te situes réellement dans la hiérarchie. Avec ce joueur ${roleSummary}, on doit d'abord regarder les minutes récentes et le plan promis.\n\nEn attendant, reste prêt. Je veux des arguments quand j'appelle.`;
+    if (responseType === 'empathique') return `Je comprends ta frustration.\n\nQuand on signe pour un rôle, on a besoin de sentir que le club tient parole. Je t'appelle ce soir, on regarde les minutes, le calendrier et la meilleure manière de remettre la situation au clair sans te griller.\n\nTu n'es pas seul là-dessus.`;
+    return `Je vais regarder la situation, mais je ne vais pas la résumer à un simple banc si tu as déjà du temps de jeu.\n\nLe rôle promis donne un cadre, pas un passe-droit. Tu restes irréprochable à l'entraînement, et moi je mets le club devant ses responsabilités si ça continue.\n\nOn veut du concret, pas du flou.`;
   }
   if (message.type === 'staff_dialogue') {
     if (responseType === 'professionnel') return "Je prends le sujet au sérieux et je vais être concret.\n\nJe veux savoir exactement ce que le club a promis, ce qui bloque aujourd'hui, et à quoi ressemble la prochaine étape. S'il faut parler de temps de jeu ou de rôle, je le ferai sans détour.\n\nOn garde ce dossier propre et on se revoit après mon appel au club.";
