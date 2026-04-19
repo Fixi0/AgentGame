@@ -75,7 +75,9 @@ function MatchScorecard({ match }) {
         <div style={{ marginTop: 4, fontSize: 9, color: '#b45309', fontFamily: 'system-ui,sans-serif', textAlign: 'center', background: '#fffbeb', borderRadius: 4, padding: '2px 6px', display: 'inline-block' }}>Amical</div>
       )}
       {!match.minutes && (
-        <div style={{ marginTop: 4, fontSize: 10, color: '#9aa7b2', fontFamily: 'system-ui,sans-serif', textAlign: 'center' }}>Absent</div>
+        <div style={{ marginTop: 4, fontSize: 10, color: '#9aa7b2', fontFamily: 'system-ui,sans-serif', textAlign: 'center' }}>
+          Absent{match.absenceReason ? ` · ${match.absenceReason}` : ''}
+        </div>
       )}
     </div>
   );

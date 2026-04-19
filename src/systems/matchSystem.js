@@ -165,7 +165,7 @@ const getPositionScoringProfile = (player) =>
 
 const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = teamGoals, remainingAssists = teamGoals) => {
   if (player.injured > 0) {
-    return { minutes: 0, goals: 0, assists: 0, matchRating: null };
+    return { minutes: 0, goals: 0, assists: 0, matchRating: null, selectionStatus: 'blessé', absenceReason: 'blessé' };
   }
 
   const tierExpectation = player.clubTier <= 1 ? 80 : player.clubTier === 2 ? 74 : player.clubTier === 3 ? 66 : 58;
@@ -178,7 +178,7 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
   const startChance = Math.max(0.04, Math.min(0.96, 0.42 + levelGap * 0.035 + roleBonus / 100 + formBonus / 100 + contractRoleBonus / 100));
   const squadChance = Math.max(0.12, Math.min(0.98, 0.72 + levelGap * 0.025 + roleBonus / 120 + contractRoleBonus / 140));
   if (Math.random() > squadChance) {
-    return { minutes: 0, goals: 0, assists: 0, matchRating: null, selectionStatus: 'hors groupe' };
+    return { minutes: 0, goals: 0, assists: 0, matchRating: null, selectionStatus: 'hors groupe', absenceReason: 'hors groupe' };
   }
 
   const starts = Math.random() < startChance;
@@ -254,6 +254,7 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
     matchReport: report,
     matchRating,
     selectionStatus: starts ? 'titulaire' : 'remplaçant',
+    absenceReason: starts ? '' : 'sur le banc',
   };
 };
 
@@ -271,8 +272,8 @@ const incidentLabels = {
   disallowed_goal: 'but refusé',
 };
 
-const getMatchReport = ({ player, minutes, goals, assists, matchRating, saves, tackles, keyPasses, xg, passAccuracy, incidents, teamResult, opponentGoals }) => {
-  if (!minutes) return 'Absent ou préservé cette semaine.';
+const getMatchReport = ({ player, minutes, goals, assists, matchRating, saves, tackles, keyPasses, xg, passAccuracy, incidents, teamResult, opponentGoals, absenceReason = '' }) => {
+  if (!minutes) return `Absent${absenceReason ? ` · ${absenceReason}` : ''}.`;
   const reasons = [];
   if (goals) reasons.push(`${goals} but${goals > 1 ? 's' : ''}`);
   if (assists) reasons.push(`${assists} passe décisive${assists > 1 ? 's' : ''}`);
