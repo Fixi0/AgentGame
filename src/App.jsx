@@ -303,12 +303,22 @@ export default function FootballAgentGame() {
       return;
     }
 
-    const result = playWeek(state);
-    setState(result.state);
-    // Show the week ticker first, then the full results modal
-    setWeekTickerData(result.report);
-    if (result.report.newMessagesCount > 0) {
-      showToast(`${result.report.newMessagesCount} nouveau message`, 'info');
+    try {
+      setModal(null);
+      setWeekTickerData(null);
+      const result = playWeek(state);
+      if (!result?.state || !result?.report) {
+        throw new Error('playWeek() a renvoyé un résultat incomplet');
+      }
+      setState(result.state);
+      // Show the week ticker first, then the full results modal
+      setWeekTickerData(result.report);
+      if (result.report.newMessagesCount > 0) {
+        showToast(`${result.report.newMessagesCount} nouveau message`, 'info');
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Impossible de lancer la semaine pour le moment.", 'error');
     }
   };
 

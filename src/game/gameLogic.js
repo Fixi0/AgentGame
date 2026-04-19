@@ -17,7 +17,7 @@ import { createLongTermAgencyGoals } from '../systems/agencyGoalsSystem';
 import { createCareerGoal, createScoutReport, updateSeasonStats } from '../systems/playerDevelopmentSystem';
 import { evaluatePromises, resolvePromisesForPlayer } from '../systems/promiseSystem';
 import { buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
-import { generateClubOffers, generateSurpriseOffer, getSeasonContext } from '../systems/seasonSystem';
+import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
 import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, EURO_CUP_LABELS } from '../systems/europeanCupSystem';
 import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier } from '../systems/worldCupSystem';
 import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSeasonalNewsItem } from '../systems/calendarEventsSystem';
@@ -865,6 +865,129 @@ const normalizeOfferBook = (offers = []) => {
   });
 };
 
+const buildWeeklyTimeline = ({
+  week,
+  phase,
+  activePeriod,
+  deliveredMessagesCount,
+  queueSize,
+  offerCount,
+  fixtureCount,
+  messageCount,
+  newsCount,
+  interactiveEvent,
+  contractEvent,
+  topMatch,
+  flopMatch,
+  promiseFailuresCount,
+  leavingPlayersCount,
+  net,
+  bonusMoney,
+  reputationChange,
+}) => {
+  const currentDate = getCalendarSnapshot(week);
+  const activityTone = activePeriod ? `${activePeriod.emoji} ${activePeriod.label}` : phase.phase;
+
+  return [
+    {
+      day: 'Lundi',
+      icon: '📅',
+      tone: 'info',
+      title: 'Lancement de la semaine',
+      text: `${currentDate.dateLabel} · ${activityTone}. On remet les dossiers à plat avant que le terrain parle.`,
+      chips: [
+        `${offerCount} offre${offerCount > 1 ? 's' : ''}`,
+        `${queueSize} dossier${queueSize > 1 ? 's' : ''}`,
+        `${deliveredMessagesCount} message${deliveredMessagesCount > 1 ? 's' : ''} livré${deliveredMessagesCount > 1 ? 's' : ''}`,
+      ],
+    },
+    {
+      day: 'Mardi',
+      icon: '💬',
+      tone: deliveredMessagesCount > 0 ? 'good' : 'calm',
+      title: 'Carnet de messages',
+      text: deliveredMessagesCount > 0
+        ? `${deliveredMessagesCount} message prioritaire est arrivé cette semaine. Le reste reste en file pour garder le rythme.`
+        : 'Semaine très calme côté messages. La file reste propre et rien ne se perd.',
+      chips: [
+        `${messageCount} conversation${messageCount > 1 ? 's' : ''}`,
+        `${Math.max(0, queueSize - deliveredMessagesCount)} en attente`,
+      ],
+    },
+    {
+      day: 'Mercredi',
+      icon: '🧭',
+      tone: interactiveEvent || contractEvent ? 'warn' : 'calm',
+      title: 'Dossiers sensibles',
+      text: interactiveEvent
+        ? `Un dossier sensible tombe aujourd'hui: ${interactiveEvent.player?.firstName ?? 'un joueur'} attire toute l'attention.`
+        : contractEvent
+          ? 'La tension monte autour d’un contrat ou d’une promesse. Le dossier doit rester propre.'
+          : 'Aucun gros choc au milieu de semaine. C’est une bonne fenêtre pour gérer les appels et les suivis.',
+      chips: [
+        interactiveEvent ? 'Événement interactif' : 'Suivi calme',
+        contractEvent ? 'Contrat à traiter' : 'Pas de gros blocage',
+      ],
+    },
+    {
+      day: 'Jeudi',
+      icon: '📰',
+      tone: newsCount > 0 ? 'good' : 'calm',
+      title: 'Réseaux et médias',
+      text: newsCount > 0
+        ? `${newsCount} info${newsCount > 1 ? 's' : ''} ont circulé. Une partie du bruit vient du marché, l’autre des résultats.`
+        : 'Peu de bruit médiatique cette semaine. Les réseaux restent stables, la réputation ne bouge pas pour rien.',
+      chips: [
+        `${newsCount} news`,
+        `Crédibilité ${reputationChange >= 0 ? '+' : ''}${reputationChange}`,
+      ],
+    },
+    {
+      day: 'Vendredi',
+      icon: '⚽',
+      tone: topMatch ? 'good' : 'calm',
+      title: 'Terrain',
+      text: topMatch
+        ? `${topMatch.playerName} sort du lot avec ${topMatch.matchRating.toFixed(1)} de note face à ${topMatch.opponent}.`
+        : fixtureCount > 0
+          ? `${fixtureCount} affiche${fixtureCount > 1 ? 's' : ''} cette semaine. Le terrain fait la loi sur les stats et les humeurs.`
+          : 'Pas de grosse affiche cette semaine, mais la forme collective se lit quand même dans les dossiers.',
+      chips: [
+        `${fixtureCount} match${fixtureCount > 1 ? 's' : ''}`,
+        flopMatch ? `Flop ${flopMatch.matchRating.toFixed(1)}` : 'Aucun gros flop',
+      ],
+    },
+    {
+      day: 'Samedi',
+      icon: '🧠',
+      tone: promiseFailuresCount > 0 ? 'danger' : 'calm',
+      title: 'Conséquences',
+      text: promiseFailuresCount > 0
+        ? `${promiseFailuresCount} promesse${promiseFailuresCount > 1 ? 's' : ''} cassée${promiseFailuresCount > 1 ? 's' : ''} remontent dans les discussions.`
+        : leavingPlayersCount > 0
+          ? `${leavingPlayersCount} joueur${leavingPlayersCount > 1 ? 's' : ''} commence${leavingPlayersCount > 1 ? 'nt' : ''} à douter de la suite.`
+          : 'Les décisions prises commencent à produire leurs effets. Le dossier reste sous contrôle.',
+      chips: [
+        leavingPlayersCount > 0 ? `${leavingPlayersCount} départ${leavingPlayersCount > 1 ? 's' : ''}` : 'Aucun départ immédiat',
+        bonusMoney > 0 ? `Bonus ${formatMoney(bonusMoney)}` : 'Pas de bonus',
+      ],
+    },
+    {
+      day: 'Dimanche',
+      icon: '📈',
+      tone: net >= 0 ? 'good' : 'danger',
+      title: 'Bilan de la semaine',
+      text: net >= 0
+        ? `Bilan positif de ${formatMoney(net)}. Réputation ${reputationChange >= 0 ? '+' : ''}${reputationChange}, l'agence avance proprement.`
+        : `Semaine à ${formatMoney(net)}. Il faut relancer les dossiers rentables et éviter l'empilement d'urgences.`,
+      chips: [
+        `Revenus ${formatMoney(Math.max(0, bonusMoney))}`,
+        `Contrats ${contractEvent ? 'à surveiller' : 'stables'}`,
+      ],
+    },
+  ];
+};
+
 export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
   const offer = state.clubOffers.find((item) => item.id === offerId);
   if (!offer || offer.status !== 'open') return { state, error: 'Offre indisponible' };
@@ -880,6 +1003,19 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
     if (!['open'].includes(item.status)) return item;
     return { ...item, status: 'superseded' };
   };
+  const settlePlayerMessages = (messages, settledContext) => messages.map((message) => {
+    if (message.playerId !== player.id) return message;
+    if (message.type !== 'transfer_request') return message;
+    if (String(message.context ?? '').includes('deal_signed') || String(message.context ?? '').includes('predeal_signed')) return message;
+    return {
+      ...message,
+      resolved: true,
+      context: settledContext,
+      responseText: settledContext === 'deal_signed_player'
+        ? 'Le deal est signé, le dossier est maintenant clos.'
+        : 'Le pré-accord est signé, le dossier reste sous contrôle.',
+    };
+  });
 
   if (offer.preWindow && !phase.mercato) {
     const effectiveWeek = offer.effectiveWeek ?? state.week + 1;
@@ -962,7 +1098,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
             read: false,
             resolved: false,
           },
-          ...state.messages,
+          ...settlePlayerMessages(state.messages, 'predeal_signed_player'),
         ].slice(0, 40),
       },
     };
@@ -1055,7 +1191,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
           read: false,
           resolved: false,
         },
-        ...state.messages,
+        ...settlePlayerMessages(state.messages, 'deal_signed_player'),
       ].slice(0, 40),
     },
   };
@@ -2242,6 +2378,27 @@ export const playWeek = (state) => {
     );
   }
 
+  const weekTimeline = buildWeeklyTimeline({
+    week: state.week + 1,
+    phase: nextPhase,
+    activePeriod,
+    deliveredMessagesCount: deliveredMessages.length,
+    queueSize: queuedMessages.length,
+    offerCount: newClubOffers.length + duePendingTransfers.length,
+    fixtureCount: weeklyFixtures.length,
+    messageCount: queuedMessages.length,
+    newsCount: [...offerNews, ...worldNews, ...generatedNews].length,
+    interactiveEvent,
+    contractEvent,
+    topMatch,
+    flopMatch,
+    promiseFailuresCount: promiseEvaluation.failedPromises.length,
+    leavingPlayersCount: leavingPlayers.length,
+    net,
+    bonusMoney,
+    reputationChange,
+  });
+
   return {
     state: nextState,
     report: {
@@ -2267,6 +2424,8 @@ export const playWeek = (state) => {
       worldCupPhase: wcState?.phase,
       activePeriod: activePeriod ? { key: activePeriod.key, label: activePeriod.label, emoji: activePeriod.emoji } : null,
       periodEffect: periodEffect.label ? periodEffect : null,
+      messageQueueCount: queuedMessages.length,
+      weekTimeline,
       week: state.week,
     },
   };
