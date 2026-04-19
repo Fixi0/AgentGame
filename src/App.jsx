@@ -195,6 +195,7 @@ export default function FootballAgentGame() {
   const [activeMessageThreadKey, setActiveMessageThreadKey] = useState(null);
   const [weekTickerData, setWeekTickerData] = useState(null);
   const [saveFlash, setSaveFlash] = useState(false);
+  const [lastWeekError, setLastWeekError] = useState(null);
 
   useEffect(() => {
     try {
@@ -429,6 +430,7 @@ export default function FootballAgentGame() {
     try {
       setModal(null);
       setWeekTickerData(null);
+      setLastWeekError(null);
       if (playableState !== state) setState(playableState);
       const result = playWeek(playableState);
       if (!result?.state || !result?.report) {
@@ -451,6 +453,12 @@ export default function FootballAgentGame() {
       }
     } catch (error) {
       console.error(error);
+      const errorMessage = error?.message ?? 'blocage interne';
+      setLastWeekError({
+        message: errorMessage,
+        stack: error?.stack ?? null,
+        week: playableState.week,
+      });
       const fallbackState = {
         ...playableState,
         week: (playableState.week ?? 1) + 1,
@@ -484,7 +492,7 @@ export default function FootballAgentGame() {
       };
       setState(fallbackState);
       setWeekTickerData(buildFallbackWeekReport(playableState));
-      showToast(`Semaine avancée en mode secours: ${error?.message ?? 'blocage interne'}`, 'info');
+      showToast(`Semaine avancée en mode secours: ${errorMessage}`, 'info');
     }
   };
 
@@ -1509,6 +1517,26 @@ export default function FootballAgentGame() {
           }}
         >
           {toast.message}
+        </div>
+      )}
+
+      {lastWeekError && (
+        <div style={{
+          position: 'fixed',
+          left: 12,
+          right: 12,
+          bottom: 72,
+          zIndex: 65,
+          background: '#fff7f7',
+          border: '1px solid #f5c2c7',
+          color: '#7a1f2b',
+          borderRadius: 10,
+          padding: '10px 12px',
+          boxShadow: '0 12px 30px rgba(15,23,32,.14)',
+          fontSize: 12,
+          lineHeight: 1.35,
+        }}>
+          <strong>Semaine de secours</strong> · {lastWeekError.message}
         </div>
       )}
     </div>
