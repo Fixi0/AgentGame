@@ -133,6 +133,18 @@ export const INTERACTIVE_EVENTS = [
     ],
   },
   {
+    id: 'press_conference_week',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Conférence de presse hebdomadaire',
+    description: "Trois questions, trois angles. La presse veut savoir s'il est prêt pour le choc du week-end. Chaque réponse change le ton du dossier.",
+    choices: [
+      { label: 'Réponse maîtrisée', cost: 0, effects: { rep: 3, moral: 3, trust: 3, pressure: -4 }, desc: 'Rassurer sans surjouer' },
+      { label: 'Protéger le joueur', cost: 0, effects: { rep: 2, moral: 6, trust: 5, pressure: -6 }, desc: 'Calmer vestiaire et entourage' },
+      { label: 'Mettre la pression aux autres', cost: 0, effects: { rep: 4, moral: 1, trust: 1, pressure: -2 }, desc: 'Décaler la pression sur le rival' },
+    ],
+  },
+  {
     id: 'salary',
     rarity: 'common',
     types: ['transfer'],

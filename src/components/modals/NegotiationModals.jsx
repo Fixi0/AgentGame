@@ -26,6 +26,9 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
   const [releaseClause, setReleaseClause] = useState(() => Math.floor(player.value * 1.8));
   const [sellOnPercent, setSellOnPercent] = useState(() => (player.age <= 23 ? 10 : 5));
   const [bonusPackage, setBonusPackage] = useState(() => Math.floor(player.weeklySalary * 12));
+  const [ballonDorBonus, setBallonDorBonus] = useState(() => Math.floor(player.weeklySalary * 18));
+  const [noCutClause, setNoCutClause] = useState(() => player.age <= 25);
+  const [coachRoleProtection, setCoachRoleProtection] = useState(() => true);
   const [log, setLog] = useState([{ type: 'info', message: `Négociation transfert : ${player.firstName} ${player.lastName}` }]);
   const [done, setDone] = useState(false);
   const [suitor] = useState(() => {
@@ -71,6 +74,11 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
       goals: Math.floor(bonusPackage * 0.35),
       appearances: Math.floor(bonusPackage * 0.35),
       europe: Math.floor(bonusPackage * 0.3),
+    },
+    contractClauses: {
+      ballonDorBonus,
+      noCutClause,
+      coachRoleProtection,
     },
   });
 
@@ -150,12 +158,18 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
         sellOnPercent={sellOnPercent}
         bonusPackage={bonusPackage}
         salaryMultiplier={salaryMultiplier}
+        ballonDorBonus={ballonDorBonus}
+        noCutClause={noCutClause}
+        coachRoleProtection={coachRoleProtection}
         onRole={setRole}
         onYears={setContractYears}
         onBonus={setSigningBonus}
         onReleaseClause={setReleaseClause}
         onSellOn={setSellOnPercent}
         onBonusPackage={setBonusPackage}
+        onBallonDorBonus={setBallonDorBonus}
+        onNoCutClause={setNoCutClause}
+        onCoachRoleProtection={setCoachRoleProtection}
       />
       <LogBox log={log} />
       <NegotiationActions
@@ -184,6 +198,9 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
   const [releaseClause, setReleaseClause] = useState(() => player.releaseClause ?? Math.floor(player.value * 1.7));
   const [sellOnPercent, setSellOnPercent] = useState(() => player.sellOnPercent ?? 5);
   const [bonusPackage, setBonusPackage] = useState(() => player.clubBonuses?.total ?? Math.floor(player.weeklySalary * 8));
+  const [ballonDorBonus, setBallonDorBonus] = useState(() => player.contractClauses?.ballonDorBonus ?? Math.floor(player.weeklySalary * 18));
+  const [noCutClause, setNoCutClause] = useState(() => player.contractClauses?.noCutClause ?? true);
+  const [coachRoleProtection, setCoachRoleProtection] = useState(() => player.contractClauses?.coachRoleProtection ?? true);
   const [log, setLog] = useState([{ type: 'info', message: `Prolongation avec ${player.club}` }]);
   const [done, setDone] = useState(false);
   const maxTurns = 4;
@@ -212,6 +229,11 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
       goals: Math.floor(bonusPackage * 0.35),
       appearances: Math.floor(bonusPackage * 0.35),
       europe: Math.floor(bonusPackage * 0.3),
+    },
+    contractClauses: {
+      ballonDorBonus,
+      noCutClause,
+      coachRoleProtection,
     },
   });
 
@@ -277,12 +299,18 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
         sellOnPercent={sellOnPercent}
         bonusPackage={bonusPackage}
         salaryMultiplier={salaryMultiplier}
+        ballonDorBonus={ballonDorBonus}
+        noCutClause={noCutClause}
+        coachRoleProtection={coachRoleProtection}
         onRole={setRole}
         onYears={setContractYears}
         onBonus={setSigningBonus}
         onReleaseClause={setReleaseClause}
         onSellOn={setSellOnPercent}
         onBonusPackage={setBonusPackage}
+        onBallonDorBonus={setBallonDorBonus}
+        onNoCutClause={setNoCutClause}
+        onCoachRoleProtection={setCoachRoleProtection}
       />
       <LogBox log={log} />
       {!done && turn <= maxTurns && open > 0 && (
@@ -309,7 +337,7 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
   );
 }
 
-function ContractTerms({ role, contractYears, signingBonus, releaseClause, sellOnPercent, bonusPackage, salaryMultiplier, onRole, onYears, onBonus, onReleaseClause, onSellOn, onBonusPackage }) {
+function ContractTerms({ role, contractYears, signingBonus, releaseClause, sellOnPercent, bonusPackage, salaryMultiplier, ballonDorBonus, noCutClause, coachRoleProtection, onRole, onYears, onBonus, onReleaseClause, onSellOn, onBonusPackage, onBallonDorBonus, onNoCutClause, onCoachRoleProtection }) {
   return (
     <div style={S.negoStat}>
       <div style={S.nsLabel}>CONTRAT PROPOSE</div>
@@ -353,10 +381,22 @@ function ContractTerms({ role, contractYears, signingBonus, releaseClause, sellO
           Bonus
           <input type="number" min="0" step="1000" value={bonusPackage} onChange={(event) => onBonusPackage(Math.max(0, Number(event.target.value)))} style={S.textInput} />
         </label>
+        <label style={S.fieldLabel}>
+          Bonus Ballon d'Or
+          <input type="number" min="0" step="1000" value={ballonDorBonus} onChange={(event) => onBallonDorBonus(Math.max(0, Number(event.target.value)))} style={S.textInput} />
+        </label>
         <div style={S.fieldLabel}>
           Promesse
           <div style={{ ...S.textInput, fontWeight: 900 }}>{role} · temps de jeu</div>
         </div>
+        <label style={S.fieldLabel}>
+          <span>Clause no-cut</span>
+          <input type="checkbox" checked={noCutClause} onChange={(event) => onNoCutClause(event.target.checked)} />
+        </label>
+        <label style={S.fieldLabel}>
+          <span>Protection rôle</span>
+          <input type="checkbox" checked={coachRoleProtection} onChange={(event) => onCoachRoleProtection(event.target.checked)} />
+        </label>
       </div>
     </div>
   );

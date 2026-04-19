@@ -244,6 +244,25 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                 </div>
               </div>
             )}
+            {player.contractClauses && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>CLAUSES</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '6px 8px' }}>
+                    <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>BALLON D'OR</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{formatMoney(player.contractClauses.ballonDorBonus ?? 0)}</div>
+                  </div>
+                  <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '6px 8px' }}>
+                    <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>NO-CUT</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{player.contractClauses.noCutClause ? 'Oui' : 'Non'}</div>
+                  </div>
+                  <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '6px 8px', gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>RÔLE PROTÉGÉ</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{player.contractClauses.coachRoleProtection ? 'Oui' : 'Non'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>CONTRAT AGENT-JOUEUR</div>

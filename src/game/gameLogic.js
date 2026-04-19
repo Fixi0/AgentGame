@@ -27,6 +27,7 @@ import { awardGems } from '../systems/shopSystem';
 import { generateSeasonObjectives, updateObjectiveProgress, checkObjectiveCompletion } from '../systems/objectivesSystem';
 import { createDefaultContacts } from '../systems/contactsSystem';
 import { getActiveDossierPlayerIds, getMarketLockedPlayerIds, getMessagePriority } from '../systems/dossierSystem';
+import { applyLockerRoomDynamics, buildLockerRoomSnapshot } from '../systems/lockerRoomSystem';
 import { createPublicRep, tickPublicRep, getPublicRepOfferBonus } from '../systems/publicReputationSystem';
 import {
   addDecisionHistory,
@@ -830,6 +831,11 @@ const buildTransferAgreement = (player, offer, negotiatedOutcome = null) => {
   const releaseClause = negotiatedOutcome?.releaseClause ?? Math.floor(player.value * 1.8);
   const sellOnPercent = negotiatedOutcome?.sellOnPercent ?? 5;
   const clubBonuses = negotiatedOutcome?.clubBonuses ?? { total: Math.floor(player.weeklySalary * 8) };
+  const contractClauses = negotiatedOutcome?.contractClauses ?? {
+    ballonDorBonus: Math.floor(player.weeklySalary * 16),
+    noCutClause: player.age <= 25,
+    coachRoleProtection: true,
+  };
   const commission = Math.floor(finalPrice * 0.08 + signingBonus * 0.05 + (clubBonuses.total ?? 0) * 0.02);
   return {
     finalPrice,
@@ -840,6 +846,7 @@ const buildTransferAgreement = (player, offer, negotiatedOutcome = null) => {
     releaseClause,
     sellOnPercent,
     clubBonuses,
+    contractClauses,
     commission,
   };
 };
@@ -865,6 +872,7 @@ const applyCompletedTransferToPlayer = (player, offer, agreement, week) => {
     releaseClause: agreement.releaseClause,
     sellOnPercent: agreement.sellOnPercent,
     clubBonuses: agreement.clubBonuses,
+    contractClauses: agreement.contractClauses,
     lastContractEventWeek: week,
     freeAgent: false,
     timeline: [
@@ -2018,9 +2026,19 @@ export const playWeek = (state) => {
   let interactiveEvent = null;
   const lastInteractiveWeek = state.lastInteractiveEventWeek ?? 0;
   const interactiveCooldownOk = (state.week - lastInteractiveWeek) >= 2;
+  const nextPhase = getPhase(state.week + 1);
+  const lockerRoomSnapshot = buildLockerRoomSnapshot(chainedRoster);
+  const lockerRoomTension = lockerRoomSnapshot.reduce((max, group) => Math.max(max, group.tension ?? 0), 0);
+  const pressConferenceDue = Boolean(topMatch && topMatch.matchRating >= 7.3);
 
-  if (interactiveCooldownOk && Math.random() < 0.16 && chainedRoster.length > 0) {
-    interactiveEvent = chooseInteractiveEvent(chainedRoster, { scoutLevel: getStaffEffect(state.staff, 'scoutAfrica') });
+  if (interactiveCooldownOk && chainedRoster.length > 0 && (pressConferenceDue ? Math.random() < 0.65 : Math.random() < 0.16)) {
+    interactiveEvent = chooseInteractiveEvent(chainedRoster, {
+      scoutLevel: getStaffEffect(state.staff, 'scoutAfrica'),
+      phase: nextPhase,
+      topMatch,
+      vestiaireTension: lockerRoomTension,
+      pressConference: pressConferenceDue || nextPhase.mercato,
+    });
   }
 
   const contractEvent = getContractEventForRoster(chainedRoster, state.week + 1);
@@ -2069,7 +2087,6 @@ export const playWeek = (state) => {
 
   const leavingPlayers = chainedRoster.filter((player) => Math.random() < getDepartureRisk(player));
   const net = totalIncome - totalCost;
-  const nextPhase = getPhase(state.week + 1);
   const worldSummary = generateWorldSummary({ week: state.week + 1, phase: nextPhase, worldState: state.worldState });
   let objectives = state.objectives;
   let bonusMoney = 0;
@@ -2166,6 +2183,10 @@ export const playWeek = (state) => {
   });
   events.push(...narrativeFollowups.events);
   generatedMessages.push(...narrativeFollowups.messages);
+
+  const lockerRoomImpact = applyLockerRoomDynamics(finalRoster, state.week + 1);
+  finalRoster = lockerRoomImpact.roster;
+  events.push(...lockerRoomImpact.events);
 
   const normalizedOfferBook = normalizeOfferBook(state.clubOffers ?? []);
   const activeOffers = normalizedOfferBook.filter((offer) => offer.expiresWeek >= state.week && offer.status === 'open');
@@ -2450,6 +2471,7 @@ export const playWeek = (state) => {
       periodEffect: periodEffect.label ? periodEffect : null,
       messageQueueCount: queuedMessages.length,
       weekTimeline,
+      lockerRoom: lockerRoomImpact.snapshot,
       week: state.week,
     },
   };
@@ -2473,6 +2495,7 @@ export const applyChoice = (state, event, player, choice) => {
       ...rosterPlayer,
       moral: effects.moral ? clamp(rosterPlayer.moral + effects.moral) : rosterPlayer.moral,
       trust: effects.trust ? clamp((rosterPlayer.trust ?? 50) + effects.trust) : rosterPlayer.trust ?? 50,
+      pressure: effects.pressure ? clamp((rosterPlayer.pressure ?? 30) + effects.pressure) : rosterPlayer.pressure ?? 30,
       value: effects.val ? Math.floor(rosterPlayer.value * effects.val) : rosterPlayer.value,
       commission: effects.commission ? Math.max(0.05, rosterPlayer.commission + effects.commission) : rosterPlayer.commission,
       injured: effects.injury ? effects.injury : rosterPlayer.injured,
@@ -2546,6 +2569,11 @@ export const finishNegotiation = (state, type, player, outcome) => {
     const contractWeeks = outcome.contractWeeks ?? 150;
     const clubRole = outcome.role ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
     const clubBonuses = outcome.clubBonuses ?? { total: Math.floor(player.weeklySalary * 8) };
+    const contractClauses = outcome.contractClauses ?? {
+      ballonDorBonus: Math.floor(player.weeklySalary * 16),
+      noCutClause: player.age <= 25,
+      coachRoleProtection: true,
+    };
     const commission = Math.floor(outcome.price * 0.08 + signingBonus * 0.05 + (clubBonuses.total ?? 0) * 0.02);
     const nextRoster = nextState.roster.map((rosterPlayer) =>
       rosterPlayer.id !== player.id
@@ -2567,6 +2595,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
             releaseClause: outcome.releaseClause ?? Math.floor(rosterPlayer.value * 1.8),
             sellOnPercent: outcome.sellOnPercent ?? 5,
             clubBonuses,
+            contractClauses,
             freeAgent: false,
             timeline: [
               { week: state.week, type: 'transfer', label: `${outcome.club} · ${clubRole} · contrat ${Math.round(contractWeeks / 52)} ans` },
@@ -2610,6 +2639,11 @@ export const finishNegotiation = (state, type, player, outcome) => {
   } else if (type === 'extend' && outcome.success) {
     const signingBonus = outcome.signingBonus ?? Math.floor(player.weeklySalary * 10);
     const clubBonuses = outcome.clubBonuses ?? { total: Math.floor(player.weeklySalary * 8) };
+    const contractClauses = outcome.contractClauses ?? {
+      ballonDorBonus: Math.floor(player.weeklySalary * 16),
+      noCutClause: player.age <= 25,
+      coachRoleProtection: true,
+    };
     const bonus = Math.floor(signingBonus * 0.08 + (clubBonuses.total ?? 0) * 0.02 + player.value * 0.01);
     const contractWeeks = outcome.contractWeeks ?? 104;
     const clubRole = outcome.role ?? player.clubRole ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
@@ -2645,6 +2679,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
               releaseClause: outcome.releaseClause ?? rosterPlayer.releaseClause ?? Math.floor(rosterPlayer.value * 1.7),
               sellOnPercent: outcome.sellOnPercent ?? rosterPlayer.sellOnPercent ?? 5,
               clubBonuses,
+              contractClauses,
               lastContractEventWeek: state.week,
               agentContract: {
                 ...(rosterPlayer.agentContract ?? createAgentContract(rosterPlayer)),

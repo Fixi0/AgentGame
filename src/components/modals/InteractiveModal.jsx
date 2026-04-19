@@ -100,6 +100,7 @@ function OutcomeScreen({ event, player, choice, onConfirm, onClose }) {
                 <EffectLine emoji="💪" label="Moral"         value={effects.moral}  positive={(effects.moral ?? 0) > 0} />
                 <EffectLine emoji="🤝" label="Confiance"     value={effects.trust}  positive={(effects.trust ?? 0) > 0} />
                 <EffectLine emoji="⭐" label="Réputation"    value={effects.rep}    positive={(effects.rep ?? 0) > 0} />
+                <EffectLine emoji="🌡️" label="Pression"      value={effects.pressure} positive={(effects.pressure ?? 0) < 0} />
                 {valPct !== 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f0f4f7' }}>
                     <span style={{ fontSize: 12, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>📈 Valeur marché</span>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, AlertCircle, ChevronRight, LogOut, X } from 'lucide-react';
+import { Activity, AlertCircle, ChevronRight, LogOut, Users, X } from 'lucide-react';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
@@ -180,6 +180,22 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                 <div key={`${item.week}-${item.title}`} style={{ ...S.evRow, borderLeft: '3px solid #172026' }}>
                   <div style={S.evPlayer}>{item.title}</div>
                   <div style={S.evLabel}>{item.text}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {data.lockerRoom?.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={S.secTitle}>
+                <Users size={14} />
+                <span>VESTIAIRE</span>
+              </div>
+              {data.lockerRoom.slice(0, 3).map((group) => (
+                <div key={group.club} style={{ ...S.evRow, borderLeft: `3px solid ${group.tension >= 65 ? '#b42318' : group.chemistry >= 70 ? '#00a676' : '#2f80ed'}` }}>
+                  <div style={S.evPlayer}>{group.club}</div>
+                  <div style={S.evLabel}>
+                    {group.mood} · Chimie {group.chemistry}/100 · Leader {group.leaders[0] ? `${group.leaders[0].firstName} ${group.leaders[0].lastName}` : 'aucun'}
+                  </div>
                 </div>
               ))}
             </div>

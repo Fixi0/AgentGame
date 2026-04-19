@@ -1,4 +1,4 @@
-import { CHAINED_EVENTS, INTERACTIVE_EVENTS, PASSIVE_EVENTS } from '../data/events';
+import { CHAINED_EVENTS, INTERACTIVE_EVENTS, LOCKER_ROOM_EVENTS, PASSIVE_EVENTS } from '../data/events';
 import { PERSONALITY_PROFILES } from '../data/players';
 import { clamp, makeId, pick } from '../utils/helpers';
 import { getWorldStateEventModifier } from '../systems/worldStateSystem';
@@ -98,13 +98,29 @@ export const chooseInteractiveEvent = (roster, context = {}) => {
   if (!roster.length) return null;
 
   const player = pick(roster);
-  const contextualEvents = INTERACTIVE_EVENTS.filter((event) => {
+  const availableEvents = [...INTERACTIVE_EVENTS, ...LOCKER_ROOM_EVENTS];
+  const contextualEvents = availableEvents.filter((event) => {
+    if (event.id === 'press_conference_week' && !context.pressConference) return false;
     if (event.id === 'prospect' && (context.scoutLevel ?? 0) <= 0) return false;
     if (event.id === 'retirement_decision' && player.age < 31) return false;
     if (event.id === 'youth_mentor' && player.age < 28) return false;
+    if (event.types?.includes('vestiaire') && !(context.vestiaireTension ?? 0)) return false;
     if (!event.personalities?.length) return true;
     return event.personalities.includes(player.personality);
   });
+
+  const pressConferenceEvent = contextualEvents.find((event) => event.id === 'press_conference_week');
+  if (context.pressConference && pressConferenceEvent) {
+    const target = context.topMatch?.playerId
+      ? roster.find((item) => item.id === context.topMatch.playerId) ?? player
+      : player;
+    return { event: pressConferenceEvent, player: target };
+  }
+
+  const lockerRoomEvent = contextualEvents.find((event) => event.types?.includes('vestiaire'));
+  if (lockerRoomEvent && (context.vestiaireTension ?? 0) >= 55 && Math.random() < 0.7) {
+    return { event: lockerRoomEvent, player };
+  }
 
   return { event: pick(contextualEvents), player };
 };

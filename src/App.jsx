@@ -15,6 +15,7 @@ import More from './components/More';
 import NewsFeed from './components/NewsFeed';
 import Onboarding from './components/Onboarding';
 import Office from './components/Office';
+import Vestiaire from './components/Vestiaire';
 import Roster from './components/Roster';
 import Shop from './components/Shop';
 import SaveMenu from './components/SaveMenu';
@@ -119,6 +120,7 @@ const views = {
   media: { label: 'Médias', icon: Newspaper },
   deadline: { label: 'Deadline', icon: Timer },
   scouting: { label: 'Scout', icon: Telescope },
+  vestiaire: { label: 'Vestiaire', icon: Users },
   office: { label: 'Agence', icon: Briefcase },
   profile: { label: 'Profil', icon: UserCircle },
   messages: { label: 'Messages', icon: MessageCircle },
@@ -141,6 +143,7 @@ const moreItems = [
   { key: 'calendar', label: 'Calendrier', desc: 'Affiches et résultats', icon: CalendarDays },
   { key: 'deadline', label: 'Deadline Day', desc: 'Appels mercato', icon: Timer },
   { key: 'scouting', label: 'Scouting', desc: 'Missions et rapports', icon: Telescope },
+  { key: 'vestiaire', label: 'Vestiaire', desc: 'Chimie et tensions', icon: Users },
   { key: 'office', label: 'Agence', desc: 'Staff et identité', icon: Briefcase },
   { key: 'profile', label: 'Profil', desc: "Bilan de l'agence", icon: UserCircle },
 ];
@@ -1090,6 +1093,7 @@ export default function FootballAgentGame() {
         {view === 'standings' && <Standings state={state} onClubDetails={showClubDetails} />}
         {view === 'deadline' && <DeadlineDay state={state} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={state} onStartMission={handleStartScoutingMission} />}
+        {view === 'vestiaire' && <Vestiaire state={state} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} />}
         {view === 'dossiers' && <Dossiers state={state} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} onNav={setView} />}
         {view === 'office' && (
           <Office
