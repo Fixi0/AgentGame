@@ -130,6 +130,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
     label: readiness?.reason ?? 'Offre prête.',
   });
   const [round, setRound] = useState(1);
+  const [stage, setStage] = useState(readiness?.ok ? 'approved' : 'draft');
 
   const clubAssessment = useMemo(
     () => assessClubReaction(terms, baseTerms, round, player),
@@ -140,11 +141,19 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
   const statusColor = warningTone ? '#b42318' : status.tone === 'warn' ? '#b45309' : '#00a676';
   const statusBg = warningTone ? '#fef2f2' : status.tone === 'warn' ? '#fffbeb' : '#f0fdf8';
 
-  const updateField = (key, value) => setTerms((prev) => ({ ...prev, [key]: value }));
+  const updateField = (key, value) => {
+    setTerms((prev) => ({ ...prev, [key]: value }));
+    setStage('draft');
+    setStatus({
+      tone: 'warn',
+      label: 'Nouvelle version préparée. Il faut renvoyer au club pour obtenir sa réponse.',
+    });
+  };
 
   const handleCounter = () => {
     if (clubAssessment.accepted) {
       setStatus({ tone: 'good', label: clubAssessment.label });
+      setStage('approved');
       setRound((value) => Math.min(3, value + 1));
       return;
     }
@@ -171,6 +180,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
     tonedDown.price = Math.floor(terms.price * 0.97);
 
     setTerms(tonedDown);
+    setStage('draft');
     setStatus({
       tone: round >= 3 ? 'danger' : 'warn',
       label: round >= 3 ? `${clubAssessment.label} Dernière chance avant retrait.` : clubAssessment.label,
@@ -179,18 +189,17 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
   };
 
   const handleSign = () => {
-    if (!clubAssessment.accepted) {
+    if (stage !== 'approved' || !clubAssessment.accepted) {
       setStatus({
         tone: clubAssessment.roleShifted || clubAssessment.durationShifted ? 'warn' : 'danger',
-        label: clubAssessment.label,
+        label: 'Le club n\'a pas encore validé cette version du contrat.',
       });
-      setRound((value) => Math.min(3, value + 1));
       return;
     }
     onSign(buildOutcome(terms));
   };
 
-  const signLabel = clubAssessment.accepted ? `Signer ${terms.contractYears} ans` : 'Attendre la réponse du club';
+  const signLabel = stage === 'approved' && clubAssessment.accepted ? `Signer ${terms.contractYears} ans` : 'Attendre la réponse du club';
 
   return (
     <div style={S.overlay}>
@@ -203,6 +212,30 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
         <div style={S.mBody}>
           <h2 style={S.mTitle}>{offer.club}</h2>
           <div style={S.mPlayer}>{player.firstName} {player.lastName} · {offer.preWindow ? 'pré-accord' : 'offre active'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
+            {[
+              { label: '1. Tu choisis', detail: 'Rôle, durée, clauses' },
+              { label: '2. Le club répond', detail: 'Oui / non / ajuste' },
+              { label: '3. Tu signes', detail: 'Seulement après accord' },
+            ].map((item, index) => {
+              const active = index === 0 || (index === 1 && stage !== 'draft') || (index === 2 && stage === 'approved');
+              return (
+                <div key={item.label} style={{
+                  background: active ? '#f3fbf8' : '#f7f9fb',
+                  border: `1px solid ${active ? '#cfeee3' : '#e5eaf0'}`,
+                  borderRadius: 8,
+                  padding: 10,
+                }}>
+                  <div style={{ fontSize: 10, letterSpacing: '.12em', color: active ? '#00a676' : '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 3 }}>
+                    {item.label}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#3f5663', fontFamily: 'system-ui,sans-serif', lineHeight: 1.35 }}>
+                    {item.detail}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
           <div style={S.objCard}>
             <div style={S.secTitle}>BASE CLUB</div>
@@ -253,9 +286,9 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
               {status.label}
             </div>
             <div style={{ marginTop: 8, fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45 }}>
-              {clubAssessment.accepted
-                ? 'Le club a validé le rôle et la durée. Tu peux signer sans contradiction.'
-                : 'Le club doit répondre avant signature si tu changes le rôle ou la durée.'}
+              {stage === 'approved'
+                ? 'Le club a validé cette version du contrat. Tu peux signer.'
+                : 'Tu modifies, tu envoies, puis tu attends la réponse du club avant de signer.'}
             </div>
           </div>
 
@@ -268,6 +301,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
                 borderColor: clubAssessment.accepted ? '#00a676' : '#d6dde3',
                 opacity: clubAssessment.accepted ? 1 : 0.7,
               }}
+              disabled={stage !== 'approved' || !clubAssessment.accepted}
             >
               <div>
                 <div style={{ ...S.chLabel, color: clubAssessment.accepted ? '#00a676' : '#64727d' }}>
@@ -279,7 +313,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
             </button>
             <button type="button" onClick={handleCounter} style={S.choiceBtn}>
               <div>
-                <div style={S.chLabel}><RefreshCcw size={14} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />Envoyer une contre-offre</div>
+                <div style={S.chLabel}><RefreshCcw size={14} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />Envoyer au club</div>
                 <div style={S.chDesc}>Le club réagit vraiment au rôle, à la durée et au salaire</div>
               </div>
             </button>
