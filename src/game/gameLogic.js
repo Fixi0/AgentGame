@@ -504,6 +504,7 @@ export const createFreshState = () => ({
   pendingTransfers: [],
   negotiationCooldowns: {},
   messageQueue: [],
+  socialCrisisCooldowns: {},
   pendingChainedEvents: [],
   seasonAwards: {},
   worldState: generateWorldState(1),
@@ -562,6 +563,7 @@ export const migrateState = (state) => {
     pendingTransfers: state.pendingTransfers ?? [],
     negotiationCooldowns: state.negotiationCooldowns ?? {},
     messageQueue: state.messageQueue ?? [],
+    socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
     pendingChainedEvents: state.pendingChainedEvents ?? [],
     seasonAwards: state.seasonAwards ?? {},
     worldState: state.worldState ?? generateWorldState(1),
@@ -602,6 +604,7 @@ export const migrateState = (state) => {
     pendingTransfers: asArray(state.pendingTransfers),
     negotiationCooldowns: state.negotiationCooldowns ?? {},
     messageQueue: asArray(state.messageQueue),
+    socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
     pendingChainedEvents: asArray(state.pendingChainedEvents),
     market: asArray(state.market),
     freeAgents: asArray(state.freeAgents),
@@ -1710,18 +1713,22 @@ export const playWeek = (state) => {
       // Anti-flood: cooldown par joueur + cap global hebdo
       const playerLastMsg = updatedPlayer.lastMessageWeek ?? 0;
       const msgCooldownOk = (state.week - playerLastMsg) >= MIN_PLAYER_MSG_COOLDOWN;
-      const weeklyCapOk = generatedMessages.filter((m) => m.playerId === updatedPlayer.id || true).length < MAX_WEEKLY_MESSAGES;
+      const weeklyCapOk = generatedMessages.filter((m) => m.playerId === updatedPlayer.id).length < MAX_WEEKLY_MESSAGES;
       if (msgCooldownOk && weeklyCapOk) {
         const message = maybeCreateContextualMessage({
           player: updatedPlayer,
           event,
           week: state.week,
           mercato: getPhase(state.week).mercato,
+          state,
         });
         if (message) {
           generatedMessages.push(message);
           // Marquer la semaine du dernier message sur le joueur
           updatedPlayer = { ...updatedPlayer, lastMessageWeek: state.week };
+          if (message.type === 'media_pressure') {
+            socialCrisisCooldowns[updatedPlayer.id] = state.week + 6;
+          }
         }
       }
 
@@ -2091,6 +2098,7 @@ export const playWeek = (state) => {
   let objectives = state.objectives;
   let bonusMoney = 0;
   let bonusReputation = 0;
+  const socialCrisisCooldowns = { ...(state.socialCrisisCooldowns ?? {}) };
 
   // Rotation worldState à chaque nouvelle saison
   const nextWorldState = nextPhase.seasonWeek === 1 && state.week > 1
@@ -2410,6 +2418,7 @@ export const playWeek = (state) => {
     clubOffers: [...newClubOffers, ...expiredOffers].slice(0, 30),
     pendingTransfers: remainingPendingTransfers,
     negotiationCooldowns: updatedNegotiationCooldowns,
+    socialCrisisCooldowns: { ...(state.socialCrisisCooldowns ?? {}), ...socialCrisisCooldowns },
     stats: {
       ...state.stats,
       totalEarned: state.stats.totalEarned + Math.max(0, net),

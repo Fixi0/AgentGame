@@ -1253,6 +1253,9 @@ export default function FootballAgentGame() {
                       : m,
                   )
                 : cur.messages,
+              socialCrisisCooldowns: modal.data.player?.id
+                ? { ...(cur.socialCrisisCooldowns ?? {}), [modal.data.player.id]: cur.week + 6 }
+                : (cur.socialCrisisCooldowns ?? {}),
             }));
             setModal(null);
             showToast('Crise gérée', 'success');

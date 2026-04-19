@@ -2,6 +2,7 @@ import { MEDIA_RELATION_TEMPLATES, addDecisionHistory, applyCredibilityChange, a
 import { applyClubRelation } from './clubSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
 import { createMessage } from './messageSystem';
+import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
 import { clamp, makeId, pick } from '../utils/helpers';
 
 const MEDIA_NAME_TO_ID = MEDIA_RELATION_TEMPLATES.reduce((map, media) => ({
@@ -183,7 +184,9 @@ export const applyNewsConsequences = ({ state, roster, posts, week }) => {
         }));
       }
 
-      if (post.type === 'scandale' || (post.type === 'media' && impact < 0)) {
+      if ((post.type === 'scandale' || (post.type === 'media' && impact < 0))
+          && !hasOpenMediaPressure(state, updatedPlayer.id)
+          && getMediaCrisisCooldownWeeks(state, updatedPlayer.id) <= 0) {
         messages.push(createMessage({ player: updatedPlayer, type: 'media_pressure', week, context: post.id }));
       } else if (post.trend === 'viral' && impact > 0 && Math.random() < 0.45) {
         messages.push(createMessage({ player: updatedPlayer, type: 'thanks', week, context: post.id }));
@@ -240,6 +243,12 @@ export const generateNarrativeFollowups = ({ state, roster, week }) => {
   if (!player) return { events: [], messages: [] };
 
   if (arc.type === 'media_crisis') {
+    if (hasOpenMediaPressure(state, player.id) || getMediaCrisisCooldownWeeks(state, player.id) > 0) {
+      return {
+        events: [{ title: 'Réseaux sous contrôle', text: `${player.firstName} ${player.lastName} reste dans une séquence médiatique sensible, mais la pression a été contenue pour le moment.` }],
+        messages: [],
+      };
+    }
     return {
       events: [{ title: 'Crise media qui continue', text: `${player.firstName} ${player.lastName} reste au centre des débats. La prochaine réponse peut calmer ou amplifier l'histoire.` }],
       messages: [createMessage({ player, type: 'media_pressure', week, context: arc.id })],

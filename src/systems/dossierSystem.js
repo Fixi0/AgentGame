@@ -90,8 +90,21 @@ export const getMarketLockedPlayerIds = (state = {}) => {
 
 export const hasActiveDossierForPlayer = (state = {}, playerId) => getActiveDossierPlayerIds(state).has(playerId);
 
+export const hasOpenMediaPressure = (state = {}, playerId) =>
+  (state?.messages ?? []).some((message) =>
+    message.playerId === playerId
+    && message.type === 'media_pressure'
+    && !message.resolved,
+  );
+
 export const getWeeksUntilMessageReopen = (state, playerId) => {
   const cooldownUntil = state?.negotiationCooldowns?.[playerId];
+  if (!cooldownUntil) return 0;
+  return Math.max(0, cooldownUntil - (state?.week ?? 0));
+};
+
+export const getMediaCrisisCooldownWeeks = (state, playerId) => {
+  const cooldownUntil = state?.socialCrisisCooldowns?.[playerId];
   if (!cooldownUntil) return 0;
   return Math.max(0, cooldownUntil - (state?.week ?? 0));
 };

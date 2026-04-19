@@ -1,4 +1,5 @@
 import { makeId, pick } from '../utils/helpers';
+import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
 
 const MESSAGE_TYPES = {
   transfer_request: [
@@ -169,7 +170,7 @@ export const MAX_WEEKLY_MESSAGES = 2;
  *  - Moments de vie rares (retraite, vie perso) → 3-5% max
  *  - Suppression des triggers génériques type "good event → merci" (trop fréquents)
  */
-export const maybeCreateContextualMessage = ({ player, event, week, mercato = false }) => {
+export const maybeCreateContextualMessage = ({ player, event, week, mercato = false, state = null }) => {
   if (!player) return null;
 
   // ── URGENCES (pas de cooldown — message toujours généré) ─────────────────
@@ -199,7 +200,9 @@ export const maybeCreateContextualMessage = ({ player, event, week, mercato = fa
   if (event && !event.good && event.type === 'scandal'
       && scandalCrisisChance > 0
       && (player.age <= 26 || ['instable', 'fetard'].includes(player.personality))
-      && Math.random() < scandalCrisisChance) {
+      && Math.random() < scandalCrisisChance
+      && !hasOpenMediaPressure(state, player.id)
+      && getMediaCrisisCooldownWeeks(state, player.id) <= 0) {
     return createMessage({ player, type: 'media_pressure', week, context: event.id });
   }
 
