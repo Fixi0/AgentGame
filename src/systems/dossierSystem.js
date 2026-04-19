@@ -131,6 +131,15 @@ export const getPlayerLifecycleState = (player, state) => {
   const worldCupSelection = worldCupState?.selectedPlayers?.find((entry) => entry.playerId === player.id);
   const worldCupActive = Boolean(worldCupState && worldCupState.phase !== 'done' && worldCupSelection && !worldCupSelection.eliminated);
 
+  if ((player.injured ?? 0) > 0) {
+    return {
+      key: 'injured',
+      label: 'Blessé',
+      tone: 'danger',
+      detail: `Encore ${player.injured} sem.`,
+      weeksUntilReopen: weeksToReopen,
+    };
+  }
   if (pendingTransfer) {
     return {
       key: 'transferred',
@@ -155,6 +164,15 @@ export const getPlayerLifecycleState = (player, state) => {
       label: 'En sélection',
       tone: worldCupSelection.champion ? 'good' : 'warn',
       detail: `${worldCupSelection.countryName ?? 'Pays'} · ${worldCupState.phase}`,
+      weeksUntilReopen: weeksToReopen,
+    };
+  }
+  if (player.seasonStatus === 'mercato') {
+    return {
+      key: 'mercato',
+      label: 'En mercato',
+      tone: 'warn',
+      detail: 'Fenêtre de mouvement active',
       weeksUntilReopen: weeksToReopen,
     };
   }
