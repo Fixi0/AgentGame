@@ -1,11 +1,15 @@
 export const formatMoney = (amount) => {
-  if (Math.abs(amount) >= 1e6) {
-    return `${amount < 0 ? '-' : ''}€${(Math.abs(amount) / 1e6).toFixed(1)}M`;
+  const value = Number(amount) || 0;
+  const sign = value < 0 ? '-' : '';
+  const abs = Math.abs(value);
+
+  if (abs >= 1e9) {
+    return `${sign}€${(abs / 1e9).toFixed(1).replace('.', ',')}Md`;
   }
 
-  if (Math.abs(amount) >= 1000) {
-    return `${amount < 0 ? '-' : ''}€${(Math.abs(amount) / 1000).toFixed(0)}k`;
+  if (abs >= 1e6) {
+    return `${sign}€${(abs / 1e6).toFixed(1).replace('.', ',')}M`;
   }
 
-  return `€${amount}`;
+  return `${sign}€${Math.round(abs).toLocaleString('fr-FR')}`;
 };
