@@ -540,6 +540,8 @@ export const createFreshState = () => ({
 export const migrateState = (state) => {
   if (!state) return createFreshState();
 
+  const asArray = (value, fallback = []) => (Array.isArray(value) ? value : fallback);
+
   return {
     ...state,
     agencyProfile: { ...DEFAULT_AGENCY_PROFILE, ...(state.agencyProfile ?? {}) },
@@ -567,14 +569,14 @@ export const migrateState = (state) => {
     leagueReputation: state.leagueReputation ?? createDefaultLeagueReputation(state.agencyProfile?.countryCode ?? 'FR'),
     clubRelations: state.clubRelations ?? createDefaultClubRelations(),
     clubMemory: state.clubMemory ?? createDefaultClubMemory(),
-    scoutingMissions: state.scoutingMissions ?? [],
-    competitorThreats: state.competitorThreats ?? [],
-    lastFixtures: state.lastFixtures ?? [],
-    nextFixtures: state.nextFixtures ?? [],
+    scoutingMissions: asArray(state.scoutingMissions),
+    competitorThreats: asArray(state.competitorThreats),
+    lastFixtures: asArray(state.lastFixtures),
+    nextFixtures: asArray(state.nextFixtures),
     agencyLevel: state.agencyLevel ?? 4,
-    history: Array.isArray(state.history) ? state.history : [],
-    news: state.news ?? [],
-    messages: state.messages ?? [],
+    history: asArray(state.history),
+    news: asArray(state.news),
+    messages: asArray(state.messages),
     agencyGoals: state.agencyGoals ?? createLongTermAgencyGoals(),
     contacts: state.contacts ?? createDefaultContacts(),
     seasonObjectives: state.seasonObjectives ?? generateSeasonObjectives({ week: state.week ?? 1, reputation: state.reputation ?? 12 }),
@@ -584,8 +586,21 @@ export const migrateState = (state) => {
     worldCupState: state.worldCupState ?? null,
     sentSeasonalMessages: state.sentSeasonalMessages ?? [],
     activePeriod: state.activePeriod ?? null,
-    stats: state.stats ?? { totalEarned: 0, playersSigned: 0, transfersDone: 0, seasonsPlayed: 0 },
-    roster: (state.roster ?? []).map((player) => {
+    stats: {
+      totalEarned: state.stats?.totalEarned ?? 0,
+      playersSigned: state.stats?.playersSigned ?? 0,
+      transfersDone: state.stats?.transfersDone ?? 0,
+      seasonsPlayed: state.stats?.seasonsPlayed ?? 0,
+    },
+    clubOffers: asArray(state.clubOffers),
+    pendingTransfers: asArray(state.pendingTransfers),
+    negotiationCooldowns: state.negotiationCooldowns ?? {},
+    messageQueue: asArray(state.messageQueue),
+    pendingChainedEvents: asArray(state.pendingChainedEvents),
+    market: asArray(state.market),
+    freeAgents: asArray(state.freeAgents),
+    promises: normalizePromises(asArray(state.promises)),
+    roster: asArray(state.roster).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
@@ -620,7 +635,7 @@ export const migrateState = (state) => {
         europeanCompetition: player.europeanCompetition ?? getEuropeanCompetition(player),
       };
     }),
-    market: (state.market?.length ? state.market : generateMarket(state.reputation ?? 15, state.office?.scoutLevel ?? 0)).map((player) => {
+    market: (asArray(state.market).length ? asArray(state.market) : generateMarket(state.reputation ?? 15, state.office?.scoutLevel ?? 0)).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
@@ -2345,7 +2360,7 @@ export const playWeek = (state) => {
     pendingChainedEvents: updatedPendingChains,
     seasonAwards: annualCalendar.seasonAwards,
     roster: finalRoster,
-    market: [...completedScouting, ...state.market].slice(0, 12),
+    market: [...completedScouting, ...(Array.isArray(state.market) ? state.market : [])].slice(0, 12),
     lastFixtures: weeklyFixtures,
     nextFixtures,
     leagueTables: updateLeagueTables(state.leagueTables ?? createInitialLeagueTables(), weeklyFixtures),
@@ -2354,7 +2369,7 @@ export const playWeek = (state) => {
     objectives,
     seasonObjectives: currentObjectives,
     contacts: state.contacts ?? createDefaultContacts(),
-    history: [...state.history.slice(-20), { week: state.week, net, rep: applyReputationChange(state.reputation, reputationChange) }],
+    history: [...(Array.isArray(state.history) ? state.history.slice(-20) : []), { week: state.week, net, rep: applyReputationChange(state.reputation, reputationChange) }],
     news: [
       ...offerNews,
       ...worldNews,

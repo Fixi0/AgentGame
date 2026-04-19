@@ -202,6 +202,67 @@ export default function FootballAgentGame() {
     return true;
   };
 
+  const buildFallbackWeekReport = (safeState) => {
+    const nextWeek = (safeState.week ?? 1) + 1;
+    const nextPhase = getPhase(nextWeek);
+    const nextDate = getCalendarSnapshot(nextWeek);
+    return {
+      income: 0,
+      salaries: 0,
+      staffCost: 0,
+      net: 0,
+      repChange: 0,
+      events: [],
+      leavingPlayers: [],
+      bonusMoney: 0,
+      seasonRecap: null,
+      interactiveEvent: null,
+      newSeason: nextPhase.seasonWeek === 1 && (safeState.week ?? 1) > 1,
+      newMessagesCount: 0,
+      messageQueueCount: (safeState.messageQueue ?? []).length,
+      matchResults: [],
+      euroMatchResults: [],
+      fixtures: [],
+      clubOffers: [],
+      phase: nextPhase,
+      worldSummary: [],
+      worldCupActive: false,
+      worldCupPhase: null,
+      activePeriod: null,
+      periodEffect: null,
+      weekTimeline: [
+        {
+          id: 'fallback-lundi',
+          day: 'Lundi',
+          icon: '📅',
+          tone: 'warn',
+          title: 'Semaine de secours',
+          text: `${nextDate.dateLabel} · la simulation principale a rencontré un blocage, mais la semaine avance quand même.`,
+          chips: ['Fallback actif', 'Aucun dossier perdu'],
+        },
+        {
+          id: 'fallback-mardi',
+          day: 'Mardi',
+          icon: '💬',
+          tone: 'calm',
+          title: 'Messagerie compacte',
+          text: 'On garde les messages en file et on continue sur une base propre.',
+          chips: [`File ${safeState.messageQueue?.length ?? 0}`],
+        },
+        {
+          id: 'fallback-dimanche',
+          day: 'Dimanche',
+          icon: '📈',
+          tone: 'good',
+          title: 'Bilan provisoire',
+          text: 'Le moteur sera repris au prochain passage, sans bloquer ta partie.',
+          chips: ['Semaine avancée'],
+        },
+      ],
+      week: safeState.week ?? 1,
+    };
+  };
+
   const handleSignPlayer = (player) => {
     setModal({ type: 'recruit_player', data: { player } });
   };
@@ -320,7 +381,30 @@ export default function FootballAgentGame() {
       }
     } catch (error) {
       console.error(error);
-      showToast("Impossible de lancer la semaine pour le moment.", 'error');
+      const fallbackState = {
+        ...playableState,
+        week: (playableState.week ?? 1) + 1,
+        roster: (playableState.roster ?? []).map((player) => ({
+          ...player,
+          fatigue: Math.max(0, (player.fatigue ?? 20) - 4),
+          contractWeeksLeft: Math.max(0, (player.contractWeeksLeft ?? 0) - 1),
+          injured: Math.max(0, (player.injured ?? 0) - 1),
+        })),
+        nextFixtures: playableState.nextFixtures ?? [],
+        lastFixtures: playableState.lastFixtures ?? [],
+        history: [...(playableState.history ?? []).slice(-20), {
+          week: playableState.week,
+          net: 0,
+          rep: playableState.reputation ?? 0,
+          fallback: true,
+        }],
+        stats: {
+          ...(playableState.stats ?? {}),
+        },
+      };
+      setState(fallbackState);
+      setWeekTickerData(buildFallbackWeekReport(playableState));
+      showToast(`Semaine avancée en mode secours: ${error?.message ?? 'blocage interne'}`, 'info');
     }
   };
 
