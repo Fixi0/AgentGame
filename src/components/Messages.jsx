@@ -1,6 +1,6 @@
 import { ChevronLeft, MessageCircle, PhoneCall, UserRound } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
-import { getContextualResponseOptions, getResponseCopy } from '../systems/messageSystem';
+import { getConversationParticipant, getConversationReplyTargetLabel, getContextualResponseOptions, getResponseCopy } from '../systems/messageSystem';
 import { getPendingMessageCounts, getMessageQueueLabel } from '../systems/dossierSystem';
 import { S } from './styles';
 
@@ -48,7 +48,8 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
         const items = [...thread.items].sort((a, b) => (a.sortWeek ?? a.week ?? 0) - (b.sortWeek ?? b.week ?? 0));
         const latest = items[items.length - 1];
         const unresolvedCount = items.filter((item) => !item.resolved).length;
-        const isStaff = items.some((item) => item.senderRole === 'staff' || String(item.context ?? '').includes('coach') || String(item.context ?? '').includes('ds'));
+        const participant = getConversationParticipant(latest ?? items[0]);
+        const isStaff = participant.role === 'staff';
         return {
           ...thread,
           items,
@@ -57,6 +58,7 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
           unresolvedCount,
           hasUnread: unresolvedCount > 0,
           isStaff,
+          participant,
         };
       })
       .filter((thread) => {
@@ -193,7 +195,9 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={S.threadContactTitle}>{thread.label}</div>
-                      <div style={S.threadContactSub}>{thread.contextLabel || thread.playerName}</div>
+                      <div style={S.threadContactSub}>
+                        {thread.participant?.role === 'staff' ? `${thread.participant.label} · ${thread.contextLabel || thread.playerName}` : thread.contextLabel || thread.playerName}
+                      </div>
                     </div>
                     {thread.unresolvedCount > 0 && <span style={S.threadBadge}>{thread.unresolvedCount}</span>}
                   </div>
@@ -230,6 +234,7 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                     <div style={S.chatTag}>{selectedThread.isStaff ? 'Staff' : 'Joueur'}</div>
+                    <div style={S.chatTag}>{selectedThread.participant?.label ?? 'Contact'}</div>
                     {threadNeedsResponseCount(selectedThread) > 0 && <div style={S.responseBadge}>Réponse attendue</div>}
                   </div>
                 </div>
@@ -246,13 +251,18 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                       ) : (
                         <>
                           <div style={S.chatBubbleLeft}>
-                            <div style={S.chatMeta}>{message.senderName ?? message.playerName} · S{message.week}</div>
+                            <div style={S.chatMeta}>
+                              {message.senderRole === 'staff'
+                                ? `${message.senderName ?? 'Staff'} · ${getConversationParticipant(message).label} · S${message.week}`
+                                : `${message.senderName ?? message.playerName} · S${message.week}`}
+                            </div>
                             <div style={S.chatSubject}>{message.subject}</div>
                             <div style={S.chatBody}>{message.body}</div>
                             {messageNeedsResponse(message) && <div style={S.responseBadgeInline}>Réponse attendue</div>}
                           </div>
                           {message.resolved ? (
                             <div style={S.chatBubbleRight}>
+                              <div style={S.chatMeta}>Réponse {getConversationReplyTargetLabel(message)}</div>
                               {getDisplayedResponse(message)}
                             </div>
                           ) : (

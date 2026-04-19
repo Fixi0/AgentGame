@@ -304,6 +304,31 @@ const RESPONSE_OPTIONS_BY_TYPE = {
 
 const isDealContext = (message) => ['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(message?.context);
 
+export const getConversationParticipant = (message) => {
+  if (!message) return { label: 'Contact', role: 'unknown', audience: 'unknown' };
+  const rawContext = String(message.context ?? '');
+  const senderRole = message.senderRole ?? 'player';
+  const fromStaff = senderRole === 'staff' || ['coach_dialogue', 'ds_dialogue', 'staff_dialogue'].includes(message.type);
+  if (fromStaff) {
+    if (message.type === 'coach_dialogue' || rawContext.includes('coach')) {
+      return { label: 'Coach', role: 'staff', audience: 'coach' };
+    }
+    if (message.type === 'ds_dialogue' || rawContext.includes('ds')) {
+      return { label: 'Directeur sportif', role: 'staff', audience: 'ds' };
+    }
+    return { label: 'Staff club', role: 'staff', audience: 'staff' };
+  }
+  return { label: message.playerName ?? 'Joueur', role: 'player', audience: 'player' };
+};
+
+export const getConversationReplyTargetLabel = (message) => {
+  const participant = getConversationParticipant(message);
+  if (participant.audience === 'coach') return 'au coach';
+  if (participant.audience === 'ds') return 'au DS';
+  if (participant.role === 'staff') return 'au staff';
+  return 'au joueur';
+};
+
 export const getMessageResponseOptions = (message) => RESPONSE_OPTIONS_BY_TYPE[message.type] ?? {
   professionnel: 'Réponse claire',
   empathique: 'Soutien direct',
@@ -311,12 +336,35 @@ export const getMessageResponseOptions = (message) => RESPONSE_OPTIONS_BY_TYPE[m
 };
 
 export const getContextualResponseOptions = (message) => {
+  const participant = getConversationParticipant(message);
+  if (participant.role === 'staff') {
+    if (participant.audience === 'coach') {
+      return {
+        professionnel: 'Répondre au coach',
+        empathique: 'Apaiser le coach',
+        ferme: 'Poser le cadre',
+      };
+    }
+    if (participant.audience === 'ds') {
+      return {
+        professionnel: 'Répondre à la direction',
+        empathique: 'Clarifier calmement',
+        ferme: 'Cadre ferme',
+      };
+    }
+    return {
+      professionnel: 'Répondre au staff',
+      empathique: 'Écouter le staff',
+      ferme: 'Garder la pression',
+    };
+  }
+
   if (!isDealContext(message)) return getMessageResponseOptions(message);
 
   if (message.type === 'transfer_request') {
     return {
       professionnel: 'Valider le plan',
-      empathique: 'Féliciter et cadrer',
+      empathique: 'Rassurer le joueur',
       ferme: 'Focus performance',
     };
   }
@@ -337,6 +385,23 @@ export const getContextualResponseOptions = (message) => {
 };
 
 export const getMessageResponseAction = (message, responseType) => {
+  const participant = getConversationParticipant(message);
+  if (participant.role === 'staff') {
+    if (participant.audience === 'coach') {
+      if (responseType === 'professionnel') return { type: 'coach_talk', label: 'Réponse structurée au coach' };
+      if (responseType === 'empathique') return { type: 'voice_call', label: 'Appel de cadrage au coach' };
+      return { type: 'coach_talk', label: 'Cadre posé au coach' };
+    }
+    if (participant.audience === 'ds') {
+      if (responseType === 'professionnel') return { type: 'club_check', label: 'Réponse envoyée à la direction' };
+      if (responseType === 'empathique') return { type: 'voice_call', label: 'Appel de clarification au DS' };
+      return { type: 'club_check', label: 'Cadre posé à la direction' };
+    }
+    if (responseType === 'professionnel') return { type: 'club_check', label: 'Réponse staff structurée' };
+    if (responseType === 'empathique') return { type: 'voice_call', label: 'Appel de suivi staff' };
+    return { type: 'focus_reset', label: 'Cadre staff posé' };
+  }
+
   if (isDealContext(message) && message.type === 'transfer_request') {
     if (responseType === 'professionnel') return { type: 'deal_followup', label: 'Plan de transition validé' };
     if (responseType === 'empathique') return { type: 'voice_call', label: 'Appel de suivi après deal' };
@@ -372,9 +437,37 @@ export const responseCopy = {
   ferme: "Je prends ton message au sérieux, mais on va garder un cadre professionnel.\n\nTu restes concentré sur ton travail, je m'occupe des discussions autour de toi. On avance proprement, sans bruit inutile, et chacun tient son rôle.",
 };
 
-export const getResponseCopy = (message, responseType) => {
+export const getResponseCopy = (message, responseType, player = null) => {
+  const participant = getConversationParticipant(message);
+  const clubRole = player?.clubRole ?? 'Rotation';
+  const trust = player?.trust ?? 50;
+  const lastContactWeeks = player?.lastInteractionWeek ? Math.max(0, (message?.week ?? 0) - player.lastInteractionWeek) : null;
+  const situationHint = () => {
+    if (clubRole === 'Star') return 'statut important';
+    if (clubRole === 'Titulaire') return 'temps de jeu solide';
+    if (clubRole === 'Rotation') return 'statut à sécuriser';
+    if (clubRole === 'Indésirable') return 'situation tendue';
+    return 'situation actuelle';
+  };
+
+  if (participant.role === 'staff') {
+    if (participant.audience === 'coach') {
+      if (responseType === 'professionnel') return `Je te réponds clairement.\n\nJe veux un cadre précis sur le temps de jeu, le rôle et les semaines à venir. Avec son ${situationHint()}, le joueur a besoin de savoir si le plan du coach tient vraiment.\n\nOn garde un échange propre et direct.`;
+      if (responseType === 'empathique') return `Je comprends qu'il faut du dialogue.\n\nJe vais calmer le dossier avec le joueur et éviter qu'il le vive comme un blocage personnel. Avec un ${clubRole.toLowerCase()}, la confiance se joue vite sur les minutes.\n\nOn se parle vite, sans surjouer la tension.`;
+      return "Je vais être franc: si le rôle promis ne colle pas à la réalité, je protège mon joueur.\n\nJe ne cherche pas le conflit, je cherche de la cohérence. Donne-moi des minutes ou donne-moi une sortie claire.\n\nLe message est passé.";
+    }
+    if (participant.audience === 'ds') {
+      if (responseType === 'professionnel') return `Merci, je veux une feuille de route claire.\n\nLe joueur doit savoir ce que le club attend de lui, comment il est intégré et à quel horizon il peut évoluer. Avec ${trust < 45 ? 'une confiance encore fragile' : 'un dossier déjà suivi'}, on a besoin d\'un discours solide et d\'un timing net.\n\nJe veux une exécution propre, pas des promesses floues.`;
+      if (responseType === 'empathique') return "Je prends ton point et je veux qu'on reste alignés.\n\nLe joueur a besoin de stabilité pour performer. Si on tient le même discours de part et d'autre, on évite les frictions inutiles.\n\nJe reste disponible pour un échange direct.";
+      return "Je veux une réponse claire sur le projet.\n\nSi le club change de ligne, il faut me le dire maintenant plutôt que de laisser le joueur découvrir ça plus tard. Je ne laisserai pas le dossier dériver.\n\nOn reste carrés.";
+    }
+    if (responseType === 'professionnel') return "Je t'ai bien lu.\n\nJe centralise le sujet avec le staff et je garde une trace claire de ce qui a été dit. L'objectif est simple: éviter les malentendus et garder le joueur stable.\n\nJe reviens vite avec une position concrète.";
+    if (responseType === 'empathique') return "Je comprends la situation.\n\nJe vais traiter ça sans mettre de pression inutile. On cherche une solution qui protège le joueur et garde le groupe sain.\n\nOn se refait un point rapidement.";
+    return "Je prends note.\n\nJe vais garder le cadre et faire circuler le message utile, pas le bruit. S'il faut remettre des limites, je le ferai proprement.\n\nOn reste en contact.";
+  }
+
   if (isDealContext(message) && message.type === 'transfer_request') {
-    if (responseType === 'professionnel') return "Parfait, on verrouille la suite proprement.\n\nJe valide le plan de transition avec le club et je te protège sur toute la phase avant l'arrivée officielle: communication, temps de jeu, et aucun bruit inutile.\n\nTu restes concentré, je gère la partie contractuelle et média.";
+    if (responseType === 'professionnel') return `Parfait, on verrouille la suite proprement.\n\nJe valide le plan de transition avec le club et je te protège sur toute la phase avant l'arrivée officielle: communication, temps de jeu, et aucun bruit inutile.\n\n${lastContactWeeks != null && lastContactWeeks > 4 ? 'Je sais qu’on a manqué de suivi récemment, je corrige ça.' : 'Tu restes concentré, je gère la partie contractuelle et média.'}`;
     if (responseType === 'empathique') return "Je suis content pour toi, vraiment.\n\nTu as mérité ce deal et on va le vivre proprement jusqu'au bout. Si tu as une inquiétude (ville, rythme, pression), tu me l'envoies direct et je la traite.\n\nOn avance ensemble, sans te laisser seul dans cette transition.";
     return "Le deal est signé, maintenant on passe en mode performance.\n\nPas de distraction, pas de drama. Tu montres que le club a fait le bon choix et moi je sécurise tout le reste autour de toi.\n\nOn garde la tête froide et on enchaîne.";
   }
@@ -391,7 +484,7 @@ export const getResponseCopy = (message, responseType) => {
     return "Bienvenue.\n\nJe vais être direct : si tu veux que je t'emmène plus haut, il faudra être irréprochable. Entraînement, communication, entourage, réseaux sociaux — tout compte.\n\nMoi je gère les opportunités. Toi, tu me donnes des arguments sur le terrain.";
   }
   if (message.type === 'role_frustration') {
-    if (responseType === 'professionnel') return "Tu as raison de soulever le sujet.\n\nJe vais parler au coach et au directeur sportif pour comprendre où tu te situes réellement dans la hiérarchie. Si le rôle promis n'est pas respecté, on mettra le club face à ses engagements.\n\nEn attendant, reste prêt. Je veux des arguments quand j'appelle.";
+    if (responseType === 'professionnel') return `Tu as raison de soulever le sujet.\n\nJe vais parler au coach et au directeur sportif pour comprendre où tu te situes réellement dans la hiérarchie. Avec ton ${situationHint()}, le rôle promis doit être cohérent.\n\nEn attendant, reste prêt. Je veux des arguments quand j'appelle.`;
     if (responseType === 'empathique') return "Je comprends ta frustration.\n\nQuand on signe pour un rôle, on a besoin de sentir que le club tient parole. Je t'appelle ce soir, on regarde les minutes, le calendrier et la meilleure manière de mettre la pression sans te griller.\n\nTu n'es pas seul là-dessus.";
     return "Je vais regarder la situation, mais tu dois aussi répondre sur le terrain.\n\nLe rôle promis donne un cadre, pas un passe-droit. Tu restes irréprochable à l'entraînement, et moi je mets le club devant ses responsabilités si ça continue.";
   }
@@ -456,7 +549,7 @@ export const getResponseCopy = (message, responseType) => {
     return "On peut ouvrir le sujet, mais il faut être lucide.\n\nUne augmentation se gagne avec des performances régulières et un rapport de force propre. Continue à répondre sur le terrain, évite les sorties publiques, et je m'occupe de poser le cadre avec le club.\n\nSi on force trop tôt, on perd du crédit.";
   }
   if (message.type === 'complaint') {
-    if (responseType === 'professionnel') return "J'ai bien reçu ton message.\n\nOn va reprendre les faits un par un, sans émotion inutile. Je te propose un appel aujourd'hui : ce qui dépend du club, ce qui dépend de toi, et ce que je dois corriger de mon côté.\n\nAprès ça, je veux un plan clair et plus de flou entre nous.";
+    if (responseType === 'professionnel') return `J'ai bien reçu ton message.\n\nOn va reprendre les faits un par un, sans émotion inutile. Je te propose un appel aujourd'hui : ce qui dépend du club, ce qui dépend de toi, et ce que je dois corriger de mon côté.\n\nAprès ça, je veux un plan clair et plus de flou entre nous — surtout avec ton ${situationHint()}.`;
     if (responseType === 'empathique') return "Je suis désolé que tu l'aies vécu comme ça.\n\nJe vais t'appeler directement, parce que ce genre de sujet ne se règle pas par messages. Tu dois sentir que tu es accompagné, pas simplement géré comme un dossier.\n\nOn remet les choses à plat et je serai plus présent sur les prochaines semaines.";
     return "Je comprends que tu sois frustré, mais on doit rester professionnels.\n\nJe vais regarder ce qui n'a pas fonctionné, mais de ton côté j'attends une attitude irréprochable. Les états d'âme ne doivent pas sortir du vestiaire.\n\nOn règle ça en interne et on avance.";
   }

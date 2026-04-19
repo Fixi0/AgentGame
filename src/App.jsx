@@ -585,7 +585,7 @@ export default function FootballAgentGame() {
       const contextOutcome = getMessageContextOutcome({ message, responseType, player: targetPlayer });
       const promise = createPromiseFromMessage({ message, week: current.week, responseType, existingPromises: current.promises });
       const responseAction = contextOutcome.actionOverride ?? getMessageResponseAction(message, responseType);
-      const responseText = contextOutcome.responseTextOverride ?? getResponseCopy(message, responseType);
+      const responseText = contextOutcome.responseTextOverride ?? getResponseCopy(message, responseType, targetPlayer);
       const baseEffects = responseEffects[responseType] ?? { moral: 0, trust: 0, reputation: 0 };
       const mergedEffects = {
         moral: baseEffects.moral + (contextOutcome.effects?.moral ?? 0),
