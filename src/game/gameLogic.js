@@ -1624,7 +1624,10 @@ export const playWeek = (state) => {
   totalCost += staffWeeklyCost;
   totalCost += WEEKLY_OVERHEAD[state.agencyLevel ?? 1] ?? 300;
 
-  const weeklySimulation = simulateWeeklyClubResults(state.roster, state.week);
+  const clubFootballActive = !(phase.mercato && phase.window === 'été');
+  const weeklySimulation = clubFootballActive
+    ? simulateWeeklyClubResults(state.roster, state.week)
+    : { fixtures: [], matchResults: [] };
   const weeklyFixtures = weeklySimulation.fixtures;
   const weeklyMatchResults = weeklySimulation.matchResults;
   const matchByPlayerId = new Map(weeklyMatchResults.map((match) => [match.playerId, match]));

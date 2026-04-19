@@ -284,7 +284,7 @@ export const generateNarrativeFollowups = ({ state, roster, week }) => {
   if (arc.type === 'injury_comeback') {
     return {
       events: [{ title: 'Retour de blessure', text: `${player.firstName} ${player.lastName} s'approche d'un retour. La gestion des minutes sera décisive.` }],
-      messages: [createMessage({ player, type: 'injury_worry', week, context: arc.id })],
+      messages: [createMessage({ player, type: 'thanks', week, context: arc.id })],
     };
   }
 
