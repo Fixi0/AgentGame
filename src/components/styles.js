@@ -2,7 +2,10 @@ export const CSS = `
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:.6}50%{opacity:1}}
-*{box-sizing:border-box}body{margin:0;padding:0;background:#101314}button{font-family:inherit}
+@keyframes pulseGlow{0%,100%{box-shadow:0 8px 28px rgba(0,166,118,.38)}50%{box-shadow:0 8px 38px rgba(0,166,118,.7),0 0 0 10px rgba(0,166,118,.10)}}
+@keyframes badgePop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+*{box-sizing:border-box}body{margin:0;padding:0;background:#101314}button{font-family:inherit}input,select,textarea{font-family:inherit}
 `;
 
 export const S = {
@@ -67,6 +70,40 @@ export const S = {
   quickCard: { background: '#ffffff', border: '1px solid #e5eaf0', borderRadius: 8, padding: '14px 12px', cursor: 'pointer', textAlign: 'left', color: '#172026', fontFamily: 'inherit', boxShadow: '0 14px 34px rgba(15,23,32,.08)' },
   qLabel: { fontSize: 14, fontWeight: 700, marginTop: 8 },
   qSub: { fontSize: 10, color: '#64727d', marginTop: 2, fontFamily: 'system-ui,sans-serif' },
+  // ── Big Play Button ────────────────────────────────────────────────────
+  playBtn: { width: '100%', background: 'linear-gradient(135deg,#00a676,#0dba8a)', color: '#ffffff', border: 'none', padding: '19px 24px', borderRadius: 12, fontSize: 17, fontWeight: 900, letterSpacing: '.06em', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 16, animation: 'pulseGlow 2.2s ease-in-out infinite' },
+  playBtnSub: { fontSize: 11, color: 'rgba(255,255,255,.75)', fontFamily: 'system-ui,sans-serif', fontWeight: 600, letterSpacing: '.04em', marginTop: 2 },
+  // ── Priority Widget ────────────────────────────────────────────────────
+  priorityWidget: { background: '#ffffff', border: '2px solid #172026', borderRadius: 12, padding: '16px 16px', marginBottom: 16, boxShadow: '0 8px 28px rgba(15,23,32,.13)' },
+  priorityWidgetTitle: { fontSize: 10, letterSpacing: '.2em', color: '#172026', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 12 },
+  priorityAction: { width: '100%', background: '#172026', color: '#ffffff', border: 'none', borderRadius: 10, padding: '13px 14px', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 8, fontFamily: 'inherit', fontSize: 13, fontWeight: 800 },
+  priorityActionSub: { fontSize: 10, color: 'rgba(255,255,255,.65)', fontFamily: 'system-ui,sans-serif', marginTop: 3 },
+  priorityActionUrgent: { width: '100%', background: 'linear-gradient(135deg,#b42318,#c53030)', color: '#ffffff', border: 'none', borderRadius: 10, padding: '13px 14px', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 8, fontFamily: 'inherit', fontSize: 13, fontWeight: 800 },
+  priorityAllGood: { background: '#f0fdf8', border: '1px solid #cfeee3', borderRadius: 10, padding: '13px 14px', color: '#246555', fontSize: 13, fontFamily: 'system-ui,sans-serif', fontWeight: 700, textAlign: 'center' },
+  // ── Agency Health Score ────────────────────────────────────────────────
+  healthScore: { display: 'flex', alignItems: 'center', gap: 14, background: '#ffffff', border: '1px solid #e5eaf0', borderRadius: 10, padding: '12px 16px', marginBottom: 14, boxShadow: '0 4px 14px rgba(15,23,32,.06)' },
+  healthScoreNum: { fontSize: 36, fontWeight: 950, lineHeight: 1, minWidth: 54 },
+  healthScoreLabel: { fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 800, marginBottom: 2 },
+  healthScoreDesc: { fontSize: 12, color: '#172026', fontWeight: 700 },
+  // ── Tutorial / Onboarding steps ────────────────────────────────────────
+  tutorialWrap: { display: 'flex', flexDirection: 'column', gap: 0, paddingBottom: 8 },
+  tutorialStepRow: { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 0', borderBottom: '1px solid #f0f4f7' },
+  tutorialStepNum: { width: 28, height: 28, borderRadius: 14, background: '#172026', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, flexShrink: 0 },
+  tutorialStepNumDone: { width: 28, height: 28, borderRadius: 14, background: '#00a676', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, flexShrink: 0 },
+  tutorialStepTitle: { fontSize: 13, fontWeight: 800, color: '#172026', marginBottom: 3 },
+  tutorialStepDesc: { fontSize: 11, color: '#64727d', lineHeight: 1.45, fontFamily: 'system-ui,sans-serif' },
+  // ── Results Modal Headline ─────────────────────────────────────────────
+  resultsBigHeadline: { background: '#172026', borderRadius: 10, padding: '18px 16px', marginBottom: 16, textAlign: 'center' },
+  resultsBigEmoji: { fontSize: 44, lineHeight: 1, display: 'block', marginBottom: 8 },
+  resultsBigTitle: { fontSize: 20, fontWeight: 900, color: '#ffffff', letterSpacing: '-.01em', lineHeight: 1.2, marginBottom: 4 },
+  resultsBigSub: { fontSize: 12, color: 'rgba(255,255,255,.65)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 },
+  resultsNetBig: { fontSize: 38, fontWeight: 950, lineHeight: 1, marginBottom: 4 },
+  collapseToggle: { width: '100%', background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '10px 12px', color: '#64727d', fontSize: 11, fontWeight: 850, cursor: 'pointer', fontFamily: 'system-ui,sans-serif', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  // ── Onboarding Steps ──────────────────────────────────────────────────
+  onboardingProgress: { display: 'flex', gap: 4, marginBottom: 24 },
+  onboardingProgressDot: { flex: 1, height: 4, borderRadius: 2 },
+  onboardingStepTitle: { fontSize: 22, fontWeight: 900, color: '#172026', marginBottom: 6, lineHeight: 1.2 },
+  onboardingStepSub: { fontSize: 13, color: '#64727d', lineHeight: 1.5, marginBottom: 20, fontFamily: 'system-ui,sans-serif' },
   histCard: { background: '#ffffff', border: '1px solid #e5eaf0', borderRadius: 8, padding: 16, boxShadow: '0 14px 34px rgba(15,23,32,.08)' },
   promiseCard: { background: '#fffdf7', border: '1px solid #e8dfc8', borderRadius: 8, padding: 16, marginBottom: 16, boxShadow: '0 14px 34px rgba(15,23,32,.06)' },
   promiseRow: { display: 'flex', justifyContent: 'space-between', gap: 10, color: '#172026', fontSize: 12, fontFamily: 'system-ui,sans-serif', padding: '7px 0', borderBottom: '1px solid #f0e8d7' },

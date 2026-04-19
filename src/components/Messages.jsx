@@ -190,7 +190,7 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
         </div>
       )}
 
-      <div style={S.messagesLayout}>
+      <div style={{ ...S.messagesLayout, gridTemplateColumns: isMobile ? '1fr' : '280px minmax(0,1fr)' }}>
         {showList && (
           <aside style={S.threadListPane}>
             {threads.map((thread) => {

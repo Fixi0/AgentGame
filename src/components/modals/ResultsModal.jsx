@@ -1,24 +1,29 @@
 import React, { useState } from 'react';
-import { Activity, AlertCircle, ChevronRight, LogOut, Trophy, Users, X } from 'lucide-react';
+import { Activity, AlertCircle, ChevronDown, ChevronRight, ChevronUp, LogOut, Trophy, Users, X } from 'lucide-react';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
-function generateHeadlines(data) {
-  const headlines = [];
-  if (data.matchResults?.length > 0) {
-    const topScorer = data.matchResults.reduce((best, m) => (!best || (m.goals ?? 0) > (best.goals ?? 0)) ? m : best, null);
-    if (topScorer && (topScorer.goals ?? 0) >= 2) {
-      headlines.push(`⚡ ${topScorer.playerName} impressionne — ${topScorer.goals} buts cette semaine`);
-    }
+function getBigHeadline(data) {
+  // Find the single most exciting thing that happened
+  const topScorer = (data.matchResults ?? []).reduce((best, m) => (!best || (m.goals ?? 0) > (best.goals ?? 0)) ? m : best, null);
+  if (topScorer && (topScorer.goals ?? 0) >= 3) {
+    return { emoji: '🔥', title: `Triplé de ${topScorer.playerName} !`, sub: `${topScorer.goals} buts · ${topScorer.club} ${topScorer.score} · Note ${topScorer.matchRating ?? '—'}` };
   }
-  if (data.events?.some((e) => e.label?.toLowerCase().includes('transfer') || e.label?.toLowerCase().includes('rejoint'))) {
-    const transfer = data.events.find((e) => e.label?.toLowerCase().includes('transfer') || e.label?.toLowerCase().includes('rejoint'));
-    if (transfer) headlines.push(`📰 Coup de marché — ${transfer.player}`);
+  if (topScorer && (topScorer.goals ?? 0) >= 2) {
+    return { emoji: '⚡', title: `Doublé de ${topScorer.playerName}`, sub: `${topScorer.goals} buts · Note ${topScorer.matchRating ?? '—'}` };
   }
-  if ((data.net ?? 0) > 5000) {
-    headlines.push(`💰 Semaine dorée pour l'agence`);
+  const topEuroScorer = (data.euroMatchResults ?? []).reduce((best, m) => (!best || (m.goals ?? 0) > (best.goals ?? 0)) ? m : best, null);
+  if (topEuroScorer && (topEuroScorer.goals ?? 0) >= 1) {
+    return { emoji: '🏆', title: `But européen — ${topEuroScorer.playerName}`, sub: `${topEuroScorer.competitionLabel} · ${topEuroScorer.opponent} ${topEuroScorer.score}` };
   }
-  return headlines.slice(0, 2);
+  if (data.seasonRecap) {
+    return { emoji: '🗓️', title: `Saison ${data.seasonRecap.season} terminée`, sub: `${data.seasonRecap.transfers} transferts · ${formatMoney(data.seasonRecap.earned)} gagnés` };
+  }
+  const goodEvent = (data.events ?? []).find((e) => e.good);
+  if (goodEvent) return { emoji: '✨', title: goodEvent.label, sub: goodEvent.player };
+  if ((data.net ?? 0) > 10000) return { emoji: '💰', title: 'Très bonne semaine financière', sub: `+${formatMoney(data.net)} de bénéfice net` };
+  if ((data.net ?? 0) >= 0) return { emoji: '📊', title: 'Semaine bouclée', sub: `Bénéfice +${formatMoney(data.net)}` };
+  return { emoji: '📉', title: 'Semaine difficile', sub: `Déficit ${formatMoney(Math.abs(data.net))}` };
 }
 
 function MatchScorecard({ match }) {
@@ -65,6 +70,7 @@ function MatchScorecard({ match }) {
 
 export default function ResultsModal({ data, onClose, onInteractive }) {
   const [step, setStep] = useState('results');
+  const [showDetails, setShowDetails] = useState(false);
 
   if (step === 'prompt' && data.interactiveEvent) {
     const { event, player } = data.interactiveEvent;
@@ -92,7 +98,11 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
     );
   }
 
-  const headlines = generateHeadlines(data);
+  const bigHeadline = getBigHeadline(data);
+  const totalGoals = (data.matchResults ?? []).reduce((s, m) => s + (m.goals ?? 0), 0);
+  const totalAssists = (data.matchResults ?? []).reduce((s, m) => s + (m.assists ?? 0), 0);
+  const wins = (data.matchResults ?? []).filter((m) => m.result === 'win').length;
+  const hasDetails = (data.events?.length > 0) || (data.matchResults?.length > 0) || (data.euroMatchResults?.length > 0) || (data.lockerRoom?.length > 0) || (data.worldSummary?.length > 0) || (data.clubOffers?.length > 0) || (data.leavingPlayers?.length > 0);
 
   return (
     <div style={S.overlay}>
@@ -105,17 +115,22 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           </button>
         </div>
         <div style={S.mBody}>
-          {headlines.length > 0 && (
-            <div style={S.newsHeadline}>
-              {headlines.map((h, i) => <div key={i} style={{ marginBottom: i < headlines.length - 1 ? 4 : 0 }}>{h}</div>)}
-            </div>
-          )}
-          {data.newSeason && <div style={S.newSeason}>NOUVELLE SAISON {data.bonusMoney > 0 && `· Bonus ${formatMoney(data.bonusMoney)}`}</div>}
+          {/* Big Headline */}
+          <div style={S.resultsBigHeadline}>
+            <span style={S.resultsBigEmoji}>{bigHeadline.emoji}</span>
+            <div style={S.resultsBigTitle}>{bigHeadline.title}</div>
+            <div style={S.resultsBigSub}>{bigHeadline.sub}</div>
+          </div>
+
+          {/* Special banners */}
+          {data.newSeason && <div style={S.newSeason}>🎉 NOUVELLE SAISON {data.bonusMoney > 0 && `· Bonus ${formatMoney(data.bonusMoney)}`}</div>}
           {data.phase?.mercato && (
             <div style={S.newSeason}>
-              {data.phase.deadlineDay ? 'DEADLINE DAY' : `MERCATO ${data.phase.window?.toUpperCase()}`} · Les offres de clubs peuvent arriver
+              {data.phase.deadlineDay ? '⚡ DEADLINE DAY' : `🔄 MERCATO ${data.phase.window?.toUpperCase()}`} · Les offres de clubs peuvent arriver
             </div>
           )}
+
+          {/* Season recap */}
           {data.seasonRecap && (
             <div style={S.recapCard}>
               <div style={S.secTitle}>
@@ -125,129 +140,38 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               <div style={S.recapGrid}>
                 <div style={S.recapItem}><strong>{data.seasonRecap.transfers}</strong><span> transferts</span></div>
                 <div style={S.recapItem}><strong>{formatMoney(data.seasonRecap.earned)}</strong><span> gagnés</span></div>
-                <div style={S.recapItem}><strong>{data.seasonRecap.reputation}</strong><span> réputation /1000</span></div>
+                <div style={S.recapItem}><strong>{data.seasonRecap.reputation}</strong><span> rép./1000</span></div>
                 <div style={S.recapItem}><strong>{data.seasonRecap.objectivesCompleted}/3</strong><span> objectifs</span></div>
               </div>
             </div>
           )}
-          <div style={S.resHero}>
-            <div style={S.resLabel}>BENEFICE NET</div>
-            <div style={{ ...S.resNet, color: data.net >= 0 ? '#00a676' : '#b42318' }}>
-              {data.net >= 0 ? '+' : ''}
-              {formatMoney(data.net)}
+
+          {/* Financial summary — compact */}
+          <div style={{ ...S.resHero, marginBottom: 12 }}>
+            <div style={S.resLabel}>BÉNÉFICE NET</div>
+            <div style={{ ...S.resultsNetBig, color: data.net >= 0 ? '#00a676' : '#b42318' }}>
+              {data.net >= 0 ? '+' : ''}{formatMoney(data.net)}
             </div>
-            <div style={S.resBreak}>
-              <div>
-                Revenus : <strong style={{ color: '#00a676' }}>+{formatMoney(data.income)}</strong>
-              </div>
-              <div>
-                Charges joueurs : <strong style={{ color: '#b42318' }}>-{formatMoney(data.salaries - (data.staffCost ?? 0))}</strong>
-              </div>
-              {data.staffCost > 0 && (
-                <div>
-                  Staff : <strong style={{ color: '#00a676' }}>-{formatMoney(data.staffCost)}</strong>
-                </div>
-              )}
-              <div>
-                Rép : <strong style={{ color: data.repChange >= 0 ? '#00a676' : '#b42318' }}>{data.repChange >= 0 ? '+' : ''}{data.repChange}</strong>
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 8, fontSize: 12, color: '#3f5663', fontFamily: 'system-ui,sans-serif', flexWrap: 'wrap' }}>
+              <span>💰 +{formatMoney(data.income)}</span>
+              <span>📋 -{formatMoney(data.salaries)}</span>
+              <span style={{ color: data.repChange >= 0 ? '#00a676' : '#b42318' }}>
+                ⭐ {data.repChange >= 0 ? '+' : ''}{data.repChange} rép.
+              </span>
+              {data.matchResults?.length > 0 && <span>⚽ {totalGoals} buts · 🅰️ {totalAssists} passes</span>}
+              {wins > 0 && <span style={{ color: '#00a676' }}>✅ {wins} victoire{wins > 1 ? 's' : ''}</span>}
             </div>
           </div>
-          {data.events.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={S.secTitle}>
-                <AlertCircle size={14} />
-                <span>EVENEMENTS</span>
-              </div>
-              {data.events.map((event) => (
-                <div key={`${event.playerId}-${event.id}`} style={{ ...S.evRow, borderLeft: `3px solid ${event.good ? '#00a676' : '#b42318'}` }}>
-                  <div style={S.evPlayer}>{event.player}</div>
-                  <div style={S.evLabel}>
-                    {event.label}
-                    {event.match?.matchRating ? ` · ${event.match.club} ${event.match.score} ${event.match.opponent} · note ${event.match.matchRating}` : ''}
-                  </div>
-                </div>
-              ))}
+
+          {/* Urgent events — always visible */}
+          {(data.events ?? []).filter((e) => !e.good).slice(0, 2).map((event) => (
+            <div key={`${event.playerId}-${event.id}`} style={{ ...S.evRow, borderLeft: '3px solid #b42318', marginBottom: 6 }}>
+              <div style={S.evPlayer}>⚠️ {event.player}</div>
+              <div style={S.evLabel}>{event.label}</div>
             </div>
-          )}
-          {data.worldSummary?.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={S.secTitle}>
-                <Activity size={14} />
-                <span>MONDE DU FOOT</span>
-              </div>
-              {data.worldSummary.map((item) => (
-                <div key={`${item.week}-${item.title}`} style={{ ...S.evRow, borderLeft: '3px solid #172026' }}>
-                  <div style={S.evPlayer}>{item.title}</div>
-                  <div style={S.evLabel}>{item.text}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          {data.lockerRoom?.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={S.secTitle}>
-                <Users size={14} />
-                <span>VESTIAIRE</span>
-              </div>
-              {data.lockerRoom.slice(0, 3).map((group) => (
-                <div key={group.club} style={{ ...S.evRow, borderLeft: `3px solid ${group.tension >= 65 ? '#b42318' : group.chemistry >= 70 ? '#00a676' : '#2f80ed'}` }}>
-                  <div style={S.evPlayer}>{group.club}</div>
-                  <div style={S.evLabel}>
-                    {group.mood} · Chimie {group.chemistry}/100 · Leader {group.leaders[0] ? `${group.leaders[0].firstName} ${group.leaders[0].lastName}` : 'aucun'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {data.clubOffers?.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={S.secTitle}>
-                <AlertCircle size={14} />
-                <span>{data.phase?.deadlineDay ? 'APPELS DEADLINE DAY' : 'OFFRES CLUBS'}</span>
-              </div>
-              {data.phase?.deadlineDay && <div style={S.deadlineTimer}>90:00 · les téléphones chauffent</div>}
-              {data.clubOffers.map((offer) => (
-                <div key={offer.id} style={{ ...S.evRow, borderLeft: '3px solid #2f80ed' }}>
-                  <div style={S.evPlayer}>{offer.club} veut {offer.playerName}</div>
-                  <div style={S.evLabel}>{formatMoney(offer.price)} · expire semaine {offer.expiresWeek}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          {data.matchResults?.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={S.secTitle}>
-                <Activity size={14} />
-                <span>RESULTATS CLUBS</span>
-              </div>
-              {data.matchResults.slice(0, 8).map((match) => (
-                <MatchScorecard key={`${match.playerId}-${match.opponent}`} match={match} />
-              ))}
-            </div>
-          )}
-          {data.euroMatchResults?.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={S.secTitle}>
-                <Trophy size={14} />
-                <span>EUROPE</span>
-              </div>
-              {data.euroMatchResults.slice(0, 5).map((match) => (
-                <div key={`${match.playerId}-${match.competition}-${match.opponent}`} style={{ ...S.evRow, borderLeft: `3px solid ${match.result === 'win' ? '#00a676' : match.result === 'loss' ? '#b42318' : '#2f80ed'}` }}>
-                  <div style={S.evPlayer}>
-                    {match.playerName} · {match.competitionLabel}
-                  </div>
-                  <div style={S.evLabel}>
-                    {match.opponent} · {match.score} · note {match.matchRating}
-                    {match.goals ? ` · ${match.goals} but${match.goals > 1 ? 's' : ''}` : ''}
-                    {match.assists ? ` · ${match.assists} passe${match.assists > 1 ? 's' : ''}` : ''}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {data.leavingPlayers.length > 0 && (
-            <div style={S.leavingCard}>
+          ))}
+          {data.leavingPlayers?.length > 0 && (
+            <div style={{ ...S.leavingCard, marginBottom: 12 }}>
               <div style={S.secTitle}>
                 <LogOut size={14} color="#b42318" />
                 <span>DEPARTS</span>
@@ -259,8 +183,85 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               ))}
             </div>
           )}
+          {data.clubOffers?.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              {data.phase?.deadlineDay && <div style={S.deadlineTimer}>90:00 · les téléphones chauffent</div>}
+              {data.clubOffers.slice(0, 2).map((offer) => (
+                <div key={offer.id} style={{ ...S.evRow, borderLeft: '3px solid #2f80ed', marginBottom: 6 }}>
+                  <div style={S.evPlayer}>🔄 {offer.club} veut {offer.playerName}</div>
+                  <div style={S.evLabel}>{formatMoney(offer.price)} · expire S{offer.expiresWeek}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Collapsible details */}
+          {hasDetails && (
+            <button onClick={() => setShowDetails((v) => !v)} style={S.collapseToggle}>
+              <span>{showDetails ? 'Masquer les détails' : 'Voir tous les détails'}</span>
+              {showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          )}
+
+          {showDetails && (
+            <>
+              {(data.events ?? []).filter((e) => e.good).length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={S.secTitle}><AlertCircle size={14} /><span>ÉVÉNEMENTS</span></div>
+                  {(data.events ?? []).filter((e) => e.good).map((event) => (
+                    <div key={`${event.playerId}-${event.id}`} style={{ ...S.evRow, borderLeft: '3px solid #00a676', marginBottom: 4 }}>
+                      <div style={S.evPlayer}>{event.player}</div>
+                      <div style={S.evLabel}>{event.label}{event.match?.matchRating ? ` · note ${event.match.matchRating}` : ''}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {data.matchResults?.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={S.secTitle}><Activity size={14} /><span>RÉSULTATS CLUBS</span></div>
+                  {data.matchResults.slice(0, 8).map((match) => (
+                    <MatchScorecard key={`${match.playerId}-${match.opponent}`} match={match} />
+                  ))}
+                </div>
+              )}
+              {data.euroMatchResults?.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={S.secTitle}><Trophy size={14} /><span>EUROPE</span></div>
+                  {data.euroMatchResults.slice(0, 5).map((match) => (
+                    <div key={`${match.playerId}-${match.competition}-${match.opponent}`} style={{ ...S.evRow, borderLeft: `3px solid ${match.result === 'win' ? '#00a676' : match.result === 'loss' ? '#b42318' : '#2f80ed'}`, marginBottom: 4 }}>
+                      <div style={S.evPlayer}>{match.playerName} · {match.competitionLabel}</div>
+                      <div style={S.evLabel}>{match.opponent} · {match.score} · note {match.matchRating}{match.goals ? ` · ${match.goals} but${match.goals > 1 ? 's' : ''}` : ''}{match.assists ? ` · ${match.assists} passe${match.assists > 1 ? 's' : ''}` : ''}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {data.lockerRoom?.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={S.secTitle}><Users size={14} /><span>VESTIAIRE</span></div>
+                  {data.lockerRoom.slice(0, 3).map((group) => (
+                    <div key={group.club} style={{ ...S.evRow, borderLeft: `3px solid ${group.tension >= 65 ? '#b42318' : group.chemistry >= 70 ? '#00a676' : '#2f80ed'}`, marginBottom: 4 }}>
+                      <div style={S.evPlayer}>{group.club}</div>
+                      <div style={S.evLabel}>{group.mood} · Chimie {group.chemistry}/100</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {data.worldSummary?.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={S.secTitle}><Activity size={14} /><span>MONDE DU FOOT</span></div>
+                  {data.worldSummary.map((item) => (
+                    <div key={`${item.week}-${item.title}`} style={{ ...S.evRow, borderLeft: '3px solid #172026', marginBottom: 4 }}>
+                      <div style={S.evPlayer}>{item.title}</div>
+                      <div style={S.evLabel}>{item.text}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
           <button onClick={() => (data.interactiveEvent ? setStep('prompt') : onClose())} style={S.primaryBtn}>
-            {data.interactiveEvent ? 'EVENEMENT SUIVANT' : 'CONTINUER'} <ChevronRight size={16} />
+            {data.interactiveEvent ? 'ÉVÉNEMENT SUIVANT' : 'CONTINUER'} <ChevronRight size={16} />
           </button>
         </div>
       </div>

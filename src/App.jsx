@@ -567,7 +567,7 @@ export default function FootballAgentGame() {
     let responseAction = currentMessage ? getMessageResponseAction(currentMessage, responseType) : null;
     const targetPlayer = currentMessage ? state.roster.find((player) => player.id === currentMessage.playerId) : null;
     const weeksAtClub = targetPlayer?.contractStartWeek != null
-      ? Math.max(0, current.week - targetPlayer.contractStartWeek)
+      ? Math.max(0, state.week - targetPlayer.contractStartWeek)
       : null;
     const freshArrivalTransfer = Boolean(
       currentMessage?.type === 'transfer_request'

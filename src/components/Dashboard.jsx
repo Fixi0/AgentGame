@@ -1,4 +1,4 @@
-import { Activity, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Target, Trophy, UserPlus, Zap } from 'lucide-react';
+import { Activity, ArrowRight, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Heart, MessageCircle, Play, Target, Trophy, UserPlus, Zap } from 'lucide-react';
 import React from 'react';
 import { getAgencyCapacity } from '../systems/agencySystem';
 import { getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
@@ -12,6 +12,177 @@ import { WC_PHASES, NATIONAL_TEAMS } from '../systems/worldCupSystem';
 import { COUNTRIES } from '../data/clubs';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
+
+// ── Agency Health Score ────────────────────────────────────────────────────
+function computeHealthScore({ roster, reputation, money, messages, promises }) {
+  if (!roster.length) return { score: 0, label: 'Aucun joueur', color: '#64727d', emoji: '⚪' };
+  const normalizedRep = Math.min(100, Math.round(reputation / 10));
+  const avgMoral = Math.round(roster.reduce((s, p) => s + p.moral, 0) / roster.length);
+  const avgTrust = Math.round(roster.reduce((s, p) => s + (p.trust ?? 50), 0) / roster.length);
+  const moneyHealth = money > 50000 ? 100 : money > 10000 ? 70 : money > 0 ? 40 : 0;
+  const pendingMessages = (messages ?? []).filter((m) => !m.resolved).length;
+  const messagesPenalty = Math.min(25, pendingMessages * 4);
+  const brokenPromises = (promises ?? []).filter((pr) => pr.failed).length;
+  const promisePenalty = Math.min(20, brokenPromises * 5);
+  const score = Math.round((normalizedRep * 0.25 + avgMoral * 0.25 + avgTrust * 0.25 + moneyHealth * 0.25) - messagesPenalty - promisePenalty);
+  const clamped = Math.max(0, Math.min(100, score));
+  if (clamped >= 75) return { score: clamped, label: 'Excellente forme', color: '#00a676', emoji: '💚' };
+  if (clamped >= 55) return { score: clamped, label: 'Bonne gestion', color: '#16a34a', emoji: '🟢' };
+  if (clamped >= 35) return { score: clamped, label: 'Quelques tensions', color: '#b45309', emoji: '🟡' };
+  return { score: clamped, label: 'Situation critique', color: '#b42318', emoji: '🔴' };
+}
+
+function AgencyHealthScore({ state }) {
+  const { score, label, color, emoji } = computeHealthScore(state);
+  return (
+    <div style={S.healthScore}>
+      <div>
+        <div style={{ ...S.healthScoreNum, color }}>{score}</div>
+        <div style={{ fontSize: 9, color: '#c0cbd3', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>/100</div>
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={S.healthScoreLabel}>SANTÉ DE L'AGENCE</div>
+        <div style={S.healthScoreDesc}>{emoji} {label}</div>
+        <div style={{ ...S.progBar, marginTop: 6, height: 5 }}>
+          <div style={{ ...S.progFill, width: `${score}%`, background: color }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Priority Widget (what to do right now) ─────────────────────────────────
+function PriorityWidget({ urgentMessages, marketQueue, expiringContracts, lowTrustPlayers, onNav, onPlay, phase }) {
+  const actions = [];
+  if (urgentMessages.length) {
+    actions.push({
+      emoji: '💬',
+      label: `${urgentMessages.length} message${urgentMessages.length > 1 ? 's' : ''} en attente`,
+      sub: urgentMessages[0]?.playerName ? `${urgentMessages[0].playerName} attend ta réponse` : 'Un joueur attend ta réponse',
+      urgent: true,
+      action: () => onNav('messages'),
+    });
+  }
+  if (marketQueue.length) {
+    actions.push({
+      emoji: '🔄',
+      label: `${marketQueue.length} offre${marketQueue.length > 1 ? 's' : ''} de transfert`,
+      sub: marketQueue[0]?.playerName ? `${marketQueue[0].playerName} — ${marketQueue[0].club}` : 'Dossier mercato ouvert',
+      urgent: false,
+      action: () => onNav('dossiers'),
+    });
+  }
+  if (expiringContracts.length) {
+    actions.push({
+      emoji: '📋',
+      label: `Contrat court — ${expiringContracts[0].firstName} ${expiringContracts[0].lastName}`,
+      sub: `${expiringContracts[0].contractWeeksLeft} sem. restantes · à renouveler`,
+      urgent: false,
+      action: () => onNav('contracts'),
+    });
+  }
+
+  const topActions = actions.slice(0, 3);
+
+  return (
+    <div style={S.priorityWidget}>
+      <div style={S.priorityWidgetTitle}>⚡ PRIORITÉ DE LA SEMAINE</div>
+      {topActions.length === 0 ? (
+        <div style={S.priorityAllGood}>✅ Tout est à jour — prêt à jouer la semaine</div>
+      ) : (
+        topActions.map((action, i) => (
+          <button
+            key={i}
+            onClick={action.action}
+            style={action.urgent ? S.priorityActionUrgent : S.priorityAction}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16 }}>{action.emoji}</span>
+                <span>{action.label}</span>
+              </div>
+              <div style={S.priorityActionSub}>{action.sub}</div>
+            </div>
+            <ArrowRight size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
+          </button>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ── Beginner Tutorial Guide (first 5 weeks) ────────────────────────────────
+function BeginnerGuide({ state, phase, onNav, onPlay }) {
+  const weekNum = phase.seasonWeek ?? 1;
+  const hasPlayers = state.roster.length > 0;
+  const hasResponded = (state.messages ?? []).some((m) => m.resolved);
+  const hasMoney = (state.history ?? []).some((h) => h.net > 0);
+  if (weekNum > 5) return null; // Only show for first 5 weeks
+
+  const steps = [
+    {
+      num: '1',
+      title: 'Recrute un joueur',
+      desc: 'Va dans "Joueurs" → Marché pour recruter ton premier client.',
+      done: hasPlayers,
+      action: () => onNav('market'),
+      cta: 'Voir le marché',
+    },
+    {
+      num: '2',
+      title: 'Joue ta première semaine',
+      desc: 'Appuie sur "JOUER LA SEMAINE" pour simuler les matchs et gagner de la réputation.',
+      done: (state.history ?? []).length > 0,
+      action: onPlay,
+      cta: 'Jouer maintenant',
+    },
+    {
+      num: '3',
+      title: 'Réponds aux messages',
+      desc: 'Tes joueurs t\'écrivent. Réponds pour améliorer leur confiance.',
+      done: hasResponded,
+      action: () => onNav('messages'),
+      cta: 'Voir les messages',
+    },
+  ];
+
+  const allDone = steps.every((s) => s.done);
+  if (allDone) return null;
+
+  return (
+    <div style={{ ...S.objCard, border: '1px solid #cfeee3', background: '#f0fdf8', marginBottom: 16 }}>
+      <div style={{ ...S.secTitle, color: '#00a676' }}>
+        <span>🎓</span>
+        <span>GUIDE DÉBUTANT</span>
+      </div>
+      <div style={S.tutorialWrap}>
+        {steps.map((step) => (
+          <div key={step.num} style={S.tutorialStepRow}>
+            <div style={step.done ? S.tutorialStepNumDone : S.tutorialStepNum}>
+              {step.done ? '✓' : step.num}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ ...S.tutorialStepTitle, color: step.done ? '#64727d' : '#172026', textDecoration: step.done ? 'line-through' : 'none' }}>
+                {step.title}
+              </div>
+              {!step.done && (
+                <>
+                  <div style={S.tutorialStepDesc}>{step.desc}</div>
+                  <button
+                    onClick={step.action}
+                    style={{ ...S.miniPrimary, marginTop: 8, padding: '8px 12px', fontSize: 10 }}
+                  >
+                    {step.cta} →
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function ObjectivesWidget({ objectives, onNav }) {
   if (!objectives?.length) return null;
@@ -539,11 +710,11 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
       sub: `${state.worldCupState.selectedPlayers.length} sélectionnés`,
     }] : []),
   ];
+  // todayActions kept for todayCard reference
   const todayActions = [
     urgentMessages.length ? { label: 'Répondre', sub: `${urgentMessages.length} message`, action: () => onNav('messages') } : null,
     marketQueue.length ? { label: 'Gérer offres', sub: `${marketQueue.length} dossier mercato`, action: () => onNav('dossiers') } : null,
-    { label: 'Jouer semaine', sub: phase.phase, action: onPlay },
-  ].filter(Boolean).slice(0, 3);
+  ].filter(Boolean).slice(0, 2);
 
   return (
     <div style={S.vp}>
@@ -551,15 +722,33 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
         <div style={S.el}>TABLEAU DE BORD</div>
         <h1 style={S.eh}>Aujourd'hui</h1>
       </div>
-      <div style={S.quickActs}>
-        {todayActions.map((action) => (
-          <button key={action.label} onClick={action.action} style={S.quickCard}>
-            <Zap size={20} color="#00a676" />
-            <div style={S.qLabel}>{action.label}</div>
-            <div style={S.qSub}>{action.sub}</div>
-          </button>
-        ))}
-      </div>
+
+      {/* Big Play Button */}
+      <button onClick={onPlay} style={S.playBtn}>
+        <Play size={22} fill="#ffffff" />
+        <div style={{ textAlign: 'left' }}>
+          <div>JOUER LA SEMAINE</div>
+          <div style={S.playBtnSub}>{phase.phase} · Semaine {phase.seasonWeek}/38</div>
+        </div>
+      </button>
+
+      {/* Beginner Guide — visible only for first 5 weeks */}
+      <BeginnerGuide state={state} phase={phase} onNav={onNav} onPlay={onPlay} />
+
+      {/* Priority Widget */}
+      <PriorityWidget
+        urgentMessages={urgentMessages}
+        marketQueue={marketQueue}
+        expiringContracts={expiringContracts}
+        lowTrustPlayers={lowTrustPlayers}
+        onNav={onNav}
+        onPlay={onPlay}
+        phase={phase}
+      />
+
+      {/* Agency Health Score */}
+      <AgencyHealthScore state={state} />
+
       <SeasonArc currentWeek={phase.seasonWeek ?? 1} totalWeeks={38} />
       <ObjectivesWidget objectives={state.seasonObjectives} onNav={onNav} />
       <div style={S.todayCard}>
