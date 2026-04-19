@@ -173,6 +173,7 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
       )}
       <NegotiationStats interest={interest} offer={offer} salary={Math.floor(player.weeklySalary * salaryMultiplier)} />
       <ContractTerms
+        player={player}
         role={role}
         contractYears={contractYears}
         signingBonus={signingBonus}
@@ -330,6 +331,7 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
       )}
       <NegotiationStats interest={open} offer={null} salary={Math.floor(player.weeklySalary * salaryMultiplier)} label="OUVERTURE CLUB" />
       <ContractTerms
+        player={player}
         role={role}
         contractYears={contractYears}
         signingBonus={signingBonus}
@@ -375,7 +377,7 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
   );
 }
 
-function ContractTerms({ role, contractYears, signingBonus, releaseClause, sellOnPercent, bonusPackage, salaryMultiplier, ballonDorBonus, noCutClause, coachRoleProtection, onRole, onYears, onBonus, onReleaseClause, onSellOn, onBonusPackage, onBallonDorBonus, onNoCutClause, onCoachRoleProtection }) {
+function ContractTerms({ player, role, contractYears, signingBonus, releaseClause, sellOnPercent, bonusPackage, salaryMultiplier, ballonDorBonus, noCutClause, coachRoleProtection, onRole, onYears, onBonus, onReleaseClause, onSellOn, onBonusPackage, onBallonDorBonus, onNoCutClause, onCoachRoleProtection }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   return (
     <div style={S.negoStat}>
