@@ -3,7 +3,7 @@ import { ArrowUpRight, ChevronDown, ChevronUp, Handshake, X } from 'lucide-react
 import { CLUBS, getCountry } from '../../data/clubs';
 import { getNegotiationModifier } from '../../systems/relationshipSystem';
 import { formatMoney } from '../../utils/format';
-import { clamp, pick, rand } from '../../utils/helpers';
+import { pick, rand } from '../../utils/helpers';
 import { S } from '../styles';
 
 const CONTRACT_ROLES = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
@@ -11,6 +11,7 @@ const MAX_SALARY_MULTIPLIER = 3;
 const MAX_SIGNING_BONUS_MULTIPLIER = 30;
 const MAX_RELEASE_CLAUSE_MULTIPLIER = 4.5;
 const MAX_BONUS_PACKAGE_MULTIPLIER = 24;
+const clampNumber = (value, min, max) => Math.max(min, Math.min(max, Number(value)));
 
 const getEligibleBuyerTiers = (player) => {
   if (player.rating >= 84 || player.potential >= 90) return [1, 2];
@@ -23,14 +24,14 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
   const [turn, setTurn] = useState(1);
   const [interest, setInterest] = useState(() => 50 + rand(-15, 15) + getNegotiationModifier(player));
   const [offer, setOffer] = useState(() => initialOffer ?? Math.floor(player.value * 0.7));
-  const [salaryMultiplier, setSalaryMultiplier] = useState(() => clamp(initialSalaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER));
+  const [salaryMultiplier, setSalaryMultiplier] = useState(() => clampNumber(initialSalaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER));
   const [role, setRole] = useState(() => (player.rating >= 84 ? 'Star' : player.rating >= 74 ? 'Titulaire' : 'Rotation'));
   const [contractYears, setContractYears] = useState(() => (player.age <= 21 ? 4 : player.age >= 31 ? 2 : 3));
-  const [signingBonus, setSigningBonus] = useState(() => clamp(Math.max(5000, Math.floor(player.weeklySalary * 8)), 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * MAX_SIGNING_BONUS_MULTIPLIER))));
-  const [releaseClause, setReleaseClause] = useState(() => clamp(Math.floor(player.value * 1.8), 50000, Math.max(50000, Math.floor((player.value ?? 1000000) * MAX_RELEASE_CLAUSE_MULTIPLIER))));
+  const [signingBonus, setSigningBonus] = useState(() => clampNumber(Math.max(5000, Math.floor(player.weeklySalary * 8)), 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * MAX_SIGNING_BONUS_MULTIPLIER))));
+  const [releaseClause, setReleaseClause] = useState(() => clampNumber(Math.floor(player.value * 1.8), 50000, Math.max(50000, Math.floor((player.value ?? 1000000) * MAX_RELEASE_CLAUSE_MULTIPLIER))));
   const [sellOnPercent, setSellOnPercent] = useState(() => (player.age <= 23 ? 10 : 5));
-  const [bonusPackage, setBonusPackage] = useState(() => clamp(Math.floor(player.weeklySalary * 12), 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))));
-  const [ballonDorBonus, setBallonDorBonus] = useState(() => clamp(Math.floor(player.weeklySalary * 18), 0, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))));
+  const [bonusPackage, setBonusPackage] = useState(() => clampNumber(Math.floor(player.weeklySalary * 12), 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))));
+  const [ballonDorBonus, setBallonDorBonus] = useState(() => clampNumber(Math.floor(player.weeklySalary * 18), 0, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))));
   const [noCutClause, setNoCutClause] = useState(() => player.age <= 25);
   const [coachRoleProtection, setCoachRoleProtection] = useState(() => true);
   const [log, setLog] = useState([{ type: 'info', message: `Négociation transfert : ${player.firstName} ${player.lastName}` }]);
@@ -67,20 +68,20 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
     clubCountry: suitorCountry.flag,
     clubCountryCode: suitor.countryCode,
     clubCity: suitor.city,
-    salMult: clamp(salaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER),
+    salMult: clampNumber(salaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER),
     role,
-    contractWeeks: clamp(Math.round(contractYears) * 52, 52, 260),
-    signingBonus: clamp(signingBonus, 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * MAX_SIGNING_BONUS_MULTIPLIER))),
-    releaseClause: clamp(releaseClause, 50000, Math.max(50000, Math.floor((player.value ?? 1000000) * MAX_RELEASE_CLAUSE_MULTIPLIER))),
-    sellOnPercent: clamp(Math.floor(sellOnPercent), 0, 25),
+    contractWeeks: clampNumber(Math.round(contractYears) * 52, 52, 260),
+    signingBonus: clampNumber(signingBonus, 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * MAX_SIGNING_BONUS_MULTIPLIER))),
+    releaseClause: clampNumber(releaseClause, 50000, Math.max(50000, Math.floor((player.value ?? 1000000) * MAX_RELEASE_CLAUSE_MULTIPLIER))),
+    sellOnPercent: clampNumber(Math.floor(sellOnPercent), 0, 25),
     clubBonuses: {
-      total: clamp(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))),
-      goals: Math.floor(clamp(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))) * 0.35),
-      appearances: Math.floor(clamp(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))) * 0.35),
-      europe: Math.floor(clamp(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))) * 0.3),
+      total: clampNumber(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))),
+      goals: Math.floor(clampNumber(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))) * 0.35),
+      appearances: Math.floor(clampNumber(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))) * 0.35),
+      europe: Math.floor(clampNumber(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))) * 0.3),
     },
     contractClauses: {
-      ballonDorBonus: clamp(ballonDorBonus, 0, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))),
+      ballonDorBonus: clampNumber(ballonDorBonus, 0, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))),
       noCutClause,
       coachRoleProtection,
     },
@@ -389,7 +390,7 @@ function ContractTerms({ role, contractYears, signingBonus, releaseClause, sellO
         </label>
         <label style={S.fieldLabel}>
           Durée
-          <select value={contractYears} onChange={(event) => onYears(clamp(Number(event.target.value), 1, 5))} style={S.textInput}>
+          <select value={contractYears} onChange={(event) => onYears(clampNumber(Number(event.target.value), 1, 5))} style={S.textInput}>
             {[1, 2, 3, 4, 5].map((year) => <option key={year} value={year}>{year} an{year > 1 ? 's' : ''}</option>)}
           </select>
         </label>
@@ -399,7 +400,7 @@ function ContractTerms({ role, contractYears, signingBonus, releaseClause, sellO
         </label>
         <div style={S.fieldLabel}>
           Multiplicateur salaire
-          <div style={{ ...S.textInput, fontWeight: 900, background: '#f0fdf8', color: '#00a676' }}>×{clamp(salaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER).toFixed(2)}</div>
+          <div style={{ ...S.textInput, fontWeight: 900, background: '#f0fdf8', color: '#00a676' }}>×{clampNumber(salaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER).toFixed(2)}</div>
         </div>
       </div>
 

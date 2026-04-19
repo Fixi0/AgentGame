@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowUpRight, CheckCircle2, RefreshCcw, X } from 'lucide-react';
 import { formatMoney } from '../../utils/format';
-import { clamp } from '../../utils/helpers';
 import { S } from '../styles';
 
 const ROLE_OPTIONS = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
@@ -10,6 +9,7 @@ const SIGNING_BONUS_MAX_MULTIPLIER = 30;
 const RELEASE_CLAUSE_MIN_MULTIPLIER = 0.8;
 const RELEASE_CLAUSE_MAX_MULTIPLIER = 4.5;
 const BONUS_PACKAGE_MAX_MULTIPLIER = 24;
+const clampNumber = (value, min, max) => Math.max(min, Math.min(max, Number(value)));
 
 const sanitizeMoney = (value, min, max) => Math.max(min, Math.min(max, Math.floor(Number(value) || 0)));
 
@@ -19,7 +19,7 @@ const getBaseTerms = (offer, player) => ({
   price: offer.price,
   salMult: offer.salMult ?? 1.2,
   role: player.clubRole ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation'),
-  contractYears: clamp(player.age <= 22 ? 4 : player.age >= 31 ? 2 : 3, 1, 5),
+  contractYears: clampNumber(player.age <= 22 ? 4 : player.age >= 31 ? 2 : 3, 1, 5),
   signingBonus: sanitizeMoney((player.weeklySalary ?? 10000) * 8, 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * SIGNING_BONUS_MAX_MULTIPLIER))),
   releaseClause: sanitizeMoney(
     (player.value ?? 1000000) * 1.7,
@@ -88,12 +88,12 @@ const buildOutcome = (terms, player, offer) => {
   return {
     success: true,
     price: sanitizeMoney(terms.price, 1000, maxPrice),
-    salMult: Number(clamp(terms.salMult, 0.9, 3).toFixed(2)),
+    salMult: Number(clampNumber(terms.salMult, 0.9, 3).toFixed(2)),
     role: terms.role,
-    contractWeeks: clamp(Math.round(terms.contractYears) * 52, 52, 260),
+    contractWeeks: clampNumber(Math.round(terms.contractYears) * 52, 52, 260),
     signingBonus: sanitizeMoney(terms.signingBonus, 3000, maxSigningBonus),
     releaseClause: sanitizeMoney(terms.releaseClause, minReleaseClause, maxReleaseClause),
-    sellOnPercent: clamp(Math.floor(terms.sellOnPercent), 0, 20),
+    sellOnPercent: clampNumber(Math.floor(terms.sellOnPercent), 0, 20),
     clubBonuses: {
       total: bonusTotal,
       goals: Math.floor(bonusTotal * 0.35),
@@ -164,11 +164,11 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
   const updateField = (key, value) => {
     const nextValue = (() => {
       if (key === 'price') return sanitizeMoney(value, 1000, Math.max(1000, Math.floor((offer.price ?? 1000000) * 4)));
-      if (key === 'contractYears') return clamp(Number(value), 1, 5);
-      if (key === 'salMult') return clamp(Number(value), 0.9, 3);
+      if (key === 'contractYears') return clampNumber(Number(value), 1, 5);
+      if (key === 'salMult') return clampNumber(Number(value), 0.9, 3);
       if (key === 'signingBonus') return sanitizeMoney(value, 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * SIGNING_BONUS_MAX_MULTIPLIER)));
       if (key === 'releaseClause') return sanitizeMoney(value, 50000, Math.max(50000, Math.floor((player.value ?? 1000000) * RELEASE_CLAUSE_MAX_MULTIPLIER)));
-      if (key === 'sellOnPercent') return clamp(Math.floor(Number(value)), 0, 25);
+      if (key === 'sellOnPercent') return clampNumber(Math.floor(Number(value)), 0, 25);
       if (key === 'bonusPackage') return sanitizeMoney(value, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * BONUS_PACKAGE_MAX_MULTIPLIER)));
       return value;
     })();
@@ -196,7 +196,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
       tonedDown.contractYears = Math.max(baseTerms.contractYears, terms.contractYears - 1);
     }
     if (terms.salMult > baseTerms.salMult) {
-      tonedDown.salMult = clamp(terms.salMult - 0.04, 0.9, 2.8);
+      tonedDown.salMult = clampNumber(terms.salMult - 0.04, 0.9, 2.8);
     }
     if (terms.signingBonus > baseTerms.signingBonus) {
       tonedDown.signingBonus = Math.floor(Math.max(baseTerms.signingBonus, terms.signingBonus * 0.92));
@@ -283,7 +283,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
               </label>
               <label style={S.fieldLabel}>
                 Salaire
-                <input type="number" min="0.9" max="3" step="0.01" value={terms.salMult} onChange={(event) => updateField('salMult', clamp(Number(event.target.value), 0.9, 3))} style={S.textInput} />
+                <input type="number" min="0.9" max="3" step="0.01" value={terms.salMult} onChange={(event) => updateField('salMult', clampNumber(Number(event.target.value), 0.9, 3))} style={S.textInput} />
               </label>
             </div>
             <SelectPills label="Rôle" values={ROLE_OPTIONS} value={terms.role} onChange={(role) => updateField('role', role)} />
@@ -314,7 +314,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
                 </label>
                 <label style={S.fieldLabel}>
                   Revente %
-                  <input type="number" min="0" max="25" value={terms.sellOnPercent} onChange={(event) => updateField('sellOnPercent', clamp(Number(event.target.value), 0, 25))} style={S.textInput} />
+                  <input type="number" min="0" max="25" value={terms.sellOnPercent} onChange={(event) => updateField('sellOnPercent', clampNumber(Number(event.target.value), 0, 25))} style={S.textInput} />
                 </label>
                 <label style={S.fieldLabel}>
                   Bonus
