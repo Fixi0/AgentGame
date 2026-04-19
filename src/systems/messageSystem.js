@@ -312,8 +312,8 @@ const getWeeksAtClub = (player, week = 0) => {
 export const getConversationParticipant = (message) => {
   if (!message) return { label: 'Contact', role: 'unknown', audience: 'unknown' };
   const rawContext = String(message.context ?? '');
-  const senderRole = message.senderRole ?? 'player';
-  const fromStaff = senderRole === 'staff' || ['coach_dialogue', 'ds_dialogue', 'staff_dialogue'].includes(message.type);
+  const senderRole = message.senderRole ?? null;
+  const fromStaff = senderRole ? senderRole === 'staff' : ['coach_dialogue', 'ds_dialogue', 'staff_dialogue'].includes(message.type);
   if (fromStaff) {
     if (message.type === 'coach_dialogue' || rawContext.includes('coach')) {
       return { label: 'Coach', role: 'staff', audience: 'coach' };

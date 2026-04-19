@@ -291,7 +291,7 @@ export const generateNarrativeFollowups = ({ state, roster, week }) => {
   if (arc.type === 'coach_conflict') {
     return {
       events: [{ title: 'Conflit coach', text: `Le dossier ${player.firstName} ${player.lastName} reste tendu avec le staff. Un échange direct peut éviter la casse.` }],
-      messages: [createMessage({ player, type: 'coach_dialogue', week, context: arc.id })],
+      messages: [createMessage({ player, type: 'role_frustration', week, context: arc.id })],
     };
   }
 
