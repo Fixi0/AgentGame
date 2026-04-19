@@ -191,6 +191,7 @@ export default function FootballAgentGame() {
   const [toast, setToast] = useState(null);
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const [hasSave, setHasSave] = useState(false);
+  const [savePreview, setSavePreview] = useState(null);
   const [activeMessageThreadKey, setActiveMessageThreadKey] = useState(null);
   const [weekTickerData, setWeekTickerData] = useState(null);
   const [saveFlash, setSaveFlash] = useState(false);
@@ -199,10 +200,26 @@ export default function FootballAgentGame() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       setHasSave(Boolean(saved));
-      setState(saved ? migrateState(JSON.parse(saved)) : createFreshState());
+      if (saved) {
+        const parsed = migrateState(JSON.parse(saved));
+        setState(parsed);
+        setSavePreview({
+          agencyName: parsed.agencyProfile?.name ?? 'Agent FC',
+          ownerName: parsed.agencyProfile?.ownerName ?? '',
+          season: getPhase(parsed.week).season,
+          seasonWeek: getPhase(parsed.week).seasonWeek,
+          rosterCount: parsed.roster?.length ?? 0,
+          reputation: parsed.reputation ?? 0,
+          money: parsed.money ?? 0,
+        });
+      } else {
+        setState(createFreshState());
+        setSavePreview(null);
+      }
       setSaveMenuOpen(Boolean(saved));
     } catch {
       setState(createFreshState());
+      setSavePreview(null);
     } finally {
       setLoaded(true);
     }
@@ -212,6 +229,15 @@ export default function FootballAgentGame() {
     if (!loaded || !state) return;
     const serialized = JSON.stringify(state);
     localStorage.setItem(STORAGE_KEY, serialized);
+    setSavePreview({
+      agencyName: state.agencyProfile?.name ?? 'Agent FC',
+      ownerName: state.agencyProfile?.ownerName ?? '',
+      season: getPhase(state.week).season,
+      seasonWeek: getPhase(state.week).seasonWeek,
+      rosterCount: state.roster?.length ?? 0,
+      reputation: state.reputation ?? 0,
+      money: state.money ?? 0,
+    });
     // Rotate 3 backup slots keyed by week mod 3
     const slot = (state.week ?? 0) % 3;
     localStorage.setItem(`${STORAGE_KEY}_bak_${slot}`, serialized);
@@ -945,6 +971,7 @@ export default function FootballAgentGame() {
       onConfirm: () => {
         localStorage.removeItem(STORAGE_KEY);
         setState(createFreshState());
+        setSavePreview(null);
         setView('dashboard');
         setSaveMenuOpen(false);
         setConfirmDialog(null);
@@ -964,6 +991,7 @@ export default function FootballAgentGame() {
       onConfirm: () => {
         localStorage.removeItem(STORAGE_KEY);
         setState(createFreshState());
+        setSavePreview(null);
         setView('dashboard');
         setSaveMenuOpen(false);
         setHasSave(false);
@@ -1118,6 +1146,7 @@ export default function FootballAgentGame() {
     return (
       <SaveMenu
         hasSave={hasSave}
+        savePreview={savePreview}
         onContinue={() => setSaveMenuOpen(false)}
         onNewGame={handleNewGame}
         onReset={handleResetGame}
