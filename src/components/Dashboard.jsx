@@ -621,6 +621,117 @@ function WorldCupWidget({ worldCupState }) {
   );
 }
 
+function WorldCupSpotlight({ worldCupState }) {
+  if (!worldCupState || worldCupState.phase === 'done') return null;
+
+  const phaseLabels = {
+    groupes: 'Phase de groupes',
+    huitièmes: 'Huitièmes de finale',
+    quarts: 'Quarts de finale',
+    demies: 'Demi-finales',
+    finale: 'Finale',
+  };
+  const isFinalStage = worldCupState.phase !== 'groupes';
+  const selected = [...(worldCupState.selectedPlayers ?? [])].sort((a, b) => b.rating - a.rating).slice(0, 3);
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, #0f172a 0%, #1d4f7a 55%, #203a43 100%)',
+      borderRadius: 12,
+      padding: '14px 14px 12px',
+      marginBottom: 12,
+      boxShadow: '0 14px 32px rgba(15,23,32,.22)',
+      color: '#ffffff',
+      border: '1px solid rgba(125,211,252,.18)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: '#7dd3fc', fontFamily: 'system-ui,sans-serif', fontWeight: 900 }}>
+            🌍 Coupe du monde
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 950, marginTop: 3 }}>
+            Match à venir
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.78)', fontFamily: 'system-ui,sans-serif', marginTop: 2 }}>
+            {phaseLabels[worldCupState.phase] ?? `Phase ${worldCupState.phase}`}
+          </div>
+        </div>
+        <div style={{
+          padding: '8px 10px',
+          borderRadius: 10,
+          background: 'rgba(255,255,255,.10)',
+          border: '1px solid rgba(255,255,255,.12)',
+          textAlign: 'right',
+          minWidth: 104,
+        }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.12em', color: '#a0c4d8', fontFamily: 'system-ui,sans-serif', fontWeight: 850 }}>
+            Priorité
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 950, color: '#ffffff' }}>
+            Très élevée
+          </div>
+        </div>
+      </div>
+
+      <div style={{
+        marginBottom: 10,
+        padding: '10px 12px',
+        borderRadius: 10,
+        background: isFinalStage ? 'rgba(245,200,66,.12)' : 'rgba(255,255,255,.08)',
+        border: '1px solid rgba(255,255,255,.12)',
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 900, color: isFinalStage ? '#f5c842' : '#7dd3fc', letterSpacing: '.12em', textTransform: 'uppercase', fontFamily: 'system-ui,sans-serif', marginBottom: 4 }}>
+          Prochain rendez-vous
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 900, color: '#ffffff', lineHeight: 1.3 }}>
+          La CdM bloque toute la semaine. Pas de championnat, pas d’Europe. Le dossier est entièrement sur la sélection.
+        </div>
+      </div>
+
+      {selected.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif', marginBottom: 6, letterSpacing: '.08em', textTransform: 'uppercase', fontWeight: 850 }}>
+            Joueurs en vitrine
+          </div>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {selected.map((p) => (
+              <div key={p.playerId} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                background: 'rgba(255,255,255,.08)',
+                border: '1px solid rgba(255,255,255,.10)',
+                borderRadius: 8,
+                padding: '8px 10px',
+              }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: '#ffffff', fontFamily: 'system-ui,sans-serif' }}>
+                    {p.countryFlag ?? '🌍'} {p.playerName}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.72)', fontFamily: 'system-ui,sans-serif' }}>
+                    {p.rating}/100 · {p.goals ?? 0}⚽ {p.assists ?? 0}🅰️
+                  </div>
+                </div>
+                <div style={{
+                  fontSize: 10,
+                  fontWeight: 900,
+                  letterSpacing: '.08em',
+                  textTransform: 'uppercase',
+                  color: p.eliminated ? '#fca5a5' : p.champion ? '#f5c842' : '#7dd3fc',
+                  fontFamily: 'system-ui,sans-serif',
+                }}>
+                  {p.champion ? 'Champion' : p.eliminated ? 'Sorti' : 'En jeu'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RivalLeaderboard({ reputation, week, agencyProfile }) {
   const ranking = getRivalLeaderboard(reputation, week, agencyProfile);
   const playerEntry = ranking.find((r) => r.isPlayer);
@@ -732,6 +843,8 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
       <div style={S.homeHint}>
         Lis vite ce qui est chaud, clique sur un dossier, puis lance la semaine. Le reste reste caché dans les sous-menus.
       </div>
+
+      <WorldCupSpotlight worldCupState={state.worldCupState} />
 
       {/* Beginner Guide — visible only for first 5 weeks */}
       <BeginnerGuide state={state} phase={phase} onNav={onNav} onPlay={onPlay} />
