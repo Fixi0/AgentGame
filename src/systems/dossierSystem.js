@@ -124,6 +124,8 @@ export const getPlayerLifecycleState = (player, state) => {
   const openOffer = (state?.clubOffers ?? []).find((offer) => offer.playerId === player.id && offer.status === 'open');
   const unresolvedMessage = (state?.messages ?? []).find((message) => message.playerId === player.id && !message.resolved);
   const queuedMessage = (state?.messageQueue ?? []).find((message) => message.playerId === player.id);
+  const worldCupState = state?.worldCupState;
+  const worldCupSelection = worldCupState?.selectedPlayers?.find((entry) => entry.playerId === player.id);
 
   if (pendingTransfer) {
     return {
@@ -140,6 +142,15 @@ export const getPlayerLifecycleState = (player, state) => {
       label: 'Pré-accord',
       tone: 'warn',
       detail: `Activation prévue en S${openOffer.effectiveWeek}`,
+      weeksUntilReopen: weeksToReopen,
+    };
+  }
+  if (worldCupState && worldCupState.phase !== 'done' && worldCupSelection && !worldCupSelection.eliminated) {
+    return {
+      key: 'world_cup',
+      label: 'En sélection',
+      tone: worldCupSelection.champion ? 'good' : 'warn',
+      detail: `${worldCupSelection.countryName ?? 'Pays'} · ${worldCupState.phase}`,
       weeksUntilReopen: weeksToReopen,
     };
   }
