@@ -4,12 +4,12 @@ export const formatMoney = (amount) => {
   const abs = Math.abs(value);
 
   if (abs >= 1e9) {
-    return `${sign}€${(abs / 1e9).toFixed(1).replace('.', ',')}Md`;
+    return `${sign}${(abs / 1e9).toFixed(1).replace('.', ',')} Md €`;
   }
 
   if (abs >= 1e6) {
-    return `${sign}€${(abs / 1e6).toFixed(1).replace('.', ',')}M`;
+    return `${sign}${(abs / 1e6).toFixed(1).replace('.', ',')} M €`;
   }
 
-  return `${sign}€${Math.round(abs).toLocaleString('fr-FR')}`;
+  return `${sign}${Math.round(abs).toLocaleString('fr-FR')} €`;
 };
