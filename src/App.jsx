@@ -1222,7 +1222,7 @@ export default function FootballAgentGame() {
         {view === 'roster' && <Roster state={state} roster={state.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
         {view === 'messages' && <Messages messages={state.messages} messageQueue={state.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
-        {view === 'shop' && <Shop state={state} onBuy={handleBuyShopItem} />}
+        {view === 'shop' && <Shop state={state} phase={phase} onBuy={handleBuyShopItem} />}
         {view === 'calendar' && <Calendar state={state} onClubDetails={showClubDetails} />}
         {view === 'standings' && <Standings state={state} onClubDetails={showClubDetails} />}
         {view === 'deadline' && <DeadlineDay state={state} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}

@@ -1,12 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Coins, Gem, Lock, ShoppingBag, Sparkles, Star } from 'lucide-react';
+import { getAgencyCapacity } from '../systems/agencySystem';
 import { GEM_PACKS, SHOP_CATEGORIES, SHOP_ITEMS } from '../systems/shopSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
 
-export default function Shop({ state, onBuy }) {
+export default function Shop({ state, phase, onBuy }) {
   const [category, setCategory] = useState('all');
   const gems = state.gems ?? 0;
+  const rosterCount = state.roster?.length ?? 0;
+  const capacity = getAgencyCapacity(state.agencyLevel);
 
   const items = useMemo(() => {
     if (category === 'all') return SHOP_ITEMS;
@@ -18,6 +21,18 @@ export default function Shop({ state, onBuy }) {
       <div style={S.et}>
         <div style={S.el}>BOUTIQUE</div>
         <h1 style={S.eh}>Gemmes & bonus</h1>
+      </div>
+
+      <div style={S.objCard}>
+        <div style={S.secTitle}>
+          <Sparkles size={14} />
+          <span>APERÇU RAPIDE</span>
+        </div>
+        {phase && <div style={S.sumRow}><span style={S.sumK}>Date</span><strong>S{phase.season} · S{phase.seasonWeek}/38</strong></div>}
+        <div style={S.sumRow}><span style={S.sumK}>Joueurs</span><strong>{rosterCount}</strong></div>
+        <div style={S.sumRow}><span style={S.sumK}>Capacité</span><strong>{rosterCount}/${capacity}</strong></div>
+        <div style={S.sumRow}><span style={S.sumK}>Gemmes</span><strong>{gems}</strong></div>
+        <div style={S.sumRow}><span style={S.sumK}>Argent</span><strong>{formatMoney(state.money ?? 0)}</strong></div>
       </div>
 
       <div style={S.objCard}>

@@ -863,8 +863,10 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
       <button onClick={onPlay} style={S.playBtn}>
         <Play size={22} fill="#ffffff" />
         <div style={{ textAlign: 'left' }}>
-          <div>JOUER LA SEMAINE</div>
-          <div style={S.playBtnSub}>{phase.phase} · Semaine {phase.seasonWeek}/38</div>
+          <div>CONTINUER</div>
+          <div style={S.playBtnSub}>
+            S{phase.season} · {phase.phase} · Semaine {phase.seasonWeek}/38 · {state.roster.length} joueur{state.roster.length > 1 ? 's' : ''}
+          </div>
         </div>
       </button>
 
