@@ -1,5 +1,5 @@
 import { Activity, ArrowRight, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Heart, MessageCircle, Play, Target, Trophy, UserPlus, Zap } from 'lucide-react';
-import React from 'react';
+import React, { useState } from 'react';
 import { getAgencyCapacity } from '../systems/agencySystem';
 import { getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
 import { getMarketReachLabel, normalizeAgencyReputation } from '../systems/reputationSystem';
@@ -320,7 +320,7 @@ function NewspaperFront({ news, history, roster, phase, worldCupState, onNav }) 
       text: `Bilan S${h.week} · ${h.net >= 0 ? '+' : ''}${Math.abs(h.net).toLocaleString('fr-FR')} €`,
       week: h.week,
     }))),
-  ].slice(0, 4);
+  ].slice(0, 2);
 
   if (!headline && !briefs.length) return null;
 
@@ -679,6 +679,7 @@ function RivalLeaderboard({ reputation, week, agencyProfile }) {
 }
 
 export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, onRejectOffer, onClubDetails, onOpenContracts }) {
+  const [showSecondaryOverview, setShowSecondaryOverview] = useState(false);
   const portfolioValue = state.roster.reduce((sum, player) => sum + player.value, 0);
   const weeklyIncome = state.roster.reduce((sum, player) => sum + Math.floor(player.weeklySalary * player.commission), 0);
   const injuredCount = state.roster.filter((player) => player.injured > 0).length;
@@ -744,11 +745,23 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
         phase={phase}
       />
 
-      {/* Agency Health Score */}
-      <AgencyHealthScore state={state} />
+      <button
+        type="button"
+        onClick={() => setShowSecondaryOverview((value) => !value)}
+        style={S.collapseToggle}
+      >
+        <span>{showSecondaryOverview ? 'Masquer les infos secondaires' : 'Afficher les infos secondaires'}</span>
+        <span>{showSecondaryOverview ? '−' : '+'}</span>
+      </button>
 
-      <SeasonArc currentWeek={phase.seasonWeek ?? 1} totalWeeks={38} />
-      <ObjectivesWidget objectives={state.seasonObjectives} onNav={onNav} />
+      {showSecondaryOverview && (
+        <>
+          <AgencyHealthScore state={state} />
+          <SeasonArc currentWeek={phase.seasonWeek ?? 1} totalWeeks={38} />
+          <ObjectivesWidget objectives={state.seasonObjectives} onNav={onNav} />
+        </>
+      )}
+
       <div style={S.todayCard}>
         <div style={S.todayTitle}>AUJOURD'HUI</div>
         {todayTimeline.map((item, index) => (
@@ -761,20 +774,22 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           </div>
         ))}
       </div>
-      <div style={S.objCard}>
-        <div style={S.secTitle}>FOCUS DU JOUR</div>
-        {[
-          { label: 'Crédibilité', value: `${state.credibility ?? 50}/100` },
-          { label: 'Portée marché', value: getMarketReachLabel(state.reputation) },
-          { label: 'Capacité', value: `${state.roster.length}/${getAgencyCapacity(state.agencyLevel)}` },
-          { label: 'Confiance moyenne', value: `${averageTrust}/100` },
-        ].map((item) => (
-          <div key={item.label} style={S.promiseRow}>
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
-          </div>
-        ))}
-      </div>
+      {showSecondaryOverview && (
+        <div style={S.objCard}>
+          <div style={S.secTitle}>FOCUS DU JOUR</div>
+          {[
+            { label: 'Crédibilité', value: `${state.credibility ?? 50}/100` },
+            { label: 'Portée marché', value: getMarketReachLabel(state.reputation) },
+            { label: 'Capacité', value: `${state.roster.length}/${getAgencyCapacity(state.agencyLevel)}` },
+            { label: 'Confiance moyenne', value: `${averageTrust}/100` },
+          ].map((item) => (
+            <div key={item.label} style={S.promiseRow}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+      )}
       <NewspaperFront news={state.news} history={state.history} roster={state.roster} phase={phase} worldCupState={state.worldCupState} onNav={onNav} />
       {(marketQueue.length > 0 || urgentMessages.length > 0 || expiringContracts.length > 0) && (
         <div style={S.decisionCard}>

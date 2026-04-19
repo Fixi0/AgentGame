@@ -117,7 +117,7 @@ export const getMediaCrisisCooldownWeeks = (state, playerId) => {
   return Math.max(0, cooldownUntil - (state?.week ?? 0));
 };
 
-export const getPlayerDossierStatus = (player, state) => {
+export const getPlayerLifecycleState = (player, state) => {
   if (!player) return { label: 'Inconnu', tone: 'neutral', detail: '' };
   const weeksToReopen = getWeeksUntilMessageReopen(state, player.id);
   const pendingTransfer = (state?.pendingTransfers ?? []).find((transfer) => transfer.playerId === player.id);
@@ -127,6 +127,7 @@ export const getPlayerDossierStatus = (player, state) => {
 
   if (pendingTransfer) {
     return {
+      key: 'transferred',
       label: 'Transféré',
       tone: 'good',
       detail: `Départ prévu semaine S${pendingTransfer.effectiveWeek}`,
@@ -135,6 +136,7 @@ export const getPlayerDossierStatus = (player, state) => {
   }
   if (player.careerStatus === 'prolongé') {
     return {
+      key: 'prolonged',
       label: 'Prolongé',
       tone: 'good',
       detail: player.contractWeeksLeft ? `Contrat ${player.contractWeeksLeft}s` : 'Contrat renouvelé',
@@ -143,6 +145,7 @@ export const getPlayerDossierStatus = (player, state) => {
   }
   if ((player.loanStatus ?? '').toLowerCase() === 'loan' || player.careerStatus === 'en prêt') {
     return {
+      key: 'loan',
       label: 'En prêt',
       tone: 'warn',
       detail: player.loanUntil ? `Retour semaine S${player.loanUntil}` : 'Prêt en cours',
@@ -151,6 +154,7 @@ export const getPlayerDossierStatus = (player, state) => {
   }
   if (weeksToReopen > 0) {
     return {
+      key: 'blocked',
       label: 'Verrouillé',
       tone: 'danger',
       detail: `Réouverture dans ${weeksToReopen} sem.`,
@@ -159,6 +163,7 @@ export const getPlayerDossierStatus = (player, state) => {
   }
   if (openOffer || unresolvedMessage || queuedMessage || (player.activeActions ?? []).length) {
     return {
+      key: 'discussion',
       label: 'En discussion',
       tone: 'warn',
       detail: openOffer?.club ? `Dossier ouvert avec ${openOffer.club}` : 'Dossier en cours',
@@ -167,6 +172,7 @@ export const getPlayerDossierStatus = (player, state) => {
   }
   if (player.careerStatus === 'transféré') {
     return {
+      key: 'transferred',
       label: 'Transféré',
       tone: 'good',
       detail: player.contractStartWeek ? `Arrivé en S${player.contractStartWeek}` : 'Dossier clos',
@@ -175,6 +181,7 @@ export const getPlayerDossierStatus = (player, state) => {
   }
   if (player.careerStatus === 'en discussion') {
     return {
+      key: 'discussion',
       label: 'En discussion',
       tone: 'warn',
       detail: 'Négociation active',
@@ -182,12 +189,15 @@ export const getPlayerDossierStatus = (player, state) => {
     };
   }
   return {
+    key: 'stable',
     label: 'Stable',
     tone: 'neutral',
     detail: 'Pas de dossier sensible',
     weeksUntilReopen: weeksToReopen,
   };
 };
+
+export const getPlayerDossierStatus = (player, state) => getPlayerLifecycleState(player, state);
 
 export const getRelevantDecisionHistory = (history = [], { playerId = null, clubName = null } = {}) => {
   return history.filter((item) => {

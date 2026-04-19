@@ -150,6 +150,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
   });
   const [round, setRound] = useState(1);
   const [stage, setStage] = useState(readiness?.ok ? 'approved' : 'draft');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const clubAssessment = useMemo(
     () => assessClubReaction(terms, baseTerms, round, player),
@@ -287,24 +288,40 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
             </div>
             <SelectPills label="Rôle" values={ROLE_OPTIONS} value={terms.role} onChange={(role) => updateField('role', role)} />
             <SelectPills label="Durée" values={DURATION_OPTIONS} value={terms.contractYears} onChange={(years) => updateField('contractYears', years)} suffix=" ans" />
-            <div style={S.formGrid}>
-              <label style={S.fieldLabel}>
-                Prime
-                <input type="number" min="3000" max={Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * SIGNING_BONUS_MAX_MULTIPLIER))} step="1000" value={terms.signingBonus} onChange={(event) => updateField('signingBonus', Math.max(0, Number(event.target.value)))} style={S.textInput} />
-              </label>
-              <label style={S.fieldLabel}>
-                Clause
-                <input type="number" min="50000" max={Math.max(50000, Math.floor((player.value ?? 1000000) * RELEASE_CLAUSE_MAX_MULTIPLIER))} step="10000" value={terms.releaseClause} onChange={(event) => updateField('releaseClause', Math.max(0, Number(event.target.value)))} style={S.textInput} />
-              </label>
-              <label style={S.fieldLabel}>
-                Revente %
-                <input type="number" min="0" max="25" value={terms.sellOnPercent} onChange={(event) => updateField('sellOnPercent', clamp(Number(event.target.value), 0, 25))} style={S.textInput} />
-              </label>
-              <label style={S.fieldLabel}>
-                Bonus
-                <input type="number" min="5000" max={Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * BONUS_PACKAGE_MAX_MULTIPLIER))} step="1000" value={terms.bonusPackage} onChange={(event) => updateField('bonusPackage', Math.max(0, Number(event.target.value)))} style={S.textInput} />
-              </label>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((value) => !value)}
+              style={{
+                ...S.miniGhost,
+                width: '100%',
+                margin: '6px 0 12px',
+                padding: '10px 12px',
+                fontSize: 11,
+                textAlign: 'center',
+              }}
+            >
+              {showAdvanced ? 'Masquer les options avancées' : 'Afficher les options avancées'}
+            </button>
+            {showAdvanced && (
+              <div style={S.formGrid}>
+                <label style={S.fieldLabel}>
+                  Prime
+                  <input type="number" min="3000" max={Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * SIGNING_BONUS_MAX_MULTIPLIER))} step="1000" value={terms.signingBonus} onChange={(event) => updateField('signingBonus', Math.max(0, Number(event.target.value)))} style={S.textInput} />
+                </label>
+                <label style={S.fieldLabel}>
+                  Clause
+                  <input type="number" min="50000" max={Math.max(50000, Math.floor((player.value ?? 1000000) * RELEASE_CLAUSE_MAX_MULTIPLIER))} step="10000" value={terms.releaseClause} onChange={(event) => updateField('releaseClause', Math.max(0, Number(event.target.value)))} style={S.textInput} />
+                </label>
+                <label style={S.fieldLabel}>
+                  Revente %
+                  <input type="number" min="0" max="25" value={terms.sellOnPercent} onChange={(event) => updateField('sellOnPercent', clamp(Number(event.target.value), 0, 25))} style={S.textInput} />
+                </label>
+                <label style={S.fieldLabel}>
+                  Bonus
+                  <input type="number" min="5000" max={Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * BONUS_PACKAGE_MAX_MULTIPLIER))} step="1000" value={terms.bonusPackage} onChange={(event) => updateField('bonusPackage', Math.max(0, Number(event.target.value)))} style={S.textInput} />
+                </label>
+              </div>
+            )}
           </div>
 
           <div style={{ background: statusBg, border: `1px solid ${statusColor}30`, borderRadius: 8, padding: 12, marginBottom: 14 }}>

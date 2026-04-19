@@ -1,7 +1,6 @@
 import { ChevronLeft, MessageCircle, PhoneCall, UserRound } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { getConversationParticipant, getConversationReplyTargetLabel, getContextualResponseOptions, getResponseCopy } from '../systems/messageSystem';
-import { getPendingMessageCounts, getMessageQueueLabel } from '../systems/dossierSystem';
 import { S } from './styles';
 
 const responseLabels = {
@@ -30,7 +29,7 @@ const RESPONSE_REQUIRED_TYPES = new Set([
 
 const messageNeedsResponse = (message) => RESPONSE_REQUIRED_TYPES.has(message?.type) && !message?.resolved;
 
-export default function Messages({ messages, messageQueue = [], onRespond, onAction, focusThreadKey = null }) {
+export default function Messages({ messages, onRespond, onAction, focusThreadKey = null }) {
   const [filter, setFilter] = useState('all');
   const [selectedThreadKey, setSelectedThreadKey] = useState(null);
   const [mobileScreen, setMobileScreen] = useState('thread');
@@ -120,7 +119,6 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
   const selectedThread = threads.find((thread) => thread.key === selectedThreadKey) ?? null;
   const threadLimit = selectedThread ? (visibleCounts[selectedThread.key] ?? (isMobile ? 2 : 3)) : 3;
   const visibleThreadItems = selectedThread ? selectedThread.items.slice(Math.max(0, selectedThread.items.length - threadLimit)) : [];
-  const queueCounts = getPendingMessageCounts({ messages, messageQueue });
   const showList = !isMobile || mobileScreen === 'list';
   const showThread = !isMobile || mobileScreen === 'thread';
   const latestPendingMessage = selectedThread
@@ -130,10 +128,6 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
   const actionGridStyle = {
     ...S.msgActions,
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
-  };
-  const summaryStripStyle = {
-    ...S.summaryStrip,
-    gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,minmax(0,1fr))',
   };
   const actionBtnStyle = {
     ...S.msgBtn,
@@ -181,24 +175,9 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
         ))}
       </div>
 
-      <div style={summaryStripStyle}>
-        <div style={S.summaryChip}><strong>{queueCounts.urgent}</strong><span>Urgent</span></div>
-        <div style={S.summaryChip}><strong>{queueCounts.normal}</strong><span>Normal</span></div>
-        <div style={S.summaryChip}><strong>{queueCounts.toProcess}</strong><span>À traiter</span></div>
-        <div style={S.summaryChip}><strong>{messageQueue.length}</strong><span>File</span></div>
+      <div style={S.homeHint}>
+        Ici, tu parles. Les offres, files et rappels sont regroupés dans Dossiers pour garder cette page centrée sur les conversations.
       </div>
-
-      {messageQueue.length > 0 && (
-        <div style={S.objCard}>
-          <div style={S.secTitle}>FILE D'ATTENTE</div>
-          {messageQueue.slice(0, 3).map((message) => (
-            <div key={message.id} style={S.promiseRow}>
-              <span>{getMessageQueueLabel(message)} · {message.playerName}</span>
-              <strong>{message.subject}</strong>
-            </div>
-          ))}
-        </div>
-      )}
 
       <div style={{ ...S.messagesLayout, gridTemplateColumns: isMobile ? '1fr' : '280px minmax(0,1fr)' }}>
         {showList && (
