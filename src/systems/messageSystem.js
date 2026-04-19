@@ -315,6 +315,46 @@ const RESPONSE_OPTIONS_BY_TYPE = {
     empathique: 'Décider ensemble',
     ferme: 'Tout passe par moi',
   },
+  ambition_clash: {
+    professionnel: 'Préparer le dossier',
+    empathique: 'Appeler ce soir',
+    ferme: 'Patience — le moment viendra',
+  },
+  captain_demand: {
+    professionnel: 'Parler au staff',
+    empathique: 'Valoriser son leadership',
+    ferme: 'Le terrain décide',
+  },
+  form_slump: {
+    professionnel: 'Analyser avec le coach',
+    empathique: 'Soutien direct',
+    ferme: 'Travailler, pas se plaindre',
+  },
+  retirement_thoughts: {
+    professionnel: 'Planifier la reconversion',
+    empathique: 'Écouter ses envies',
+    ferme: 'Encore plusieurs saisons',
+  },
+  life_event: {
+    professionnel: 'Adapter le plan carrière',
+    empathique: 'Être présent',
+    ferme: 'Concilier sport et famille',
+  },
+  national_pride: {
+    professionnel: 'Capitaliser médiatiquement',
+    empathique: 'Partager sa fierté',
+    ferme: 'Rester concentré sur le club',
+  },
+  injury_worry: {
+    professionnel: 'Contacter le staff médical',
+    empathique: 'Rassurer — je suis là',
+    ferme: 'Suivre le protocole',
+  },
+  promise_broken_warning: {
+    professionnel: 'Expliquer la situation',
+    empathique: 'Reconnaître l\'erreur',
+    ferme: 'Regarder vers l\'avenir',
+  },
 };
 
 const buildStoredResponseOptions = (message) =>

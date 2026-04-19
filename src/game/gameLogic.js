@@ -1641,11 +1641,16 @@ export const playWeek = (state) => {
   totalCost += staffWeeklyCost;
   totalCost += WEEKLY_OVERHEAD[state.agencyLevel ?? 1] ?? 300;
 
+  // Semaines 1-3 = pré-saison (matchs amicaux, pas de classement).
+  // Semaine 38 = mercato été, pas de match.
+  const isFriendlyWeek = phase.seasonWeek <= 3;
   const clubFootballActive = !(phase.mercato && phase.window === 'été');
   const weeklySimulation = clubFootballActive
     ? simulateWeeklyClubResults(state.roster, state.week)
     : { fixtures: [], matchResults: [] };
   const weeklyFixtures = weeklySimulation.fixtures;
+  // Fixtures compétitives uniquement (hors matchs amicaux) pour le classement
+  const competitiveFixtures = weeklyFixtures.filter((f) => !f.isFriendly);
   const weeklyMatchResults = weeklySimulation.matchResults;
   const matchByPlayerId = new Map(weeklyMatchResults.map((match) => [match.playerId, match]));
   const playedMatches = weeklyMatchResults.filter((match) => (match.minutes ?? 0) > 0 && Number.isFinite(match.matchRating));
@@ -1705,7 +1710,9 @@ export const playWeek = (state) => {
       };
     }
 
-    const event = rollPassiveEvent(updatedPlayer, {
+    // Pendant la pré-saison, les événements ont un impact réduit (match amical)
+    const friendlyMult = isFriendlyWeek ? 0.3 : 1.0;
+    const event = isFriendlyWeek ? null : rollPassiveEvent(updatedPlayer, {
       scandalReduction: communityManagerLevel * 0.06,
       performanceBoost: dataAnalystLevel * 0.03,
       matchResult,
@@ -1714,8 +1721,8 @@ export const playWeek = (state) => {
     (matchResult?.incidents ?? []).forEach((incident) => {
       const incidentEvent = MATCH_INCIDENT_EVENTS[incident];
       if (!incidentEvent) return;
-      const reputationImpact = scaleReputationDelta(incidentEvent.rep);
-      const moneyImpact = incidentEvent.good ? Math.floor(incidentEvent.money * EVENT_INCOME_MULT) : incidentEvent.money;
+      const reputationImpact = Math.round(scaleReputationDelta(incidentEvent.rep) * friendlyMult);
+      const moneyImpact = incidentEvent.good ? Math.floor(incidentEvent.money * EVENT_INCOME_MULT * friendlyMult) : Math.round(incidentEvent.money * friendlyMult);
       totalIncome += moneyImpact > 0 ? moneyImpact : 0;
       totalCost += moneyImpact < 0 ? Math.abs(moneyImpact) : 0;
       reputationChange += reputationImpact;
@@ -1875,7 +1882,8 @@ export const playWeek = (state) => {
       )
     : updatedRoster;
 
-  if (topMatch) {
+  // Pré-saison : matchs amicaux, faible impact médiatique et pas de message
+  if (topMatch && !isFriendlyWeek) {
     const topPlayer = caredRoster.find((player) => player.id === topMatch.playerId);
     if (topPlayer) {
       generatedNews.push(createManualNewsPost({
@@ -1887,9 +1895,22 @@ export const playWeek = (state) => {
         account: { name: 'StatsZone FC', kind: 'data', icon: 'SZ', color: '#2f80ed' },
       }));
     }
+  } else if (topMatch && isFriendlyWeek) {
+    // Matchs amicaux : petite news sans impact de réputation
+    const topPlayer = caredRoster.find((player) => player.id === topMatch.playerId);
+    if (topPlayer && topMatch.matchRating >= 7.5) {
+      generatedNews.push(createManualNewsPost({
+        type: 'performance',
+        player: topPlayer,
+        week: state.week + 1,
+        text: `🏖️ Pré-saison — ${topPlayer.firstName} ${topPlayer.lastName} en forme lors du match amical : ${topMatch.matchRating.toFixed(1)}/10.`,
+        reputationImpact: 0,
+        account: { name: 'Pré-saison FC', kind: 'media', icon: '☀️', color: '#f59e0b' },
+      }));
+    }
   }
 
-  if (flopMatch && (flopMatch.matchRating ?? 10) <= 5.8) {
+  if (flopMatch && (flopMatch.matchRating ?? 10) <= 5.8 && !isFriendlyWeek) {
     const flopPlayer = caredRoster.find((player) => player.id === flopMatch.playerId);
     if (flopPlayer) {
       generatedNews.push(createManualNewsPost({
@@ -2567,7 +2588,7 @@ export const playWeek = (state) => {
     market: [...completedScouting, ...(Array.isArray(state.market) ? state.market : [])].slice(0, 12),
     lastFixtures: weeklyFixtures,
     nextFixtures,
-    leagueTables: updateLeagueTables(state.leagueTables ?? createInitialLeagueTables(), weeklyFixtures),
+    leagueTables: updateLeagueTables(state.leagueTables ?? createInitialLeagueTables(), competitiveFixtures),
     competitorThreats: competitorThreat ? [competitorThreat, ...(state.competitorThreats ?? [])].slice(0, 12) : state.competitorThreats ?? [],
     scoutingMissions,
     objectives,
@@ -2647,6 +2668,7 @@ export const playWeek = (state) => {
       worldSummary,
       worldCupActive: wcState && wcState.phase !== 'done',
       worldCupPhase: wcState?.phase,
+      isFriendlyWeek,
       activePeriod: activePeriod ? { key: activePeriod.key, label: activePeriod.label, emoji: activePeriod.emoji } : null,
       periodEffect: periodEffect.label ? periodEffect : null,
       messageQueueCount: queuedMessages.length,

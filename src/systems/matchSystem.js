@@ -73,11 +73,16 @@ const getPlayerClub = (player) => ({
   city: player.clubCity,
 });
 
+// Tier base scores — wider gap so tier-1 clubs dominate tier-3/4 clubs realistically.
+const TIER_STRENGTH = { 1: 7.5, 2: 5.0, 3: 3.0, 4: 1.5 };
+
 const getClubStrength = (club, players = []) => {
+  // Squad boost uses known agents' players; divided by 22 to keep scale manageable.
   const squadBoost = players.length
-    ? players.reduce((sum, player) => sum + player.rating + player.form / 5, 0) / players.length / 18
+    ? players.reduce((sum, p) => sum + p.rating + p.form / 5, 0) / players.length / 22
     : 0;
-  return Math.max(1, 7 - club.tier + squadBoost + rand(-8, 8) / 10);
+  const base = TIER_STRENGTH[club.tier] ?? 1.5;
+  return Math.max(1, base + squadBoost + rand(-6, 6) / 10);
 };
 
 const getTeamGoals = (ownStrength, rivalStrength, homeBonus) => {
@@ -88,13 +93,15 @@ const getTeamGoals = (ownStrength, rivalStrength, homeBonus) => {
   return Math.max(0, Math.min(5, base + extra));
 };
 
-const createFixture = ({ homeClub, awayClub, playersByClub }) => {
+const createFixture = ({ homeClub, awayClub, playersByClub, isFriendly = false }) => {
   const homePlayers = playersByClub.get(clubKey(homeClub)) ?? [];
   const awayPlayers = playersByClub.get(clubKey(awayClub)) ?? [];
   const homeStrength = getClubStrength(homeClub, homePlayers);
   const awayStrength = getClubStrength(awayClub, awayPlayers);
-  const homeGoals = getTeamGoals(homeStrength, awayStrength, 0.35);
-  const awayGoals = getTeamGoals(awayStrength, homeStrength, 0);
+  // Friendlies: smaller gap, teams rotate squads → more "random" scorelines
+  const friendlyNoise = isFriendly ? rand(-15, 15) / 10 : 0;
+  const homeGoals = getTeamGoals(homeStrength + friendlyNoise, awayStrength, 0.25);
+  const awayGoals = getTeamGoals(awayStrength + friendlyNoise, homeStrength, 0);
 
   return {
     fixtureId: makeId('fx'),
@@ -103,6 +110,7 @@ const createFixture = ({ homeClub, awayClub, playersByClub }) => {
     countryCode: homeClub.countryCode,
     homeGoals,
     awayGoals,
+    isFriendly,
   };
 };
 
@@ -342,12 +350,15 @@ export const buildWeeklyFixtures = (roster = [], week = 1) => {
   const season = Math.floor((week - 1) / 38) + 1;
   const seasonWeek = ((week - 1) % 38) + 1;
 
+  // Weeks 1-3 = pré-saison (matchs amicaux) — pas de classement, faible impact
+  const isFriendlyWeek = seasonWeek <= 3;
+
   clubsByCountry.forEach((countryClubs, countryCode) => {
     const rounds = buildRoundRobinPairings(countryClubs, hashString(`${season}:${countryCode}`));
     const round = rounds[seasonWeek - 1];
     if (!round?.length) return;
     round.forEach(({ homeClub, awayClub }) => {
-      fixtures.push(createFixture({ homeClub, awayClub, playersByClub }));
+      fixtures.push(createFixture({ homeClub, awayClub, playersByClub, isFriendly: isFriendlyWeek }));
     });
   });
 

@@ -50,17 +50,61 @@ export const EURO_CUP_LABELS = {
 };
 
 /**
+ * Hash déterministe basé sur le nom du club — identique pour le même club
+ * à chaque partie, mais varie entre clubs du même tier.
+ */
+const clubQualHash = (clubName = '') => {
+  let h = 2166136261;
+  for (let i = 0; i < clubName.length; i++) {
+    h ^= clubName.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return (h % 100) / 100; // 0.00 → 0.99
+};
+
+/**
  * Détermine la compétition européenne du club d'un joueur.
+ * Probabiliste mais déterministe par club (hash du nom).
+ *
+ * Logique réaliste :
+ *  - Tier 1 top-ligue  → ~55 % CL, ~30 % EL, ~15 % pas Europe
+ *  - Tier 2 top-ligue  → ~30 % EL, ~25 % ECL, ~45 % pas Europe
+ *  - Tier 1 autre ligue→ ~35 % EL, ~30 % ECL, ~35 % pas Europe
+ *  - Tier 3 top-ligue  → ~20 % ECL, ~80 % pas Europe
+ *  - Tier 2 autre ligue→ ~18 % ECL, ~82 % pas Europe
+ *  - Autres            → pas Europe
+ *
  * @returns 'CL' | 'EL' | 'ECL' | null
  */
 export const getEuropeanCompetition = (player) => {
   const tier = player.clubTier ?? 4;
   const country = player.clubCountryCode ?? player.countryCode ?? '';
   const isTopLeague = TOP_LEAGUE_COUNTRIES.has(country);
+  const h = clubQualHash(player.club ?? '');
 
-  if (tier === 1 && isTopLeague) return 'CL';
-  if ((tier === 2 && isTopLeague) || (tier === 1 && !isTopLeague)) return 'EL';
-  if ((tier === 3 && isTopLeague) || (tier === 2 && !isTopLeague)) return 'ECL';
+  if (tier === 1 && isTopLeague) {
+    if (h < 0.55) return 'CL';
+    if (h < 0.85) return 'EL';
+    return null;
+  }
+  if (tier === 2 && isTopLeague) {
+    if (h < 0.30) return 'EL';
+    if (h < 0.55) return 'ECL';
+    return null;
+  }
+  if (tier === 1 && !isTopLeague) {
+    if (h < 0.35) return 'EL';
+    if (h < 0.65) return 'ECL';
+    return null;
+  }
+  if (tier === 3 && isTopLeague) {
+    if (h < 0.20) return 'ECL';
+    return null;
+  }
+  if (tier === 2 && !isTopLeague) {
+    if (h < 0.18) return 'ECL';
+    return null;
+  }
   return null;
 };
 

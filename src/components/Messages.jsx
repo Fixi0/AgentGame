@@ -10,7 +10,15 @@ const responseLabels = {
   ferme: 'Ferme',
 };
 
-const URGENT_TYPES = ['transfer_request', 'raise_request', 'complaint', 'injury_worry', 'role_frustration', 'media_pressure', 'promise_broken_warning', 'staff_dialogue', 'coach_dialogue', 'ds_dialogue'];
+// Tous les types qui attendent une réponse de l'agent
+const URGENT_TYPES = [
+  'transfer_request', 'raise_request', 'complaint', 'injury_worry',
+  'role_frustration', 'media_pressure', 'promise_broken_warning',
+  'staff_dialogue', 'coach_dialogue', 'ds_dialogue',
+  // Types ajoutés — aussi actionnables
+  'ambition_clash', 'captain_demand', 'form_slump',
+  'retirement_thoughts', 'secret_offer', 'life_event', 'national_pride',
+];
 
 export default function Messages({ messages, messageQueue = [], onRespond, onAction, focusThreadKey = null }) {
   const [filter, setFilter] = useState('all');
