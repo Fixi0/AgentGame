@@ -93,6 +93,9 @@ export const getMarketLockedPlayerIds = (state = {}) => {
       ids.add(message.playerId);
     }
   });
+  (state?.worldCupState?.selectedPlayers ?? []).forEach((entry) => {
+    if (!entry.eliminated && !entry.champion) ids.add(entry.playerId);
+  });
   return ids;
 };
 
@@ -126,6 +129,7 @@ export const getPlayerLifecycleState = (player, state) => {
   const queuedMessage = (state?.messageQueue ?? []).find((message) => message.playerId === player.id);
   const worldCupState = state?.worldCupState;
   const worldCupSelection = worldCupState?.selectedPlayers?.find((entry) => entry.playerId === player.id);
+  const worldCupActive = Boolean(worldCupState && worldCupState.phase !== 'done' && worldCupSelection && !worldCupSelection.eliminated);
 
   if (pendingTransfer) {
     return {
@@ -145,12 +149,21 @@ export const getPlayerLifecycleState = (player, state) => {
       weeksUntilReopen: weeksToReopen,
     };
   }
-  if (worldCupState && worldCupState.phase !== 'done' && worldCupSelection && !worldCupSelection.eliminated) {
+  if (worldCupActive) {
     return {
       key: 'world_cup',
       label: 'En sélection',
       tone: worldCupSelection.champion ? 'good' : 'warn',
       detail: `${worldCupSelection.countryName ?? 'Pays'} · ${worldCupState.phase}`,
+      weeksUntilReopen: weeksToReopen,
+    };
+  }
+  if (player.seasonStatus === 'vacation') {
+    return {
+      key: 'vacation',
+      label: 'En vacances',
+      tone: 'neutral',
+      detail: 'Période de repos',
       weeksUntilReopen: weeksToReopen,
     };
   }

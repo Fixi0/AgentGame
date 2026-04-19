@@ -2417,6 +2417,27 @@ export const playWeek = (state) => {
         : player,
     );
 
+  const worldCupSelectionIds = new Set(
+    (wcState?.selectedPlayers ?? [])
+      .filter((entry) => !entry.eliminated && !entry.champion)
+      .map((entry) => entry.playerId),
+  );
+  finalRoster = finalRoster.map((player) => {
+    if (wcState && wcState.phase !== 'done' && worldCupSelectionIds.has(player.id)) {
+      return { ...player, seasonStatus: 'international' };
+    }
+    if (wcState && wcState.phase !== 'done') {
+      return { ...player, seasonStatus: 'vacation' };
+    }
+    if (nextPhase.mercato && nextPhase.window === 'été') {
+      return { ...player, seasonStatus: 'vacation' };
+    }
+    if (player.seasonStatus === 'vacation') {
+      return { ...player, seasonStatus: 'club' };
+    }
+    return player;
+  });
+
   const annualCalendar = resolveAnnualCalendarEvents({
     roster: finalRoster,
     leagueTables: state.leagueTables ?? createInitialLeagueTables(),
