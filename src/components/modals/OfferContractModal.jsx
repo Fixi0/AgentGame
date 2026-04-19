@@ -141,7 +141,7 @@ function SelectPills({ label, values, value, onChange, suffix = '' }) {
   );
 }
 
-export default function OfferContractModal({ offer, player, readiness, onClose, onSign, onReject }) {
+export default function OfferContractModal({ offer, player, readiness, mode = 'offer', onClose, onSign, onReject }) {
   const baseTerms = useMemo(() => getBaseTerms(offer, player), [offer, player]);
   const [terms, setTerms] = useState(() => getBaseTerms(offer, player));
   const [status, setStatus] = useState({
@@ -229,19 +229,25 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
     onSign(buildOutcome(terms, player, offer));
   };
 
-  const signLabel = stage === 'approved' && clubAssessment.accepted ? `Signer ${terms.contractYears} ans` : 'Attendre la réponse du club';
+  const signLabel = stage === 'approved' && clubAssessment.accepted
+    ? mode === 'extend'
+      ? `Prolonger ${terms.contractYears} ans`
+      : `Signer ${terms.contractYears} ans`
+    : 'Attendre la réponse du club';
 
   return (
     <div style={S.overlay}>
       <div style={S.modal}>
         <div style={S.mHead}>
           <ArrowUpRight size={16} color="#00a676" />
-          <span>CONTRAT CLUB · TOUR {round}/3</span>
+          <span>{mode === 'extend' ? 'PROLONGATION' : 'CONTRAT CLUB'} · TOUR {round}/3</span>
           <button type="button" onClick={onClose} style={S.mClose}><X size={16} /></button>
         </div>
         <div style={S.mBody}>
-          <h2 style={S.mTitle}>{offer.club}</h2>
-          <div style={S.mPlayer}>{player.firstName} {player.lastName} · {offer.preWindow ? 'pré-accord' : 'offre active'}</div>
+          <h2 style={S.mTitle}>{offer.club ?? player.club ?? 'Club'}</h2>
+          <div style={S.mPlayer}>
+            {player.firstName} {player.lastName} · {mode === 'extend' ? 'prolongation' : offer.preWindow ? 'pré-accord' : 'offre active'}
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
             {[
               { label: '1. Tu choisis', detail: 'Rôle, durée, clauses' },
@@ -268,8 +274,10 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
           </div>
 
           <div style={S.objCard}>
-            <div style={S.secTitle}>BASE CLUB</div>
-            <div style={S.sumRow}><span style={S.sumK}>Montant</span><strong>{formatMoney(offer.price)}</strong></div>
+            <div style={S.secTitle}>{mode === 'extend' ? 'BASE PROLONGATION' : 'BASE CLUB'}</div>
+            {offer.price != null && (
+              <div style={S.sumRow}><span style={S.sumK}>Montant</span><strong>{formatMoney(offer.price)}</strong></div>
+            )}
             <div style={S.sumRow}><span style={S.sumK}>Salaire</span><strong>x{(offer.salMult ?? 1.2).toFixed(2)}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Fenêtre</span><strong>{offer.preWindow ? `S${offer.effectiveWeek}` : `S${offer.expiresWeek}`}</strong></div>
           </div>

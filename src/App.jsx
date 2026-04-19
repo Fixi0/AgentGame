@@ -30,7 +30,6 @@ import ShortlistModal from './components/modals/ShortlistModal';
 import RetirementModal from './components/modals/RetirementModal';
 import ConfirmModal from './components/modals/ConfirmModal';
 import TransferOfferModal from './components/modals/TransferOfferModal';
-import { NegotiationExtend, NegotiationTransfer } from './components/modals/NegotiationModals';
 import PlayerDetailModal from './components/modals/PlayerDetailModal';
 import ResultsModal from './components/modals/ResultsModal';
 import WeekTickerModal from './components/modals/WeekTickerModal';
@@ -67,7 +66,8 @@ import { recordDossierEvent } from './systems/coherenceSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
 import { purchaseShopItem } from './systems/shopSystem';
 import { createManualNewsPost } from './systems/newsSystem';
-import { clamp, makeId } from './utils/helpers';
+import { CLUBS } from './data/clubs';
+import { clamp, makeId, pick } from './utils/helpers';
 import { formatMoney } from './utils/format';
 
 const getTransferReadiness = (state, player, phase) => {
@@ -111,6 +111,46 @@ const getExtensionReadiness = (state, player) => {
   const contextBonus = getNegotiationContextModifier(state, player, player.club);
   if (Math.random() > 0.65 + contextBonus / 100) return { ok: false, message: "Le club préfère attendre quelques semaines avant de discuter." };
   return { ok: true, type: 'extend' };
+};
+
+const getTransferSuitor = (player) => {
+  const allowedTiers = player.rating >= 84 || player.potential >= 90
+    ? [1, 2]
+    : player.rating >= 77 || player.potential >= 85
+      ? [2, 3]
+      : player.rating >= 68 || player.potential >= 79
+        ? [3, 4]
+        : [4];
+  const pool = CLUBS.filter((club) => {
+    if (club.name === player.club) return false;
+    if (player.club === 'Libre' || player.freeAgent) return club.tier >= 3;
+    return allowedTiers.includes(club.tier);
+  });
+  return pick(pool.length ? pool : CLUBS.filter((club) => club.name !== player.club));
+};
+
+const buildContractOffer = (player, type, state) => {
+  if (type === 'transfer') {
+    const suitor = getTransferSuitor(player);
+    return {
+      id: `contract_${player.id}_${state?.week ?? 0}_${type}`,
+      club: suitor?.name ?? 'Club',
+      price: Math.floor((player.value ?? 1000000) * 0.7),
+      salMult: 1.3,
+      preWindow: false,
+      expiresWeek: (state?.week ?? 0) + 3,
+      suitorTier: suitor?.tier,
+      suitorCountry: suitor?.countryCode,
+    };
+  }
+  return {
+    id: `contract_${player.id}_${state?.week ?? 0}_${type}`,
+    club: player.club ?? 'Club',
+    price: null,
+    salMult: 1,
+    preWindow: false,
+    expiresWeek: (state?.week ?? 0) + 4,
+  };
 };
 
 const buildResponseContextTail = ({ message, player, responseAction }) => {
@@ -532,7 +572,15 @@ export default function FootballAgentGame() {
         setModal(null);
         showToast("Le joueur refuse toute discussion pour l'instant — la relation est trop dégradée.", 'error');
       } else {
-        setModal({ type: 'nego_extend', data: { player } });
+        setModal({
+          type: 'contract_flow',
+          data: {
+            player,
+            contractType: 'extend',
+            offer: buildContractOffer(player, 'extend', state),
+            readiness: getExtensionReadiness(state, player),
+          },
+        });
       }
     } else {
       setModal(null);
@@ -1030,7 +1078,15 @@ export default function FootballAgentGame() {
       showToast(readiness.message, 'error');
       return;
     }
-    setModal({ type: type === 'transfer' ? 'nego_transfer' : 'nego_extend', data: { player: latestPlayer } });
+    setModal({
+      type: 'contract_flow',
+      data: {
+        player: latestPlayer,
+        contractType: type === 'transfer' ? 'transfer' : 'extend',
+        offer: buildContractOffer(latestPlayer, type, state),
+        readiness,
+      },
+    });
   };
 
   const showPlayerDetails = (player) => {
@@ -1315,14 +1371,16 @@ export default function FootballAgentGame() {
           onConfirm={(pitchId) => handleRecruitPlayer(modal.data.player, pitchId)}
         />
       )}
-      {modal?.type === 'nego_transfer' && (
-        <NegotiationTransfer
-          key={`nego-transfer-${modal.data.player.id}-${modal.data.offer?.id ?? 'manual'}`}
+      {modal?.type === 'contract_flow' && (
+        <OfferContractModal
+          key={`contract-flow-${modal.data.player.id}-${modal.data.contractType}`}
+          offer={modal.data.offer}
           player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
-          rep={state.reputation}
-          lawyer={state.office.lawyerLevel}
-          onFinish={(outcome) => handleFinishNegotiation('transfer', modal.data.player, outcome)}
+          readiness={modal.data.readiness}
+          mode={modal.data.contractType}
           onClose={() => setModal(null)}
+          onSign={(outcome) => handleFinishNegotiation(modal.data.contractType, modal.data.player, outcome)}
+          onReject={() => setModal(null)}
         />
       )}
       {modal?.type === 'nego_offer' && (
@@ -1351,19 +1409,10 @@ export default function FootballAgentGame() {
           offer={modal.data.offer}
           player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
           readiness={modal.data.readiness ?? getOfferAcceptanceReadiness(state, modal.data.offer)}
+          mode="offer"
           onClose={() => setModal(null)}
           onSign={(outcome) => handleFinishOfferNegotiation(modal.data.offer, outcome)}
           onReject={() => { commitResult(rejectClubOffer(state, modal.data.offer.id), 'Offre refusée'); setModal(null); }}
-        />
-      )}
-      {modal?.type === 'nego_extend' && (
-        <NegotiationExtend
-          key={`nego-extend-${modal.data.player.id}`}
-          player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
-          rep={state.reputation}
-          lawyer={state.office.lawyerLevel}
-          onFinish={(outcome) => handleFinishNegotiation('extend', modal.data.player, outcome)}
-          onClose={() => setModal(null)}
         />
       )}
         {modal?.type === 'player_detail' && (
