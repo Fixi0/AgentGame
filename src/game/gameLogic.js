@@ -29,6 +29,7 @@ import { createDefaultContacts } from '../systems/contactsSystem';
 import { getActiveDossierPlayerIds, getMarketLockedPlayerIds, getMessagePriority } from '../systems/dossierSystem';
 import { applyLockerRoomDynamics, buildLockerRoomSnapshot } from '../systems/lockerRoomSystem';
 import { createPublicRep, tickPublicRep, getPublicRepOfferBonus } from '../systems/publicReputationSystem';
+import { createDefaultDossierMemory, recordDossierEvent } from '../systems/coherenceSystem';
 import {
   addDecisionHistory,
   applyCredibilityChange,
@@ -505,6 +506,7 @@ export const createFreshState = () => ({
   negotiationCooldowns: {},
   messageQueue: [],
   socialCrisisCooldowns: {},
+  dossierMemory: createDefaultDossierMemory(),
   pendingChainedEvents: [],
   seasonAwards: {},
   worldState: generateWorldState(1),
@@ -564,6 +566,7 @@ export const migrateState = (state) => {
     negotiationCooldowns: state.negotiationCooldowns ?? {},
     messageQueue: state.messageQueue ?? [],
     socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
+    dossierMemory: state.dossierMemory ?? createDefaultDossierMemory(),
     pendingChainedEvents: state.pendingChainedEvents ?? [],
     seasonAwards: state.seasonAwards ?? {},
     worldState: state.worldState ?? generateWorldState(1),
@@ -605,6 +608,7 @@ export const migrateState = (state) => {
     negotiationCooldowns: state.negotiationCooldowns ?? {},
     messageQueue: asArray(state.messageQueue),
     socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
+    dossierMemory: state.dossierMemory ?? createDefaultDossierMemory(),
     pendingChainedEvents: asArray(state.pendingChainedEvents),
     market: asArray(state.market),
     freeAgents: asArray(state.freeAgents),

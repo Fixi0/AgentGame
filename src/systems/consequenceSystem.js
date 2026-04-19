@@ -2,6 +2,7 @@ import { MEDIA_RELATION_TEMPLATES, addDecisionHistory, applyCredibilityChange, a
 import { applyClubRelation } from './clubSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
 import { createMessage } from './messageSystem';
+import { hasRecentDossierEvent, recordDossierEvent } from './coherenceSystem';
 import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
 import { clamp, makeId, pick } from '../utils/helpers';
 
@@ -123,6 +124,7 @@ export const applyNewsConsequences = ({ state, roster, posts, week }) => {
   let credibility = state.credibility ?? 50;
   let decisionHistory = state.decisionHistory ?? [];
   let activeNarratives = tickNarrativeArcs(state.activeNarratives ?? []);
+  let dossierMemory = state.dossierMemory ?? {};
   let reputationDelta = 0;
   const messages = [];
   const events = [];
@@ -186,11 +188,26 @@ export const applyNewsConsequences = ({ state, roster, posts, week }) => {
 
       if ((post.type === 'scandale' || (post.type === 'media' && impact < 0))
           && !hasOpenMediaPressure(state, updatedPlayer.id)
-          && getMediaCrisisCooldownWeeks(state, updatedPlayer.id) <= 0) {
+          && getMediaCrisisCooldownWeeks(state, updatedPlayer.id) <= 0
+          && !hasRecentDossierEvent(dossierMemory, updatedPlayer.id, 'media', 4, week)) {
         messages.push(createMessage({ player: updatedPlayer, type: 'media_pressure', week, context: post.id }));
       } else if (post.trend === 'viral' && impact > 0 && Math.random() < 0.45) {
         messages.push(createMessage({ player: updatedPlayer, type: 'thanks', week, context: post.id }));
       }
+
+      dossierMemory = recordDossierEvent(dossierMemory, {
+        playerId: updatedPlayer.id,
+        clubName: updatedPlayer.club && updatedPlayer.club !== 'Libre' ? updatedPlayer.club : null,
+        mediaId,
+        week,
+        type: post.type === 'transfert'
+          ? 'transfer'
+          : post.type === 'scandale' || post.type === 'media'
+            ? 'media'
+            : 'note',
+        label: post.accountName ?? post.text ?? 'News',
+        impact: impact < 0 ? -1 : impact > 0 ? 1 : 0,
+      });
     }
 
     if (post.trend === 'viral' || post.type === 'transfert' || Math.abs(weightedImpact) >= 4) {
@@ -229,6 +246,7 @@ export const applyNewsConsequences = ({ state, roster, posts, week }) => {
       credibility,
       decisionHistory,
       activeNarratives,
+      dossierMemory,
       reputationDelta,
     },
   };

@@ -62,6 +62,7 @@ import { getCalendarSnapshot } from './systems/seasonSystem';
 import { createMessage, createStaffConversationMessage, getMessageContextOutcome, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage, normalizePromises } from './systems/promiseSystem';
 import { getOfferAcceptanceReadiness, getPendingMessageCounts } from './systems/dossierSystem';
+import { recordDossierEvent } from './systems/coherenceSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
 import { purchaseShopItem } from './systems/shopSystem';
 import { createManualNewsPost } from './systems/newsSystem';
@@ -652,6 +653,25 @@ export default function FootballAgentGame() {
       const nextSocialCrisisCooldowns = message.type === 'media_pressure' && message.playerId
         ? { ...(withMarketAction.socialCrisisCooldowns ?? {}), [message.playerId]: current.week + 6 }
         : withMarketAction.socialCrisisCooldowns;
+      const nextDossierMemory = recordDossierEvent(withMarketAction.dossierMemory, {
+        playerId: message.playerId,
+        clubName: targetPlayer?.club,
+        mediaId: message.type === 'media_pressure' ? 'media_pressure' : null,
+        week: current.week,
+        type: message.type === 'coach_dialogue'
+          ? 'coach'
+          : message.type === 'ds_dialogue'
+            ? 'ds'
+            : message.type === 'media_pressure'
+              ? 'media'
+              : message.type === 'transfer_request'
+                ? 'transfer'
+                : message.type === 'promise_broken_warning'
+                  ? 'promise'
+                  : 'note',
+        label: responseAction?.label ?? responseText.split('\n')[0],
+        impact: mergedEffects.trust + mergedEffects.moral,
+      });
       const contextualFollowup = contextOutcome.followup
         ? {
             id: makeId('msg'),
@@ -691,6 +711,7 @@ export default function FootballAgentGame() {
         clubRelations: nextClubRelationsWithContext,
         clubMemory: nextClubMemoryWithContext,
         decisionHistory: nextDecisionHistory,
+        dossierMemory: nextDossierMemory,
         socialCrisisCooldowns: nextSocialCrisisCooldowns,
         roster: withMarketAction.roster.map((player) =>
           player.id === message.playerId

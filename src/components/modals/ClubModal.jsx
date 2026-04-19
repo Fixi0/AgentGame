@@ -68,6 +68,7 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
           <div style={S.objCard}>
             <div style={S.secTitle}>IDENTITE SPORTIVE</div>
             <div style={S.sumRow}><span style={S.sumK}>Style</span><strong>{profile.style}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Tempérament</span><strong>{profile.temperament}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Niveau</span><strong>Tier {club.tier}</strong></div>
             <div style={S.emptySmall}>Rivalités : {profile.rivalries.join(', ')}</div>
           </div>

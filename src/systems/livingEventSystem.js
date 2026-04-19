@@ -4,6 +4,7 @@ import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, applyPl
 import { applyClubRelation } from './clubSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
 import { createNarrativeArc, mergeNarrativeArc } from './consequenceSystem';
+import { hasRecentDossierEvent, recordDossierEvent } from './coherenceSystem';
 import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
 import { clamp, makeId, pick } from '../utils/helpers';
 
@@ -218,8 +219,14 @@ const MEDIA_PRESSURE_TEMPLATE_IDS = new Set(['media_phone', 'bad_press', 'fake_n
 
 const getTemplatePool = ({ phase, player, state }) => {
   const mediaCooldownActive = hasOpenMediaPressure(state, player.id) || getMediaCrisisCooldownWeeks(state, player.id) > 0;
+  const recentMediaPressure = hasRecentDossierEvent(state.dossierMemory, player.id, 'media', 6, state.week);
+  const recentCoachTalk = hasRecentDossierEvent(state.dossierMemory, player.id, 'coach', 4, state.week);
+  const recentTransferTalk = hasRecentDossierEvent(state.dossierMemory, player.id, 'transfer', 5, state.week);
   return worldTemplates.filter((template) => {
     if (mediaCooldownActive && MEDIA_PRESSURE_TEMPLATE_IDS.has(template.id)) return false;
+    if (recentMediaPressure && MEDIA_PRESSURE_TEMPLATE_IDS.has(template.id)) return false;
+    if (recentCoachTalk && template.id === 'coach_warning') return false;
+    if (recentTransferTalk && ['hidden_ambition', 'club_need', 'president_call'].includes(template.id)) return false;
     if (template.id === 'hidden_ambition') return (player.hiddenAmbition ?? 40) > 62;
     if (template.id === 'professional_week') return player.personality === 'professionnel' || player.pressureTolerance > 65;
     if (template.id === 'club_need') return phase.mercato;
@@ -244,6 +251,7 @@ export const generateLivingWeek = ({ state, roster, phase }) => {
   let rivalAgents = [...(state.rivalAgents ?? [])];
   let decisionHistory = [...(state.decisionHistory ?? [])];
   let activeNarratives = [...(state.activeNarratives ?? [])];
+  let dossierMemory = state.dossierMemory ?? {};
   const news = [];
   const messages = [];
   const events = [];
@@ -297,6 +305,20 @@ export const generateLivingWeek = ({ state, roster, phase }) => {
         resolved: false,
       });
     }
+
+    dossierMemory = recordDossierEvent(dossierMemory, {
+      playerId: player.id,
+      clubName: club.name,
+      mediaId: media.id,
+      week: state.week + 1,
+      type: template.type === 'media' || template.type === 'scandale'
+        ? 'media'
+        : template.type === 'transfert'
+          ? 'transfer'
+          : 'note',
+      label: template.title,
+      impact: (template.credibility ?? 0) + (template.player?.trust ?? 0) / 10,
+    });
 
     if (template.id === 'medical_warning' || (player.injured > 0 && template.id === 'supporters_pressure')) {
       activeNarratives = mergeNarrativeArc(activeNarratives, createNarrativeArc({
@@ -386,6 +408,7 @@ export const generateLivingWeek = ({ state, roster, phase }) => {
       rivalAgents,
       decisionHistory: decisionHistory.slice(0, 40),
       activeNarratives,
+      dossierMemory,
     },
   };
 };
