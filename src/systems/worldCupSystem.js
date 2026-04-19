@@ -56,6 +56,36 @@ export const NATIONAL_TEAMS = [
 
 export const WC_PHASES = ['groupes', 'huitièmes', 'quarts', 'demies', 'finale'];
 
+const hashString = (value) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+};
+
+export const getWorldCupFixturePreview = (player, phase, wcState = {}) => {
+  const country = NATIONAL_TEAMS.find((t) => t.code === player.countryCode);
+  if (!country) return null;
+  const opponents = NATIONAL_TEAMS.filter((t) => t.code !== player.countryCode);
+  if (!opponents.length) return null;
+  const seed = hashString(`${player.id}:${phase}:${wcState.year ?? ''}:${wcState.weekOffset ?? 0}`);
+  const opponent = opponents[seed % opponents.length];
+
+  return {
+    playerId: player.id,
+    playerName: `${player.firstName} ${player.lastName}`,
+    countryCode: country.code,
+    countryName: country.name,
+    countryFlag: country.flag,
+    opponentCode: opponent.code,
+    opponent: opponent.name,
+    opponentFlag: opponent.flag,
+    phase,
+    label: phase === 'groupes' ? `Match de groupes` : `Match de ${phase}`,
+  };
+};
+
 /**
  * Déclenche la Coupe du Monde si on est à la bonne saison.
  * La CdM 2026 se joue entre la saison 1 et la saison 2 (week 38→39).
@@ -134,8 +164,10 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
   if (!country) return null;
 
   const ownStrength = getNationalTeamStrength(player.countryCode) + (player.rating - 70) * 0.3;
-  const opponents = NATIONAL_TEAMS.filter((t) => t.code !== player.countryCode);
-  const opponent = opponents[Math.floor(Math.random() * opponents.length)];
+  const fixturePreview = getWorldCupFixturePreview(player, phase, wcState);
+  const opponent = fixturePreview
+    ? NATIONAL_TEAMS.find((t) => t.code === fixturePreview.opponentCode) ?? NATIONAL_TEAMS.find((t) => t.code !== player.countryCode)
+    : NATIONAL_TEAMS.find((t) => t.code !== player.countryCode);
   const oppStrength = getNationalTeamStrength(opponent.code);
 
   const ownGoals = Math.max(0, Math.min(4, rand(0, 2) + (ownStrength > oppStrength ? 1 : 0)));
@@ -171,9 +203,9 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
     playerName: `${player.firstName} ${player.lastName}`,
     countryFlag: country.flag,
     countryName: country.name,
+    opponentFlag: opponent.flag,
     phase,
     opponent: opponent.name,
-    opponentFlag: opponent.flag,
     score: `${ownGoals}-${oppGoals}`,
     result,
     minutes,
@@ -182,6 +214,7 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
     matchRating,
     isEliminated,
     isChampion,
+    fixturePreview,
   };
 };
 

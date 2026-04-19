@@ -633,6 +633,7 @@ function WorldCupSpotlight({ worldCupState }) {
   };
   const isFinalStage = worldCupState.phase !== 'groupes';
   const selected = [...(worldCupState.selectedPlayers ?? [])].sort((a, b) => b.rating - a.rating).slice(0, 3);
+  const nextMatch = worldCupState.nextFeaturedMatch;
 
   return (
     <div style={{
@@ -683,9 +684,36 @@ function WorldCupSpotlight({ worldCupState }) {
         <div style={{ fontSize: 11, fontWeight: 900, color: isFinalStage ? '#f5c842' : '#7dd3fc', letterSpacing: '.12em', textTransform: 'uppercase', fontFamily: 'system-ui,sans-serif', marginBottom: 4 }}>
           Prochain rendez-vous
         </div>
-        <div style={{ fontSize: 14, fontWeight: 900, color: '#ffffff', lineHeight: 1.3 }}>
-          La CdM bloque toute la semaine. Pas de championnat, pas d’Europe. Le dossier est entièrement sur la sélection.
-        </div>
+        {nextMatch ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 950, color: '#ffffff', lineHeight: 1.3 }}>
+                {nextMatch.countryFlag} {nextMatch.countryName} vs {nextMatch.opponentFlag} {nextMatch.opponent}
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.72)', fontFamily: 'system-ui,sans-serif', marginTop: 3 }}>
+                {nextMatch.label} · {nextMatch.playerName}
+              </div>
+            </div>
+            <div style={{
+              padding: '6px 10px',
+              borderRadius: 8,
+              background: 'rgba(255,255,255,.12)',
+              border: '1px solid rgba(255,255,255,.12)',
+              fontSize: 10,
+              fontWeight: 900,
+              color: '#fff',
+              textTransform: 'uppercase',
+              letterSpacing: '.12em',
+              fontFamily: 'system-ui,sans-serif',
+            }}>
+              Match à venir
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontSize: 14, fontWeight: 900, color: '#ffffff', lineHeight: 1.3 }}>
+            La CdM bloque toute la semaine. Pas de championnat, pas d’Europe. Le dossier est entièrement sur la sélection.
+          </div>
+        )}
       </div>
 
       {selected.length > 0 && (

@@ -19,7 +19,7 @@ import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } f
 import { buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
 import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, EURO_CUP_LABELS } from '../systems/europeanCupSystem';
-import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier } from '../systems/worldCupSystem';
+import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview } from '../systems/worldCupSystem';
 import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSeasonalNewsItem } from '../systems/calendarEventsSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
 import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/consequenceSystem';
@@ -2090,6 +2090,16 @@ export const playWeek = (state) => {
     }));
   }
 
+  const updateWorldCupFeaturedMatch = (currentState, roster) => {
+    if (!currentState || currentState.phase === 'done') return currentState;
+    const featuredEntry = [...(currentState.selectedPlayers ?? [])]
+      .filter((player) => !player.eliminated && !player.champion)
+      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0] ?? null;
+    const featuredPlayer = featuredEntry ? roster.find((player) => player.id === featuredEntry.playerId) : null;
+    const nextFeaturedMatch = featuredPlayer ? getWorldCupFixturePreview(featuredPlayer, currentState.phase, currentState) : null;
+    return { ...currentState, nextFeaturedMatch };
+  };
+
   // Simuler la phase CdM en cours (1 semaine = 1 phase de plus)
   if (wcState && wcState.phase !== 'done') {
     for (const player of euRoster) {
@@ -2202,7 +2212,13 @@ export const playWeek = (state) => {
         reputationImpact: 4,
         account: { name: 'World Cup Chronicle', kind: 'journal', icon: 'WC', color: '#1a1a6e' },
       }));
+    } else {
+      wcState = updateWorldCupFeaturedMatch(wcState, euRoster);
     }
+  }
+
+  if (wcState && wcState.phase !== 'done' && !wcState.nextFeaturedMatch) {
+    wcState = updateWorldCupFeaturedMatch(wcState, euRoster);
   }
 
   // ── Événements Calendrier Saisonnier ──────────────────────────────────────
@@ -2719,6 +2735,7 @@ export const playWeek = (state) => {
       worldSummary,
       worldCupActive: wcState && wcState.phase !== 'done',
       worldCupPhase: wcState?.phase,
+      worldCupNextMatch: wcState?.nextFeaturedMatch ?? null,
       isFriendlyWeek,
       activePeriod: activePeriod ? { key: activePeriod.key, label: activePeriod.label, emoji: activePeriod.emoji } : null,
       periodEffect: periodEffect.label ? periodEffect : null,
