@@ -18,6 +18,7 @@ const URGENT_TYPES = [
   // Types ajoutés — aussi actionnables
   'ambition_clash', 'captain_demand', 'form_slump',
   'retirement_thoughts', 'secret_offer', 'life_event', 'national_pride',
+  'welcome',
 ];
 
 export default function Messages({ messages, messageQueue = [], onRespond, onAction, focusThreadKey = null }) {
