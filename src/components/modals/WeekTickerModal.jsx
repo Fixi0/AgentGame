@@ -103,16 +103,35 @@ function buildTimeline(report, activePeriod) {
 
 function WeekDayCard({ item, visible }) {
   const style = TONE_STYLES[item.tone] ?? TONE_STYLES.calm;
+  const isMajor = Boolean(item.major);
+  const isWorldCupMatch = item.kind === 'worldCupMatch';
+  const cardStyle = isWorldCupMatch
+    ? {
+        background: 'linear-gradient(135deg,#0f172a,#1d4f7a)',
+        border: '1px solid rgba(125,211,252,.32)',
+        boxShadow: '0 18px 40px rgba(15,23,32,.24)',
+        color: '#ffffff',
+      }
+    : isMajor
+      ? {
+          background: 'linear-gradient(135deg,#172026,#2c3a42)',
+          border: '1px solid #172026',
+          boxShadow: '0 16px 34px rgba(15,23,32,.18)',
+          color: '#ffffff',
+        }
+      : {
+          background: style.bg,
+          border: `1px solid ${style.border}`,
+        };
 
   return (
     <div
       style={{
         display: 'flex',
         gap: 10,
-        padding: 12,
+        padding: isMajor ? 14 : 12,
         borderRadius: 8,
-        background: style.bg,
-        border: `1px solid ${style.border}`,
+        ...cardStyle,
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateY(0)' : 'translateY(10px)',
         transition: 'opacity 0.3s ease, transform 0.3s ease',
@@ -121,35 +140,81 @@ function WeekDayCard({ item, visible }) {
       }}
     >
       <div
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: 8,
-          background: '#ffffff',
-          border: `1px solid ${style.border}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          color: style.accent,
-          fontWeight: 900,
-          fontSize: 14,
-        }}
-      >
-        {item.icon ?? '•'}
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 8,
+            background: isWorldCupMatch ? 'rgba(255,255,255,.14)' : '#ffffff',
+            border: `1px solid ${isWorldCupMatch ? 'rgba(125,211,252,.35)' : style.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            color: isMajor ? '#ffffff' : style.accent,
+            fontWeight: 900,
+            fontSize: 14,
+          }}
+        >
+          {item.icon ?? '•'}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-          <div style={{ fontSize: 10, fontWeight: 900, color: style.accent, letterSpacing: '.14em', textTransform: 'uppercase', fontFamily: 'system-ui,sans-serif' }}>
+          <div style={{ fontSize: 10, fontWeight: 900, color: isMajor ? '#7dd3fc' : style.accent, letterSpacing: '.14em', textTransform: 'uppercase', fontFamily: 'system-ui,sans-serif' }}>
             {item.day ?? 'Jour'}
           </div>
+          {isMajor && (
+            <span style={{
+              fontSize: 9,
+              fontWeight: 900,
+              letterSpacing: '.12em',
+              textTransform: 'uppercase',
+              color: isWorldCupMatch ? '#bae6fd' : '#f5c842',
+              fontFamily: 'system-ui,sans-serif',
+            }}>
+              {isWorldCupMatch ? 'Coupe du monde' : 'Événement majeur'}
+            </span>
+          )}
         </div>
-        <div style={{ fontSize: 14, fontWeight: 900, color: '#172026', marginBottom: 3, lineHeight: 1.25 }}>
+        <div style={{ fontSize: 14, fontWeight: 900, color: isMajor ? '#ffffff' : '#172026', marginBottom: 3, lineHeight: 1.25 }}>
           {item.title ?? ''}
         </div>
-        <div style={{ fontSize: 12, color: '#3f5663', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: isMajor ? 'rgba(255,255,255,.82)' : '#3f5663', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
           {item.text ?? ''}
         </div>
+        {item.match && (
+          <div style={{
+            marginTop: 10,
+            padding: '8px 10px',
+            borderRadius: 8,
+            background: isMajor ? 'rgba(255,255,255,.10)' : '#ffffff',
+            border: `1px solid ${isMajor ? 'rgba(255,255,255,.16)' : style.border}`,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <strong style={{ fontSize: 12, color: isMajor ? '#ffffff' : '#172026', fontFamily: 'system-ui,sans-serif' }}>
+                {item.match.countryFlag ?? '🌍'} {item.match.countryName ?? item.match.playerName}
+              </strong>
+              <span style={{ fontSize: 10, color: isMajor ? 'rgba(255,255,255,.75)' : '#64727d', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 900 }}>
+                {item.match.phase ?? item.day}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontSize: 11, color: isMajor ? 'rgba(255,255,255,.76)' : '#64727d', fontFamily: 'system-ui,sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {item.match.opponent}
+              </span>
+              <div style={{
+                fontSize: 16,
+                fontWeight: 950,
+                color: isMajor ? '#ffffff' : '#172026',
+                padding: '0 6px',
+              }}>
+                {item.match.score}
+              </div>
+              <span style={{ fontSize: 11, color: isMajor ? 'rgba(255,255,255,.76)' : '#64727d', fontFamily: 'system-ui,sans-serif', textAlign: 'right' }}>
+                note {item.match.matchRating}
+              </span>
+            </div>
+          </div>
+        )}
         {Array.isArray(item.chips) && item.chips.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
             {item.chips.map((chip) => (
@@ -160,9 +225,9 @@ function WeekDayCard({ item, visible }) {
                   alignItems: 'center',
                   padding: '4px 8px',
                   borderRadius: 8,
-                  background: '#ffffff',
-                  border: `1px solid ${style.border}`,
-                  color: '#64727d',
+                  background: isMajor ? 'rgba(255,255,255,.12)' : '#ffffff',
+                  border: `1px solid ${isMajor ? 'rgba(255,255,255,.18)' : style.border}`,
+                  color: isMajor ? '#ffffff' : '#64727d',
                   fontSize: 10,
                   fontWeight: 850,
                   letterSpacing: '.04em',

@@ -5,6 +5,16 @@ import { S } from '../styles';
 
 function getBigHeadline(data) {
   // Find the single most exciting thing that happened
+  const topWorldCup = (data.worldCupMatchResults ?? []).reduce((best, m) => (!best || (m.matchRating ?? 0) > (best.matchRating ?? 0)) ? m : best, null);
+  if (topWorldCup?.isChampion) {
+    return { emoji: '🏆', title: `Champion du monde !`, sub: `${topWorldCup.playerName} · ${topWorldCup.countryName} · match décisif ${topWorldCup.score}` };
+  }
+  if (topWorldCup?.isEliminated) {
+    return { emoji: '💔', title: `Fin de parcours en Coupe du Monde`, sub: `${topWorldCup.playerName} · ${topWorldCup.countryName} · ${topWorldCup.phase}` };
+  }
+  if (topWorldCup && ((topWorldCup.goals ?? 0) >= 2 || (topWorldCup.matchRating ?? 0) >= 8.5)) {
+    return { emoji: '🌍', title: `CdM — ${topWorldCup.playerName} en lumière`, sub: `${topWorldCup.countryName} · ${topWorldCup.score} · Note ${topWorldCup.matchRating ?? '—'}` };
+  }
   const topScorer = (data.matchResults ?? []).reduce((best, m) => (!best || (m.goals ?? 0) > (best.goals ?? 0)) ? m : best, null);
   if (topScorer && (topScorer.goals ?? 0) >= 3) {
     return { emoji: '🔥', title: `Triplé de ${topScorer.playerName} !`, sub: `${topScorer.goals} buts · ${topScorer.club} ${topScorer.score} · Note ${topScorer.matchRating ?? '—'}` };
@@ -105,7 +115,8 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
   const totalGoals = (data.matchResults ?? []).reduce((s, m) => s + (m.goals ?? 0), 0);
   const totalAssists = (data.matchResults ?? []).reduce((s, m) => s + (m.assists ?? 0), 0);
   const wins = (data.matchResults ?? []).filter((m) => m.result === 'win').length;
-  const hasDetails = (data.events?.length > 0) || (data.matchResults?.length > 0) || (data.euroMatchResults?.length > 0) || (data.lockerRoom?.length > 0) || (data.worldSummary?.length > 0) || (data.clubOffers?.length > 0) || (data.leavingPlayers?.length > 0);
+  const hasWorldCup = (data.worldCupMatchResults?.length > 0) || Boolean(data.worldCupActive);
+  const hasDetails = (data.events?.length > 0) || (data.matchResults?.length > 0) || (data.euroMatchResults?.length > 0) || (data.worldCupMatchResults?.length > 0) || (data.lockerRoom?.length > 0) || (data.worldSummary?.length > 0) || (data.clubOffers?.length > 0) || (data.leavingPlayers?.length > 0);
 
   return (
     <div style={S.overlay}>
@@ -160,6 +171,47 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                 <div style={S.recapItem}><strong>{formatMoney(data.seasonRecap.earned)}</strong><span> gagnés</span></div>
                 <div style={S.recapItem}><strong>{data.seasonRecap.reputation}</strong><span> rép./1000</span></div>
                 <div style={S.recapItem}><strong>{data.seasonRecap.objectivesCompleted}/3</strong><span> objectifs</span></div>
+              </div>
+            </div>
+          )}
+
+          {data.worldCupMatchResults?.length > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg,#0f172a,#1d4f7a)',
+              borderRadius: 10,
+              padding: 16,
+              marginBottom: 14,
+              boxShadow: '0 16px 34px rgba(15,23,32,.20)',
+              color: '#ffffff',
+              border: '1px solid rgba(125,211,252,.24)',
+            }}>
+              <div style={S.secTitle}>
+                <Trophy size={14} />
+                <span style={{ color: '#7dd3fc' }}>COUPE DU MONDE</span>
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 950, marginBottom: 4 }}>
+              {data.worldCupActive ? `Phase ${data.worldCupPhase ?? 'en cours'}` : 'Tournoi mondial'}
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.78)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginBottom: 12 }}>
+                {data.worldCupMatchResults.length} match{data.worldCupMatchResults.length > 1 ? 's' : ''} international{data.worldCupMatchResults.length > 1 ? 'aux' : ''} suivis cette semaine.
+              </div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {data.worldCupMatchResults.slice(0, 5).map((match) => {
+                  const resultColor = match.isChampion ? '#f5c842' : match.isEliminated ? '#f87171' : match.result === 'win' ? '#7dd3fc' : '#cbd5e1';
+                  return (
+                    <div key={`${match.playerId}-${match.countryName}-${match.opponent}`} style={{ background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 4 }}>
+                        <strong style={{ color: '#ffffff', fontSize: 13 }}>{match.countryFlag} {match.playerName}</strong>
+                        <span style={{ fontSize: 10, fontWeight: 900, color: resultColor, letterSpacing: '.08em', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
+                          {match.isChampion ? 'Champion' : match.isEliminated ? 'Éliminé' : match.result}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,.82)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45 }}>
+                        {match.countryName} {match.score} {match.opponent} · {match.phase} · note {match.matchRating}{match.goals ? ` · ${match.goals} but${match.goals > 1 ? 's' : ''}` : ''}{match.assists ? ` · ${match.assists} passe${match.assists > 1 ? 's' : ''}` : ''}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

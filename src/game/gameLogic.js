@@ -965,6 +965,23 @@ const buildWeeklyTimeline = ({
   const activityTone = activePeriod ? `${activePeriod.emoji} ${activePeriod.label}` : phase.phase;
   const topEuroMatch = [...euroMatchResults].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
   const topWorldCupMatch = [...worldCupMatchResults].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
+  const worldCupBlock = topWorldCupMatch ? {
+    id: `wc_${topWorldCupMatch.playerId ?? week}`,
+    day: 'Coupe du Monde',
+    icon: '🌍',
+    tone: topWorldCupMatch.isChampion ? 'good' : topWorldCupMatch.isEliminated ? 'danger' : topWorldCupMatch.result === 'win' ? 'warn' : 'info',
+    major: true,
+    kind: 'worldCupMatch',
+    title: `${topWorldCupMatch.countryName} · ${topWorldCupMatch.opponent}`,
+    text: `${topWorldCupMatch.playerName ?? 'Un joueur'} a vécu un match mondial: ${topWorldCupMatch.score}, ${topWorldCupMatch.minutes} min, note ${topWorldCupMatch.matchRating}.`,
+    chips: [
+      topWorldCupMatch.phase ?? 'CdM',
+      topWorldCupMatch.isChampion ? 'Champion du monde' : topWorldCupMatch.isEliminated ? 'Éliminé' : topWorldCupMatch.result === 'win' ? 'Victoire' : topWorldCupMatch.result === 'draw' ? 'Nul' : 'Défaite',
+      topWorldCupMatch.goals > 0 ? `${topWorldCupMatch.goals} but${topWorldCupMatch.goals > 1 ? 's' : ''}` : 'Sans but',
+      topWorldCupMatch.assists > 0 ? `${topWorldCupMatch.assists} passe${topWorldCupMatch.assists > 1 ? 's' : ''}` : 'Sans passe',
+    ],
+    match: topWorldCupMatch,
+  } : null;
 
   return [
     {
@@ -1020,10 +1037,13 @@ const buildWeeklyTimeline = ({
         `Crédibilité ${reputationChange >= 0 ? '+' : ''}${reputationChange}`,
       ],
     },
+    ...(worldCupBlock ? [worldCupBlock] : []),
     ...(topEuroMatch ? [{
       day: 'Europe',
       icon: EURO_CUP_LABELS[topEuroMatch.competition]?.icon ?? '🏆',
       tone: topEuroMatch.result === 'win' ? 'good' : topEuroMatch.result === 'loss' ? 'danger' : 'warn',
+      major: true,
+      kind: 'euroMatch',
       title: `${topEuroMatch.competitionLabel} · ${topEuroMatch.opponent}`,
       text: `${topEuroMatch.playerName ?? 'Un joueur'} a joué ${topEuroMatch.minutes} min, score ${topEuroMatch.score}, note ${topEuroMatch.matchRating}.`,
       chips: [
