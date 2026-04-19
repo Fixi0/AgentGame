@@ -906,6 +906,7 @@ const buildWeeklyTimeline = ({
   queueSize,
   offerCount,
   fixtureCount,
+  euroMatchResults = [],
   messageCount,
   newsCount,
   interactiveEvent,
@@ -920,6 +921,7 @@ const buildWeeklyTimeline = ({
 }) => {
   const currentDate = getCalendarSnapshot(week);
   const activityTone = activePeriod ? `${activePeriod.emoji} ${activePeriod.label}` : phase.phase;
+  const topEuroMatch = [...euroMatchResults].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
 
   return [
     {
@@ -975,6 +977,18 @@ const buildWeeklyTimeline = ({
         `Crédibilité ${reputationChange >= 0 ? '+' : ''}${reputationChange}`,
       ],
     },
+    ...(topEuroMatch ? [{
+      day: 'Europe',
+      icon: EURO_CUP_LABELS[topEuroMatch.competition]?.icon ?? '🏆',
+      tone: topEuroMatch.result === 'win' ? 'good' : topEuroMatch.result === 'loss' ? 'danger' : 'warn',
+      title: `${topEuroMatch.competitionLabel} · ${topEuroMatch.opponent}`,
+      text: `${topEuroMatch.playerName ?? 'Un joueur'} a joué ${topEuroMatch.minutes} min, score ${topEuroMatch.score}, note ${topEuroMatch.matchRating}.`,
+      chips: [
+        topEuroMatch.phase ?? 'Europe',
+        topEuroMatch.goals > 0 ? `${topEuroMatch.goals} but${topEuroMatch.goals > 1 ? 's' : ''}` : 'Sans but',
+        topEuroMatch.assists > 0 ? `${topEuroMatch.assists} passe${topEuroMatch.assists > 1 ? 's' : ''}` : 'Sans passe',
+      ],
+    }] : []),
     {
       day: 'Vendredi',
       icon: '⚽',
@@ -2093,6 +2107,8 @@ export const playWeek = (state) => {
   });
 
   const leavingPlayers = chainedRoster.filter((player) => Math.random() < getDepartureRisk(player));
+  const departedPlayerIds = new Set(leavingPlayers.map((player) => player.id));
+  const keepsDepartedClean = (item) => !item?.playerId || !departedPlayerIds.has(item.playerId);
   const net = totalIncome - totalCost;
   const worldSummary = generateWorldSummary({ week: state.week + 1, phase: nextPhase, worldState: state.worldState });
   let objectives = state.objectives;
@@ -2348,7 +2364,7 @@ export const playWeek = (state) => {
     ...message,
     priority: message.priority ?? getMessagePriority(message),
     queuedWeek: message.queuedWeek ?? state.week + 1,
-  }));
+  })).filter(keepsDepartedClean);
   queuedMessages.sort((a, b) => {
     const rank = { urgent: 3, normal: 2, to_process: 1 };
     const priorityDelta = (rank[b.priority] ?? 2) - (rank[a.priority] ?? 2);
@@ -2412,11 +2428,11 @@ export const playWeek = (state) => {
       ...generatedNews,
       ...state.news,
     ].slice(0, 60),
-    messages: [...deliveredMessages, ...state.messages].slice(0, 40),
-    promises: normalizePromises(promiseEvaluation.promises.slice(-30)),
+    messages: [...deliveredMessages, ...(state.messages ?? [])].filter(keepsDepartedClean).slice(0, 40),
+    promises: normalizePromises(promiseEvaluation.promises.filter(keepsDepartedClean)).slice(0, 30),
     messageQueue: remainingMessageQueue,
-    clubOffers: [...newClubOffers, ...expiredOffers].slice(0, 30),
-    pendingTransfers: remainingPendingTransfers,
+    clubOffers: [...newClubOffers, ...expiredOffers].filter(keepsDepartedClean).slice(0, 30),
+    pendingTransfers: remainingPendingTransfers.filter(keepsDepartedClean),
     negotiationCooldowns: updatedNegotiationCooldowns,
     socialCrisisCooldowns: { ...(state.socialCrisisCooldowns ?? {}), ...socialCrisisCooldowns },
     stats: {
@@ -2451,6 +2467,7 @@ export const playWeek = (state) => {
     net,
     bonusMoney,
     reputationChange,
+    euroMatchResults,
   });
 
   return {

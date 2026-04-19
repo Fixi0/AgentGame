@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, AlertCircle, ChevronRight, LogOut, Users, X } from 'lucide-react';
+import { Activity, AlertCircle, ChevronRight, LogOut, Trophy, Users, X } from 'lucide-react';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
@@ -223,6 +223,26 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               </div>
               {data.matchResults.slice(0, 8).map((match) => (
                 <MatchScorecard key={`${match.playerId}-${match.opponent}`} match={match} />
+              ))}
+            </div>
+          )}
+          {data.euroMatchResults?.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={S.secTitle}>
+                <Trophy size={14} />
+                <span>EUROPE</span>
+              </div>
+              {data.euroMatchResults.slice(0, 5).map((match) => (
+                <div key={`${match.playerId}-${match.competition}-${match.opponent}`} style={{ ...S.evRow, borderLeft: `3px solid ${match.result === 'win' ? '#00a676' : match.result === 'loss' ? '#b42318' : '#2f80ed'}` }}>
+                  <div style={S.evPlayer}>
+                    {match.playerName} · {match.competitionLabel}
+                  </div>
+                  <div style={S.evLabel}>
+                    {match.opponent} · {match.score} · note {match.matchRating}
+                    {match.goals ? ` · ${match.goals} but${match.goals > 1 ? 's' : ''}` : ''}
+                    {match.assists ? ` · ${match.assists} passe${match.assists > 1 ? 's' : ''}` : ''}
+                  </div>
+                </div>
               ))}
             </div>
           )}
