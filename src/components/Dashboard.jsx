@@ -52,7 +52,7 @@ function AgencyHealthScore({ state }) {
 }
 
 // ── Priority Widget (what to do right now) ─────────────────────────────────
-function PriorityWidget({ urgentMessages, marketQueue, expiringContracts, lowTrustPlayers, onNav, onPlay, phase }) {
+function PriorityWidget({ urgentMessages, marketQueue, expiringContracts, onNav, onPlay, phase }) {
   const actions = [];
   if (urgentMessages.length) {
     actions.push({
@@ -690,7 +690,6 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
   const pendingCounts = getPendingMessageCounts(state);
   const urgentMessages = (state.messages ?? []).filter(messageNeedsResponse).slice(0, 3);
   const expiringContracts = state.roster.filter((player) => player.contractWeeksLeft <= 12).slice(0, 3);
-  const lowTrustPlayers = state.roster.filter((player) => (player.trust ?? 50) < 45 || player.moral < 45).slice(0, 3);
   const marketQueue = getMarketOfferQueue(state)
     .filter((offer) => ['open', 'accepted_pending'].includes(offer.status))
     .slice(0, 4);
@@ -712,12 +711,6 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
       sub: `${state.worldCupState.selectedPlayers.length} sélectionnés`,
     }] : []),
   ];
-  // todayActions kept for todayCard reference
-  const todayActions = [
-    urgentMessages.length ? { label: 'Répondre', sub: `${urgentMessages.length} message`, action: () => onNav('messages') } : null,
-    marketQueue.length ? { label: 'Gérer offres', sub: `${marketQueue.length} dossier mercato`, action: () => onNav('dossiers') } : null,
-  ].filter(Boolean).slice(0, 2);
-
   return (
     <div style={S.vp}>
       <div style={S.et}>
@@ -734,6 +727,10 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
         </div>
       </button>
 
+      <div style={S.homeHint}>
+        Lis vite ce qui est chaud, clique sur un dossier, puis lance la semaine. Le reste reste caché dans les sous-menus.
+      </div>
+
       {/* Beginner Guide — visible only for first 5 weeks */}
       <BeginnerGuide state={state} phase={phase} onNav={onNav} onPlay={onPlay} />
 
@@ -742,7 +739,6 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
         urgentMessages={urgentMessages}
         marketQueue={marketQueue}
         expiringContracts={expiringContracts}
-        lowTrustPlayers={lowTrustPlayers}
         onNav={onNav}
         onPlay={onPlay}
         phase={phase}
@@ -780,7 +776,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
         ))}
       </div>
       <NewspaperFront news={state.news} history={state.history} roster={state.roster} phase={phase} worldCupState={state.worldCupState} onNav={onNav} />
-      {(marketQueue.length > 0 || urgentMessages.length > 0 || expiringContracts.length > 0 || lowTrustPlayers.length > 0 || competitorThreats.length > 0) && (
+      {(marketQueue.length > 0 || urgentMessages.length > 0 || expiringContracts.length > 0) && (
         <div style={S.decisionCard}>
           <div style={S.secTitle}>CENTRE DE DECISION</div>
           {marketQueue.map((offer) => (
@@ -831,12 +827,6 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
             <button key={player.id} onClick={() => onNav('roster')} style={S.decisionRow}>
               <span>Contrat court · {player.firstName} {player.lastName}</span>
               <strong>{player.contractWeeksLeft}s</strong>
-            </button>
-          ))}
-          {lowTrustPlayers.map((player) => (
-            <button key={player.id} onClick={() => onNav('roster')} style={S.decisionRow}>
-              <span>Relation fragile · {player.firstName} {player.lastName}</span>
-              <strong>{player.trust ?? 50}</strong>
             </button>
           ))}
         </div>

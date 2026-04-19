@@ -287,6 +287,12 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                   </div>
                 )}
 
+                {!latestPendingMessage && selectedThread && selectedThread.unresolvedCount > 0 && (
+                  <div style={S.readOnlyNotice}>
+                    Ce message est surtout informatif pour le moment. Tu peux le lire ici, mais il n'appelle pas de réponse directe.
+                  </div>
+                )}
+
                 <div style={S.chatTimeline}>
                   {visibleThreadItems.map((message) => (
                     <div key={message.id} style={S.chatBlock}>
