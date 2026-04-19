@@ -586,6 +586,11 @@ export const migrateState = (state) => {
     worldCupState: state.worldCupState ?? null,
     sentSeasonalMessages: state.sentSeasonalMessages ?? [],
     activePeriod: state.activePeriod ?? null,
+    office: {
+      scoutLevel: state.office?.scoutLevel ?? 0,
+      lawyerLevel: state.office?.lawyerLevel ?? 0,
+      mediaLevel: state.office?.mediaLevel ?? 0,
+    },
     stats: {
       totalEarned: state.stats?.totalEarned ?? 0,
       playersSigned: state.stats?.playersSigned ?? 0,
@@ -1556,6 +1561,7 @@ const createChoiceTransferOffer = (state, player, event, choice) => {
 };
 
 export const playWeek = (state) => {
+  const office = state.office ?? { scoutLevel: 0, lawyerLevel: 0, mediaLevel: 0 };
   const events = [];
   const generatedNews = [];
   const generatedMessages = [];
@@ -1570,7 +1576,7 @@ export const playWeek = (state) => {
   const dataAnalystLevel = getStaffEffect(state.staff, 'dataAnalyst');
   const specialization = SPECIALIZATION_EFFECTS[state.agencyProfile?.style ?? 'equilibre'] ?? SPECIALIZATION_EFFECTS.equilibre;
   const staffWeeklyCost = getStaffWeeklyCost(state.staff);
-  const mediaReduction = 1 - state.office.mediaLevel * 0.15 - communityManagerLevel * 0.07;
+  const mediaReduction = 1 - office.mediaLevel * 0.15 - communityManagerLevel * 0.07;
   totalCost += staffWeeklyCost;
   totalCost += WEEKLY_OVERHEAD[state.agencyLevel ?? 1] ?? 300;
 
