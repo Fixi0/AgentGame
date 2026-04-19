@@ -3,6 +3,8 @@ import { COUNTRIES, getCitiesForCountry } from '../data/clubs';
 import { DIFFICULTIES, STARTING_PROFILES } from '../systems/agencyReputationSystem';
 import { S } from './styles';
 
+const EMBLEMS = ['⚡', '🦁', '🔥', '🌟', '🐺', '🦅', '💎', '🏆', '⚔️', '🎯'];
+
 const agencyStyles = [
   { value: 'equilibre', label: 'Équilibrée', desc: 'Bon départ, peu de risques.' },
   { value: 'business', label: 'Business agressif', desc: 'Plus forte sur le mercato.' },
@@ -23,8 +25,8 @@ export default function Onboarding({ profile, onComplete }) {
   return (
     <div style={S.onboardingWrap}>
       <div style={S.onboardingCard}>
-        <div style={{ ...S.agencyAvatar, width: 58, height: 58, background: draft.color, marginBottom: 14 }}>
-          {draft.name.slice(0, 2).toUpperCase()}
+        <div style={{ ...S.agencyAvatar, width: 58, height: 58, background: draft.color, marginBottom: 8, fontSize: 26 }}>
+          {draft.emblem ?? '⚡'}
         </div>
         <div style={S.el}>NOUVELLE CARRIERE</div>
         <h1 style={{ ...S.eh, marginBottom: 8 }}>Crée ton agence</h1>
@@ -58,6 +60,20 @@ export default function Onboarding({ profile, onComplete }) {
             Couleur
             <input type="color" value={draft.color} onChange={(event) => update('color', event.target.value)} style={S.colorInput} />
           </label>
+          <div style={S.fieldLabel}>
+            Emblème
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+              {EMBLEMS.map((em) => (
+                <button
+                  key={em}
+                  onClick={() => update('emblem', em)}
+                  style={{ fontSize: 22, background: (draft.emblem ?? '⚡') === em ? draft.color : '#f0f4f8', border: `2px solid ${(draft.emblem ?? '⚡') === em ? draft.color : '#e5eaf0'}`, borderRadius: 8, width: 40, height: 40, cursor: 'pointer', transition: 'all .15s' }}
+                >
+                  {em}
+                </button>
+              ))}
+            </div>
+          </div>
           <label style={S.fieldLabel}>
             Positionnement
             <select value={draft.style} onChange={(event) => update('style', event.target.value)} style={S.textInput}>

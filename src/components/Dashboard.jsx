@@ -1,4 +1,4 @@
-import { Activity, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Target, UserPlus, Zap } from 'lucide-react';
+import { Activity, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Target, Trophy, UserPlus, Zap } from 'lucide-react';
 import React from 'react';
 import { getAgencyCapacity } from '../systems/agencySystem';
 import { getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
@@ -6,6 +6,7 @@ import { getMarketReachLabel } from '../systems/reputationSystem';
 import { getStrategicSuggestions } from '../systems/suggestionSystem';
 import { getAgencyGoalProgress } from '../systems/agencyGoalsSystem';
 import { MEDIA_RELATION_TEMPLATES } from '../systems/agencyReputationSystem';
+import { getRivalLeaderboard } from '../systems/leaderboardSystem';
 import { COUNTRIES } from '../data/clubs';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
@@ -269,6 +270,63 @@ function NewspaperFront({ news, history, roster, phase, onNav }) {
   );
 }
 
+function RivalLeaderboard({ reputation, week, agencyProfile }) {
+  const ranking = getRivalLeaderboard(reputation, week, agencyProfile);
+  const playerEntry = ranking.find((r) => r.isPlayer);
+
+  return (
+    <div style={{ ...S.objCard, marginBottom: 16 }}>
+      <div style={{ ...S.secTitle, marginBottom: 10 }}>
+        <Trophy size={13} />
+        <span>CLASSEMENT AGENCES</span>
+      </div>
+      {ranking.map((entry) => (
+        <div
+          key={entry.id}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '6px 0',
+            borderBottom: '1px solid #f0f4f7',
+            background: entry.isPlayer ? '#f0fdf8' : 'transparent',
+            borderRadius: entry.isPlayer ? 6 : 0,
+            paddingLeft: entry.isPlayer ? 6 : 0,
+            paddingRight: entry.isPlayer ? 6 : 0,
+          }}
+        >
+          <span style={{ fontSize: 11, fontWeight: 900, color: entry.rank === 1 ? '#d4a017' : '#9aa7b2', width: 16, textAlign: 'center', fontFamily: 'system-ui,sans-serif' }}>
+            {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`}
+          </span>
+          <span style={{ fontSize: 17 }}>{entry.emblem}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: entry.isPlayer ? 900 : 600, color: entry.isPlayer ? '#00a676' : '#172026', fontFamily: 'system-ui,sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {entry.name} {entry.isPlayer ? '← toi' : ''}
+            </div>
+            <div style={{ fontSize: 10, color: '#9aa7b2', fontFamily: 'system-ui,sans-serif' }}>{entry.city}</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ ...S.progBar, width: 50, margin: 0 }}>
+              <div style={{ ...S.progFill, width: `${entry.rep}%`, background: entry.isPlayer ? '#00a676' : entry.color }} />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: entry.isPlayer ? '#00a676' : '#172026', fontFamily: 'system-ui,sans-serif', width: 24, textAlign: 'right' }}>{entry.rep}</span>
+          </div>
+        </div>
+      ))}
+      {playerEntry && playerEntry.rank > 1 && (
+        <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 6, textAlign: 'center' }}>
+          Tu es à <strong>{playerEntry.rank - 1}</strong> place{playerEntry.rank - 1 > 1 ? 's' : ''} du sommet · Réputation {playerEntry.rep}/100
+        </div>
+      )}
+      {playerEntry && playerEntry.rank === 1 && (
+        <div style={{ fontSize: 10, color: '#00a676', fontFamily: 'system-ui,sans-serif', marginTop: 6, textAlign: 'center', fontWeight: 700 }}>
+          🏆 Meilleure agence du monde cette semaine !
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, onRejectOffer, onClubDetails, onOpenContracts }) {
   const portfolioValue = state.roster.reduce((sum, player) => sum + player.value, 0);
   const weeklyIncome = state.roster.reduce((sum, player) => sum + Math.floor(player.weeklySalary * player.commission), 0);
@@ -387,6 +445,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           </div>
         ))}
       </div>
+      <RivalLeaderboard reputation={state.reputation} week={state.week} agencyProfile={state.agencyProfile} />
       <NewspaperFront news={state.news} history={state.history} roster={state.roster} phase={phase} onNav={onNav} />
       <button onClick={onPlay} style={S.primaryBtn}>
         <Zap size={18} />

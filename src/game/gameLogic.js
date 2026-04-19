@@ -1,5 +1,5 @@
 import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
-import { COUNTRY_NAME_POOLS, FIRST_NAMES, LAST_NAMES, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
+import { COUNTRY_NAME_POOLS, FIRST_NAMES, HIDDEN_TRAITS, LAST_NAMES, LEGENDARY_PLAYERS, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
 import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
 import { getAgencyCapacity, getAgencyUpgradeCost } from '../systems/agencySystem';
@@ -54,6 +54,7 @@ const DEFAULT_AGENCY_PROFILE = {
   difficulty: 'realiste',
   startProfile: 'ancien_joueur',
   onboarded: false,
+  emblem: '⚡',
 };
 
 const SPECIALIZATION_EFFECTS = {
@@ -239,6 +240,9 @@ export const generatePlayer = (reputation, scoutLevel = 0, young = false, forced
     timeline: [],
     careerGoal: null,
     scoutReport: null,
+    hiddenTrait: pick(['clutch_player','locker_room_leader','silent_perfectionist','social_media_magnet','late_bloomer','glass_cannon','mentality_monster','tactical_genius']),
+    traitRevealed: false,
+    lastInteractionWeek: 0,
     seasonStats: { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
     publicRep: null,  // initialized lazily on first use
   };
@@ -461,6 +465,7 @@ const generateWorldSummary = ({ week, phase, worldState }) => {
 export const createFreshState = () => ({
   money: 25000,
   gems: 0,
+  legendarySeenIds: [],
   reputation: 12,
   credibility: 52,
   difficulty: 'realiste',
@@ -556,6 +561,7 @@ export const migrateState = (state) => {
     seasonObjectives: state.seasonObjectives ?? generateSeasonObjectives({ week: state.week ?? 1, reputation: state.reputation ?? 12 }),
     gems: state.gems ?? 0,
     lastInteractiveEventWeek: state.lastInteractiveEventWeek ?? 0,
+    legendarySeenIds: state.legendarySeenIds ?? [],
     roster: (state.roster ?? []).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
       const personality = player.personality ?? pick(PERSONALITIES);
@@ -585,6 +591,9 @@ export const migrateState = (state) => {
         trust: player.trust ?? getInitialTrust(personality),
         recentResults: player.recentResults ?? [],
         previousRating: player.previousRating ?? null,
+        hiddenTrait: player.hiddenTrait ?? null,
+        traitRevealed: player.traitRevealed ?? false,
+        lastInteractionWeek: player.lastInteractionWeek ?? 0,
       };
     }),
     market: (state.market?.length ? state.market : generateMarket(state.reputation ?? 15, state.office?.scoutLevel ?? 0)).map((player) => {
@@ -687,14 +696,29 @@ export const refreshMarket = (state) => {
   const specializationBonus = SPECIALIZATION_EFFECTS[state.agencyProfile?.style ?? 'equilibre']?.marketBonus ?? 0;
   const staffBonus = getStaffEffect(state.staff, 'scoutAfrica');
   const scoutLevel = state.office.scoutLevel + staffBonus;
+  let newMarket = generateMarket(state.reputation + staffBonus * 3 + specializationBonus, scoutLevel).map((player) => ({
+    ...player,
+    scoutReport: scoutLevel > 0 ? createScoutReport(player, scoutLevel) : null,
+  }));
+
+  // Legendary injection — 1.5% chance, requires reputation >= 80, each legend appears max once per save
+  const seenIds = state.legendarySeenIds ?? [];
+  const availableLegends = LEGENDARY_PLAYERS.filter(
+    (l) => !seenIds.includes(l.id) && !state.roster.some((p) => p.id === l.id),
+  );
+  let nextSeenIds = seenIds;
+  if (availableLegends.length > 0 && state.reputation >= 80 && Math.random() < 0.015) {
+    const legend = availableLegends[Math.floor(Math.random() * availableLegends.length)];
+    newMarket = [legend, ...newMarket];
+    nextSeenIds = [...seenIds, legend.id];
+  }
+
   return {
     state: {
       ...state,
       money: state.money - MARKET_REFRESH_COST,
-      market: generateMarket(state.reputation + staffBonus * 3 + specializationBonus, scoutLevel).map((player) => ({
-        ...player,
-        scoutReport: scoutLevel > 0 ? createScoutReport(player, scoutLevel) : null,
-      })),
+      market: newMarket,
+      legendarySeenIds: nextSeenIds,
     },
   };
 };
@@ -1508,6 +1532,49 @@ export const playWeek = (state) => {
           // Marquer la semaine du dernier message sur le joueur
           updatedPlayer = { ...updatedPlayer, lastMessageWeek: state.week };
         }
+      }
+
+      // ── Trait caché — révélation après 12+ semaines (4% par semaine) ────────
+      const weeksInAgency = state.week - (updatedPlayer.contractStartWeek ?? state.week);
+      if (updatedPlayer.hiddenTrait && !updatedPlayer.traitRevealed && weeksInAgency >= 12 && Math.random() < 0.04) {
+        const traitKey = updatedPlayer.hiddenTrait;
+        const traitLabels = {
+          clutch_player: 'Joueur Clutch ⚡ — irremplaçable dans les grands matchs',
+          locker_room_leader: 'Leader Vestiaire 🦁 — sa présence booste le groupe',
+          silent_perfectionist: 'Perfectionniste Silencieux 🧊 — confiance extrêmement stable',
+          social_media_magnet: 'Star des Réseaux 📱 — valeur de marque en hausse constante',
+          late_bloomer: 'Révélation Tardive 🌱 — le meilleur reste à venir',
+          glass_cannon: 'Verre et Feu 💥 — immense talent, fragilité physique',
+          mentality_monster: 'Mentale de Champion 🔥 — ne lâche jamais',
+          tactical_genius: 'Génie Tactique 🧠 — s\'adapte à tous les systèmes',
+        };
+        generatedMessages.push({
+          id: makeId('msg'),
+          week: state.week,
+          sortWeek: state.week + 0.01,
+          type: 'trait_reveal',
+          threadKey: updatedPlayer.id,
+          threadLabel: `${updatedPlayer.firstName} ${updatedPlayer.lastName}`,
+          playerId: updatedPlayer.id,
+          playerName: `${updatedPlayer.firstName} ${updatedPlayer.lastName}`,
+          senderRole: 'staff',
+          senderName: 'Assistant agence',
+          subject: `Trait révélé — ${updatedPlayer.firstName}`,
+          body: `Après des semaines à travailler avec ${updatedPlayer.firstName}, une qualité rare s'est révélée : ${traitLabels[traitKey] ?? traitKey}. Cette caractéristique va marquer son parcours dans l'agence.`,
+          read: false,
+          resolved: true,
+        });
+        updatedPlayer = { ...updatedPlayer, traitRevealed: true };
+      }
+
+      // ── Système de négligence — plainte si pas d'interaction depuis 6+ semaines ─
+      const lastInteraction = updatedPlayer.lastInteractionWeek ?? 0;
+      const weeksSinceContact = state.week - lastInteraction;
+      const notNewRecruit = (state.week - (updatedPlayer.contractStartWeek ?? 0)) >= 8;
+      const alreadyHasMsg = generatedMessages.some((m) => m.playerId === updatedPlayer.id);
+      if (notNewRecruit && weeksSinceContact >= 6 && (updatedPlayer.trust ?? 50) < 70 && updatedPlayer.moral < 70 && !alreadyHasMsg && Math.random() < 0.15) {
+        generatedMessages.push(createMessage({ player: updatedPlayer, type: 'complaint', week: state.week, context: 'neglect' }));
+        updatedPlayer = { ...updatedPlayer, lastMessageWeek: state.week };
       }
 
       // Générer les événements enchaînés

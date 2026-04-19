@@ -440,6 +440,61 @@ export const INTERACTIVE_EVENTS = [
       { label: 'Rester discret — force tranquille', cost: 0, effects: { rep: 2, moral: 10, trust: 8 }, desc: 'Ne pas surexposer' },
     ],
   },
+
+  // ─── ÉVÉNEMENTS HISTOIRE — rares, émotionnels, marquants ─────────
+  {
+    id: 'appel_surprise',
+    rarity: 'rare',
+    types: ['transfer'],
+    title: 'Appel surprise — légende vivante',
+    description: "Un ancien grand joueur appelle personnellement ton agent. Il veut ton joueur dans son nouveau projet. Pas un grand club — une vision.",
+    choices: [
+      { label: 'Accepter l\'aventure', cost: 0, effects: { rep: 8, moral: 20, trust: 14, val: 1.1 }, desc: 'Suivre la légende — pari humain fort', flag: 'transfer_offer' },
+      { label: 'Écouter — sans s\'engager', cost: 0, effects: { rep: 3, moral: 10, trust: 6 }, desc: 'Prudent, curiosité maintenue' },
+      { label: 'Refuser poliment', cost: 0, effects: { rep: 1, moral: -4, trust: -3 }, desc: 'Ton joueur aurait aimé y aller' },
+    ],
+  },
+  {
+    id: 'trahison_agent',
+    rarity: 'rare',
+    types: ['scandal'],
+    personalities: ['instable', 'mercenaire'],
+    title: 'Trahison — il a signé ailleurs en secret',
+    description: "Ton joueur a rencontré un autre agent dans ton dos. Un pré-accord existerait déjà. Tu l'apprends par la presse.",
+    choices: [
+      { label: 'Confrontation directe — vérité en face', cost: 0, effects: { rep: 2, moral: -8, trust: -15 }, desc: 'Mettre les choses à plat — risqué' },
+      { label: 'Appeler l\'autre agent', cost: 0, effects: { rep: 3, moral: -4, trust: -8 }, desc: 'Régler pro contre pro' },
+      { label: 'Lui proposer de tout effacer', cost: 10000, effects: { rep: -1, moral: 8, trust: 6 }, desc: 'Gros sacrifice financier pour sauver la relation' },
+      { label: 'Couper les ponts', cost: 0, effects: { rep: 5, moral: 2, trust: 0 }, desc: 'Dignité préservée — rupture nette', releasePlayer: true },
+    ],
+  },
+  {
+    id: 'comeback_request',
+    rarity: 'uncommon',
+    types: ['media'],
+    personalities: ['loyal', 'professionnel', 'leader'],
+    title: 'Demande de retour au bercail',
+    description: "Le club où il a tout connu en jeune veut le récupérer. Nostalgique, émouvant — mais le projet sportif est médiocre.",
+    choices: [
+      { label: 'Accepter — la maison appelle', cost: 0, effects: { rep: 6, moral: 22, trust: 16, val: 0.95 }, desc: 'Histoire belle mais ambitieux bridé', flag: 'transfer_offer' },
+      { label: 'Négocier des garanties sportives', cost: 2000, effects: { rep: 4, moral: 14, trust: 10 }, desc: 'Rêve avec conditions', flag: 'transfer_offer' },
+      { label: 'Refuser — cap sur l\'avenir', cost: 0, effects: { rep: 2, moral: -10, trust: -6 }, desc: 'Rationnel mais douloureux' },
+    ],
+  },
+  {
+    id: 'guerre_representation',
+    rarity: 'epic',
+    types: ['media'],
+    personalities: ['ambitieux', 'mercenaire'],
+    title: 'Guerre de représentation — guerre totale',
+    description: "Deux super-agents se disputent publiquement la représentation de ton joueur. Son nom est partout. Il est dépassé par les événements.",
+    choices: [
+      { label: 'Sortir un communiqué de force', cost: 5000, effects: { rep: 8, moral: 6, trust: 10, val: 1.06 }, desc: 'Marquer ton territoire pro' },
+      { label: 'Laisser le joueur choisir', cost: 0, effects: { rep: -3, moral: 12, trust: 8 }, desc: 'Sa liberté avant tout — mais tu perds peut-être' },
+      { label: 'Créer une alliance avec l\'autre agent', cost: 8000, effects: { rep: 6, moral: 8, trust: 5, money: 20000 }, desc: 'Co-représentation lucrative' },
+      { label: 'Attaquer en justice', cost: 15000, effects: { rep: 4, moral: -5, trust: 4, val: 1.03 }, desc: 'Long mais ça pose ta légitimité' },
+    ],
+  },
 ];
 
 export const CHAINED_EVENTS = {

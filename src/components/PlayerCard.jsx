@@ -89,24 +89,35 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
   // Mercato badge
   const hasMercatoOffer = state?.clubOffers?.some((o) => o.playerId === player.id && o.status === 'open');
 
+  const isLegendary = player.isLegendary === true || player.rarity === 'legendary';
+  const legendaryCardStyle = isLegendary ? {
+    background: 'linear-gradient(135deg, #1a1200 0%, #2d1f00 40%, #1a1200 100%)',
+    borderColor: '#d4a017',
+    boxShadow: '0 0 18px 3px rgba(212,160,23,0.45)',
+  } : {};
+  const cardBg = isLegendary ? legendaryCardStyle : { background: tensionBg, borderColor: dossierStatus.tone === 'danger' ? '#fca5a5' : dossierStatus.tone === 'warn' ? '#fcd34d' : dossierStatus.tone === 'good' ? '#cfeee3' : '#e5eaf0' };
+
   return (
-    <div style={{ ...S.pCard, background: tensionBg, borderColor: dossierStatus.tone === 'danger' ? '#fca5a5' : dossierStatus.tone === 'warn' ? '#fcd34d' : dossierStatus.tone === 'good' ? '#cfeee3' : '#e5eaf0' }}>
+    <div style={{ ...S.pCard, ...cardBg }}>
       <div style={S.pTop} onClick={onDetails} role={onDetails ? 'button' : undefined}>
         {/* Colored position avatar */}
-        <div style={{ ...S.playerAvatar, background: posColor, color: '#ffffff', border: `2px solid ${posColor}` }}>
-          {player.firstName[0]}{player.lastName[0]}
+        <div style={{ ...S.playerAvatar, background: isLegendary ? 'linear-gradient(135deg,#d4a017,#f5c842)' : posColor, color: isLegendary ? '#1a1200' : '#ffffff', border: `2px solid ${isLegendary ? '#d4a017' : posColor}` }}>
+          {isLegendary ? '👑' : `${player.firstName[0]}${player.lastName[0]}`}
         </div>
-        <div style={{ ...S.badge, background: ratingColor }}>
-          <div style={S.badgeNum}>{player.rating}{trendArrow}</div>
-          <div style={S.badgePos}>{player.position}</div>
+        <div style={{ ...S.badge, background: isLegendary ? 'linear-gradient(135deg,#d4a017,#b8860b)' : ratingColor }}>
+          <div style={{ ...S.badgeNum, color: isLegendary ? '#1a1200' : undefined }}>{player.rating}{trendArrow}</div>
+          <div style={{ ...S.badgePos, color: isLegendary ? '#1a1200' : undefined }}>{player.position}</div>
         </div>
         <div style={S.pInfo}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <div style={S.pName}>
+            <div style={{ ...S.pName, color: isLegendary ? '#f5c842' : undefined }}>
               {player.firstName} <strong>{player.lastName}</strong>
             </div>
             {statusIcon && <span style={{ fontSize: 13 }}>{statusIcon}</span>}
-            <span style={{ ...S.notorietyBadge, background: notoriety.bg, color: notoriety.color }}>{notoriety.label}</span>
+            {isLegendary
+              ? <span style={{ background: 'linear-gradient(90deg,#d4a017,#f5c842)', color: '#1a1200', borderRadius: 4, fontSize: 9, fontWeight: 900, padding: '1px 6px', letterSpacing: 1 }}>LÉGENDAIRE ✦</span>
+              : <span style={{ ...S.notorietyBadge, background: notoriety.bg, color: notoriety.color }}>{notoriety.label}</span>
+            }
             {hasMercatoOffer && <span style={S.mercatoBadge}>Offre 🔴</span>}
           </div>
 

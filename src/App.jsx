@@ -587,6 +587,7 @@ export default function FootballAgentGame() {
                 moral: clamp(player.moral + mergedEffects.moral + extraPlayerEffect.moral),
                 trust: clamp((player.trust ?? 50) + mergedEffects.trust + extraPlayerEffect.trust),
                 pressure: clamp((player.pressure ?? 30) + extraPlayerEffect.pressure),
+                lastInteractionWeek: current.week,
                 activeActions: responseAction ? [responseAction, ...(player.activeActions ?? [])].slice(0, 5) : player.activeActions ?? [],
                 timeline: responseAction ? [{ week: current.week, type: 'appel', label: responseAction.label }, ...(player.timeline ?? [])].slice(0, 18) : player.timeline,
               }
@@ -917,7 +918,7 @@ export default function FootballAgentGame() {
       <header style={S.header}>
         <div style={S.brandRow}>
           <div style={S.logo}>
-            <div style={{ ...S.logoMark, background: agencyProfile.color }}>★</div>
+            <div style={{ ...S.logoMark, background: agencyProfile.color }}>{agencyProfile.emblem ?? '⚡'}</div>
             <div>
               <div style={S.brandName}>{agencyProfile.name}</div>
               <div style={S.brandSub}>{agencyProfile.city} · {agencyProfile.ownerName}</div>
