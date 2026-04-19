@@ -160,6 +160,26 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
             <div style={S.progBar}><div style={{ ...S.progFill, width: `${player.form}%`, background: '#7aa7b8' }} /></div>
             <strong>{player.form}</strong>
           </div>
+          {/* Last match rating */}
+          {player.matchHistory?.[0]?.matchRating && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.08em', color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>DERNIÈRE NOTE</span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 900,
+                color: player.matchHistory[0].matchRating >= 7.5 ? '#00a676' : player.matchHistory[0].matchRating >= 6 ? '#2563eb' : '#b42318',
+                fontFamily: 'system-ui,sans-serif',
+              }}>
+                {player.matchHistory[0].matchRating}/10
+              </span>
+              {player.matchHistory[0].goals > 0 && (
+                <span style={{ fontSize: 10, color: '#3f5663', fontFamily: 'system-ui,sans-serif' }}>⚽{player.matchHistory[0].goals}</span>
+              )}
+              {player.matchHistory[0].assists > 0 && (
+                <span style={{ fontSize: 10, color: '#3f5663', fontFamily: 'system-ui,sans-serif' }}>🅰️{player.matchHistory[0].assists}</span>
+              )}
+            </div>
+          )}
           <div style={S.pMeta2}>
             <span>{player.scoutReport ? `Lecture scout ${player.scoutReport.confidence}%` : 'Projection cachée'}</span>
           </div>

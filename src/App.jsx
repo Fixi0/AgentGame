@@ -176,17 +176,6 @@ const moreItems = [
   { key: 'profile', label: 'Profil', desc: "Bilan de l'agence", icon: UserCircle },
 ];
 
-function StatCard({ icon, label, value, accent }) {
-  return (
-    <div style={S.statCard}>
-      <div style={{ ...S.statLabel, color: accent }}>
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div style={S.statValue}>{value}</div>
-    </div>
-  );
-}
 
 export default function FootballAgentGame() {
   const [loaded, setLoaded] = useState(false);
@@ -405,6 +394,15 @@ export default function FootballAgentGame() {
         throw new Error('playWeek() a renvoyé un résultat incomplet');
       }
       setState(result.state);
+      // Reputation milestone detection
+      const REP_MILESTONES = [50, 100, 200, 350, 500, 750, 1000];
+      const REP_MILESTONE_LABELS = { 50: 'Agent connu', 100: 'Agent solide', 200: 'Agent respecté', 350: 'Agent réputé', 500: 'Agent élite', 750: 'Agent légendaire', 1000: '🏆 Sommet atteint !' };
+      const prevRep = playableState.reputation;
+      const nextRep = result.state.reputation;
+      const crossedMilestone = REP_MILESTONES.find((m) => prevRep < m && nextRep >= m);
+      if (crossedMilestone) {
+        setTimeout(() => showToast(`⭐ Palier réputation ${crossedMilestone} — ${REP_MILESTONE_LABELS[crossedMilestone]}`, 'success'), 800);
+      }
       // Show the week ticker first, then the full results modal
       setWeekTickerData(result.report);
       if (result.report.newMessagesCount > 0) {
@@ -1120,11 +1118,21 @@ export default function FootballAgentGame() {
             <div style={S.seasonPhase}>{phase.phase.toUpperCase()}</div>
           </div>
         </div>
-        <div style={S.statsGrid}>
-          <StatCard icon={<DollarSign size={14} />} label="CAPITAL" value={formatMoney(state.money)} accent="#00a676" />
-          <StatCard icon={<Star size={14} />} label="REPUTATION" value={`${state.reputation}/1000`} accent="#2f80ed" />
-          <StatCard icon={<Users size={14} />} label="ROSTER" value={`${state.roster.length}/${getAgencyCapacity(state.agencyLevel)}`} accent="#3f5663" />
-          <StatCard icon={<Trophy size={14} />} label="MESSAGES" value={pendingCounts.total} accent="#64727d" />
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {[
+            { icon: <DollarSign size={12} />, label: 'Capital', value: formatMoney(state.money), accent: '#00a676' },
+            { icon: <Star size={12} />, label: 'Rép.', value: `${state.reputation}`, accent: '#2f80ed' },
+            { icon: <Users size={12} />, label: 'Joueurs', value: `${state.roster.length}/${getAgencyCapacity(state.agencyLevel)}`, accent: '#3f5663' },
+            { icon: <Trophy size={12} />, label: 'Msg', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#b42318' : '#64727d' },
+          ].map((chip) => (
+            <div key={chip.label} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '6px 10px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ color: chip.accent }}>{chip.icon}</span>
+              <div>
+                <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 800, letterSpacing: '.1em', lineHeight: 1 }}>{chip.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 850, color: '#172026', lineHeight: 1.2 }}>{chip.value}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </header>
       <nav style={S.nav}>
