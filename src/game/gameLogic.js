@@ -20,6 +20,7 @@ import { buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/match
 import { generateClubOffers, generateSurpriseOffer, getSeasonContext } from '../systems/seasonSystem';
 import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, EURO_CUP_LABELS } from '../systems/europeanCupSystem';
 import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier } from '../systems/worldCupSystem';
+import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSeasonalNewsItem } from '../systems/calendarEventsSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
 import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/consequenceSystem';
 import { awardGems } from '../systems/shopSystem';
@@ -580,6 +581,8 @@ export const migrateState = (state) => {
     lastInteractiveEventWeek: state.lastInteractiveEventWeek ?? 0,
     legendarySeenIds: state.legendarySeenIds ?? [],
     worldCupState: state.worldCupState ?? null,
+    sentSeasonalMessages: state.sentSeasonalMessages ?? [],
+    activePeriod: state.activePeriod ?? null,
     roster: (state.roster ?? []).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
       const personality = player.personality ?? pick(PERSONALITIES);
@@ -1800,10 +1803,45 @@ export const playWeek = (state) => {
     wcState = advanceWorldCupPhase(wcState);
   }
 
+  // ── Événements Calendrier Saisonnier ──────────────────────────────────────
+  const activePeriod = getActivePeriod(phase.seasonWeek);
+  const periodEffect = getPeriodMoodEffect(activePeriod);
+  let periodRoster = euRoster;
+
+  if (activePeriod) {
+    // Appliquer effets d'ambiance à tous les joueurs
+    if (periodEffect.moral !== 0 || periodEffect.trust !== 0) {
+      periodRoster = euRoster.map((p) => ({
+        ...p,
+        moral: clamp(p.moral + periodEffect.moral),
+        trust: clamp((p.trust ?? 50) + periodEffect.trust),
+      }));
+    }
+
+    // Générer un message saisonnier pour un joueur au hasard (35% chance, 1 par joueur par période)
+    const weekKey = `calendar_${activePeriod.key}_${phase.season}`;
+    const alreadyHadSeasonalMsg = (state.sentSeasonalMessages ?? []).includes(weekKey);
+    if (!alreadyHadSeasonalMsg && periodRoster.length > 0) {
+      const targetPlayer = periodRoster[Math.floor(Math.random() * periodRoster.length)];
+      const seasonalMsg = maybeCreateSeasonalMessage(targetPlayer, activePeriod.key, state.week + 1, false);
+      if (seasonalMsg) generatedMessages.push(seasonalMsg);
+    }
+
+    // Générer une news saisonnière (40% chance)
+    const seasonalNewsItem = getSeasonalNewsItem(activePeriod, state.week + 1);
+    if (seasonalNewsItem) {
+      generatedNews.push({
+        ...seasonalNewsItem,
+        sortWeek: state.week + 1,
+        week: state.week + 1,
+      });
+    }
+  }
+
   // Appliquer les événements passifs enchaînés arrivés à maturité
   const pendingChains = state.pendingChainedEvents ?? [];
-  const chainedPassives = processChainedPassiveEvents(pendingChains, euRoster, state.week + 1);
-  let chainedRoster = euRoster;
+  const chainedPassives = processChainedPassiveEvents(pendingChains, periodRoster, state.week + 1);
+  let chainedRoster = periodRoster;
   for (const { player, event } of chainedPassives) {
     const moneyImpact = event.good ? Math.floor(event.money * EVENT_INCOME_MULT) : Math.floor(event.money * mediaReduction);
     const reputationImpact = scaleReputationDelta(event.good ? event.rep : Math.floor(event.rep * mediaReduction));
@@ -2162,6 +2200,10 @@ export const playWeek = (state) => {
     lastInteractiveEventWeek: interactiveEvent ? state.week + 1 : (state.lastInteractiveEventWeek ?? 0),
     worldState: nextWorldState,
     worldCupState: wcState,
+    sentSeasonalMessages: activePeriod
+      ? [...new Set([...(state.sentSeasonalMessages ?? []), `calendar_${activePeriod.key}_${phase.season}`])]
+      : (state.sentSeasonalMessages ?? []),
+    activePeriod: activePeriod ? { key: activePeriod.key, label: activePeriod.label, emoji: activePeriod.emoji } : null,
     pendingChainedEvents: updatedPendingChains,
     seasonAwards: annualCalendar.seasonAwards,
     roster: finalRoster,
@@ -2222,6 +2264,10 @@ export const playWeek = (state) => {
       phase: nextPhase,
       worldSummary,
       worldCupActive: wcState && wcState.phase !== 'done',
+      worldCupPhase: wcState?.phase,
+      activePeriod: activePeriod ? { key: activePeriod.key, label: activePeriod.label, emoji: activePeriod.emoji } : null,
+      periodEffect: periodEffect.label ? periodEffect : null,
+      week: state.week,
     },
   };
 };

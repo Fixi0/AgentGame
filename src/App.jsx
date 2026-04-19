@@ -31,6 +31,7 @@ import TransferOfferModal from './components/modals/TransferOfferModal';
 import { NegotiationExtend, NegotiationTransfer } from './components/modals/NegotiationModals';
 import PlayerDetailModal from './components/modals/PlayerDetailModal';
 import ResultsModal from './components/modals/ResultsModal';
+import WeekTickerModal from './components/modals/WeekTickerModal';
 import { CSS, S } from './components/styles';
 import {
   applyChoice,
@@ -165,6 +166,7 @@ export default function FootballAgentGame() {
   const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const [hasSave, setHasSave] = useState(false);
   const [activeMessageThreadKey, setActiveMessageThreadKey] = useState(null);
+  const [weekTickerData, setWeekTickerData] = useState(null);
 
   useEffect(() => {
     try {
@@ -303,10 +305,17 @@ export default function FootballAgentGame() {
 
     const result = playWeek(state);
     setState(result.state);
-    setModal({ type: 'results', data: result.report });
+    // Show the week ticker first, then the full results modal
+    setWeekTickerData(result.report);
     if (result.report.newMessagesCount > 0) {
       showToast(`${result.report.newMessagesCount} nouveau message`, 'info');
     }
+  };
+
+  const handleTickerDone = () => {
+    const report = weekTickerData;
+    setWeekTickerData(null);
+    setModal({ type: 'results', data: report });
   };
 
   const handleChoice = (event, player, choice) => {
@@ -935,7 +944,14 @@ export default function FootballAgentGame() {
             <div style={S.seasonLabel}>SAISON {phase.season} · S{phase.seasonWeek}/38</div>
             <div style={S.seasonDate}>{calendarSnapshot.dateLabel} · {calendarSnapshot.weekRangeLabel}</div>
           </div>
-          <div style={S.seasonPhase}>{phase.phase.toUpperCase()}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {state.activePeriod && (
+              <span style={{ fontSize: 11, fontWeight: 800, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif' }}>
+                {state.activePeriod.emoji} {state.activePeriod.label}
+              </span>
+            )}
+            <div style={S.seasonPhase}>{phase.phase.toUpperCase()}</div>
+          </div>
         </div>
         <div style={S.statsGrid}>
           <StatCard icon={<DollarSign size={14} />} label="CAPITAL" value={formatMoney(state.money)} accent="#00a676" />
@@ -994,6 +1010,13 @@ export default function FootballAgentGame() {
         {view === 'contracts' && <ContractDashboard state={state} onNego={(player, type) => startNegotiation(player, type ?? 'extend')} onOpenPlayer={showPlayerDetails} />}
         {view === 'contacts' && <Contacts state={state} onCall={handleCallContact} />}
       </main>
+      {weekTickerData && (
+        <WeekTickerModal
+          report={weekTickerData}
+          activePeriod={weekTickerData.activePeriod}
+          onDone={handleTickerDone}
+        />
+      )}
       {modal?.type === 'results' && (
         <ResultsModal
           data={modal.data}

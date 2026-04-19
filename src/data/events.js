@@ -495,6 +495,77 @@ export const INTERACTIVE_EVENTS = [
       { label: 'Attaquer en justice', cost: 15000, effects: { rep: 4, moral: -5, trust: 4, val: 1.03 }, desc: 'Long mais ça pose ta légitimité' },
     ],
   },
+
+  // ─── ÉVÉNEMENTS COUPE DU MONDE — ambiance unique, enjeux globaux ───
+  {
+    id: 'wc_selection_lobby',
+    rarity: 'rare',
+    types: ['media'],
+    wcOnly: true,
+    title: '🌍 Avant la CdM — lobbying pour la sélection',
+    description: "La liste pour la Coupe du Monde est sur le point d'être publiée. Ton joueur mérite sa place mais le sélectionneur hésite. Tu as 48h pour agir.",
+    choices: [
+      { label: 'Appel direct au sélectionneur', cost: 0, effects: { rep: 5, moral: 12, trust: 8, val: 1.06 }, desc: 'Mettre toute ta réputation dans la balance', flag: 'wc_selection_boost' },
+      { label: 'Envoyer les stats compilées par ton staff', cost: 3000, effects: { rep: 3, moral: 8, trust: 6 }, desc: 'Arguments factuels et professionnels', flag: 'wc_selection_boost' },
+      { label: 'Médiatiser — pression publique', cost: 0, effects: { rep: -2, moral: 5, trust: 3, val: 1.03 }, desc: 'Risqué — le sélectionneur déteste ça' },
+      { label: 'Ne pas s\'immiscer — laisser faire', cost: 0, effects: { moral: -5, trust: -3 }, desc: 'Ton joueur attend que tu te battes pour lui' },
+    ],
+  },
+  {
+    id: 'wc_coach_call',
+    rarity: 'uncommon',
+    types: ['media'],
+    wcOnly: true,
+    title: '🌍 CdM — ton joueur ne joue pas assez',
+    description: "Ton joueur est sélectionné mais reste sur le banc. Il t'appelle, frustré. Le sélectionneur national l'utilise peu. 3 matchs ont déjà eu lieu.",
+    choices: [
+      { label: 'Contacter le staff national discrètement', cost: 2000, effects: { rep: 4, moral: 10, trust: 8 }, desc: 'Diplomatie d\'agent expérimenté' },
+      { label: 'Lui dire de performer à l\'entraînement', cost: 0, effects: { rep: 1, moral: -3, trust: 4 }, desc: 'Réponse directe mais froide' },
+      { label: 'Lui conseiller de demander au sélectionneur', cost: 0, effects: { rep: 2, moral: 6, trust: 6 }, desc: 'L\'aider à prendre en main sa carrière' },
+      { label: 'Suggérer de rentrer au club', cost: 0, effects: { rep: -3, moral: -15, trust: -10 }, desc: 'Terrible — il veut vivre sa CdM' },
+    ],
+  },
+  {
+    id: 'wc_media_frenzy',
+    rarity: 'uncommon',
+    types: ['scandal'],
+    wcOnly: true,
+    title: '🌍 CdM — l\'envers du décor',
+    description: "La Coupe du Monde polarise tout. Une interview de ton joueur dans le village des médias est mal interprétée. En quelques heures, c'est viral. Des pays entiers réagissent.",
+    choices: [
+      { label: 'Conférence de presse de clarification', cost: 5000, effects: { rep: 3, moral: -3, trust: 5 }, desc: 'Calmera la presse internationale' },
+      { label: 'Message vidéo personnel — humaniser', cost: 0, effects: { rep: 6, moral: 5, trust: 7, val: 1.04 }, desc: 'L\'authenticité désamorce tout' },
+      { label: 'Silence total — laisser passer', cost: 0, effects: { rep: -4, moral: -5, trust: -2 }, desc: 'Le silence est parfois meurtrier' },
+      { label: 'Retrait des réseaux pour la durée de la CdM', cost: 0, effects: { rep: 1, moral: 3, trust: 4 }, desc: 'Focus total sur le terrain' },
+    ],
+  },
+  {
+    id: 'wc_player_sacrifice',
+    rarity: 'rare',
+    types: ['media'],
+    wcOnly: true,
+    title: '🌍 CdM — jouer blessé pour son pays',
+    description: "Ton joueur est touché à l'entraînement. Blessure légère mais réelle. Il veut jouer quand même — c'est la Coupe du Monde. Le médecin te conseille le repos.",
+    choices: [
+      { label: 'Le laisser décider — c\'est son rêve', cost: 0, effects: { rep: 4, moral: 18, trust: 14 }, desc: 'Respecter sa passion — risque de rechute', injury: 2 },
+      { label: 'Le convaincre de se reposer', cost: 0, effects: { rep: -4, moral: -20, trust: -15 }, desc: 'Raisonnable mais il ne te le pardonnera pas' },
+      { label: 'Infiltration + protocole médical intensif', cost: 12000, effects: { rep: 2, moral: 12, trust: 10 }, desc: 'Tout faire pour le maintenir en forme' },
+    ],
+  },
+  {
+    id: 'wc_exclusion_risk',
+    rarity: 'rare',
+    types: ['scandal'],
+    wcOnly: true,
+    title: '🌍 CdM — exclusion imminente du groupe',
+    description: "Un incident au village olympique — ton joueur est impliqué dans une dispute avec un coéquipier. Le sélectionneur menace de le renvoyer à son club. C'est la CdM. Tout le monde regarde.",
+    choices: [
+      { label: 'Appel d\'urgence au sélectionneur — médiation', cost: 0, effects: { rep: 6, moral: 5, trust: 7 }, desc: 'Sauver la situation par le dialogue' },
+      { label: 'Conférence de presse de ton joueur — excuse publique', cost: 3000, effects: { rep: 3, moral: -5, trust: 8 }, desc: 'Coûte de l\'orgueil mais sauve sa CdM' },
+      { label: 'Contester la décision — soutien total', cost: 0, effects: { rep: -5, moral: 8, trust: 5, val: 0.94 }, desc: 'Il t\'aimera pour ça mais ça peut mal finir' },
+      { label: 'Accepter la décision — rentrée anticipée', cost: 0, effects: { rep: 2, moral: -25, trust: -12 }, desc: 'Professionnel mais dévastateur pour lui' },
+    ],
+  },
 ];
 
 export const CHAINED_EVENTS = {
