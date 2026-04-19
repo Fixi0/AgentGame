@@ -15,7 +15,7 @@ const URGENT_TYPES = ['transfer_request', 'raise_request', 'complaint', 'injury_
 export default function Messages({ messages, messageQueue = [], onRespond, onAction, focusThreadKey = null }) {
   const [filter, setFilter] = useState('all');
   const [selectedThreadKey, setSelectedThreadKey] = useState(null);
-  const [mobileScreen, setMobileScreen] = useState('list');
+  const [mobileScreen, setMobileScreen] = useState('thread');
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
   const [visibleCounts, setVisibleCounts] = useState({});
 
@@ -69,7 +69,10 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
         if (filter === 'players') return !thread.isStaff;
         return true;
       })
-      .sort((a, b) => b.latestWeek - a.latestWeek);
+      .sort((a, b) => {
+        if (b.unresolvedCount !== a.unresolvedCount) return b.unresolvedCount - a.unresolvedCount;
+        return b.latestWeek - a.latestWeek;
+      });
   }, [filter, messages]);
 
   useEffect(() => {
@@ -87,12 +90,12 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
 
     setSelectedThreadKey((current) => {
       if (current && threads.some((thread) => thread.key === current)) return current;
-      return threads[0].key;
+      return threads.find((thread) => thread.unresolvedCount > 0)?.key ?? threads[0].key;
     });
   }, [focusThreadKey, threads]);
 
   const selectedThread = threads.find((thread) => thread.key === selectedThreadKey) ?? null;
-  const threadLimit = selectedThread ? (visibleCounts[selectedThread.key] ?? 5) : 5;
+  const threadLimit = selectedThread ? (visibleCounts[selectedThread.key] ?? (isMobile ? 2 : 3)) : 3;
   const visibleThreadItems = selectedThread ? selectedThread.items.slice(Math.max(0, selectedThread.items.length - threadLimit)) : [];
   const queueCounts = getPendingMessageCounts({ messages, messageQueue });
   const showList = !isMobile || mobileScreen === 'list';
@@ -247,6 +250,25 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                   </div>
                 </div>
 
+                {latestPendingMessage && !latestPendingMessage.resolved && (
+                  <div style={S.msgComposer}>
+                    <div style={S.secTitle}>RÉPONDRE MAINTENANT</div>
+                    <div style={S.msgHint}>
+                      {latestPendingMessage.subject} · {getConversationParticipant(latestPendingMessage).label}
+                    </div>
+                    <div style={{ ...S.chatBody, marginBottom: 10 }}>
+                      {latestPendingMessage.body}
+                    </div>
+                    <div style={actionGridStyle}>
+                      {selectedResponseOptions.map((option) => (
+                        <button key={option.id} onClick={() => onRespond(latestPendingMessage.id, option.id)} style={actionBtnStyle}>
+                          {option.label || responseLabels[option.id]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div style={S.chatTimeline}>
                   {visibleThreadItems.map((message) => (
                     <div key={message.id} style={S.chatBlock}>
@@ -282,23 +304,8 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                   </button>
                 )}
 
-                {latestPendingMessage && !latestPendingMessage.resolved && (
-                  <div style={S.msgComposer}>
-                    <div style={S.secTitle}>RÉPONDRE</div>
-                    <div style={S.msgHint}>
-                      {latestPendingMessage.subject} · {getConversationParticipant(latestPendingMessage).label}
-                    </div>
-                    <div style={actionGridStyle}>
-                      {selectedResponseOptions.map((option) => (
-                        <button key={option.id} onClick={() => onRespond(latestPendingMessage.id, option.id)} style={actionBtnStyle}>
-                          {option.label || responseLabels[option.id]}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 <div style={S.emptySmall}>
-                  Une seule réponse à la fois. Le fil reste chronologique, et le bloc de réponse reste toujours en bas pour éviter de chercher où agir.
+                  Le message actif remonte en haut. Tu réponds tout de suite, puis tu gardes l’historique si besoin.
                 </div>
               </>
             ) : (

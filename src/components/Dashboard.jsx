@@ -574,71 +574,21 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           </div>
         ))}
       </div>
-      <div style={S.kpiGrid}>
-        <div style={S.kpiCard}>
-          <div style={S.kpiLabel}>Portefeuille</div>
-          <div style={S.kpiValue}>{formatMoney(portfolioValue)}</div>
-        </div>
-        <div style={S.kpiCard}>
-          <div style={S.kpiLabel}>Cashflow semaine</div>
-          <div style={{ ...S.kpiValue, color: weeklyIncome >= 0 ? '#00a676' : '#b42318' }}>{formatMoney(weeklyIncome)}</div>
-        </div>
-      </div>
-      <div style={S.segmentGrid}>
-        {Object.entries({ sportif: 'Sportif', business: 'Business', media: 'Média', ethique: 'Éthique' }).map(([key, label]) => (
-          <div key={key} style={S.segmentCard}>
-            <div style={S.segmentHead}>
-              <span>{label}</span>
-              <strong>{segments[key] ?? normalizeAgencyReputation(state.reputation)}</strong>
-            </div>
-            <div style={S.progBar}>
-              <div style={{ ...S.progFill, width: `${segments[key] ?? normalizeAgencyReputation(state.reputation)}%`, background: key === 'media' ? '#2f80ed' : key === 'business' ? '#172026' : key === 'ethique' ? '#00a676' : '#3f5663' }} />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div style={S.sumCard}>
-        <SummaryRow label="Blessés" value={injuredCount} />
-        <SummaryRow label="Moral moyen" value={`${averageMoral}/100`} color={averageMoral >= 60 ? '#00a676' : averageMoral >= 40 ? '#8a6f1f' : '#b42318'} />
-        <SummaryRow label="Confiance moyenne" value={`${averageTrust}/100`} color={averageTrust >= 60 ? '#00a676' : averageTrust >= 40 ? '#8a6f1f' : '#b42318'} />
-        <SummaryRow label="Gemmes" value={`${state.gems ?? 0}`} color={(state.gems ?? 0) > 0 ? '#00a676' : '#64727d'} />
-        <SummaryRow label="Crédibilité" value={`${state.credibility ?? 50}/100`} color={(state.credibility ?? 50) >= 60 ? '#00a676' : (state.credibility ?? 50) >= 40 ? '#8a6f1f' : '#b42318'} />
-        <SummaryRow label="Portée marché" value={getMarketReachLabel(state.reputation)} />
-        <SummaryRow label="Capacité agence" value={`${state.roster.length}/${getAgencyCapacity(state.agencyLevel)}`} />
-      </div>
       <div style={S.objCard}>
-        <div style={S.secTitle}>REPUTATION TERRITOIRES</div>
-        {COUNTRIES.slice(0, 5).map((country) => (
-          <div key={country.code} style={S.promiseRow}>
-            <span>{country.flag} {country.label}</span>
-            <strong>{state.countryReputation?.[country.code] ?? state.leagueReputation?.[country.code] ?? 0}/100</strong>
+        <div style={S.secTitle}>FOCUS DU JOUR</div>
+        {[
+          { label: 'Crédibilité', value: `${state.credibility ?? 50}/100` },
+          { label: 'Portée marché', value: getMarketReachLabel(state.reputation) },
+          { label: 'Capacité', value: `${state.roster.length}/${getAgencyCapacity(state.agencyLevel)}` },
+          { label: 'Confiance moyenne', value: `${averageTrust}/100` },
+        ].map((item) => (
+          <div key={item.label} style={S.promiseRow}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
           </div>
         ))}
       </div>
-      <div style={S.objCard}>
-        <div style={S.secTitle}>MEDIAS & PROFILS</div>
-        {MEDIA_RELATION_TEMPLATES.slice(0, 3).map((media) => (
-          <div key={media.id} style={S.promiseRow}>
-            <span>{media.name}</span>
-            <strong>{state.mediaRelations?.[media.id] ?? media.stance}/100</strong>
-          </div>
-        ))}
-        {Object.entries(state.playerSegmentReputation ?? {}).map(([key, value]) => (
-          <div key={key} style={S.promiseRow}>
-            <span>Joueurs {key}</span>
-            <strong>{value}/100</strong>
-          </div>
-        ))}
-      </div>
-      <WorldCupWidget worldCupState={state.worldCupState} />
-      <EuropeanCupWidget roster={state.roster} />
-      <RivalLeaderboard reputation={state.reputation} week={state.week} agencyProfile={state.agencyProfile} />
       <NewspaperFront news={state.news} history={state.history} roster={state.roster} phase={phase} worldCupState={state.worldCupState} onNav={onNav} />
-      <button onClick={onPlay} style={S.primaryBtn}>
-        <Zap size={18} />
-        <span>JOUER LA SEMAINE</span>
-        <ChevronRight size={18} />
-      </button>
       {(marketQueue.length > 0 || urgentMessages.length > 0 || expiringContracts.length > 0 || lowTrustPlayers.length > 0 || competitorThreats.length > 0) && (
         <div style={S.decisionCard}>
           <div style={S.secTitle}>CENTRE DE DECISION</div>
@@ -697,99 +647,6 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
               <span>Relation fragile · {player.firstName} {player.lastName}</span>
               <strong>{player.trust ?? 50}</strong>
             </button>
-          ))}
-        </div>
-      )}
-      {/* NEWS RAPIDES section removed — replaced by NewspaperFront above */}
-      <div style={S.objCard}>
-        <div style={S.secTitle}>
-          <Target size={14} />
-          <span>OBJECTIFS SAISON {phase.season}</span>
-        </div>
-        {(state.seasonObjectives ?? []).map((objective) => {
-          const progress = objective.current ?? 0;
-          const percent = Math.min(100, Math.round((progress / objective.target) * 100));
-
-          return (
-            <div key={objective.id} style={S.objRow}>
-              <div style={S.objLabel}>{objective.label}</div>
-              <div style={S.progBar}>
-                <div style={{ ...S.progFill, width: `${percent}%` }} />
-              </div>
-              <div style={S.objReward}>+{formatMoney(objective.reward)}</div>
-            </div>
-          );
-        })}
-      </div>
-      <div style={S.objCard}>
-        <div style={S.secTitle}>
-          <Target size={14} />
-          <span>OBJECTIFS LONG TERME</span>
-        </div>
-        {(state.agencyGoals ?? []).map((goal) => {
-          const progress = getAgencyGoalProgress(goal, state);
-          const percent = Math.min(100, Math.round((progress / goal.target) * 100));
-          return (
-            <div key={goal.id} style={S.objRow}>
-              <div style={S.objLabel}>{goal.label}</div>
-              <div style={S.progBar}><div style={{ ...S.progFill, width: `${percent}%` }} /></div>
-              <div style={S.objReward}>{progress}/{goal.target}</div>
-            </div>
-          );
-        })}
-      </div>
-      <div style={S.quickActs}>
-        <button onClick={() => onNav('market')} style={S.quickCard}>
-          <UserPlus size={20} color="#00a676" />
-          <div style={S.qLabel}>Recruter</div>
-          <div style={S.qSub}>Marché transferts</div>
-        </button>
-        <button onClick={() => onNav('office')} style={S.quickCard}>
-          <Briefcase size={20} color="#172026" />
-          <div style={S.qLabel}>Agence</div>
-          <div style={S.qSub}>Scouts · avocat · média</div>
-        </button>
-      </div>
-      {activePromises.length > 0 && (
-        <div style={S.promiseCard}>
-          <div style={S.secTitle}>
-            <Target size={14} />
-            <span>PROMESSES ACTIVES</span>
-          </div>
-          {activePromises.slice(0, 4).map((promise) => (
-            <div key={promise.id} style={S.promiseRow}>
-              <span>{promise.playerName} · {promise.label}</span>
-              <strong>S{promise.dueWeek}</strong>
-            </div>
-          ))}
-        </div>
-      )}
-      {suggestions.length > 0 && (
-        <div style={S.suggestionCard}>
-          <div style={S.secTitle}>
-            <Activity size={14} />
-            <span>CONSEILS STRATEGIQUES</span>
-          </div>
-          {suggestions.map((suggestion) => (
-            <div key={suggestion} style={S.suggestionRow}>{suggestion}</div>
-          ))}
-        </div>
-      )}
-      {state.history.length > 0 && (
-        <div style={S.histCard}>
-          <div style={S.secTitle}>
-            <Activity size={14} />
-            <span>BILANS</span>
-          </div>
-          {state.history.slice(-5).reverse().map((historyItem) => (
-            <div key={`${historyItem.week}-${historyItem.net}`} style={S.histRow}>
-              <span style={S.histWeek}>S{historyItem.week}</span>
-              <span style={{ ...S.histNet, color: historyItem.net >= 0 ? '#00a676' : '#b42318' }}>
-                {historyItem.net >= 0 ? '+' : ''}
-                {formatMoney(historyItem.net)}
-              </span>
-              <span style={S.histRep}>Rép. {historyItem.rep}</span>
-            </div>
           ))}
         </div>
       )}
