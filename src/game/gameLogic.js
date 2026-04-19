@@ -43,6 +43,16 @@ import {
   getPlayerSegment,
 } from '../systems/agencyReputationSystem';
 import { generateLivingWeek } from '../systems/livingEventSystem';
+import {
+  applyCompletedTransferToPlayer as applyCompletedTransferToPlayerFromEngine,
+  buildTransferAgreement as buildTransferAgreementFromEngine,
+  normalizeOfferBook as normalizeOfferBookFromEngine,
+} from './transferEngine';
+import {
+  buildWeeklyTimeline as buildWeeklyTimelineFromNarrative,
+  generateWorldSummary as generateWorldSummaryFromNarrative,
+  resolveAnnualCalendarEvents as resolveAnnualCalendarEventsFromNarrative,
+} from './weekNarrative';
 import { clamp, makeId, pick, rand } from '../utils/helpers';
 import { formatMoney } from '../utils/format';
 import { normalizePromises } from '../systems/promiseSystem';
@@ -297,191 +307,6 @@ export const getPhase = (week) => {
 export const generateObjectives = (season) =>
   generateSeasonObjectives({ week: (season - 1) * 38 + 1, reputation: 12 + season * 5 });
 
-const getSeasonAwardMemory = (seasonAwards, season) => ({
-  ...(seasonAwards?.[season] ?? {}),
-});
-
-const scoreAwardCandidate = (player) => {
-  const averageRating = player.seasonStats?.averageRating ?? 6.6;
-  const appearances = player.seasonStats?.appearances ?? 0;
-  const goalImpact = (player.seasonStats?.goals ?? 0) * 4 + (player.seasonStats?.assists ?? 0) * 2;
-  return player.rating * 1.2 + player.form + averageRating * 12 + goalImpact + (player.brandValue ?? 10) + Math.min(appearances, 20);
-};
-
-const getBallonDorWinner = (roster) => {
-  const eligible = roster
-    .filter((player) => player.injured <= 0)
-    .filter((player) => player.rating >= 78 || (player.seasonStats?.averageRating ?? 0) >= 7.4 || (player.brandValue ?? 0) >= 55)
-    .sort((a, b) => scoreAwardCandidate(b) - scoreAwardCandidate(a));
-
-  return eligible[0] ?? null;
-};
-
-const getChampionsLeagueWinner = (leagueTables) => {
-  const rows = Object.values(leagueTables ?? {}).flat();
-  const topClubs = rows
-    .filter((row) => row.played >= 8)
-    .sort((a, b) => (b.points + b.goalDiff * 0.35 + b.goalsFor * 0.08) - (a.points + a.goalDiff * 0.35 + a.goalsFor * 0.08))
-    .slice(0, 12);
-
-  return pick(topClubs.length ? topClubs : rows)?.club ?? pick(CLUBS).name;
-};
-
-const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seasonAwards, week }) => {
-  let nextRoster = roster;
-  const events = [];
-  const news = [];
-  let income = 0;
-  let reputation = 0;
-  const seasonMemory = getSeasonAwardMemory(seasonAwards, phase.season);
-  const nextSeasonMemory = { ...seasonMemory };
-
-  if (phase.seasonWeek === 9 && !seasonMemory.ballonDorShortlist) {
-    const shortlist = getBallonDorWinner(nextRoster);
-    nextSeasonMemory.ballonDorShortlist = shortlist?.id ?? 'world_shortlist';
-    news.push(createManualNewsPost({
-      type: 'media',
-      player: shortlist,
-      week,
-      text: shortlist
-        ? `${shortlist.firstName} ${shortlist.lastName} apparaît dans la liste officielle du Ballon d'Or. La campagne médiatique commence.`
-        : "La liste du Ballon d'Or tombe, mais aucun joueur de l'agence n'est encore assez haut dans la hiérarchie.",
-      reputationImpact: shortlist ? 6 : 0,
-      account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
-    }));
-    if (shortlist) {
-      reputation += scaleReputationDelta(6);
-      income += 12000;
-      events.push({ player: `${shortlist.firstName} ${shortlist.lastName}`, playerId: shortlist.id, label: "Nominé Ballon d'Or", good: true, money: 12000, rep: scaleReputationDelta(6), calendar: true });
-    }
-  }
-
-  if (phase.seasonWeek === 10 && !seasonMemory.ballonDorWinner) {
-    const winner = getBallonDorWinner(nextRoster);
-    const playerWins = winner && scoreAwardCandidate(winner) >= 235;
-    nextSeasonMemory.ballonDorWinner = playerWins ? winner.id : 'world_winner';
-    if (playerWins) {
-      nextRoster = nextRoster.map((player) =>
-        player.id === winner.id
-          ? {
-              ...player,
-              value: Math.floor(player.value * 1.55),
-              moral: clamp(player.moral + 25),
-              trust: clamp((player.trust ?? 50) + 5),
-              brandValue: clamp((player.brandValue ?? 10) + 25, 0, 100),
-              timeline: [
-                { week, type: 'trophee', label: "Ballon d'Or" },
-                ...(player.timeline ?? []),
-              ],
-            }
-          : player,
-      );
-      income += 80000;
-      reputation += scaleReputationDelta(35);
-      events.push({ player: `${winner.firstName} ${winner.lastName}`, playerId: winner.id, label: "Remporte le Ballon d'Or", good: true, money: 80000, rep: scaleReputationDelta(35), calendar: true });
-    }
-    news.push(createManualNewsPost({
-      type: 'media',
-      player: playerWins ? winner : null,
-      week,
-      text: playerWins
-        ? `${winner.firstName} ${winner.lastName} remporte le Ballon d'Or. L'agence change de dimension.`
-        : "Le Ballon d'Or est attribué hors de l'agence. Les standards mondiaux restent très élevés.",
-      reputationImpact: playerWins ? 35 : 0,
-      account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
-    }));
-  }
-
-  if (phase.seasonWeek === 36 && !seasonMemory.championsLeagueWinner) {
-    const club = getChampionsLeagueWinner(leagueTables);
-    nextSeasonMemory.championsLeagueWinner = club;
-    const clubPlayer = nextRoster
-      .filter((player) => player.club === club && player.injured <= 0)
-      .sort((a, b) => scoreAwardCandidate(b) - scoreAwardCandidate(a))[0];
-
-    if (clubPlayer) {
-      nextRoster = nextRoster.map((player) =>
-        player.id === clubPlayer.id
-          ? {
-              ...player,
-              value: Math.floor(player.value * 1.25),
-              moral: clamp(player.moral + 18),
-              brandValue: clamp((player.brandValue ?? 10) + 12, 0, 100),
-              timeline: [
-                { week, type: 'trophee', label: `Ligue des Champions avec ${club}` },
-                ...(player.timeline ?? []),
-              ],
-            }
-          : player,
-      );
-      income += 30000;
-      reputation += scaleReputationDelta(12);
-      events.push({ player: `${clubPlayer.firstName} ${clubPlayer.lastName}`, playerId: clubPlayer.id, label: `Vainqueur de la LDC avec ${club}`, good: true, money: 30000, rep: scaleReputationDelta(12), calendar: true });
-    }
-
-    news.push(createManualNewsPost({
-      type: 'performance',
-      player: clubPlayer,
-      week,
-      text: clubPlayer
-        ? `${club} remporte la Ligue des Champions avec ${clubPlayer.firstName} ${clubPlayer.lastName} dans le groupe.`
-        : `${club} remporte la Ligue des Champions. Une seule équipe soulève le trophée cette saison.`,
-      reputationImpact: clubPlayer ? 12 : 0,
-      account: { name: 'UEFA Match Centre', kind: 'club', icon: 'UC', color: '#2f80ed' },
-    }));
-  }
-
-  return {
-    roster: nextRoster,
-    events,
-    news,
-    income,
-    reputation,
-    seasonAwards: {
-      ...(seasonAwards ?? {}),
-      [phase.season]: nextSeasonMemory,
-    },
-  };
-};
-
-const MATCH_INCIDENT_EVENTS = {
-  clean_sheet: { label: 'Clean sheet', type: 'performance', good: true, rep: 2, money: 1500 },
-  distribution_error: { label: 'Erreur de relance', type: 'performance', good: false, rep: -1, money: -500 },
-  penalty_saved: { label: 'Penalty arrêté', type: 'performance', good: true, rep: 4, money: 2500 },
-  goalkeeper_blunder: { label: 'Boulette du gardien', type: 'performance', good: false, rep: -4, money: -2000 },
-  line_clearance: { label: 'Sauvetage sur la ligne', type: 'performance', good: true, rep: 3, money: 1500 },
-  lost_duel: { label: 'Duel clé perdu', type: 'performance', good: false, rep: -2, money: -1000 },
-  defensive_masterclass: { label: 'Match patron en défense', type: 'performance', good: true, rep: 4, money: 2500 },
-  tempo_control: { label: 'Contrôle du tempo', type: 'performance', good: true, rep: 3, money: 1500 },
-  dangerous_turnover: { label: 'Perte de balle dangereuse', type: 'performance', good: false, rep: -2, money: -1000 },
-  wasteful_finishing: { label: 'Manque de réalisme', type: 'performance', good: false, rep: -2, money: -1000 },
-  disallowed_goal: { label: 'But refusé', type: 'performance', good: false, rep: -1, money: 0 },
-};
-
-const generateWorldSummary = ({ week, phase, worldState }) => {
-  const calmWeek = Math.random() < 0.25 && !phase.mercato && !phase.deadlineDay;
-  if (calmWeek) {
-    return [{
-      type: 'calm',
-      title: 'Semaine calme',
-      text: 'Peu de mouvements majeurs dans le monde du foot. Les clubs observent, les agents préparent leurs dossiers.',
-    }];
-  }
-
-  const pool = [
-    { type: 'match', title: 'Choc européen', text: 'Un grand club européen perd un match important. Plusieurs cadres sont critiqués dans la presse.' },
-    { type: 'injury', title: 'Blessure star', text: 'Une star du continent se blesse. Son club pourrait chercher une solution rapide au mercato.' },
-    { type: 'rumor', title: 'Rumeur marché', text: 'Un insider annonce que plusieurs clubs préparent déjà leur prochain numéro 9.' },
-    { type: 'media', title: 'Débat agents', text: 'Les médias débattent du rôle des agents dans les carrières des jeunes talents.' },
-    { type: 'club', title: 'Président sous pression', text: 'Un président promet de recruter après une série de mauvais résultats.' },
-  ];
-
-  const summary = [pick(pool)];
-  if (phase.mercato) summary.push({ type: 'mercato', title: 'Marché actif', text: `Le mercato ${phase.window} accélère. Les clubs testent plusieurs dossiers avant de formuler des offres.` });
-  if (worldState?.scandal_media) summary.push({ type: 'media', title: 'Presse agressive', text: 'Les journalistes cherchent les histoires sensibles. Les petites phrases peuvent devenir des crises.' });
-  return summary.slice(0, 3).map((item) => ({ ...item, week }));
-};
-
 export const createFreshState = () => ({
   money: 25000,
   gems: 0,
@@ -548,7 +373,6 @@ export const migrateState = (state) => {
   const asArray = (value, fallback = []) => (Array.isArray(value) ? value : fallback);
   const rawReputation = state.reputation ?? 120;
   const reputation = rawReputation <= 100 ? rawReputation * 10 : rawReputation;
-  const repTier = normalizeAgencyReputation(reputation);
   const convertLegacyObjective = (objective) => {
     if (!objective) return objective;
     if (objective.type === 'rep' || objective.type === 'reputation_gain') {
@@ -744,23 +568,6 @@ export const signPlayer = (state, player) => {
   };
 };
 
-export const updateAgencyProfile = (state, profilePatch) => {
-  const isFirstLaunch = !state.agencyProfile?.onboarded && profilePatch.onboarded;
-  const profiledState = isFirstLaunch ? applyStartingProfileToState(state, profilePatch) : state;
-
-  return {
-    state: {
-      ...profiledState,
-      difficulty: profilePatch.difficulty ?? profiledState.difficulty,
-      startProfile: profilePatch.startProfile ?? profiledState.startProfile,
-      agencyProfile: {
-        ...profiledState.agencyProfile,
-        ...profilePatch,
-      },
-    },
-  };
-};
-
 export const refreshMarket = (state) => {
   if (state.money < MARKET_REFRESH_COST) return { state, error: 'Fonds insuffisants' };
 
@@ -772,7 +579,6 @@ export const refreshMarket = (state) => {
     scoutReport: scoutLevel > 0 ? createScoutReport(player, scoutLevel) : null,
   }));
 
-  // Legendary injection — 1.5% chance, requires reputation >= 80, each legend appears max once per save
   const seenIds = state.legendarySeenIds ?? [];
   const availableLegends = LEGENDARY_PLAYERS.filter(
     (l) => !seenIds.includes(l.id) && !state.roster.some((p) => p.id === l.id),
@@ -847,267 +653,21 @@ export const startScoutingMission = (state, countryCode) => {
   };
 };
 
-const buildTransferAgreement = (player, offer, negotiatedOutcome = null) => {
-  const maxPrice = Math.max(1000, Math.floor(Math.max(player?.value ?? 0, offer?.price ?? 0) * 4));
-  const maxSigningBonus = Math.max(3000, Math.floor((player?.weeklySalary ?? 10000) * 30));
-  const maxReleaseClause = Math.max(50000, Math.floor((player?.value ?? 1000000) * 4.5));
-  const minReleaseClause = Math.max(50000, Math.floor((player?.value ?? 1000000) * 0.8));
-  const maxClubBonus = Math.max(5000, Math.floor((player?.weeklySalary ?? 10000) * 24));
-  const finalPrice = clamp(negotiatedOutcome?.price ?? offer.price, 1000, maxPrice);
-  const finalSalaryMultiplier = clamp(negotiatedOutcome?.salMult ?? offer.salMult, 0.9, 3);
-  const signingBonus = clamp(negotiatedOutcome?.signingBonus ?? Math.floor(player.weeklySalary * 8), 3000, maxSigningBonus);
-  const contractWeeks = clamp(negotiatedOutcome?.contractWeeks ?? 150, 52, 260);
-  const clubRole = negotiatedOutcome?.role ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
-  const releaseClause = clamp(negotiatedOutcome?.releaseClause ?? Math.floor(player.value * 1.8), minReleaseClause, maxReleaseClause);
-  const sellOnPercent = clamp(negotiatedOutcome?.sellOnPercent ?? 5, 0, 20);
-  const clubBonusesTotal = clamp(negotiatedOutcome?.clubBonuses?.total ?? Math.floor(player.weeklySalary * 8), 5000, maxClubBonus);
-  const clubBonuses = {
-    total: clubBonusesTotal,
-    goals: Math.floor(clubBonusesTotal * 0.35),
-    appearances: Math.floor(clubBonusesTotal * 0.35),
-    europe: Math.floor(clubBonusesTotal * 0.3),
-  };
-  const contractClausesBase = negotiatedOutcome?.contractClauses ?? {
-    ballonDorBonus: clamp(Math.floor(player.weeklySalary * 16), 0, maxClubBonus),
-    noCutClause: player.age <= 25,
-    coachRoleProtection: true,
-    rolePromise: clubRole,
-  };
-  const contractClauses = {
-    ...contractClausesBase,
-    ballonDorBonus: clamp(contractClausesBase.ballonDorBonus ?? 0, 0, maxClubBonus),
-    noCutClause: Boolean(contractClausesBase.noCutClause),
-    coachRoleProtection: Boolean(contractClausesBase.coachRoleProtection),
-    rolePromise: contractClausesBase.rolePromise ?? clubRole,
-  };
-  const commission = Math.floor(finalPrice * 0.08 + signingBonus * 0.05 + (clubBonuses.total ?? 0) * 0.02);
+export const updateAgencyProfile = (state, profilePatch) => {
+  const isFirstLaunch = !state.agencyProfile?.onboarded && profilePatch.onboarded;
+  const profiledState = isFirstLaunch ? applyStartingProfileToState(state, profilePatch) : state;
+
   return {
-    finalPrice,
-    finalSalaryMultiplier,
-    signingBonus,
-    contractWeeks,
-    clubRole,
-    releaseClause,
-    sellOnPercent,
-    clubBonuses,
-    contractClauses,
-    commission,
+    state: {
+      ...profiledState,
+      difficulty: profilePatch.difficulty ?? profiledState.difficulty,
+      startProfile: profilePatch.startProfile ?? profiledState.startProfile,
+      agencyProfile: {
+        ...profiledState.agencyProfile,
+        ...profilePatch,
+      },
+    },
   };
-};
-
-const applyCompletedTransferToPlayer = (player, offer, agreement, week) => {
-  const targetClub = CLUBS.find((club) => club.name === offer.club);
-  return {
-    ...player,
-    club: offer.club,
-    clubTier: offer.clubTier,
-    clubCountry: offer.clubCountry,
-    clubCountryCode: offer.clubCountryCode ?? targetClub?.countryCode ?? player.clubCountryCode,
-    clubCity: offer.clubCity ?? targetClub?.city ?? player.clubCity,
-    value: Math.floor(player.value * 1.06),
-    weeklySalary: Math.floor(player.weeklySalary * agreement.finalSalaryMultiplier),
-    moral: clamp(player.moral + 10),
-    trust: clamp((player.trust ?? 50) + 5),
-    careerStatus: 'transféré',
-    contractWeeksLeft: agreement.contractWeeks,
-    contractStartWeek: week,
-    signingBonus: agreement.signingBonus ?? 0,
-    clubRole: agreement.clubRole,
-    releaseClause: agreement.releaseClause,
-    sellOnPercent: agreement.sellOnPercent,
-    clubBonuses: agreement.clubBonuses,
-    contractClauses: agreement.contractClauses,
-    lastContractEventWeek: week,
-    freeAgent: false,
-    timeline: [
-      { week, type: 'transfer', label: `${offer.club} · ${agreement.clubRole} · contrat ${Math.round(agreement.contractWeeks / 52)} ans` },
-      ...(player.timeline ?? []),
-    ].slice(0, 18),
-  };
-};
-
-const normalizeOfferBook = (offers = []) => {
-  const latestOpenByPlayer = new Map();
-  const sorted = [...offers].sort((a, b) => (b.week ?? 0) - (a.week ?? 0));
-  return sorted.map((offer) => {
-    if (offer.status !== 'open') return offer;
-    if (!latestOpenByPlayer.has(offer.playerId)) {
-      latestOpenByPlayer.set(offer.playerId, offer.id);
-      return offer;
-    }
-    return { ...offer, status: 'superseded' };
-  });
-};
-
-const buildWeeklyTimeline = ({
-  week,
-  phase,
-  activePeriod,
-  deliveredMessagesCount,
-  queueSize,
-  offerCount,
-  fixtureCount,
-  euroMatchResults = [],
-  worldCupMatchResults = [],
-  messageCount,
-  newsCount,
-  interactiveEvent,
-  contractEvent,
-  topMatch,
-  flopMatch,
-  promiseFailuresCount,
-  leavingPlayersCount,
-  net,
-  bonusMoney,
-  reputationChange,
-}) => {
-  const currentDate = getCalendarSnapshot(week);
-  const activityTone = activePeriod ? `${activePeriod.emoji} ${activePeriod.label}` : phase.phase;
-  const topEuroMatch = [...euroMatchResults].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
-  const topWorldCupMatch = [...worldCupMatchResults].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
-  const worldCupBlock = topWorldCupMatch ? {
-    id: `wc_${topWorldCupMatch.playerId ?? week}`,
-    day: 'Coupe du Monde',
-    icon: '🌍',
-    tone: topWorldCupMatch.isChampion ? 'good' : topWorldCupMatch.isEliminated ? 'danger' : topWorldCupMatch.result === 'win' ? 'warn' : 'info',
-    major: true,
-    kind: 'worldCupMatch',
-    title: `${topWorldCupMatch.countryName} · ${topWorldCupMatch.opponent}`,
-    text: `${topWorldCupMatch.playerName ?? 'Un joueur'} a vécu un match mondial: ${topWorldCupMatch.score}, ${topWorldCupMatch.minutes} min, note ${topWorldCupMatch.matchRating}.`,
-    chips: [
-      topWorldCupMatch.phase ?? 'CdM',
-      topWorldCupMatch.isChampion ? 'Champion du monde' : topWorldCupMatch.isEliminated ? 'Éliminé' : topWorldCupMatch.result === 'win' ? 'Victoire' : topWorldCupMatch.result === 'draw' ? 'Nul' : 'Défaite',
-      topWorldCupMatch.goals > 0 ? `${topWorldCupMatch.goals} but${topWorldCupMatch.goals > 1 ? 's' : ''}` : 'Sans but',
-      topWorldCupMatch.assists > 0 ? `${topWorldCupMatch.assists} passe${topWorldCupMatch.assists > 1 ? 's' : ''}` : 'Sans passe',
-    ],
-    match: topWorldCupMatch,
-  } : null;
-
-  return [
-    {
-      day: 'Lundi',
-      icon: '📅',
-      tone: 'info',
-      title: 'Lancement de la semaine',
-      text: `${currentDate.dateLabel} · ${activityTone}. On remet les dossiers à plat avant que le terrain parle.`,
-      chips: [
-        `${offerCount} offre${offerCount > 1 ? 's' : ''}`,
-        `${queueSize} dossier${queueSize > 1 ? 's' : ''}`,
-        `${deliveredMessagesCount} message${deliveredMessagesCount > 1 ? 's' : ''} livré${deliveredMessagesCount > 1 ? 's' : ''}`,
-      ],
-    },
-    {
-      day: 'Mardi',
-      icon: '💬',
-      tone: deliveredMessagesCount > 0 ? 'good' : 'calm',
-      title: 'Carnet de messages',
-      text: deliveredMessagesCount > 0
-        ? `${deliveredMessagesCount} message prioritaire est arrivé cette semaine. Le reste reste en file pour garder le rythme.`
-        : 'Semaine très calme côté messages. La file reste propre et rien ne se perd.',
-      chips: [
-        `${messageCount} conversation${messageCount > 1 ? 's' : ''}`,
-        `${Math.max(0, queueSize - deliveredMessagesCount)} en attente`,
-      ],
-    },
-    {
-      day: 'Mercredi',
-      icon: '🧭',
-      tone: interactiveEvent || contractEvent ? 'warn' : 'calm',
-      title: 'Dossiers sensibles',
-      text: interactiveEvent
-        ? `Un dossier sensible tombe aujourd'hui: ${interactiveEvent.player?.firstName ?? 'un joueur'} attire toute l'attention.`
-        : contractEvent
-          ? 'La tension monte autour d’un contrat ou d’une promesse. Le dossier doit rester propre.'
-          : 'Aucun gros choc au milieu de semaine. C’est une bonne fenêtre pour gérer les appels et les suivis.',
-      chips: [
-        interactiveEvent ? 'Événement interactif' : 'Suivi calme',
-        contractEvent ? 'Contrat à traiter' : 'Pas de gros blocage',
-      ],
-    },
-    {
-      day: 'Jeudi',
-      icon: '📰',
-      tone: newsCount > 0 ? 'good' : 'calm',
-      title: 'Réseaux et médias',
-      text: newsCount > 0
-        ? `${newsCount} info${newsCount > 1 ? 's' : ''} ont circulé. Une partie du bruit vient du marché, l’autre des résultats.`
-        : 'Peu de bruit médiatique cette semaine. Les réseaux restent stables, la réputation ne bouge pas pour rien.',
-      chips: [
-        `${newsCount} news`,
-        `Crédibilité ${reputationChange >= 0 ? '+' : ''}${reputationChange}`,
-      ],
-    },
-    ...(worldCupBlock ? [worldCupBlock] : []),
-    ...(topEuroMatch ? [{
-      day: 'Europe',
-      icon: EURO_CUP_LABELS[topEuroMatch.competition]?.icon ?? '🏆',
-      tone: topEuroMatch.result === 'win' ? 'good' : topEuroMatch.result === 'loss' ? 'danger' : 'warn',
-      major: true,
-      kind: 'euroMatch',
-      title: `${topEuroMatch.competitionLabel} · ${topEuroMatch.opponent}`,
-      text: `${topEuroMatch.playerName ?? 'Un joueur'} a joué ${topEuroMatch.minutes} min, score ${topEuroMatch.score}, note ${topEuroMatch.matchRating}.`,
-      chips: [
-        topEuroMatch.phase ?? 'Europe',
-        topEuroMatch.goals > 0 ? `${topEuroMatch.goals} but${topEuroMatch.goals > 1 ? 's' : ''}` : 'Sans but',
-        topEuroMatch.assists > 0 ? `${topEuroMatch.assists} passe${topEuroMatch.assists > 1 ? 's' : ''}` : 'Sans passe',
-      ],
-    }] : []),
-    ...(topWorldCupMatch ? [{
-      day: 'CdM',
-      icon: '🌍',
-      tone: topWorldCupMatch.isChampion ? 'good' : topWorldCupMatch.isEliminated ? 'danger' : topWorldCupMatch.result === 'win' ? 'good' : 'warn',
-      title: `${topWorldCupMatch.playerName} · ${topWorldCupMatch.countryName}`,
-      text: `${topWorldCupMatch.phase} face à ${topWorldCupMatch.opponent} : ${topWorldCupMatch.score}, note ${topWorldCupMatch.matchRating}.`,
-      chips: [
-        topWorldCupMatch.isChampion ? 'Champion du monde' : topWorldCupMatch.isEliminated ? 'Éliminé' : topWorldCupMatch.phase,
-        topWorldCupMatch.goals > 0 ? `${topWorldCupMatch.goals} but${topWorldCupMatch.goals > 1 ? 's' : ''}` : 'Sans but',
-        topWorldCupMatch.assists > 0 ? `${topWorldCupMatch.assists} passe${topWorldCupMatch.assists > 1 ? 's' : ''}` : 'Sans passe',
-      ],
-    }] : []),
-    {
-      day: 'Vendredi',
-      icon: '⚽',
-      tone: topMatch ? 'good' : 'calm',
-      title: 'Terrain',
-      text: topMatch
-        ? `${topMatch.playerName} sort du lot avec ${topMatch.matchRating.toFixed(1)} de note face à ${topMatch.opponent}.`
-        : fixtureCount > 0
-          ? `${fixtureCount} affiche${fixtureCount > 1 ? 's' : ''} cette semaine. Le terrain fait la loi sur les stats et les humeurs.`
-          : 'Pas de grosse affiche cette semaine, mais la forme collective se lit quand même dans les dossiers.',
-      chips: [
-        `${fixtureCount} match${fixtureCount > 1 ? 's' : ''}`,
-        flopMatch ? `Flop ${flopMatch.matchRating.toFixed(1)}` : 'Aucun gros flop',
-      ],
-    },
-    {
-      day: 'Samedi',
-      icon: '🧠',
-      tone: promiseFailuresCount > 0 ? 'danger' : 'calm',
-      title: 'Conséquences',
-      text: promiseFailuresCount > 0
-        ? `${promiseFailuresCount} promesse${promiseFailuresCount > 1 ? 's' : ''} cassée${promiseFailuresCount > 1 ? 's' : ''} remontent dans les discussions.`
-        : leavingPlayersCount > 0
-          ? `${leavingPlayersCount} joueur${leavingPlayersCount > 1 ? 's' : ''} commence${leavingPlayersCount > 1 ? 'nt' : ''} à douter de la suite.`
-          : 'Les décisions prises commencent à produire leurs effets. Le dossier reste sous contrôle.',
-      chips: [
-        leavingPlayersCount > 0 ? `${leavingPlayersCount} départ${leavingPlayersCount > 1 ? 's' : ''}` : 'Aucun départ immédiat',
-        bonusMoney > 0 ? `Bonus ${formatMoney(bonusMoney)}` : 'Pas de bonus',
-      ],
-    },
-    {
-      day: 'Dimanche',
-      icon: '📈',
-      tone: net >= 0 ? 'good' : 'danger',
-      title: 'Bilan de la semaine',
-      text: net >= 0
-        ? `Bilan positif de ${formatMoney(net)}. Réputation ${reputationChange >= 0 ? '+' : ''}${reputationChange}, l'agence avance proprement.`
-        : `Semaine à ${formatMoney(net)}. Il faut relancer les dossiers rentables et éviter l'empilement d'urgences.`,
-      chips: [
-        `Revenus ${formatMoney(Math.max(0, bonusMoney))}`,
-        `Contrats ${contractEvent ? 'à surveiller' : 'stables'}`,
-      ],
-    },
-  ];
 };
 
 export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
@@ -1116,7 +676,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
   const player = state.roster.find((item) => item.id === offer.playerId)
     ?? state.freeAgents?.find((item) => item.id === offer.playerId);
   if (!player) return { state, error: 'Joueur introuvable' };
-  const agreement = buildTransferAgreement(player, offer, negotiatedOutcome);
+  const agreement = buildTransferAgreementFromEngine(player, offer, negotiatedOutcome);
   const targetClub = CLUBS.find((club) => club.name === offer.club);
   const phase = getPhase(state.week);
   const closeCompetingOffers = (item) => {
@@ -1228,7 +788,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
 
   const nextRoster = state.roster.map((item) =>
     item.id === offer.playerId
-      ? applyCompletedTransferToPlayer(item, offer, agreement, state.week)
+      ? applyCompletedTransferToPlayerFromEngine(item, offer, agreement, state.week)
       : item,
   );
 
@@ -2347,7 +1907,7 @@ export const playWeek = (state) => {
   const departedPlayerIds = new Set(leavingPlayers.map((player) => player.id));
   const keepsDepartedClean = (item) => !item?.playerId || !departedPlayerIds.has(item.playerId);
   const net = totalIncome - totalCost;
-  const worldSummary = generateWorldSummary({ week: state.week + 1, phase: nextPhase, worldState: state.worldState });
+  const worldSummary = generateWorldSummaryFromNarrative({ week: state.week + 1, phase: nextPhase, worldState: state.worldState });
   let objectives = state.objectives;
   let bonusMoney = 0;
   let bonusReputation = 0;
@@ -2438,7 +1998,7 @@ export const playWeek = (state) => {
     return player;
   });
 
-  const annualCalendar = resolveAnnualCalendarEvents({
+  const annualCalendar = resolveAnnualCalendarEventsFromNarrative({
     roster: finalRoster,
     leagueTables: state.leagueTables ?? createInitialLeagueTables(),
     phase: nextPhase,
@@ -2473,7 +2033,7 @@ export const playWeek = (state) => {
   finalRoster = lockerRoomImpact.roster;
   events.push(...lockerRoomImpact.events);
 
-  const normalizedOfferBook = normalizeOfferBook(state.clubOffers ?? []);
+  const normalizedOfferBook = normalizeOfferBookFromEngine(state.clubOffers ?? []);
   const activeOffers = normalizedOfferBook.filter((offer) => offer.expiresWeek >= state.week && offer.status === 'open');
   const expiredOffers = normalizedOfferBook.map((offer) =>
     offer.status === 'open' && offer.expiresWeek < state.week + 1 ? { ...offer, status: 'expired' } : offer,
@@ -2582,7 +2142,7 @@ export const playWeek = (state) => {
   duePendingTransfers.forEach((transfer) => {
     const playerBeforeMove = finalRoster.find((item) => item.id === transfer.playerId);
     if (!playerBeforeMove) return;
-    const nextPlayer = applyCompletedTransferToPlayer(playerBeforeMove, transfer.offer, transfer.agreement, state.week + 1);
+    const nextPlayer = applyCompletedTransferToPlayerFromEngine(playerBeforeMove, transfer.offer, transfer.agreement, state.week + 1);
     finalRoster = finalRoster.map((item) => (item.id === transfer.playerId ? nextPlayer : item));
     pendingTransferIncome += transfer.agreement.commission;
     pendingTransferReputation += 3;
@@ -2709,7 +2269,7 @@ export const playWeek = (state) => {
     );
   }
 
-  const weekTimeline = buildWeeklyTimeline({
+  const weekTimeline = buildWeeklyTimelineFromNarrative({
     week: state.week + 1,
     phase: nextPhase,
     activePeriod,

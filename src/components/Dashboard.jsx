@@ -82,7 +82,7 @@ function PriorityWidget({ urgentMessages, marketQueue, expiringContracts, onNav,
     });
   }
 
-  const topActions = actions.slice(0, 3);
+  const topActions = actions.slice(0, 2);
 
   return (
     <div style={S.priorityWidget}>

@@ -20,7 +20,7 @@ export default function Dossiers({ state, onOpenPlayer, onClubDetails, onNav }) 
       memory: state.clubMemory?.[club.name] ?? { trust: 50, blocks: 0, lies: 0, promisesBroken: 0, lastWeek: 0 },
     }))
       .sort((a, b) => a.memory.trust - b.memory.trust)
-      .slice(0, 6)
+      .slice(0, 4)
   ), [state.clubMemory]);
 
   const sensitivePlayers = useMemo(() => (
@@ -41,13 +41,13 @@ export default function Dossiers({ state, onOpenPlayer, onClubDetails, onNav }) 
         const order = { danger: 0, warn: 1, neutral: 2, good: 3 };
         return (order[a.status.tone] ?? 2) - (order[b.status.tone] ?? 2);
       })
-      .slice(0, 8)
+      .slice(0, 6)
   ), [state]);
 
-  const queueMessages = (state.messageQueue ?? []).slice(0, 12);
-  const inboxAlerts = (state.messages ?? []).filter(messageNeedsResponse).slice(0, 8);
-  const dossierHistory = (state.decisionHistory ?? []).slice(0, 12);
-  const marketQueue = getMarketOfferQueue(state).filter((offer) => offer.status === 'open').slice(0, 10);
+  const queueMessages = (state.messageQueue ?? []).slice(0, 8);
+  const inboxAlerts = (state.messages ?? []).filter(messageNeedsResponse).slice(0, 6);
+  const dossierHistory = (state.decisionHistory ?? []).slice(0, 8);
+  const marketQueue = getMarketOfferQueue(state).filter((offer) => offer.status === 'open').slice(0, 6);
 
   return (
     <div style={S.vp}>
