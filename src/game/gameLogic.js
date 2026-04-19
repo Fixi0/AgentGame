@@ -907,6 +907,7 @@ const buildWeeklyTimeline = ({
   offerCount,
   fixtureCount,
   euroMatchResults = [],
+  worldCupMatchResults = [],
   messageCount,
   newsCount,
   interactiveEvent,
@@ -922,6 +923,7 @@ const buildWeeklyTimeline = ({
   const currentDate = getCalendarSnapshot(week);
   const activityTone = activePeriod ? `${activePeriod.emoji} ${activePeriod.label}` : phase.phase;
   const topEuroMatch = [...euroMatchResults].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
+  const topWorldCupMatch = [...worldCupMatchResults].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
 
   return [
     {
@@ -987,6 +989,18 @@ const buildWeeklyTimeline = ({
         topEuroMatch.phase ?? 'Europe',
         topEuroMatch.goals > 0 ? `${topEuroMatch.goals} but${topEuroMatch.goals > 1 ? 's' : ''}` : 'Sans but',
         topEuroMatch.assists > 0 ? `${topEuroMatch.assists} passe${topEuroMatch.assists > 1 ? 's' : ''}` : 'Sans passe',
+      ],
+    }] : []),
+    ...(topWorldCupMatch ? [{
+      day: 'CdM',
+      icon: '🌍',
+      tone: topWorldCupMatch.isChampion ? 'good' : topWorldCupMatch.isEliminated ? 'danger' : topWorldCupMatch.result === 'win' ? 'good' : 'warn',
+      title: `${topWorldCupMatch.playerName} · ${topWorldCupMatch.countryName}`,
+      text: `${topWorldCupMatch.phase} face à ${topWorldCupMatch.opponent} : ${topWorldCupMatch.score}, note ${topWorldCupMatch.matchRating}.`,
+      chips: [
+        topWorldCupMatch.isChampion ? 'Champion du monde' : topWorldCupMatch.isEliminated ? 'Éliminé' : topWorldCupMatch.phase,
+        topWorldCupMatch.goals > 0 ? `${topWorldCupMatch.goals} but${topWorldCupMatch.goals > 1 ? 's' : ''}` : 'Sans but',
+        topWorldCupMatch.assists > 0 ? `${topWorldCupMatch.assists} passe${topWorldCupMatch.assists > 1 ? 's' : ''}` : 'Sans passe',
       ],
     }] : []),
     {
@@ -1921,6 +1935,7 @@ export const playWeek = (state) => {
 
   // ── Coupe du Monde ─────────────────────────────────────────────────────────
   let wcState = state.worldCupState;
+  const worldCupMatchResults = [];
 
   // Déclencher la CdM après la fin de la saison 1 (et toutes les 4 saisons ensuite)
   if (phase.seasonWeek === 38 && shouldTriggerWorldCup(phase.season, wcState)) {
@@ -1948,6 +1963,7 @@ export const playWeek = (state) => {
     for (const player of euRoster) {
       const wcMatch = simulateWorldCupMatch(player, wcState.phase, wcState);
       if (!wcMatch) continue;
+      worldCupMatchResults.push(wcMatch);
 
       // Mettre à jour le joueur dans wcState
       wcState = {
@@ -1985,6 +2001,27 @@ export const playWeek = (state) => {
           account: { name: 'Coupe du Monde', kind: 'media', icon: '🌍', color: '#1a1a6e' },
         }));
         reputationChange += scaleReputationDelta(wcNews.reputationImpact);
+        if (wcMatch.isChampion || wcMatch.matchRating >= 8 || wcMatch.goals >= 2) {
+          generatedMessages.push({
+            id: makeId('msg'),
+            week: state.week + 1,
+            sortWeek: state.week + 1 + 0.01,
+            type: wcMatch.isChampion ? 'thanks' : 'national_pride',
+            context: `world_cup:${wcMatch.phase}`,
+            threadKey: player.id,
+            threadLabel: `${player.firstName} ${player.lastName}`,
+            playerId: player.id,
+            playerName: `${player.firstName} ${player.lastName}`,
+            senderRole: 'player',
+            senderName: `${player.firstName} ${player.lastName}`,
+            subject: wcMatch.isChampion ? 'On l\'a fait !' : 'La sélection me booste',
+            body: wcMatch.isChampion
+              ? `On est champions du monde... je n'oublierai jamais ça. Merci d'avoir cru en moi.`
+              : `Cette sélection me donne faim pour la suite. On sent que le niveau monte. Merci pour le suivi.`,
+            read: false,
+            resolved: wcMatch.isChampion,
+          });
+        }
       }
     }
 
@@ -2468,6 +2505,7 @@ export const playWeek = (state) => {
     bonusMoney,
     reputationChange,
     euroMatchResults,
+    worldCupMatchResults,
   });
 
   return {
@@ -2487,6 +2525,7 @@ export const playWeek = (state) => {
       newMessagesCount: deliveredMessages.length,
       matchResults,
       euroMatchResults,
+      worldCupMatchResults,
       fixtures: weeklyFixtures,
       clubOffers: newClubOffers,
       phase: nextPhase,

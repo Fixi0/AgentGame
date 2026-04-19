@@ -15,6 +15,15 @@ export const getStrategicSuggestions = (state) => {
   if (state.segmentReputation?.media < 35) suggestions.push('Recruter un community manager pour limiter les crises publiques.');
   if (unresolvedPromises.length) suggestions.push(`${unresolvedPromises.length} promesse(s) active(s) : surveille les échéances avant qu'elles explosent.`);
   if (state.money > 120000 && state.agencyLevel < 3) suggestions.push("Agrandir l'agence avant de rafraîchir le marché en boucle.");
+  if (state.worldCupState && state.worldCupState.phase !== 'done') {
+    suggestions.push("Suivre la Coupe du Monde de près: une grosse perf peut faire décoller la valeur et les offres.");
+  }
+  if ((state.roster ?? []).some((player) => player.europeanCompetition)) {
+    suggestions.push('Exploiter les coupes européennes: un grand match en Europe change le poids d’un dossier.');
+  }
+  if ((state.roster ?? []).some((player) => player.countryCode && ['FR', 'ES', 'EN', 'DE', 'IT', 'PT'].includes(player.countryCode)) && (state.worldCupState?.phase === 'groupes')) {
+    suggestions.push('Préparer les sélectionnés avant la CdM: la pression et la fatigue peuvent basculer un dossier.');
+  }
 
   return suggestions.slice(0, 4);
 };

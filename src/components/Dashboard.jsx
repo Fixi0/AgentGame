@@ -130,7 +130,7 @@ function getHeadlineFromNews(news, history, roster) {
   return { icon: typeIcon, title: title || 'Semaine agitée', sub, week: headline.week, source: headline.accountName ?? headline.account?.name ?? 'Sources' };
 }
 
-function NewspaperFront({ news, history, roster, phase, onNav }) {
+function NewspaperFront({ news, history, roster, phase, worldCupState, onNav }) {
   const headline = getHeadlineFromNews(news, history, roster);
   // Secondary briefs — mix of news + financial history
   const briefs = [
@@ -139,6 +139,11 @@ function NewspaperFront({ news, history, roster, phase, onNav }) {
       text: (p.text ?? '').slice(0, 70),
       week: p.week,
     })),
+    ...(worldCupState && worldCupState.phase !== 'done' ? [{
+      icon: '🌍',
+      text: `Coupe du Monde ${worldCupState.year} · ${worldCupState.phase.toUpperCase()} · ${worldCupState.selectedPlayers.length} sélectionnés`,
+      week: null,
+    }] : []),
     ...((history ?? []).slice(-2).reverse().map((h) => ({
       icon: h.net >= 0 ? '💰' : '📉',
       text: `Bilan S${h.week} · ${h.net >= 0 ? '+' : ''}${Math.abs(h.net).toLocaleString('fr-FR')} €`,
@@ -471,6 +476,11 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
     { label: 'Offres', value: `${marketQueue.length}`, sub: marketQueue.length ? 'Dossiers à suivre' : 'Aucune offre' },
     { label: 'Promesses', value: `${activePromises.length}`, sub: activePromises.length ? 'Points sensibles' : 'Aucune' },
     { label: 'Réponse attendue', value: `${pendingCounts.awaitingResponse ?? pendingCounts.urgent}`, sub: (pendingCounts.awaitingResponse ?? pendingCounts.urgent) ? 'Dossier chaud' : 'Calme' },
+    ...(state.worldCupState && state.worldCupState.phase !== 'done' ? [{
+      label: 'CdM',
+      value: `${state.worldCupState.phase}`,
+      sub: `${state.worldCupState.selectedPlayers.length} sélectionnés`,
+    }] : []),
   ];
   const todayActions = [
     urgentMessages.length ? { label: 'Répondre', sub: `${urgentMessages.length} message`, action: () => onNav('messages') } : null,
@@ -566,7 +576,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
       <WorldCupWidget worldCupState={state.worldCupState} />
       <EuropeanCupWidget roster={state.roster} />
       <RivalLeaderboard reputation={state.reputation} week={state.week} agencyProfile={state.agencyProfile} />
-      <NewspaperFront news={state.news} history={state.history} roster={state.roster} phase={phase} onNav={onNav} />
+      <NewspaperFront news={state.news} history={state.history} roster={state.roster} phase={phase} worldCupState={state.worldCupState} onNav={onNav} />
       <button onClick={onPlay} style={S.primaryBtn}>
         <Zap size={18} />
         <span>JOUER LA SEMAINE</span>
