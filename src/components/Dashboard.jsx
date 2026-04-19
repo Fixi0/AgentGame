@@ -7,6 +7,8 @@ import { getStrategicSuggestions } from '../systems/suggestionSystem';
 import { getAgencyGoalProgress } from '../systems/agencyGoalsSystem';
 import { MEDIA_RELATION_TEMPLATES } from '../systems/agencyReputationSystem';
 import { getRivalLeaderboard } from '../systems/leaderboardSystem';
+import { EURO_CUP_LABELS } from '../systems/europeanCupSystem';
+import { WC_PHASES, NATIONAL_TEAMS } from '../systems/worldCupSystem';
 import { COUNTRIES } from '../data/clubs';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
@@ -270,6 +272,122 @@ function NewspaperFront({ news, history, roster, phase, onNav }) {
   );
 }
 
+function EuropeanCupWidget({ roster }) {
+  const euPlayers = roster.filter((p) => p.europeanCompetition);
+  if (!euPlayers.length) return null;
+
+  const byComp = euPlayers.reduce((acc, p) => {
+    const comp = p.europeanCompetition;
+    if (!acc[comp]) acc[comp] = [];
+    acc[comp].push(p);
+    return acc;
+  }, {});
+
+  return (
+    <div style={{ ...S.objCard, marginBottom: 16 }}>
+      <div style={{ ...S.secTitle, marginBottom: 8 }}>
+        <span>🏆</span>
+        <span>COUPES EUROPÉENNES</span>
+      </div>
+      {Object.entries(byComp).map(([comp, players]) => {
+        const cup = EURO_CUP_LABELS[comp] ?? { name: comp, short: comp, icon: '⚽', color: '#1a1a6e' };
+        return (
+          <div key={comp} style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: cup.color, letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', marginBottom: 4 }}>
+              {cup.icon} {cup.name}
+            </div>
+            {players.map((p) => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #f0f4f7' }}>
+                <span style={{ fontSize: 11, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>
+                  {p.firstName} {p.lastName}
+                </span>
+                <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
+                  {p.club} · {p.position}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WorldCupWidget({ worldCupState }) {
+  if (!worldCupState || worldCupState.phase === 'done') return null;
+
+  const { year, phase, selectedPlayers } = worldCupState;
+  const phaseIdx = WC_PHASES.indexOf(phase);
+  const champions = selectedPlayers.filter((p) => p.champion);
+  const eliminated = selectedPlayers.filter((p) => p.eliminated);
+  const still_in = selectedPlayers.filter((p) => !p.eliminated && !p.champion);
+  const topScorer = [...selectedPlayers].sort((a, b) => b.goals - a.goals)[0];
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
+      borderRadius: 12,
+      padding: '14px 14px 12px',
+      marginBottom: 16,
+      boxShadow: '0 8px 24px rgba(0,0,0,.25)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 22 }}>🌍</span>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 900, color: '#fff', fontFamily: 'system-ui,sans-serif', letterSpacing: '.05em' }}>
+            COUPE DU MONDE {year}
+          </div>
+          <div style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif' }}>
+            Phase : <strong style={{ color: '#fff' }}>{phase.toUpperCase()}</strong>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress bar de phases */}
+      <div style={{ display: 'flex', gap: 3, marginBottom: 10 }}>
+        {WC_PHASES.map((p, i) => (
+          <div key={p} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= phaseIdx ? '#f5c842' : 'rgba(255,255,255,.2)' }} />
+        ))}
+      </div>
+
+      {selectedPlayers.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif', marginBottom: 4 }}>
+            MES JOUEURS EN SÉLECTION
+          </div>
+          {selectedPlayers.slice(0, 5).map((p) => {
+            const team = NATIONAL_TEAMS.find((t) => t.code === p.countryCode);
+            return (
+              <div key={p.playerId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
+                <span style={{ fontSize: 13 }}>{team?.flag ?? '🌍'}</span>
+                <span style={{ flex: 1, fontSize: 11, color: p.champion ? '#f5c842' : p.eliminated ? '#9aa7b2' : '#fff', fontFamily: 'system-ui,sans-serif', textDecoration: p.eliminated ? 'line-through' : 'none' }}>
+                  {p.playerName}
+                </span>
+                <span style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif' }}>
+                  {p.goals}⚽ {p.assists}🅰️
+                </span>
+                {p.champion && <span style={{ fontSize: 11 }}>🏆</span>}
+                {p.eliminated && !p.champion && <span style={{ fontSize: 11 }}>❌</span>}
+              </div>
+            );
+          })}
+          {selectedPlayers.length > 5 && (
+            <div style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif', marginTop: 4 }}>
+              +{selectedPlayers.length - 5} autres sélectionnés
+            </div>
+          )}
+        </div>
+      )}
+
+      {champions.length > 0 && (
+        <div style={{ marginTop: 8, padding: '6px 8px', background: 'rgba(245,200,66,.15)', borderRadius: 6, fontSize: 11, color: '#f5c842', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>
+          🏆 CHAMPIONS DU MONDE : {champions.map((p) => p.playerName).join(', ')}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RivalLeaderboard({ reputation, week, agencyProfile }) {
   const ranking = getRivalLeaderboard(reputation, week, agencyProfile);
   const playerEntry = ranking.find((r) => r.isPlayer);
@@ -445,6 +563,8 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
           </div>
         ))}
       </div>
+      <WorldCupWidget worldCupState={state.worldCupState} />
+      <EuropeanCupWidget roster={state.roster} />
       <RivalLeaderboard reputation={state.reputation} week={state.week} agencyProfile={state.agencyProfile} />
       <NewspaperFront news={state.news} history={state.history} roster={state.roster} phase={phase} onNav={onNav} />
       <button onClick={onPlay} style={S.primaryBtn}>

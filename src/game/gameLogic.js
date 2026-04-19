@@ -18,6 +18,8 @@ import { createCareerGoal, createScoutReport, updateSeasonStats } from '../syste
 import { evaluatePromises, resolvePromisesForPlayer } from '../systems/promiseSystem';
 import { buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getSeasonContext } from '../systems/seasonSystem';
+import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, EURO_CUP_LABELS } from '../systems/europeanCupSystem';
+import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier } from '../systems/worldCupSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
 import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/consequenceSystem';
 import { awardGems } from '../systems/shopSystem';
@@ -256,6 +258,7 @@ export const generatePlayer = (reputation, scoutLevel = 0, young = false, forced
     hiddenTrait: pick(['clutch_player','locker_room_leader','silent_perfectionist','social_media_magnet','late_bloomer','glass_cannon','mentality_monster','tactical_genius']),
     traitRevealed: false,
     lastInteractionWeek: 0,
+    europeanCompetition: null, // assigned lazily below
     seasonStats: { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
     publicRep: null,  // initialized lazily on first use
   };
@@ -502,6 +505,7 @@ export const createFreshState = () => ({
   pendingChainedEvents: [],
   seasonAwards: {},
   worldState: generateWorldState(1),
+  worldCupState: null,
   contacts: createDefaultContacts(),
   seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 12 }),
   roster: [],
@@ -575,6 +579,7 @@ export const migrateState = (state) => {
     gems: state.gems ?? 0,
     lastInteractiveEventWeek: state.lastInteractiveEventWeek ?? 0,
     legendarySeenIds: state.legendarySeenIds ?? [],
+    worldCupState: state.worldCupState ?? null,
     roster: (state.roster ?? []).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
       const personality = player.personality ?? pick(PERSONALITIES);
@@ -607,6 +612,7 @@ export const migrateState = (state) => {
         hiddenTrait: player.hiddenTrait ?? null,
         traitRevealed: player.traitRevealed ?? false,
         lastInteractionWeek: player.lastInteractionWeek ?? 0,
+        europeanCompetition: player.europeanCompetition ?? getEuropeanCompetition(player),
       };
     }),
     market: (state.market?.length ? state.market : generateMarket(state.reputation ?? 15, state.office?.scoutLevel ?? 0)).map((player) => {
@@ -650,6 +656,7 @@ export const signPlayer = (state, player) => {
     ...player,
     careerGoal: player.careerGoal ?? createCareerGoal(player),
     agentContract: player.agentContract ?? createAgentContract(player),
+    europeanCompetition: player.europeanCompetition ?? getEuropeanCompetition(player),
     timeline: [
       { week: state.week, type: 'signature', label: `Signature avec ${state.agencyProfile?.name ?? 'ton agence'}` },
       ...(player.timeline ?? []),
@@ -1669,10 +1676,134 @@ export const playWeek = (state) => {
     }
   }
 
+  // ── Coupes Européennes ─────────────────────────────────────────────────────
+  const euroMatchResults = [];
+  let euRoster = caredRoster;
+  for (const player of caredRoster) {
+    const comp = player.europeanCompetition ?? getEuropeanCompetition(player);
+    if (!comp) continue;
+    if (!isEuropeanMatchWeek(phase.seasonWeek, comp)) continue;
+    const euroMatch = simulateEuropeanMatch(player, comp, phase.seasonWeek);
+    if (!euroMatch || !euroMatch.matchRating) continue;
+    euroMatchResults.push(euroMatch);
+
+    // Appliquer les effets sur le joueur
+    const euroGoals = euroMatch.goals;
+    const euRating = euroMatch.matchRating;
+    const cup = EURO_CUP_LABELS[comp];
+    euRoster = euRoster.map((p) => p.id === player.id ? {
+      ...p,
+      moral: clamp(p.moral + (euroMatch.result === 'win' ? 3 : euroMatch.result === 'loss' ? -2 : 0) + (euroGoals ? 4 : 0)),
+      form: clamp(p.form + (euRating >= 8 ? 3 : euRating >= 7 ? 1 : euRating < 6 ? -2 : 0), 40, 99),
+      value: Math.floor(p.value * (euroGoals >= 2 ? 1.04 : euroGoals >= 1 ? 1.02 : euRating >= 8 ? 1.015 : 1.0)),
+      seasonStats: {
+        ...(p.seasonStats ?? {}),
+        goals: (p.seasonStats?.goals ?? 0) + euroGoals,
+        assists: (p.seasonStats?.assists ?? 0) + euroMatch.assists,
+        appearances: (p.seasonStats?.appearances ?? 0) + 1,
+      },
+      matchHistory: [{ week: state.week, competition: comp, ...euroMatch }, ...(p.matchHistory ?? [])].slice(0, 12),
+    } : p);
+
+    // News si performance notable
+    const newsData = getEuropeanMatchNews(player, euroMatch);
+    if (newsData) {
+      generatedNews.push(createManualNewsPost({
+        type: newsData.type,
+        player,
+        week: state.week + 1,
+        text: newsData.text,
+        reputationImpact: newsData.reputationImpact,
+        account: { name: cup?.short ?? 'UEFA', kind: 'media', icon: cup?.icon ?? '🏆', color: cup?.color ?? '#1a1a6e' },
+      }));
+      reputationChange += scaleReputationDelta(newsData.reputationImpact);
+    }
+
+    // Event hat_trick_cl — uniquement si match CL et 3+ buts
+    if (comp === 'CL' && euroGoals >= 3) {
+      events.push({ player: `${player.firstName} ${player.lastName}`, playerId: player.id, id: 'hat_trick_cl', label: 'Triplé en Ligue des Champions', good: true, money: 20000, rep: 12, rarity: 'epic' });
+      totalIncome += Math.floor(20000 * EVENT_INCOME_MULT);
+      reputationChange += scaleReputationDelta(12);
+    }
+  }
+
+  // ── Coupe du Monde ─────────────────────────────────────────────────────────
+  let wcState = state.worldCupState;
+
+  // Déclencher la CdM après la fin de la saison 1 (et toutes les 4 saisons ensuite)
+  if (phase.seasonWeek === 38 && shouldTriggerWorldCup(phase.season, wcState)) {
+    wcState = createWorldCupState(phase.season, euRoster);
+    generatedMessages.push({
+      id: makeId('msg'),
+      week: state.week + 1,
+      sortWeek: state.week + 1,
+      type: 'world_cup_start',
+      threadKey: 'world_cup',
+      threadLabel: `Coupe du Monde ${wcState.year}`,
+      playerId: null,
+      playerName: null,
+      senderRole: 'staff',
+      senderName: 'Assistant agence',
+      subject: `🌍 La Coupe du Monde ${wcState.year} commence !`,
+      body: `C'est parti ! La Coupe du Monde ${wcState.year} ouvre ses portes. ${wcState.selectedPlayers.length} de tes joueurs ont été sélectionnés dans leurs équipes nationales. Suis leurs performances pendant les prochaines semaines.`,
+      read: false,
+      resolved: true,
+    });
+  }
+
+  // Simuler la phase CdM en cours (1 semaine = 1 phase de plus)
+  if (wcState && wcState.phase !== 'done') {
+    for (const player of euRoster) {
+      const wcMatch = simulateWorldCupMatch(player, wcState.phase, wcState);
+      if (!wcMatch) continue;
+
+      // Mettre à jour le joueur dans wcState
+      wcState = {
+        ...wcState,
+        selectedPlayers: wcState.selectedPlayers.map((s) => s.playerId === player.id ? {
+          ...s,
+          goals: s.goals + wcMatch.goals,
+          assists: s.assists + wcMatch.assists,
+          avgRating: s.appearances > 0 ? ((s.avgRating * s.appearances) + wcMatch.matchRating) / (s.appearances + 1) : wcMatch.matchRating,
+          appearances: s.appearances + 1,
+          eliminated: s.eliminated || wcMatch.isEliminated,
+          champion: s.champion || wcMatch.isChampion,
+        } : s),
+        results: [...wcState.results, wcMatch].slice(0, 60),
+      };
+
+      // Appliquer impact joueur
+      const valMult = wcMatch.isChampion ? 1.35 : wcMatch.goals >= 2 ? 1.12 : wcMatch.goals >= 1 ? 1.06 : 1.0;
+      euRoster = euRoster.map((p) => p.id === player.id ? {
+        ...p,
+        moral: clamp(p.moral + (wcMatch.result === 'win' ? 5 : wcMatch.isEliminated ? -10 : -2) + (wcMatch.goals ? 6 : 0) + (wcMatch.isChampion ? 25 : 0)),
+        value: Math.floor(p.value * valMult),
+        form: clamp(p.form + (wcMatch.matchRating >= 8 ? 4 : wcMatch.matchRating >= 7 ? 2 : -1), 40, 99),
+      } : p);
+
+      // News
+      const wcNews = getWorldCupMatchNews(player, wcMatch);
+      if (wcNews) {
+        generatedNews.push(createManualNewsPost({
+          type: wcNews.type,
+          player,
+          week: state.week + 1,
+          text: wcNews.text,
+          reputationImpact: wcNews.reputationImpact,
+          account: { name: 'Coupe du Monde', kind: 'media', icon: '🌍', color: '#1a1a6e' },
+        }));
+        reputationChange += scaleReputationDelta(wcNews.reputationImpact);
+      }
+    }
+
+    // Avancer la phase CdM
+    wcState = advanceWorldCupPhase(wcState);
+  }
+
   // Appliquer les événements passifs enchaînés arrivés à maturité
   const pendingChains = state.pendingChainedEvents ?? [];
-  const chainedPassives = processChainedPassiveEvents(pendingChains, caredRoster, state.week + 1);
-  let chainedRoster = caredRoster;
+  const chainedPassives = processChainedPassiveEvents(pendingChains, euRoster, state.week + 1);
+  let chainedRoster = euRoster;
   for (const { player, event } of chainedPassives) {
     const moneyImpact = event.good ? Math.floor(event.money * EVENT_INCOME_MULT) : Math.floor(event.money * mediaReduction);
     const reputationImpact = scaleReputationDelta(event.good ? event.rep : Math.floor(event.rep * mediaReduction));
@@ -2030,6 +2161,7 @@ export const playWeek = (state) => {
     gems: gemRewardState.gems,
     lastInteractiveEventWeek: interactiveEvent ? state.week + 1 : (state.lastInteractiveEventWeek ?? 0),
     worldState: nextWorldState,
+    worldCupState: wcState,
     pendingChainedEvents: updatedPendingChains,
     seasonAwards: annualCalendar.seasonAwards,
     roster: finalRoster,
@@ -2084,10 +2216,12 @@ export const playWeek = (state) => {
       newSeason: nextPhase.seasonWeek === 1 && state.week > 1,
       newMessagesCount: deliveredMessages.length,
       matchResults,
+      euroMatchResults,
       fixtures: weeklyFixtures,
       clubOffers: newClubOffers,
       phase: nextPhase,
       worldSummary,
+      worldCupActive: wcState && wcState.phase !== 'done',
     },
   };
 };

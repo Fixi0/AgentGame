@@ -1,6 +1,7 @@
 import { ArrowUpRight, Handshake, X } from 'lucide-react';
 import React from 'react';
 import { PERSONALITY_LABELS } from '../data/players';
+import { EURO_CUP_LABELS } from '../systems/europeanCupSystem';
 import { getPlayerDossierStatus } from '../systems/dossierSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
@@ -119,6 +120,10 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
               : <span style={{ ...S.notorietyBadge, background: notoriety.bg, color: notoriety.color }}>{notoriety.label}</span>
             }
             {hasMercatoOffer && <span style={S.mercatoBadge}>Offre 🔴</span>}
+            {player.europeanCompetition && (() => {
+              const cup = EURO_CUP_LABELS[player.europeanCompetition];
+              return cup ? <span style={{ fontSize: 9, fontWeight: 800, color: '#fff', background: cup.color, borderRadius: 4, padding: '1px 5px', letterSpacing: '.05em' }}>{cup.icon} {cup.short}</span> : null;
+            })()}
           </div>
 
           <FormDots results={player.recentResults} />
