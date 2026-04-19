@@ -119,6 +119,11 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
     padding: isMobile ? '12px 14px' : S.msgBtn.padding,
     fontSize: isMobile ? 11 : S.msgBtn.fontSize,
   };
+  const selectedResponseOptions = latestPendingMessage?.responseOptions?.length
+    ? latestPendingMessage.responseOptions
+    : latestPendingMessage
+      ? Object.entries(getContextualResponseOptions(latestPendingMessage)).map(([id, label]) => ({ id, label }))
+      : [];
 
   const getDisplayedResponse = (message) => {
     if (message.responseText && !message.responseText.startsWith('Réponse envoyée')) return message.responseText;
@@ -283,63 +288,13 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                     <div style={S.msgHint}>
                       {latestPendingMessage.subject} · {getConversationParticipant(latestPendingMessage).label}
                     </div>
-                    {latestPendingMessage.type === 'media_pressure' && onAction && (
-                      <button
-                        onClick={() => onAction(latestPendingMessage.id, 'media_crisis', latestPendingMessage)}
-                        style={{
-                          ...actionBtnStyle,
-                          background: '#fef2f2',
-                          color: '#dc2626',
-                          border: '1.5px solid #fca5a5',
-                          fontWeight: 900,
-                          marginBottom: 6,
-                          width: '100%',
-                        }}
-                      >
-                        🔥 GÉRER LA CRISE →
-                      </button>
-                    )}
-                    {latestPendingMessage.type === 'injury_worry' && onAction && (
-                      <button
-                        onClick={() => onAction(latestPendingMessage.id, 'player_support', latestPendingMessage)}
-                        style={{
-                          ...actionBtnStyle,
-                          background: '#eff6ff',
-                          color: '#2563eb',
-                          border: '1.5px solid #bfdbfe',
-                          fontWeight: 900,
-                          marginBottom: 6,
-                          width: '100%',
-                        }}
-                      >
-                        💙 SOUTENIR LE JOUEUR →
-                      </button>
-                    )}
-                    {latestPendingMessage.type === 'retirement' && onAction && (
-                      <button
-                        onClick={() => onAction(latestPendingMessage.id, 'retirement', latestPendingMessage)}
-                        style={{
-                          ...actionBtnStyle,
-                          background: '#f5f3ff',
-                          color: '#7c3aed',
-                          border: '1.5px solid #ddd6fe',
-                          fontWeight: 900,
-                          marginBottom: 6,
-                          width: '100%',
-                        }}
-                      >
-                        🎖 DÉCIDER DE L'AVENIR →
-                      </button>
-                    )}
-                    {!['media_pressure', 'retirement'].includes(latestPendingMessage.type) && (
-                      <div style={actionGridStyle}>
-                        {Object.entries(getContextualResponseOptions(latestPendingMessage)).map(([type, label]) => (
-                          <button key={type} onClick={() => onRespond(latestPendingMessage.id, type)} style={actionBtnStyle}>
-                            {label || responseLabels[type]}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <div style={actionGridStyle}>
+                      {selectedResponseOptions.map((option) => (
+                        <button key={option.id} onClick={() => onRespond(latestPendingMessage.id, option.id)} style={actionBtnStyle}>
+                          {option.label || responseLabels[option.id]}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <div style={S.emptySmall}>

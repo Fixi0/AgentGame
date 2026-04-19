@@ -115,6 +115,13 @@ const MESSAGE_TYPES = {
 
 export const createMessage = ({ player, type, week, context, threadKey = null, threadLabel = null, senderRole = 'player', senderName = null }) => {
   const blueprint = pick(MESSAGE_TYPES[type] ?? MESSAGE_TYPES.complaint);
+  const responseSeed = {
+    type,
+    context,
+    senderRole,
+    senderName: senderName ?? `${player.firstName} ${player.lastName}`,
+    playerName: `${player.firstName} ${player.lastName}`,
+  };
 
   return {
     id: makeId('msg'),
@@ -130,6 +137,7 @@ export const createMessage = ({ player, type, week, context, threadKey = null, t
     direction: senderRole === 'staff' ? 'incoming' : 'incoming',
     subject: blueprint.subject,
     body: blueprint.body,
+    responseOptions: buildStoredResponseOptions(responseSeed),
     read: false,
     resolved: false,
   };
@@ -150,6 +158,13 @@ export const createStaffConversationMessage = ({ player, staffName, type, week, 
   direction: 'incoming',
   subject,
   body,
+  responseOptions: buildStoredResponseOptions({
+    type,
+    context,
+    senderRole: 'staff',
+    senderName: staffName,
+    playerName: `${player.firstName} ${player.lastName}`,
+  }),
   read: false,
   resolved: false,
 });
@@ -302,6 +317,9 @@ const RESPONSE_OPTIONS_BY_TYPE = {
   },
 };
 
+const buildStoredResponseOptions = (message) =>
+  Object.entries(getContextualResponseOptions(message)).map(([id, label]) => ({ id, label }));
+
 const isDealContext = (message) => ['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(message?.context);
 
 const getWeeksAtClub = (player, week = 0) => {
@@ -334,13 +352,23 @@ export const getConversationReplyTargetLabel = (message) => {
   return 'au joueur';
 };
 
-export const getMessageResponseOptions = (message) => RESPONSE_OPTIONS_BY_TYPE[message.type] ?? {
-  professionnel: 'Réponse claire',
-  empathique: 'Soutien direct',
-  ferme: 'Cadre strict',
+export const getMessageResponseOptions = (message) => {
+  if (Array.isArray(message?.responseOptions) && message.responseOptions.length) {
+    return Object.fromEntries(message.responseOptions.map((option) => [option.id, option.label]));
+  }
+
+  return RESPONSE_OPTIONS_BY_TYPE[message.type] ?? {
+    professionnel: 'Réponse claire',
+    empathique: 'Soutien direct',
+    ferme: 'Cadre strict',
+  };
 };
 
 export const getContextualResponseOptions = (message) => {
+  if (Array.isArray(message?.responseOptions) && message.responseOptions.length) {
+    return Object.fromEntries(message.responseOptions.map((option) => [option.id, option.label]));
+  }
+
   const participant = getConversationParticipant(message);
   if (participant.role === 'staff') {
     if (participant.audience === 'coach') {
