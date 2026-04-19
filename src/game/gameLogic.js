@@ -2023,6 +2023,7 @@ export const playWeek = (state) => {
         moral: clamp(p.moral + (wcMatch.result === 'win' ? 5 : wcMatch.isEliminated ? -10 : -2) + (wcMatch.goals ? 6 : 0) + (wcMatch.isChampion ? 25 : 0)),
         value: Math.floor(p.value * valMult),
         form: clamp(p.form + (wcMatch.matchRating >= 8 ? 4 : wcMatch.matchRating >= 7 ? 2 : -1), 40, 99),
+        fatigue: clamp((p.fatigue ?? 20) + (wcMatch.isChampion ? 4 : wcMatch.matchRating >= 8 ? 6 : wcMatch.matchRating >= 7 ? 5 : 3), 0, 100),
       } : p);
 
       // News
