@@ -6,6 +6,12 @@ import { S } from '../styles';
 
 const ROLE_OPTIONS = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
 const DURATION_OPTIONS = [1, 2, 3, 4, 5];
+const SIGNING_BONUS_MAX_MULTIPLIER = 30;
+const RELEASE_CLAUSE_MIN_MULTIPLIER = 0.8;
+const RELEASE_CLAUSE_MAX_MULTIPLIER = 4.5;
+const BONUS_PACKAGE_MAX_MULTIPLIER = 24;
+
+const sanitizeMoney = (value, min, max) => Math.max(min, Math.min(max, Math.floor(Number(value) || 0)));
 
 const roleRank = (role) => Math.max(0, ROLE_OPTIONS.indexOf(role));
 
@@ -13,11 +19,15 @@ const getBaseTerms = (offer, player) => ({
   price: offer.price,
   salMult: offer.salMult ?? 1.2,
   role: player.clubRole ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation'),
-  contractYears: player.age <= 22 ? 4 : player.age >= 31 ? 2 : 3,
-  signingBonus: Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * 8)),
-  releaseClause: Math.max(50000, Math.floor((player.value ?? 1000000) * 1.7)),
+  contractYears: clamp(player.age <= 22 ? 4 : player.age >= 31 ? 2 : 3, 1, 5),
+  signingBonus: sanitizeMoney((player.weeklySalary ?? 10000) * 8, 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * SIGNING_BONUS_MAX_MULTIPLIER))),
+  releaseClause: sanitizeMoney(
+    (player.value ?? 1000000) * 1.7,
+    Math.max(50000, Math.floor((player.value ?? 1000000) * RELEASE_CLAUSE_MIN_MULTIPLIER)),
+    Math.max(50000, Math.floor((player.value ?? 1000000) * RELEASE_CLAUSE_MAX_MULTIPLIER)),
+  ),
   sellOnPercent: player.age <= 23 ? 10 : 5,
-  bonusPackage: Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * 10)),
+  bonusPackage: sanitizeMoney((player.weeklySalary ?? 10000) * 10, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * BONUS_PACKAGE_MAX_MULTIPLIER))),
 });
 
 const assessClubReaction = (terms, baseTerms, round, player) => {
@@ -67,27 +77,36 @@ const assessClubReaction = (terms, baseTerms, round, player) => {
   return { accepted, label, roleShifted, durationShifted };
 };
 
-const buildOutcome = (terms) => ({
-  success: true,
-  price: Math.floor(terms.price),
-  salMult: Number(terms.salMult.toFixed(2)),
-  role: terms.role,
-  contractWeeks: terms.contractYears * 52,
-  signingBonus: Math.floor(terms.signingBonus),
-  releaseClause: Math.floor(terms.releaseClause),
-  sellOnPercent: Math.floor(terms.sellOnPercent),
-  clubBonuses: {
-    total: Math.floor(terms.bonusPackage),
-    goals: Math.floor(terms.bonusPackage * 0.35),
-    appearances: Math.floor(terms.bonusPackage * 0.35),
-    europe: Math.floor(terms.bonusPackage * 0.3),
-  },
-  contractClauses: {
-    rolePromise: terms.role,
-    rolePromiseStrength: terms.role === 'Star' ? 'forte' : terms.role === 'Titulaire' ? 'normale' : 'limitée',
-    coachRoleProtection: true,
-  },
-});
+const buildOutcome = (terms, player, offer) => {
+  const maxPrice = Math.max(1000, Math.floor(Math.max(player?.value ?? 0, offer?.price ?? 0) * 4));
+  const maxSigningBonus = Math.max(3000, Math.floor((player?.weeklySalary ?? 10000) * SIGNING_BONUS_MAX_MULTIPLIER));
+  const maxReleaseClause = Math.max(50000, Math.floor((player?.value ?? 1000000) * RELEASE_CLAUSE_MAX_MULTIPLIER));
+  const minReleaseClause = Math.max(50000, Math.floor((player?.value ?? 1000000) * RELEASE_CLAUSE_MIN_MULTIPLIER));
+  const maxBonusPackage = Math.max(5000, Math.floor((player?.weeklySalary ?? 10000) * BONUS_PACKAGE_MAX_MULTIPLIER));
+  const bonusTotal = sanitizeMoney(terms.bonusPackage, 5000, maxBonusPackage);
+
+  return {
+    success: true,
+    price: sanitizeMoney(terms.price, 1000, maxPrice),
+    salMult: Number(clamp(terms.salMult, 0.9, 3).toFixed(2)),
+    role: terms.role,
+    contractWeeks: clamp(Math.round(terms.contractYears) * 52, 52, 260),
+    signingBonus: sanitizeMoney(terms.signingBonus, 3000, maxSigningBonus),
+    releaseClause: sanitizeMoney(terms.releaseClause, minReleaseClause, maxReleaseClause),
+    sellOnPercent: clamp(Math.floor(terms.sellOnPercent), 0, 20),
+    clubBonuses: {
+      total: bonusTotal,
+      goals: Math.floor(bonusTotal * 0.35),
+      appearances: Math.floor(bonusTotal * 0.35),
+      europe: Math.floor(bonusTotal * 0.3),
+    },
+    contractClauses: {
+      rolePromise: terms.role,
+      rolePromiseStrength: terms.role === 'Star' ? 'forte' : terms.role === 'Titulaire' ? 'normale' : 'limitée',
+      coachRoleProtection: true,
+    },
+  };
+};
 
 function SelectPills({ label, values, value, onChange, suffix = '' }) {
   return (
@@ -142,7 +161,17 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
   const statusBg = warningTone ? '#fef2f2' : status.tone === 'warn' ? '#fffbeb' : '#f0fdf8';
 
   const updateField = (key, value) => {
-    setTerms((prev) => ({ ...prev, [key]: value }));
+    const nextValue = (() => {
+      if (key === 'price') return sanitizeMoney(value, 1000, Math.max(1000, Math.floor((offer.price ?? 1000000) * 4)));
+      if (key === 'contractYears') return clamp(Number(value), 1, 5);
+      if (key === 'salMult') return clamp(Number(value), 0.9, 3);
+      if (key === 'signingBonus') return sanitizeMoney(value, 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * SIGNING_BONUS_MAX_MULTIPLIER)));
+      if (key === 'releaseClause') return sanitizeMoney(value, 50000, Math.max(50000, Math.floor((player.value ?? 1000000) * RELEASE_CLAUSE_MAX_MULTIPLIER)));
+      if (key === 'sellOnPercent') return clamp(Math.floor(Number(value)), 0, 25);
+      if (key === 'bonusPackage') return sanitizeMoney(value, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * BONUS_PACKAGE_MAX_MULTIPLIER)));
+      return value;
+    })();
+    setTerms((prev) => ({ ...prev, [key]: nextValue }));
     setStage('draft');
     setStatus({
       tone: 'warn',
@@ -196,7 +225,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
       });
       return;
     }
-    onSign(buildOutcome(terms));
+    onSign(buildOutcome(terms, player, offer));
   };
 
   const signLabel = stage === 'approved' && clubAssessment.accepted ? `Signer ${terms.contractYears} ans` : 'Attendre la réponse du club';
@@ -249,11 +278,11 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
             <div style={S.formGrid}>
               <label style={S.fieldLabel}>
                 Montant
-                <input type="number" min="1000" step="10000" value={terms.price} onChange={(event) => updateField('price', Math.max(1000, Number(event.target.value)))} style={S.textInput} />
+                <input type="number" min="1000" max={Math.max(1000, Math.floor((offer.price ?? 1000000) * 4))} step="10000" value={terms.price} onChange={(event) => updateField('price', Math.max(1000, Number(event.target.value)))} style={S.textInput} />
               </label>
               <label style={S.fieldLabel}>
                 Salaire
-                <input type="number" min="0.9" max="2.8" step="0.01" value={terms.salMult} onChange={(event) => updateField('salMult', clamp(Number(event.target.value), 0.9, 2.8))} style={S.textInput} />
+                <input type="number" min="0.9" max="3" step="0.01" value={terms.salMult} onChange={(event) => updateField('salMult', clamp(Number(event.target.value), 0.9, 3))} style={S.textInput} />
               </label>
             </div>
             <SelectPills label="Rôle" values={ROLE_OPTIONS} value={terms.role} onChange={(role) => updateField('role', role)} />
@@ -261,11 +290,11 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
             <div style={S.formGrid}>
               <label style={S.fieldLabel}>
                 Prime
-                <input type="number" min="0" step="1000" value={terms.signingBonus} onChange={(event) => updateField('signingBonus', Math.max(0, Number(event.target.value)))} style={S.textInput} />
+                <input type="number" min="3000" max={Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * SIGNING_BONUS_MAX_MULTIPLIER))} step="1000" value={terms.signingBonus} onChange={(event) => updateField('signingBonus', Math.max(0, Number(event.target.value)))} style={S.textInput} />
               </label>
               <label style={S.fieldLabel}>
                 Clause
-                <input type="number" min="0" step="10000" value={terms.releaseClause} onChange={(event) => updateField('releaseClause', Math.max(0, Number(event.target.value)))} style={S.textInput} />
+                <input type="number" min="50000" max={Math.max(50000, Math.floor((player.value ?? 1000000) * RELEASE_CLAUSE_MAX_MULTIPLIER))} step="10000" value={terms.releaseClause} onChange={(event) => updateField('releaseClause', Math.max(0, Number(event.target.value)))} style={S.textInput} />
               </label>
               <label style={S.fieldLabel}>
                 Revente %
@@ -273,7 +302,7 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
               </label>
               <label style={S.fieldLabel}>
                 Bonus
-                <input type="number" min="0" step="1000" value={terms.bonusPackage} onChange={(event) => updateField('bonusPackage', Math.max(0, Number(event.target.value)))} style={S.textInput} />
+                <input type="number" min="5000" max={Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * BONUS_PACKAGE_MAX_MULTIPLIER))} step="1000" value={terms.bonusPackage} onChange={(event) => updateField('bonusPackage', Math.max(0, Number(event.target.value)))} style={S.textInput} />
               </label>
             </div>
           </div>

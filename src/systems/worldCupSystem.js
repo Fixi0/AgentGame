@@ -22,7 +22,7 @@ import { rand, makeId } from '../utils/helpers';
 export const NATIONAL_TEAMS = [
   { code: 'FR', flag: '🇫🇷', name: 'France' },
   { code: 'ES', flag: '🇪🇸', name: 'Espagne' },
-  { code: 'EN', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', name: 'Angleterre' },
+  { code: 'EN', flag: '🇬🇧', name: 'Angleterre' },
   { code: 'DE', flag: '🇩🇪', name: 'Allemagne' },
   { code: 'IT', flag: '🇮🇹', name: 'Italie' },
   { code: 'PT', flag: '🇵🇹', name: 'Portugal' },

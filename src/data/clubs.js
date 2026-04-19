@@ -1,7 +1,7 @@
 export const COUNTRIES = [
   { code: 'FR', label: 'France', flag: '🇫🇷', minReputation: 0, marketWeight: 18 },
   { code: 'ES', label: 'Espagne', flag: '🇪🇸', minReputation: 18, marketWeight: 14 },
-  { code: 'GB', label: 'Angleterre', flag: '🏴', minReputation: 22, marketWeight: 14 },
+  { code: 'GB', label: 'Angleterre', flag: '🇬🇧', minReputation: 22, marketWeight: 14 },
   { code: 'DE', label: 'Allemagne', flag: '🇩🇪', minReputation: 24, marketWeight: 12 },
   { code: 'IT', label: 'Italie', flag: '🇮🇹', minReputation: 26, marketWeight: 12 },
   { code: 'NL', label: 'Pays-Bas', flag: '🇳🇱', minReputation: 30, marketWeight: 8 },

@@ -700,7 +700,8 @@ export const migrateState = (state) => {
 
 export const signPlayer = (state, player) => {
   const capacity = getAgencyCapacity(state.agencyLevel);
-  if (state.money < player.signingCost) return { state, error: 'Fonds insuffisants' };
+  const signingCost = clamp(player.signingCost ?? 0, 0, Math.max(50000, Math.floor((player.value ?? 0) * 4)));
+  if (state.money < signingCost) return { state, error: 'Fonds insuffisants' };
   if (state.roster.length >= capacity) return { state, error: `Agence pleine (${capacity} joueurs)` };
   const signedPlayer = {
     ...player,
@@ -717,7 +718,7 @@ export const signPlayer = (state, player) => {
   return {
     state: {
       ...state,
-      money: state.money - player.signingCost,
+      money: state.money - signingCost,
       credibility: applyCredibilityChange(state.credibility, 1),
       playerSegmentReputation: applyPlayerSegmentReputation(state.playerSegmentReputation, getPlayerSegment(signedPlayer), 2),
       countryReputation: applyLeagueReputation(state.countryReputation, signedPlayer.countryCode, 1),
@@ -847,19 +848,37 @@ export const startScoutingMission = (state, countryCode) => {
 };
 
 const buildTransferAgreement = (player, offer, negotiatedOutcome = null) => {
-  const finalPrice = negotiatedOutcome?.price ?? offer.price;
-  const finalSalaryMultiplier = negotiatedOutcome?.salMult ?? offer.salMult;
-  const signingBonus = negotiatedOutcome?.signingBonus ?? Math.floor(player.weeklySalary * 8);
-  const contractWeeks = negotiatedOutcome?.contractWeeks ?? 150;
+  const maxPrice = Math.max(1000, Math.floor(Math.max(player?.value ?? 0, offer?.price ?? 0) * 4));
+  const maxSigningBonus = Math.max(3000, Math.floor((player?.weeklySalary ?? 10000) * 30));
+  const maxReleaseClause = Math.max(50000, Math.floor((player?.value ?? 1000000) * 4.5));
+  const minReleaseClause = Math.max(50000, Math.floor((player?.value ?? 1000000) * 0.8));
+  const maxClubBonus = Math.max(5000, Math.floor((player?.weeklySalary ?? 10000) * 24));
+  const finalPrice = clamp(negotiatedOutcome?.price ?? offer.price, 1000, maxPrice);
+  const finalSalaryMultiplier = clamp(negotiatedOutcome?.salMult ?? offer.salMult, 0.9, 3);
+  const signingBonus = clamp(negotiatedOutcome?.signingBonus ?? Math.floor(player.weeklySalary * 8), 3000, maxSigningBonus);
+  const contractWeeks = clamp(negotiatedOutcome?.contractWeeks ?? 150, 52, 260);
   const clubRole = negotiatedOutcome?.role ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
-  const releaseClause = negotiatedOutcome?.releaseClause ?? Math.floor(player.value * 1.8);
-  const sellOnPercent = negotiatedOutcome?.sellOnPercent ?? 5;
-  const clubBonuses = negotiatedOutcome?.clubBonuses ?? { total: Math.floor(player.weeklySalary * 8) };
-  const contractClauses = negotiatedOutcome?.contractClauses ?? {
-    ballonDorBonus: Math.floor(player.weeklySalary * 16),
+  const releaseClause = clamp(negotiatedOutcome?.releaseClause ?? Math.floor(player.value * 1.8), minReleaseClause, maxReleaseClause);
+  const sellOnPercent = clamp(negotiatedOutcome?.sellOnPercent ?? 5, 0, 20);
+  const clubBonusesTotal = clamp(negotiatedOutcome?.clubBonuses?.total ?? Math.floor(player.weeklySalary * 8), 5000, maxClubBonus);
+  const clubBonuses = {
+    total: clubBonusesTotal,
+    goals: Math.floor(clubBonusesTotal * 0.35),
+    appearances: Math.floor(clubBonusesTotal * 0.35),
+    europe: Math.floor(clubBonusesTotal * 0.3),
+  };
+  const contractClausesBase = negotiatedOutcome?.contractClauses ?? {
+    ballonDorBonus: clamp(Math.floor(player.weeklySalary * 16), 0, maxClubBonus),
     noCutClause: player.age <= 25,
     coachRoleProtection: true,
     rolePromise: clubRole,
+  };
+  const contractClauses = {
+    ...contractClausesBase,
+    ballonDorBonus: clamp(contractClausesBase.ballonDorBonus ?? 0, 0, maxClubBonus),
+    noCutClause: Boolean(contractClausesBase.noCutClause),
+    coachRoleProtection: Boolean(contractClausesBase.coachRoleProtection),
+    rolePromise: contractClausesBase.rolePromise ?? clubRole,
   };
   const commission = Math.floor(finalPrice * 0.08 + signingBonus * 0.05 + (clubBonuses.total ?? 0) * 0.02);
   return {
@@ -2775,17 +2794,34 @@ export const finishNegotiation = (state, type, player, outcome) => {
   const cooldownWeeks = type === 'transfer' ? 4 : 3;
 
   if (type === 'transfer' && outcome.success) {
-    const signingBonus = outcome.signingBonus ?? Math.floor(player.weeklySalary * 8);
-    const contractWeeks = outcome.contractWeeks ?? 150;
+    const maxSigningBonus = Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * 30));
+    const maxReleaseClause = Math.max(50000, Math.floor((player.value ?? 1000000) * 4.5));
+    const minReleaseClause = Math.max(50000, Math.floor((player.value ?? 1000000) * 0.8));
+    const maxClubBonus = Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * 24));
+    const signingBonus = clamp(outcome.signingBonus ?? Math.floor(player.weeklySalary * 8), 3000, maxSigningBonus);
+    const contractWeeks = clamp(outcome.contractWeeks ?? 150, 52, 260);
     const clubRole = outcome.role ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
-    const clubBonuses = outcome.clubBonuses ?? { total: Math.floor(player.weeklySalary * 8) };
-    const contractClauses = outcome.contractClauses ?? {
+    const clubBonusesTotal = clamp(outcome.clubBonuses?.total ?? Math.floor(player.weeklySalary * 8), 5000, maxClubBonus);
+    const clubBonuses = {
+      total: clubBonusesTotal,
+      goals: Math.floor(clubBonusesTotal * 0.35),
+      appearances: Math.floor(clubBonusesTotal * 0.35),
+      europe: Math.floor(clubBonusesTotal * 0.3),
+    };
+    const contractClausesBase = outcome.contractClauses ?? {
       ballonDorBonus: Math.floor(player.weeklySalary * 16),
       noCutClause: player.age <= 25,
       coachRoleProtection: true,
       rolePromise: clubRole,
     };
-    const commission = Math.floor(outcome.price * 0.08 + signingBonus * 0.05 + (clubBonuses.total ?? 0) * 0.02);
+    const contractClauses = {
+      ...contractClausesBase,
+      ballonDorBonus: clamp(contractClausesBase.ballonDorBonus ?? 0, 0, maxClubBonus),
+      noCutClause: Boolean(contractClausesBase.noCutClause),
+      coachRoleProtection: Boolean(contractClausesBase.coachRoleProtection),
+      rolePromise: contractClausesBase.rolePromise ?? clubRole,
+    };
+    const commission = Math.floor(clamp(outcome.price ?? Math.floor(player.value * 0.7), 1000, Math.max(1000, Math.floor(Math.max(player.value ?? 0, outcome.price ?? 0) * 4))) * 0.08 + signingBonus * 0.05 + (clubBonuses.total ?? 0) * 0.02);
     const nextRoster = nextState.roster.map((rosterPlayer) =>
       rosterPlayer.id !== player.id
         ? rosterPlayer
@@ -2803,8 +2839,8 @@ export const finishNegotiation = (state, type, player, outcome) => {
             careerStatus: 'transféré',
             contractWeeksLeft: contractWeeks,
             clubRole,
-            releaseClause: outcome.releaseClause ?? Math.floor(rosterPlayer.value * 1.8),
-            sellOnPercent: outcome.sellOnPercent ?? 5,
+            releaseClause: clamp(outcome.releaseClause ?? Math.floor(rosterPlayer.value * 1.8), minReleaseClause, maxReleaseClause),
+            sellOnPercent: clamp(outcome.sellOnPercent ?? 5, 0, 20),
             clubBonuses,
             contractClauses,
             freeAgent: false,
@@ -2848,17 +2884,34 @@ export const finishNegotiation = (state, type, player, outcome) => {
       clubMemory: recordClubMemory(nextState.clubMemory, player.club, { trust: 2, week: state.week }),
     };
   } else if (type === 'extend' && outcome.success) {
-    const signingBonus = outcome.signingBonus ?? Math.floor(player.weeklySalary * 10);
-    const clubBonuses = outcome.clubBonuses ?? { total: Math.floor(player.weeklySalary * 8) };
-    const contractClauses = outcome.contractClauses ?? {
+    const maxSigningBonus = Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * 30));
+    const maxReleaseClause = Math.max(50000, Math.floor((player.value ?? 1000000) * 4.5));
+    const minReleaseClause = Math.max(50000, Math.floor((player.value ?? 1000000) * 0.8));
+    const maxClubBonus = Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * 24));
+    const clubRole = outcome.role ?? player.clubRole ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
+    const signingBonus = clamp(outcome.signingBonus ?? Math.floor(player.weeklySalary * 10), 3000, maxSigningBonus);
+    const clubBonusesTotal = clamp(outcome.clubBonuses?.total ?? Math.floor(player.weeklySalary * 8), 5000, maxClubBonus);
+    const clubBonuses = {
+      total: clubBonusesTotal,
+      goals: Math.floor(clubBonusesTotal * 0.35),
+      appearances: Math.floor(clubBonusesTotal * 0.35),
+      europe: Math.floor(clubBonusesTotal * 0.3),
+    };
+    const contractClausesBase = outcome.contractClauses ?? {
       ballonDorBonus: Math.floor(player.weeklySalary * 16),
       noCutClause: player.age <= 25,
       coachRoleProtection: true,
       rolePromise: clubRole,
     };
+    const contractClauses = {
+      ...contractClausesBase,
+      ballonDorBonus: clamp(contractClausesBase.ballonDorBonus ?? 0, 0, maxClubBonus),
+      noCutClause: Boolean(contractClausesBase.noCutClause),
+      coachRoleProtection: Boolean(contractClausesBase.coachRoleProtection),
+      rolePromise: contractClausesBase.rolePromise ?? clubRole,
+    };
     const bonus = Math.floor(signingBonus * 0.08 + (clubBonuses.total ?? 0) * 0.02 + player.value * 0.01);
-    const contractWeeks = outcome.contractWeeks ?? 104;
-    const clubRole = outcome.role ?? player.clubRole ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
+    const contractWeeks = clamp(outcome.contractWeeks ?? 104, 52, 260);
     nextState = {
       ...nextState,
       money: nextState.money + bonus,
@@ -2888,8 +2941,8 @@ export const finishNegotiation = (state, type, player, outcome) => {
               contractStartWeek: state.week,
               signingBonus,
               clubRole,
-              releaseClause: outcome.releaseClause ?? rosterPlayer.releaseClause ?? Math.floor(rosterPlayer.value * 1.7),
-              sellOnPercent: outcome.sellOnPercent ?? rosterPlayer.sellOnPercent ?? 5,
+              releaseClause: clamp(outcome.releaseClause ?? rosterPlayer.releaseClause ?? Math.floor(rosterPlayer.value * 1.7), minReleaseClause, maxReleaseClause),
+              sellOnPercent: clamp(outcome.sellOnPercent ?? rosterPlayer.sellOnPercent ?? 5, 0, 20),
               clubBonuses,
               contractClauses,
               lastContractEventWeek: state.week,

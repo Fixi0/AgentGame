@@ -7,6 +7,10 @@ import { pick, rand } from '../../utils/helpers';
 import { S } from '../styles';
 
 const CONTRACT_ROLES = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
+const MAX_SALARY_MULTIPLIER = 3;
+const MAX_SIGNING_BONUS_MULTIPLIER = 30;
+const MAX_RELEASE_CLAUSE_MULTIPLIER = 4.5;
+const MAX_BONUS_PACKAGE_MULTIPLIER = 24;
 
 const getEligibleBuyerTiers = (player) => {
   if (player.rating >= 84 || player.potential >= 90) return [1, 2];
@@ -19,14 +23,14 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
   const [turn, setTurn] = useState(1);
   const [interest, setInterest] = useState(() => 50 + rand(-15, 15) + getNegotiationModifier(player));
   const [offer, setOffer] = useState(() => initialOffer ?? Math.floor(player.value * 0.7));
-  const [salaryMultiplier, setSalaryMultiplier] = useState(initialSalaryMultiplier);
+  const [salaryMultiplier, setSalaryMultiplier] = useState(() => clamp(initialSalaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER));
   const [role, setRole] = useState(() => (player.rating >= 84 ? 'Star' : player.rating >= 74 ? 'Titulaire' : 'Rotation'));
   const [contractYears, setContractYears] = useState(() => (player.age <= 21 ? 4 : player.age >= 31 ? 2 : 3));
-  const [signingBonus, setSigningBonus] = useState(() => Math.max(5000, Math.floor(player.weeklySalary * 8)));
-  const [releaseClause, setReleaseClause] = useState(() => Math.floor(player.value * 1.8));
+  const [signingBonus, setSigningBonus] = useState(() => clamp(Math.max(5000, Math.floor(player.weeklySalary * 8)), 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * MAX_SIGNING_BONUS_MULTIPLIER))));
+  const [releaseClause, setReleaseClause] = useState(() => clamp(Math.floor(player.value * 1.8), 50000, Math.max(50000, Math.floor((player.value ?? 1000000) * MAX_RELEASE_CLAUSE_MULTIPLIER))));
   const [sellOnPercent, setSellOnPercent] = useState(() => (player.age <= 23 ? 10 : 5));
-  const [bonusPackage, setBonusPackage] = useState(() => Math.floor(player.weeklySalary * 12));
-  const [ballonDorBonus, setBallonDorBonus] = useState(() => Math.floor(player.weeklySalary * 18));
+  const [bonusPackage, setBonusPackage] = useState(() => clamp(Math.floor(player.weeklySalary * 12), 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))));
+  const [ballonDorBonus, setBallonDorBonus] = useState(() => clamp(Math.floor(player.weeklySalary * 18), 0, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))));
   const [noCutClause, setNoCutClause] = useState(() => player.age <= 25);
   const [coachRoleProtection, setCoachRoleProtection] = useState(() => true);
   const [log, setLog] = useState([{ type: 'info', message: `Négociation transfert : ${player.firstName} ${player.lastName}` }]);
@@ -63,20 +67,20 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
     clubCountry: suitorCountry.flag,
     clubCountryCode: suitor.countryCode,
     clubCity: suitor.city,
-    salMult: salaryMultiplier,
+    salMult: clamp(salaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER),
     role,
-    contractWeeks: contractYears * 52,
-    signingBonus,
-    releaseClause,
-    sellOnPercent,
+    contractWeeks: clamp(Math.round(contractYears) * 52, 52, 260),
+    signingBonus: clamp(signingBonus, 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * MAX_SIGNING_BONUS_MULTIPLIER))),
+    releaseClause: clamp(releaseClause, 50000, Math.max(50000, Math.floor((player.value ?? 1000000) * MAX_RELEASE_CLAUSE_MULTIPLIER))),
+    sellOnPercent: clamp(Math.floor(sellOnPercent), 0, 25),
     clubBonuses: {
-      total: bonusPackage,
-      goals: Math.floor(bonusPackage * 0.35),
-      appearances: Math.floor(bonusPackage * 0.35),
-      europe: Math.floor(bonusPackage * 0.3),
+      total: clamp(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))),
+      goals: Math.floor(clamp(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))) * 0.35),
+      appearances: Math.floor(clamp(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))) * 0.35),
+      europe: Math.floor(clamp(bonusPackage, 5000, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))) * 0.3),
     },
     contractClauses: {
-      ballonDorBonus,
+      ballonDorBonus: clamp(ballonDorBonus, 0, Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))),
       noCutClause,
       coachRoleProtection,
     },
@@ -385,17 +389,17 @@ function ContractTerms({ role, contractYears, signingBonus, releaseClause, sellO
         </label>
         <label style={S.fieldLabel}>
           Durée
-          <select value={contractYears} onChange={(event) => onYears(Number(event.target.value))} style={S.textInput}>
+          <select value={contractYears} onChange={(event) => onYears(clamp(Number(event.target.value), 1, 5))} style={S.textInput}>
             {[1, 2, 3, 4, 5].map((year) => <option key={year} value={year}>{year} an{year > 1 ? 's' : ''}</option>)}
           </select>
         </label>
         <label style={S.fieldLabel}>
           Prime signature
-          <input type="number" min="0" step="1000" value={signingBonus} onChange={(event) => onBonus(Math.max(0, Number(event.target.value)))} style={S.textInput} />
+          <input type="number" min="3000" max={Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * MAX_SIGNING_BONUS_MULTIPLIER))} step="1000" value={signingBonus} onChange={(event) => onBonus(Math.max(0, Number(event.target.value)))} style={S.textInput} />
         </label>
         <div style={S.fieldLabel}>
           Multiplicateur salaire
-          <div style={{ ...S.textInput, fontWeight: 900, background: '#f0fdf8', color: '#00a676' }}>×{salaryMultiplier.toFixed(2)}</div>
+          <div style={{ ...S.textInput, fontWeight: 900, background: '#f0fdf8', color: '#00a676' }}>×{clamp(salaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER).toFixed(2)}</div>
         </div>
       </div>
 
@@ -412,7 +416,7 @@ function ContractTerms({ role, contractYears, signingBonus, releaseClause, sellO
         <div style={S.formGrid}>
           <label style={S.fieldLabel}>
             Clause libératoire
-            <input type="number" min="0" step="10000" value={releaseClause} onChange={(event) => onReleaseClause(Math.max(0, Number(event.target.value)))} style={S.textInput} />
+            <input type="number" min="50000" max={Math.max(50000, Math.floor((player.value ?? 1000000) * MAX_RELEASE_CLAUSE_MULTIPLIER))} step="10000" value={releaseClause} onChange={(event) => onReleaseClause(Math.max(0, Number(event.target.value)))} style={S.textInput} />
           </label>
           <label style={S.fieldLabel}>
             % revente
@@ -420,11 +424,11 @@ function ContractTerms({ role, contractYears, signingBonus, releaseClause, sellO
           </label>
           <label style={S.fieldLabel}>
             Bonus perf.
-            <input type="number" min="0" step="1000" value={bonusPackage} onChange={(event) => onBonusPackage(Math.max(0, Number(event.target.value)))} style={S.textInput} />
+            <input type="number" min="5000" max={Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))} step="1000" value={bonusPackage} onChange={(event) => onBonusPackage(Math.max(0, Number(event.target.value)))} style={S.textInput} />
           </label>
           <label style={S.fieldLabel}>
             Bonus Ballon d'Or
-            <input type="number" min="0" step="1000" value={ballonDorBonus} onChange={(event) => onBallonDorBonus(Math.max(0, Number(event.target.value)))} style={S.textInput} />
+            <input type="number" min="0" max={Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))} step="1000" value={ballonDorBonus} onChange={(event) => onBallonDorBonus(Math.max(0, Number(event.target.value)))} style={S.textInput} />
           </label>
           <label style={{ ...S.fieldLabel, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <input type="checkbox" checked={noCutClause} onChange={(event) => onNoCutClause(event.target.checked)} />
