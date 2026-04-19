@@ -4,8 +4,10 @@ import { formatMoney } from '../../utils/format';
 import { clamp } from '../../utils/helpers';
 import { S } from '../styles';
 
-const ROLES = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
-const DURATIONS = [1, 2, 3, 4, 5];
+const ROLE_OPTIONS = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
+const DURATION_OPTIONS = [1, 2, 3, 4, 5];
+
+const roleRank = (role) => Math.max(0, ROLE_OPTIONS.indexOf(role));
 
 const getBaseTerms = (offer, player) => ({
   price: offer.price,
@@ -18,12 +20,8 @@ const getBaseTerms = (offer, player) => ({
   bonusPackage: Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * 10)),
 });
 
-const ROLE_ORDER = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
-
-const roleIndex = (role) => Math.max(0, ROLE_ORDER.indexOf(role));
-
-const getClubAssessment = (terms, baseTerms, round, player) => {
-  const roleGap = roleIndex(terms.role) - roleIndex(baseTerms.role);
+const assessClubReaction = (terms, baseTerms, round, player) => {
+  const roleGap = roleRank(terms.role) - roleRank(baseTerms.role);
   const yearsGap = terms.contractYears - baseTerms.contractYears;
   const salaryGap = terms.salMult - baseTerms.salMult;
   const bonusGap = (terms.signingBonus - baseTerms.signingBonus) / Math.max(1, player.weeklySalary ?? 1);
@@ -40,32 +38,30 @@ const getClubAssessment = (terms, baseTerms, round, player) => {
     - Math.max(0, -yearsGap) * 0.05
     - Math.max(0, -salaryGap) * 0.10;
 
-  const patience = 0.24 + (round - 1) * 0.08;
+  const patience = 0.26 + (round - 1) * 0.08;
   const accepted = pressure <= patience;
   const roleShifted = roleGap !== 0;
   const durationShifted = yearsGap !== 0;
 
-  let label = 'Le club écoute sans se prononcer.';
+  let label = 'Le club écoute sans valider.';
   if (accepted) {
     if (roleShifted && durationShifted) {
-      label = 'Le club accepte de discuter le rôle et la durée, mais veut cadrer les derniers détails.';
+      label = 'Le club accepte le principe du rôle et de la durée. Les détails sont prêts à être signés.';
     } else if (roleShifted) {
-      label = 'Le club accepte le principe, mais veut un vrai accord sur le rôle.';
+      label = 'Le club accepte le principe, mais veut verrouiller le rôle.';
     } else if (durationShifted) {
-      label = 'Le club accepte la durée demandée, sous réserve des dernières clauses.';
+      label = 'Le club accepte la durée demandée.';
     } else {
       label = 'Le club valide les termes. Tu peux signer.';
     }
-  } else if (roleIndex(terms.role) >= roleIndex('Star')) {
-    label = 'Le club refuse de promettre un statut Star à ce stade.';
   } else if (roleShifted) {
-    label = `Le club veut ramener le rôle à ${baseTerms.role} ou Titulaire.`;
+    label = `Le club refuse pour l'instant ${terms.role} et veut revenir à ${baseTerms.role}.`;
   } else if (yearsGap > 0) {
-    label = `Le club préfère ${baseTerms.contractYears} ans, pas ${terms.contractYears}.`;
+    label = `Le club préfère ${baseTerms.contractYears} ans au lieu de ${terms.contractYears}.`;
   } else if (salaryGap > 0.1) {
-    label = 'Le club trouve le salaire trop haut et veut une contrepartie.';
+    label = 'Le club trouve le salaire trop élevé et demande un effort.';
   } else {
-    label = 'Le club demande un tour de négociation supplémentaire.';
+    label = 'Le club veut un autre tour de discussion.';
   }
 
   return { accepted, label, roleShifted, durationShifted };
@@ -93,6 +89,39 @@ const buildOutcome = (terms) => ({
   },
 });
 
+function SelectPills({ label, values, value, onChange, suffix = '' }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={S.fieldLabel}>{label}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {values.map((item) => {
+          const active = String(item) === String(value);
+          return (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onChange(item)}
+              style={{
+                border: `1px solid ${active ? '#00a676' : '#d6dde3'}`,
+                background: active ? '#f0fdf8' : '#ffffff',
+                color: active ? '#00a676' : '#172026',
+                borderRadius: 8,
+                padding: '9px 12px',
+                fontSize: 12,
+                fontWeight: 850,
+                cursor: 'pointer',
+                fontFamily: 'system-ui,sans-serif',
+              }}
+            >
+              {item}{suffix}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function OfferContractModal({ offer, player, readiness, onClose, onSign, onReject }) {
   const baseTerms = useMemo(() => getBaseTerms(offer, player), [offer, player]);
   const [terms, setTerms] = useState(() => getBaseTerms(offer, player));
@@ -101,27 +130,26 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
     label: readiness?.reason ?? 'Offre prête.',
   });
   const [round, setRound] = useState(1);
-  const clubAssessment = useMemo(() => getClubAssessment(terms, baseTerms, round, player), [terms, baseTerms, round, player]);
+
+  const clubAssessment = useMemo(
+    () => assessClubReaction(terms, baseTerms, round, player),
+    [terms, baseTerms, round, player],
+  );
 
   const warningTone = status.tone === 'danger';
   const statusColor = warningTone ? '#b42318' : status.tone === 'warn' ? '#b45309' : '#00a676';
   const statusBg = warningTone ? '#fef2f2' : status.tone === 'warn' ? '#fffbeb' : '#f0fdf8';
 
-  const editField = (key, value) => setTerms((prev) => ({ ...prev, [key]: value }));
+  const updateField = (key, value) => setTerms((prev) => ({ ...prev, [key]: value }));
 
   const handleCounter = () => {
     if (clubAssessment.accepted) {
-      setStatus({
-        tone: 'good',
-        label: clubAssessment.label,
-      });
+      setStatus({ tone: 'good', label: clubAssessment.label });
       setRound((value) => Math.min(3, value + 1));
       return;
     }
 
-    const tonedDown = {
-      ...terms,
-    };
+    const tonedDown = { ...terms };
     if (clubAssessment.roleShifted) {
       tonedDown.role = baseTerms.role === 'Star' ? 'Titulaire' : baseTerms.role;
     }
@@ -138,15 +166,14 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
       tonedDown.releaseClause = Math.floor(Math.max(baseTerms.releaseClause, terms.releaseClause * 1.08));
     }
     if (terms.sellOnPercent < baseTerms.sellOnPercent) {
-      tonedDown.sellOnPercent = clamp(baseTerms.sellOnPercent, 0, 25);
+      tonedDown.sellOnPercent = baseTerms.sellOnPercent;
     }
     tonedDown.price = Math.floor(terms.price * 0.97);
+
     setTerms(tonedDown);
     setStatus({
       tone: round >= 3 ? 'danger' : 'warn',
-      label: round >= 3
-        ? `${clubAssessment.label} Dernière chance avant retrait.`
-        : clubAssessment.label,
+      label: round >= 3 ? `${clubAssessment.label} Dernière chance avant retrait.` : clubAssessment.label,
     });
     setRound((value) => Math.min(3, value + 1));
   };
@@ -162,6 +189,8 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
     }
     onSign(buildOutcome(terms));
   };
+
+  const signLabel = clubAssessment.accepted ? `Signer ${terms.contractYears} ans` : 'Attendre la réponse du club';
 
   return (
     <div style={S.overlay}>
@@ -187,39 +216,31 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
             <div style={S.formGrid}>
               <label style={S.fieldLabel}>
                 Montant
-                <input type="number" min="1000" step="10000" value={terms.price} onChange={(event) => editField('price', Math.max(1000, Number(event.target.value)))} style={S.textInput} />
+                <input type="number" min="1000" step="10000" value={terms.price} onChange={(event) => updateField('price', Math.max(1000, Number(event.target.value)))} style={S.textInput} />
               </label>
               <label style={S.fieldLabel}>
                 Salaire
-                <input type="number" min="0.9" max="2.8" step="0.01" value={terms.salMult} onChange={(event) => editField('salMult', clamp(Number(event.target.value), 0.9, 2.8))} style={S.textInput} />
+                <input type="number" min="0.9" max="2.8" step="0.01" value={terms.salMult} onChange={(event) => updateField('salMult', clamp(Number(event.target.value), 0.9, 2.8))} style={S.textInput} />
               </label>
-              <label style={S.fieldLabel}>
-                Rôle
-                <select value={terms.role} onChange={(event) => editField('role', event.target.value)} style={S.textInput}>
-                  {ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
-                </select>
-              </label>
-              <label style={S.fieldLabel}>
-                Durée
-                <select value={terms.contractYears} onChange={(event) => editField('contractYears', Number(event.target.value))} style={S.textInput}>
-                  {DURATIONS.map((year) => <option key={year} value={year}>{year} ans</option>)}
-                </select>
-              </label>
+            </div>
+            <SelectPills label="Rôle" values={ROLE_OPTIONS} value={terms.role} onChange={(role) => updateField('role', role)} />
+            <SelectPills label="Durée" values={DURATION_OPTIONS} value={terms.contractYears} onChange={(years) => updateField('contractYears', years)} suffix=" ans" />
+            <div style={S.formGrid}>
               <label style={S.fieldLabel}>
                 Prime
-                <input type="number" min="0" step="1000" value={terms.signingBonus} onChange={(event) => editField('signingBonus', Math.max(0, Number(event.target.value)))} style={S.textInput} />
+                <input type="number" min="0" step="1000" value={terms.signingBonus} onChange={(event) => updateField('signingBonus', Math.max(0, Number(event.target.value)))} style={S.textInput} />
               </label>
               <label style={S.fieldLabel}>
                 Clause
-                <input type="number" min="0" step="10000" value={terms.releaseClause} onChange={(event) => editField('releaseClause', Math.max(0, Number(event.target.value)))} style={S.textInput} />
+                <input type="number" min="0" step="10000" value={terms.releaseClause} onChange={(event) => updateField('releaseClause', Math.max(0, Number(event.target.value)))} style={S.textInput} />
               </label>
               <label style={S.fieldLabel}>
                 Revente %
-                <input type="number" min="0" max="25" value={terms.sellOnPercent} onChange={(event) => editField('sellOnPercent', clamp(Number(event.target.value), 0, 25))} style={S.textInput} />
+                <input type="number" min="0" max="25" value={terms.sellOnPercent} onChange={(event) => updateField('sellOnPercent', clamp(Number(event.target.value), 0, 25))} style={S.textInput} />
               </label>
               <label style={S.fieldLabel}>
                 Bonus
-                <input type="number" min="0" step="1000" value={terms.bonusPackage} onChange={(event) => editField('bonusPackage', Math.max(0, Number(event.target.value)))} style={S.textInput} />
+                <input type="number" min="0" step="1000" value={terms.bonusPackage} onChange={(event) => updateField('bonusPackage', Math.max(0, Number(event.target.value)))} style={S.textInput} />
               </label>
             </div>
           </div>
@@ -233,22 +254,33 @@ export default function OfferContractModal({ offer, player, readiness, onClose, 
             </div>
             <div style={{ marginTop: 8, fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45 }}>
               {clubAssessment.accepted
-                ? 'Le bouton signer devient logique uniquement quand le club a validé les points sensibles.'
-                : 'Tu dois laisser le club répondre avant de conclure si tu modifies le rôle ou la durée.'}
+                ? 'Le club a validé le rôle et la durée. Tu peux signer sans contradiction.'
+                : 'Le club doit répondre avant signature si tu changes le rôle ou la durée.'}
             </div>
           </div>
 
           <div style={S.choiceList}>
-            <button type="button" onClick={handleSign} style={{ ...S.choiceBtn, borderColor: '#00a676' }}>
+            <button
+              type="button"
+              onClick={handleSign}
+              style={{
+                ...S.choiceBtn,
+                borderColor: clubAssessment.accepted ? '#00a676' : '#d6dde3',
+                opacity: clubAssessment.accepted ? 1 : 0.7,
+              }}
+            >
               <div>
-                <div style={{ ...S.chLabel, color: '#00a676' }}><CheckCircle2 size={14} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />Signer le contrat</div>
+                <div style={{ ...S.chLabel, color: clubAssessment.accepted ? '#00a676' : '#64727d' }}>
+                  <CheckCircle2 size={14} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />
+                  {signLabel}
+                </div>
                 <div style={S.chDesc}>{terms.contractYears} ans · {terms.role} · {formatMoney(terms.price)}</div>
               </div>
             </button>
             <button type="button" onClick={handleCounter} style={S.choiceBtn}>
               <div>
                 <div style={S.chLabel}><RefreshCcw size={14} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />Envoyer une contre-offre</div>
-                <div style={S.chDesc}>Le club répond vraiment au rôle, à la durée et au salaire</div>
+                <div style={S.chDesc}>Le club réagit vraiment au rôle, à la durée et au salaire</div>
               </div>
             </button>
             <button type="button" onClick={onReject} style={{ ...S.choiceBtn, borderColor: '#b42318' }}>

@@ -47,7 +47,7 @@ export default function Dossiers({ state, onOpenPlayer, onClubDetails, onNav }) 
   const queueMessages = (state.messageQueue ?? []).slice(0, 12);
   const inboxAlerts = (state.messages ?? []).filter(messageNeedsResponse).slice(0, 8);
   const dossierHistory = (state.decisionHistory ?? []).slice(0, 12);
-  const marketQueue = getMarketOfferQueue(state).slice(0, 10);
+  const marketQueue = getMarketOfferQueue(state).filter((offer) => offer.status === 'open').slice(0, 10);
 
   return (
     <div style={S.vp}>
