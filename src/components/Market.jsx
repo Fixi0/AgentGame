@@ -30,12 +30,22 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
     setFavoriteIds((current) => (current.includes(playerId) ? current.filter((id) => id !== playerId) : [playerId, ...current]));
   };
 
+  const isFirstRecruit = !state?.roster?.length;
+
   return (
     <div style={S.vp}>
       <div style={S.et}>
         <div style={S.el}>MARCHE DES TRANSFERTS</div>
         <h1 style={S.eh}>Recruter</h1>
       </div>
+      {isFirstRecruit && (
+        <div style={{ background: '#f0fdf8', border: '1px solid #cfeee3', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#00a676', marginBottom: 6 }}>👋 Comment recruter un joueur</div>
+          <div style={{ fontSize: 12, color: '#3f5663', lineHeight: 1.5, fontFamily: 'system-ui,sans-serif' }}>
+            Choisis un joueur, appuie sur <strong>RECRUTER</strong>, puis sélectionne un projet. Commence par des joueurs avec une note entre 65 et 72 — ils sont moins chers et progressent bien.
+          </div>
+        </div>
+      )}
       <button onClick={onRefresh} style={S.secBtn}>
         <Search size={14} /> Rafraîchir · {formatMoney(MARKET_REFRESH_COST)}
       </button>

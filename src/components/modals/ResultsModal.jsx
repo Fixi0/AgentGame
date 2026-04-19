@@ -61,6 +61,9 @@ function MatchScorecard({ match }) {
       {match.matchReport && (
         <div style={{ marginTop: 5, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', fontStyle: 'italic' }}>{match.matchReport}</div>
       )}
+      {match.isFriendly && (
+        <div style={{ marginTop: 4, fontSize: 9, color: '#b45309', fontFamily: 'system-ui,sans-serif', textAlign: 'center', background: '#fffbeb', borderRadius: 4, padding: '2px 6px', display: 'inline-block' }}>Amical</div>
+      )}
       {!match.minutes && (
         <div style={{ marginTop: 4, fontSize: 10, color: '#9aa7b2', fontFamily: 'system-ui,sans-serif', textAlign: 'center' }}>Absent</div>
       )}
@@ -122,8 +125,23 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
             <div style={S.resultsBigSub}>{bigHeadline.sub}</div>
           </div>
 
-          {/* Special banners */}
-          {data.newSeason && <div style={S.newSeason}>🎉 NOUVELLE SAISON {data.bonusMoney > 0 && `· Bonus ${formatMoney(data.bonusMoney)}`}</div>}
+          {/* End of Season / New Season celebration */}
+          {data.newSeason && (
+            <div style={{ background: 'linear-gradient(135deg,#172026,#2c4a30)', borderRadius: 10, padding: '20px 16px', marginBottom: 16, textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: '#f5c842', letterSpacing: '.04em', marginBottom: 6 }}>
+                NOUVELLE SAISON !
+              </div>
+              {data.bonusMoney > 0 && (
+                <div style={{ fontSize: 14, color: '#cfeee3', fontFamily: 'system-ui,sans-serif', marginBottom: 4 }}>
+                  Bonus de saison : <strong>+{formatMoney(data.bonusMoney)}</strong>
+                </div>
+              )}
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', fontFamily: 'system-ui,sans-serif' }}>
+                Une nouvelle saison commence. Nouveaux objectifs, nouveaux défis.
+              </div>
+            </div>
+          )}
           {data.phase?.mercato && (
             <div style={S.newSeason}>
               {data.phase.deadlineDay ? '⚡ DEADLINE DAY' : `🔄 MERCATO ${data.phase.window?.toUpperCase()}`} · Les offres de clubs peuvent arriver
