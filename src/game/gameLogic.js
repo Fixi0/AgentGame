@@ -1562,6 +1562,7 @@ const createChoiceTransferOffer = (state, player, event, choice) => {
 
 export const playWeek = (state) => {
   const office = state.office ?? { scoutLevel: 0, lawyerLevel: 0, mediaLevel: 0 };
+  const phase = getPhase(state.week);
   const events = [];
   const generatedNews = [];
   const generatedMessages = [];
