@@ -102,6 +102,9 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
     || ['coach_dialogue', 'ds_dialogue', 'staff_dialogue'].includes(message.type)
     || message.type === 'secret_offer'
   );
+  const latestPendingMessage = selectedThread
+    ? [...selectedThread.items].reverse().find((message) => messageNeedsResponse(message))
+    : null;
   const threadNeedsResponseCount = (thread) => thread.items.filter(messageNeedsResponse).length;
   const actionGridStyle = {
     ...S.msgActions,
@@ -242,96 +245,21 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                 <div style={S.chatTimeline}>
                   {visibleThreadItems.map((message) => (
                     <div key={message.id} style={S.chatBlock}>
-                      {message.type === 'shortlist_reply' ? (
-                        <div style={S.chatBubbleLeft}>
-                          <div style={S.chatMeta}>{message.senderName ?? message.playerName} · S{message.week}</div>
-                          <div style={S.chatSubject}>{message.subject}</div>
-                          <div style={S.chatBody}>{message.body}</div>
+                      <div style={S.chatBubbleLeft}>
+                        <div style={S.chatMeta}>
+                          {message.senderRole === 'staff'
+                            ? `${message.senderName ?? 'Staff'} · ${getConversationParticipant(message).label} · S${message.week}`
+                            : `${message.senderName ?? message.playerName} · S${message.week}`}
                         </div>
-                      ) : (
-                        <>
-                          <div style={S.chatBubbleLeft}>
-                            <div style={S.chatMeta}>
-                              {message.senderRole === 'staff'
-                                ? `${message.senderName ?? 'Staff'} · ${getConversationParticipant(message).label} · S${message.week}`
-                                : `${message.senderName ?? message.playerName} · S${message.week}`}
-                            </div>
-                            <div style={S.chatSubject}>{message.subject}</div>
-                            <div style={S.chatBody}>{message.body}</div>
-                            {messageNeedsResponse(message) && <div style={S.responseBadgeInline}>Réponse attendue</div>}
-                          </div>
-                          {message.resolved ? (
-                            <div style={S.chatBubbleRight}>
-                              <div style={S.chatMeta}>Réponse {getConversationReplyTargetLabel(message)}</div>
-                              {getDisplayedResponse(message)}
-                            </div>
-                          ) : (
-                            <>
-                              {messageNeedsResponse(message) && (
-                                <div style={S.msgHint}>Une réponse concrète peut déclencher une suite dans le jeu.</div>
-                              )}
-                              {/* Special action CTAs for key message types */}
-                              {message.type === 'media_pressure' && onAction && (
-                                <button
-                                  onClick={() => onAction(message.id, 'media_crisis', message)}
-                                  style={{
-                                    ...actionBtnStyle,
-                                    background: '#fef2f2',
-                                    color: '#dc2626',
-                                    border: '1.5px solid #fca5a5',
-                                    fontWeight: 900,
-                                    marginBottom: 6,
-                                    width: '100%',
-                                  }}
-                                >
-                                  🔥 GÉRER LA CRISE →
-                                </button>
-                              )}
-                              {message.type === 'injury_worry' && onAction && (
-                                <button
-                                  onClick={() => onAction(message.id, 'player_support', message)}
-                                  style={{
-                                    ...actionBtnStyle,
-                                    background: '#eff6ff',
-                                    color: '#2563eb',
-                                    border: '1.5px solid #bfdbfe',
-                                    fontWeight: 900,
-                                    marginBottom: 6,
-                                    width: '100%',
-                                  }}
-                                >
-                                  💙 SOUTENIR LE JOUEUR →
-                                </button>
-                              )}
-                              {message.type === 'retirement' && onAction && (
-                                <button
-                                  onClick={() => onAction(message.id, 'retirement', message)}
-                                  style={{
-                                    ...actionBtnStyle,
-                                    background: '#f5f3ff',
-                                    color: '#7c3aed',
-                                    border: '1.5px solid #ddd6fe',
-                                    fontWeight: 900,
-                                    marginBottom: 6,
-                                    width: '100%',
-                                  }}
-                                >
-                                  🎖 DÉCIDER DE L'AVENIR →
-                                </button>
-                              )}
-                              {/* Hide generic buttons for types handled by dedicated modals */}
-                              {!['media_pressure', 'retirement'].includes(message.type) && (
-                                <div style={actionGridStyle}>
-                                  {Object.entries(getContextualResponseOptions(message)).map(([type, label]) => (
-                                    <button key={type} onClick={() => onRespond(message.id, type)} style={actionBtnStyle}>
-                                      {label || responseLabels[type]}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </>
+                        <div style={S.chatSubject}>{message.subject}</div>
+                        <div style={S.chatBody}>{message.body}</div>
+                        {messageNeedsResponse(message) && <div style={S.responseBadgeInline}>Réponse attendue</div>}
+                      </div>
+                      {message.resolved && (
+                        <div style={S.chatBubbleRight}>
+                          <div style={S.chatMeta}>Réponse {getConversationReplyTargetLabel(message)}</div>
+                          {getDisplayedResponse(message)}
+                        </div>
                       )}
                     </div>
                   ))}
@@ -349,8 +277,73 @@ export default function Messages({ messages, messageQueue = [], onRespond, onAct
                   </button>
                 )}
 
+                {latestPendingMessage && !latestPendingMessage.resolved && (
+                  <div style={S.msgComposer}>
+                    <div style={S.secTitle}>RÉPONDRE</div>
+                    <div style={S.msgHint}>
+                      {latestPendingMessage.subject} · {getConversationParticipant(latestPendingMessage).label}
+                    </div>
+                    {latestPendingMessage.type === 'media_pressure' && onAction && (
+                      <button
+                        onClick={() => onAction(latestPendingMessage.id, 'media_crisis', latestPendingMessage)}
+                        style={{
+                          ...actionBtnStyle,
+                          background: '#fef2f2',
+                          color: '#dc2626',
+                          border: '1.5px solid #fca5a5',
+                          fontWeight: 900,
+                          marginBottom: 6,
+                          width: '100%',
+                        }}
+                      >
+                        🔥 GÉRER LA CRISE →
+                      </button>
+                    )}
+                    {latestPendingMessage.type === 'injury_worry' && onAction && (
+                      <button
+                        onClick={() => onAction(latestPendingMessage.id, 'player_support', latestPendingMessage)}
+                        style={{
+                          ...actionBtnStyle,
+                          background: '#eff6ff',
+                          color: '#2563eb',
+                          border: '1.5px solid #bfdbfe',
+                          fontWeight: 900,
+                          marginBottom: 6,
+                          width: '100%',
+                        }}
+                      >
+                        💙 SOUTENIR LE JOUEUR →
+                      </button>
+                    )}
+                    {latestPendingMessage.type === 'retirement' && onAction && (
+                      <button
+                        onClick={() => onAction(latestPendingMessage.id, 'retirement', latestPendingMessage)}
+                        style={{
+                          ...actionBtnStyle,
+                          background: '#f5f3ff',
+                          color: '#7c3aed',
+                          border: '1.5px solid #ddd6fe',
+                          fontWeight: 900,
+                          marginBottom: 6,
+                          width: '100%',
+                        }}
+                      >
+                        🎖 DÉCIDER DE L'AVENIR →
+                      </button>
+                    )}
+                    {!['media_pressure', 'retirement'].includes(latestPendingMessage.type) && (
+                      <div style={actionGridStyle}>
+                        {Object.entries(getContextualResponseOptions(latestPendingMessage)).map(([type, label]) => (
+                          <button key={type} onClick={() => onRespond(latestPendingMessage.id, type)} style={actionBtnStyle}>
+                            {label || responseLabels[type]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={S.emptySmall}>
-                  La conversation garde le contexte. Les réponses poussent des effets réels sur la confiance, le club et le mercato.
+                  Une seule réponse à la fois. Le fil reste chronologique, et le bloc de réponse reste toujours en bas pour éviter de chercher où agir.
                 </div>
               </>
             ) : (

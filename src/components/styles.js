@@ -175,6 +175,7 @@ export const S = {
   chatMeta: { fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginBottom: 4, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.04em' },
   chatSubject: { fontSize: 13, color: '#172026', fontWeight: 850, marginBottom: 6 },
   chatBody: { fontSize: 13, color: '#3f5663', lineHeight: 1.55, fontFamily: 'system-ui,sans-serif' },
+  msgComposer: { marginTop: 14, background: '#ffffff', border: '1px solid #e5eaf0', borderRadius: 8, padding: 14, boxShadow: '0 14px 34px rgba(15,23,32,.08)' },
   chatEmpty: { minHeight: 280, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: '#64727d', textAlign: 'center' },
   chatEmptyTitle: { fontSize: 16, fontWeight: 900, color: '#172026' },
   chatEmptySub: { fontSize: 12, lineHeight: 1.5, maxWidth: 320, fontFamily: 'system-ui,sans-serif' },
