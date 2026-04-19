@@ -51,8 +51,8 @@ export const getClubMemoryScore = (memory = createDefaultClubMemory(), clubName)
 
 export const getClubMemorySummary = (memory = createDefaultClubMemory(), clubName) => {
   const clubMemory = getClubMemoryBase(memory, clubName);
-  if (clubMemory.promisesBroken >= 3 || clubMemory.blocks >= 4) return 'Méfiance forte';
-  if (clubMemory.promisesBroken > 0 || clubMemory.blocks > 0 || clubMemory.trust < 45) return 'Mémoire tendue';
+  if (clubMemory.promisesBroken >= 3 || clubMemory.blocks >= 4 || clubMemory.lies >= 3) return 'Méfiance forte';
+  if (clubMemory.promisesBroken > 0 || clubMemory.blocks > 0 || clubMemory.lies > 0 || clubMemory.trust < 45) return 'Mémoire tendue';
   if (clubMemory.trust > 60) return 'Mémoire positive';
   return 'Mémoire neutre';
 };

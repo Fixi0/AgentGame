@@ -71,6 +71,30 @@ export const getDossierHeat = (memory = createDefaultDossierMemory(), playerId) 
 export const getRecentDossierEvents = (memory = createDefaultDossierMemory(), playerId, limit = 5) =>
   getDossierEntry(memory, playerId).recent?.slice(0, limit) ?? [];
 
+export const hasDossierEventThisWeek = (memory = createDefaultDossierMemory(), playerId, week = 0) =>
+  getDossierEntry(memory, playerId).lastWeek === week;
+
+export const getDossierHistorySummary = (memory = createDefaultDossierMemory(), playerId) => {
+  const entry = getDossierEntry(memory, playerId);
+  if (!entry.recent?.length) return 'Aucun historique sensible';
+  const last = entry.recent[0];
+  if ((last.impact ?? 0) > 0) return 'Dossier calmé récemment';
+  if ((last.impact ?? 0) < 0) return 'Dossier tendu récemment';
+  return 'Dossier stable récemment';
+};
+
+export const getClubRecentDossierEvents = (memory = createDefaultDossierMemory(), clubName, limit = 5) =>
+  memory?.clubs?.[clubName]?.recent?.slice(0, limit) ?? [];
+
+export const getClubDossierHistorySummary = (memory = createDefaultDossierMemory(), clubName) => {
+  const entry = memory?.clubs?.[clubName];
+  if (!entry?.recent?.length) return 'Aucun historique sensible';
+  const last = entry.recent[0];
+  if ((last.impact ?? 0) > 0) return 'Club plus souple récemment';
+  if ((last.impact ?? 0) < 0) return 'Club plus dur récemment';
+  return 'Club stable récemment';
+};
+
 export const hasRecentDossierEvent = (memory = createDefaultDossierMemory(), playerId, type, cooldownWeeks = 4, week = 0) => {
   const entry = getDossierEntry(memory, playerId);
   const recentMatch = (entry.recent ?? []).find((item) => item.type === type);

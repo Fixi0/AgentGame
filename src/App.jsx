@@ -59,7 +59,7 @@ import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, getNego
 import { applyClubRelation, recordClubMemory } from './systems/clubSystem';
 import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
-import { createMessage, createStaffConversationMessage, getMessageContextOutcome, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
+import { createMessage, createStaffConversationMessage, getConversationParticipant, getMessageContextOutcome, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage, normalizePromises } from './systems/promiseSystem';
 import { getOfferAcceptanceReadiness, getPendingMessageCounts } from './systems/dossierSystem';
 import { recordDossierEvent } from './systems/coherenceSystem';
@@ -106,6 +106,27 @@ const getExtensionReadiness = (state, player) => {
   const contextBonus = getNegotiationContextModifier(state, player, player.club);
   if (Math.random() > 0.65 + contextBonus / 100) return { ok: false, message: "Le club préfère attendre quelques semaines avant de discuter." };
   return { ok: true, type: 'extend' };
+};
+
+const buildResponseContextTail = ({ message, player, responseAction }) => {
+  const participant = getConversationParticipant(message);
+  const dossierLabel = player?.clubRole
+    ? `statut ${player.clubRole}`
+    : player?.careerStatus
+      ? `statut ${player.careerStatus}`
+      : 'statut en cours';
+  const lastAction = responseAction?.label || player?.activeActions?.[0]?.label || player?.timeline?.[0]?.label || null;
+  const targetLabel = participant.role === 'staff'
+    ? participant.audience === 'coach'
+      ? 'coach'
+      : participant.audience === 'ds'
+        ? 'direction'
+        : 'staff'
+    : 'joueur';
+  const threadContext = message?.context ? `contexte ${String(message.context).replace(/_/g, ' ')}` : 'contexte direct';
+  const pieces = [`Réponse alignée avec ${targetLabel}`, threadContext, dossierLabel];
+  if (lastAction) pieces.push(`dernière action: ${lastAction}`);
+  return `\n\n[${pieces.join(' · ')}]`;
 };
 
 const views = {
@@ -586,7 +607,8 @@ export default function FootballAgentGame() {
       const contextOutcome = getMessageContextOutcome({ message, responseType, player: targetPlayer });
       const promise = createPromiseFromMessage({ message, week: current.week, responseType, existingPromises: current.promises });
       const responseAction = contextOutcome.actionOverride ?? getMessageResponseAction(message, responseType);
-      const responseText = contextOutcome.responseTextOverride ?? getResponseCopy(message, responseType, targetPlayer);
+      const responseTextBase = contextOutcome.responseTextOverride ?? getResponseCopy(message, responseType, targetPlayer);
+      const responseText = `${responseTextBase}${buildResponseContextTail({ message, player: targetPlayer, responseAction })}`;
       const baseEffects = responseEffects[responseType] ?? { moral: 0, trust: 0, reputation: 0 };
       const mergedEffects = {
         moral: baseEffects.moral + (contextOutcome.effects?.moral ?? 0),
@@ -1228,6 +1250,7 @@ export default function FootballAgentGame() {
             promises={state.promises}
             clubRelations={state.clubRelations}
             clubMemory={state.clubMemory}
+            dossierMemory={state.dossierMemory}
             decisionHistory={state.decisionHistory}
             pendingTransfers={state.pendingTransfers}
             clubOffers={state.clubOffers}

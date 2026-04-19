@@ -10,9 +10,19 @@ export function createDefaultContacts() {
       bio: "Directeur sportif d'un club de L1. Te donne des infos sur les joueurs qu'ils suivent.",
     },
     {
-      id: 'journaliste', type: 'journaliste', name: 'Sophie Laurent', club: null, country: 'FR',
-      trust: 30, cooldownWeek: 0, specialty: 'media',
-      bio: "Journaliste spécialisée mercato. Peut planter ou booster la réputation d'un joueur.",
+      id: 'journaliste_protecteur', type: 'journaliste', name: 'Sophie Laurent', club: null, country: 'FR',
+      trust: 30, cooldownWeek: 0, specialty: 'media', stance: 'protecteur',
+      bio: 'Journaliste bienveillante. Défend souvent les joueurs et les dossiers bien gérés.',
+    },
+    {
+      id: 'journaliste_neutre', type: 'journaliste', name: 'Nabil Benali', club: null, country: 'FR',
+      trust: 28, cooldownWeek: 0, specialty: 'media', stance: 'neutre',
+      bio: 'Journaliste mercato équilibré. Réagit surtout à la qualité du dossier.',
+    },
+    {
+      id: 'journaliste_agressif', type: 'journaliste', name: 'Camille Roche', club: null, country: 'FR',
+      trust: 22, cooldownWeek: 0, specialty: 'media', stance: 'agressif',
+      bio: 'Journaliste d’enquête. S’attaque facilement aux dossiers fragiles.',
     },
     {
       id: 'scout_afrique', type: 'scout', name: 'Moussa Diallo', club: null, country: 'SN',
@@ -50,11 +60,15 @@ function applyContactResult(state, contact) {
       break;
     }
     case 'journaliste': {
-      const boost = Math.random() < 0.65;
-      const delta = boost ? rand(2, 5) : -rand(1, 3);
+      const stance = contact.stance ?? 'neutre';
+      const boostChance = stance === 'protecteur' ? 0.82 : stance === 'agressif' ? 0.38 : 0.62;
+      const boost = Math.random() < boostChance;
+      const delta = boost
+        ? stance === 'protecteur' ? rand(3, 6) : rand(2, 5)
+        : stance === 'agressif' ? -rand(3, 5) : -rand(1, 3);
       result.message = boost
-        ? `${contact.name} publie un article positif. Réputation +${delta}.`
-        : `${contact.name} sort un papier ambigu. Réputation ${delta}.`;
+        ? `${contact.name} (${stance}) publie un article favorable. Réputation +${delta}.`
+        : `${contact.name} (${stance}) sort un papier dur. Réputation ${delta}.`;
       result.stateDelta = { reputation: (state.reputation ?? 30) + delta };
       if (state.roster?.length > 0) {
         const player = pick(state.roster);
@@ -137,7 +151,9 @@ export function getContactTip(contact, state) {
     case 'ds':
       return highTrust ? `${contact.name} te signale que ${contact.club} cherche un milieu de terrain.` : 'Améliorez votre relation pour débloquer des infos exclusives.';
     case 'journaliste':
-      return rep < 40 ? 'Un article positif pourrait relancer votre image.' : 'Votre profil médiatique est solide, utilisez-le pour des deals.';
+      if (contact.stance === 'protecteur') return rep < 40 ? 'Elle peut relancer ton image avec un papier favorable.' : 'Elle protège souvent les dossiers bien gérés.';
+      if (contact.stance === 'agressif') return 'Il attaque les dossiers fragiles et amplifie les écarts.';
+      return rep < 40 ? 'Un papier équilibré peut stabiliser ta réputation.' : 'Il suit surtout l’évolution du dossier.';
     case 'scout':
       return `Moussa surveille actuellement plusieurs jeunes talents en ${week < 20 ? 'Afrique de l\'Ouest' : 'Afrique Centrale'}.`;
     case 'sponsor':

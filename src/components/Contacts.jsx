@@ -62,6 +62,11 @@ export default function Contacts({ state, onCall }) {
                   {TYPE_LABELS[contact.type]}
                 </span>
               </div>
+              {contact.type === 'journaliste' && (
+                <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+                  Profil {contact.stance ?? 'neutre'}
+                </div>
+              )}
               <div style={S.contactBio}>{contact.bio}</div>
               <div style={S.contactTip}>💡 {tip}</div>
 

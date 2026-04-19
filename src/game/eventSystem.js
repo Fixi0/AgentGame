@@ -2,6 +2,7 @@ import { CHAINED_EVENTS, INTERACTIVE_EVENTS, LOCKER_ROOM_EVENTS, PASSIVE_EVENTS 
 import { PERSONALITY_PROFILES } from '../data/players';
 import { clamp, makeId, pick } from '../utils/helpers';
 import { getWorldStateEventModifier } from '../systems/worldStateSystem';
+import { getDossierHeat } from '../systems/coherenceSystem';
 
 const MATCH_LINKED_EVENTS = new Set([
   'hat_trick', 'mvp', 'brace', 'assist', 'benched', 'bad_form', 'penalty_miss', 'fatigue',
@@ -55,6 +56,20 @@ const getEventChance = (event, player, worldState) => {
   return event.chance * personalityMultiplier * moralMultiplier * ageMultiplier * injuryMultiplier * fatigueMultiplier * rarityMult * worldStateMult;
 };
 
+const pickFragileDossierPlayer = (roster, state = {}) => {
+  const candidates = roster
+    .filter((player) => !player.freeAgent && player.club !== 'Libre')
+    .map((player) => {
+      const trust = player.trust ?? 50;
+      const moral = player.moral ?? 50;
+      const heat = getDossierHeat(state.dossierMemory, player.id);
+      const fragility = (100 - trust) + (100 - moral) + heat;
+      return { player, fragility };
+    })
+    .sort((a, b) => b.fragility - a.fragility);
+  return candidates[0]?.player ?? pick(roster);
+};
+
 // Events that only make sense when the player has a club
 const CLUB_REQUIRED_EVENT_TYPES = new Set(['performance', 'playing_time']);
 const CLUB_REQUIRED_EVENT_IDS = new Set([
@@ -97,7 +112,10 @@ export const applyPassiveEventToPlayer = (player, event) => ({
 export const chooseInteractiveEvent = (roster, context = {}) => {
   if (!roster.length) return null;
 
-  const player = pick(roster);
+  const player = context.pressConference
+    ? (context.topMatch?.playerId && roster.find((item) => item.id === context.topMatch.playerId))
+      || pickFragileDossierPlayer(roster, context)
+    : pick(roster);
   const availableEvents = [...INTERACTIVE_EVENTS, ...LOCKER_ROOM_EVENTS];
   const contextualEvents = availableEvents.filter((event) => {
     if (event.id === 'press_conference_week' && !context.pressConference) return false;
@@ -111,9 +129,9 @@ export const chooseInteractiveEvent = (roster, context = {}) => {
 
   const pressConferenceEvent = contextualEvents.find((event) => event.id === 'press_conference_week');
   if (context.pressConference && pressConferenceEvent) {
-    const target = context.topMatch?.playerId
-      ? roster.find((item) => item.id === context.topMatch.playerId) ?? player
-      : player;
+    const target = context.topMatch?.playerId && roster.find((item) => item.id === context.topMatch.playerId)
+      ? roster.find((item) => item.id === context.topMatch.playerId)
+      : pickFragileDossierPlayer(roster, context);
     return { event: pressConferenceEvent, player: target };
   }
 

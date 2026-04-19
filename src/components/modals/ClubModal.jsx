@@ -3,6 +3,7 @@ import React from 'react';
 import { CLUBS, getCountry } from '../../data/clubs';
 import { getClubProfile } from '../../systems/clubSystem';
 import { getRelevantDecisionHistory } from '../../systems/dossierSystem';
+import { getClubDossierHistorySummary, getClubRecentDossierEvents } from '../../systems/coherenceSystem';
 import { S } from '../styles';
 
 export default function ClubModal({ clubName, relations, clubMemory, decisionHistory = [], onClose }) {
@@ -13,6 +14,8 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
   const profile = getClubProfile(club, relation);
   const memory = clubMemory?.[club.name] ?? { trust: 50, blocks: 0, lies: 0, promisesBroken: 0, lastWeek: 0 };
   const clubDecisions = getRelevantDecisionHistory(decisionHistory, { clubName: club.name }).slice(0, 6);
+  const clubHistory = getClubRecentDossierEvents({ clubs: clubMemory ?? {} }, club.name, 3);
+  const clubHistorySummary = getClubDossierHistorySummary({ clubs: clubMemory ?? {} }, club.name);
   const trustedClubs = CLUBS
     .map((item) => ({
       club: item,
@@ -50,6 +53,15 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
             <div style={S.sumRow}><span style={S.sumK}>Confiance</span><strong>{memory.trust}/100</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Blocages</span><strong>{memory.blocks}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Promesses cassées</span><strong>{memory.promisesBroken}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Historique</span><strong>{clubHistorySummary}</strong></div>
+            {clubHistory.length ? clubHistory.map((entry) => (
+              <div key={entry.id} style={S.promiseRow}>
+                <span>{entry.label}</span>
+                <strong style={{ color: entry.impact > 0 ? '#00a676' : entry.impact < 0 ? '#b42318' : '#64727d' }}>
+                  {entry.impact > 0 ? 'Calmé' : entry.impact < 0 ? 'Tendu' : 'Neutre'}
+                </strong>
+              </div>
+            )) : <div style={S.emptySmall}>Aucun dossier récent sur ce club.</div>}
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>CLUBS QUI TE FONT CONFIANCE</div>

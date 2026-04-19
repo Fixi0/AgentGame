@@ -2,7 +2,7 @@ import { MEDIA_RELATION_TEMPLATES, addDecisionHistory, applyCredibilityChange, a
 import { applyClubRelation } from './clubSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
 import { createMessage } from './messageSystem';
-import { hasRecentDossierEvent, recordDossierEvent } from './coherenceSystem';
+import { hasDossierEventThisWeek, hasRecentDossierEvent, recordDossierEvent } from './coherenceSystem';
 import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
 import { clamp, makeId, pick } from '../utils/helpers';
 
@@ -189,7 +189,8 @@ export const applyNewsConsequences = ({ state, roster, posts, week }) => {
       if ((post.type === 'scandale' || (post.type === 'media' && impact < 0))
           && !hasOpenMediaPressure(state, updatedPlayer.id)
           && getMediaCrisisCooldownWeeks(state, updatedPlayer.id) <= 0
-          && !hasRecentDossierEvent(dossierMemory, updatedPlayer.id, 'media', 4, week)) {
+          && !hasRecentDossierEvent(dossierMemory, updatedPlayer.id, 'media', 4, week)
+          && !hasDossierEventThisWeek(dossierMemory, updatedPlayer.id, week)) {
         messages.push(createMessage({ player: updatedPlayer, type: 'media_pressure', week, context: post.id }));
       } else if (post.trend === 'viral' && impact > 0 && Math.random() < 0.45) {
         messages.push(createMessage({ player: updatedPlayer, type: 'thanks', week, context: post.id }));

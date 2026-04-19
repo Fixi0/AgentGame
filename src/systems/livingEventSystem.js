@@ -4,7 +4,7 @@ import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, applyPl
 import { applyClubRelation } from './clubSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
 import { createNarrativeArc, mergeNarrativeArc } from './consequenceSystem';
-import { hasRecentDossierEvent, recordDossierEvent } from './coherenceSystem';
+import { hasDossierEventThisWeek, hasRecentDossierEvent, recordDossierEvent } from './coherenceSystem';
 import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
 import { clamp, makeId, pick } from '../utils/helpers';
 
@@ -261,6 +261,7 @@ export const generateLivingWeek = ({ state, roster, phase }) => {
     const club = CLUBS.find((item) => item.name === player.club) ?? pick(CLUBS);
     const media = pick(mediaAccounts);
     const rival = pickRivalAgent(rivalAgents);
+    if (hasDossierEventThisWeek(dossierMemory, player.id, state.week + 1)) continue;
     const template = pick(getTemplatePool({ phase, player, state }));
     const text = template.text
       .replaceAll('{player}', `${player.firstName} ${player.lastName}`)

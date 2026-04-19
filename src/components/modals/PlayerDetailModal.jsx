@@ -3,7 +3,8 @@ import { X } from 'lucide-react';
 import { PERSONALITY_LABELS } from '../../data/players';
 import { getCareerGoalProgress } from '../../systems/playerDevelopmentSystem';
 import { getClubMemorySummary } from '../../systems/clubSystem';
-import { getPlayerDossierStatus, getRelevantDecisionHistory, messageNeedsResponse } from '../../systems/dossierSystem';
+import { getDossierHistorySummary, getRecentDossierEvents } from '../../systems/coherenceSystem';
+import { getPlayerDossierStatus, getRelevantDecisionHistory as getDecisionHistoryByPlayer, messageNeedsResponse } from '../../systems/dossierSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
@@ -21,7 +22,7 @@ const weekToLabel = (week) => {
   return `${MONTHS[monthIdx]} S${season}`;
 };
 
-export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
+export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
   const [tab, setTab] = useState('profile');
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
   const playerPromises = (promises ?? []).filter((promise) => promise.playerId === player.id && !promise.resolved && !promise.failed);
@@ -34,9 +35,12 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
   const clubTension = Math.max(0, 100 - clubRelation + Math.max(0, 55 - (player.trust ?? 50)) + Math.max(0, 55 - clubMemoryScore));
   const tensionColor = clubTension > 68 ? '#b42318' : clubTension > 40 ? '#8a6f1f' : '#00a676';
   const dossierStatus = getPlayerDossierStatus(player, { week: currentWeek, messages, messageQueue, promises, clubOffers, pendingTransfers, negotiationCooldowns });
-  const relevantDecisions = getRelevantDecisionHistory(decisionHistory, { playerId: player.id }).slice(0, 8);
+  const relevantDecisions = getDecisionHistoryByPlayer(decisionHistory, { playerId: player.id }).slice(0, 8);
   const recentActions = relevantDecisions.slice(0, 5);
   const recruitmentMemory = player.recruitmentMemory ?? [];
+  const promiseMemory = (promises ?? []).filter((promise) => promise.playerId === player.id).slice(0, 6);
+  const dossierRecent = getRecentDossierEvents(dossierMemory ?? {}, player.id, 3);
+  const dossierSummary = getDossierHistorySummary(dossierMemory ?? {}, player.id);
   const actionGridStyle = {
     ...S.msgActions,
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
@@ -299,9 +303,14 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>PROMESSES</div>
-            {playerPromises.length ? playerPromises.map((promise) => (
-              <div key={promise.id} style={S.promiseRow}><span>{promise.label}</span><strong>S{promise.dueWeek}</strong></div>
-            )) : <div style={S.emptySmall}>Aucune promesse active.</div>}
+            {promiseMemory.length ? promiseMemory.map((promise) => (
+              <div key={promise.id} style={S.promiseRow}>
+                <span>{promise.label}</span>
+                <strong>
+                  {promise.failed ? 'Cassée' : promise.resolved ? 'Tenue' : 'En cours'} · S{promise.dueWeek}
+                </strong>
+              </div>
+            )) : <div style={S.emptySmall}>Aucune promesse enregistrée.</div>}
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>DERNIERS MATCHS</div>
@@ -361,15 +370,39 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             </div>
           )}
           {tab === 'dossier' && (
-            <div style={S.objCard}>
-              <div style={S.secTitle}>DOSSIER PRATIQUE</div>
-              <div style={actionGridStyle}>
-                <button onClick={() => onContactClubStaff?.(player.id, 'coach')} style={actionBtnStyle}>Appeler coach</button>
-                <button onClick={() => onContactClubStaff?.(player.id, 'ds')} style={actionBtnStyle}>Appeler DS</button>
-                <button onClick={() => onCallPlayer?.(player)} style={actionBtnStyle}>Appeler joueur</button>
+            <>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>MEMOIRE DOSSIER</div>
+                <div style={S.sumRow}><span style={S.sumK}>Lecture</span><strong>{dossierSummary}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Historique</span><strong>{dossierRecent.length} trace{dossierRecent.length > 1 ? 's' : ''}</strong></div>
+                {dossierRecent.length ? dossierRecent.map((entry) => (
+                  <div key={entry.id} style={S.promiseRow}>
+                    <span>{entry.label}</span>
+                    <strong style={{ color: entry.impact > 0 ? '#00a676' : entry.impact < 0 ? '#b42318' : '#64727d' }}>
+                      {entry.impact > 0 ? 'Calmé' : entry.impact < 0 ? 'Tendu' : 'Neutre'}
+                    </strong>
+                  </div>
+                )) : <div style={S.emptySmall}>Aucun signal récent sur ce dossier.</div>}
               </div>
-              <div style={S.emptySmall}>Ici, on garde les contacts utiles pour avancer sans perdre le fil.</div>
-            </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>PROMESSES</div>
+                {playerPromises.length ? playerPromises.map((promise) => (
+                  <div key={promise.id} style={S.promiseRow}>
+                    <span>{promise.label}</span>
+                    <strong>{promise.failed ? 'Cassée' : promise.resolved ? 'Tenue' : 'En cours'} · S{promise.dueWeek}</strong>
+                  </div>
+                )) : <div style={S.emptySmall}>Aucune promesse active.</div>}
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>DOSSIER PRATIQUE</div>
+                <div style={actionGridStyle}>
+                  <button onClick={() => onContactClubStaff?.(player.id, 'coach')} style={actionBtnStyle}>Appeler coach</button>
+                  <button onClick={() => onContactClubStaff?.(player.id, 'ds')} style={actionBtnStyle}>Appeler DS</button>
+                  <button onClick={() => onCallPlayer?.(player)} style={actionBtnStyle}>Appeler joueur</button>
+                </div>
+                <div style={S.emptySmall}>Ici, on garde les contacts utiles pour avancer sans perdre le fil.</div>
+              </div>
+            </>
           )}
         </div>
       </div>

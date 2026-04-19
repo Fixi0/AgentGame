@@ -3,6 +3,7 @@ import React from 'react';
 import { PERSONALITY_LABELS } from '../data/players';
 import { EURO_CUP_LABELS } from '../systems/europeanCupSystem';
 import { getPlayerDossierStatus } from '../systems/dossierSystem';
+import { getDossierHistorySummary, getRecentDossierEvents } from '../systems/coherenceSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
 
@@ -60,6 +61,8 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
   const canSign = mode === 'sign' ? money >= player.signingCost : true;
   const isFreeInRoster = mode === 'roster' && (player.freeAgent || player.club === 'Libre');
   const dossierStatus = getPlayerDossierStatus(player, state);
+  const dossierSummary = getDossierHistorySummary(state?.dossierMemory ?? {}, player.id);
+  const dossierRecent = getRecentDossierEvents(state?.dossierMemory ?? {}, player.id, 1)[0];
   const statusColor = dossierStatus.tone === 'good' ? '#00a676' : dossierStatus.tone === 'warn' ? '#b45309' : dossierStatus.tone === 'danger' ? '#b42318' : '#64727d';
   const tensionBg = dossierStatus.tone === 'danger'
     ? '#fff7f7'
@@ -160,6 +163,18 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
           <div style={S.pMeta2}>
             <span>{player.scoutReport ? `Lecture scout ${player.scoutReport.confidence}%` : 'Projection cachée'}</span>
           </div>
+          <div style={S.pMeta2}>
+            <span>{dossierSummary}</span>
+          </div>
+          {dossierRecent && (
+            <div style={S.pMeta2}>
+              <span>{dossierRecent.label}</span>
+              <span>·</span>
+              <span style={{ color: dossierRecent.impact > 0 ? '#00a676' : dossierRecent.impact < 0 ? '#b42318' : '#64727d' }}>
+                {dossierRecent.impact > 0 ? 'Calmé' : dossierRecent.impact < 0 ? 'Tendu' : 'Neutre'}
+              </span>
+            </div>
+          )}
           {mode === 'roster' && (
             <div style={S.pMeta2}>
               <span>Contrat {player.contractWeeksLeft}s</span>

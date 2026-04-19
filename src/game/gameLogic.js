@@ -1270,7 +1270,7 @@ export const rejectClubOffer = (state, offerId) => ({
     clubMemory: recordClubMemory(
       state.clubMemory,
       state.clubOffers.find((offer) => offer.id === offerId)?.club,
-      { blocks: 1, trust: -2, week: state.week },
+      { blocks: 1, lies: 1, trust: -2, week: state.week },
     ),
     decisionHistory: addDecisionHistory(state.decisionHistory, {
       week: state.week,
@@ -2171,7 +2171,15 @@ export const playWeek = (state) => {
   const nextPhase = getPhase(state.week + 1);
   const lockerRoomSnapshot = buildLockerRoomSnapshot(chainedRoster);
   const lockerRoomTension = lockerRoomSnapshot.reduce((max, group) => Math.max(max, group.tension ?? 0), 0);
-  const pressConferenceDue = Boolean(topMatch && topMatch.matchRating >= 7.3);
+  const averageForm = chainedRoster.length
+    ? chainedRoster.reduce((sum, player) => sum + (player.form ?? 50), 0) / chainedRoster.length
+    : 50;
+  const pressConferenceDue = Boolean(
+    (topMatch && topMatch.matchRating >= 7.3)
+    || (flopMatch && flopMatch.matchRating <= 5.9)
+    || lockerRoomTension >= 60
+    || averageForm <= 48
+  );
 
   if (interactiveCooldownOk && chainedRoster.length > 0 && (pressConferenceDue ? Math.random() < 0.65 : Math.random() < 0.16)) {
     interactiveEvent = chooseInteractiveEvent(chainedRoster, {
@@ -2359,7 +2367,7 @@ export const playWeek = (state) => {
   });
   if (surpriseOffer) newClubOffers.push(surpriseOffer);
   const nextFixtures = buildWeeklyFixtures(finalRoster, state.week + 1);
-  const competitorThreat = rollCompetitorThreat({ roster: finalRoster, week: state.week + 1 });
+  const competitorThreat = rollCompetitorThreat({ roster: finalRoster, week: state.week + 1, dossierMemory: state.dossierMemory ?? {} });
   const completedScouting = [];
   const scoutingMissions = (state.scoutingMissions ?? []).map((mission) => {
     if (mission.status !== 'active') return mission;

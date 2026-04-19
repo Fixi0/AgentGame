@@ -136,12 +136,16 @@ export const getNegotiationContextModifier = (state, player, clubName) => {
   const countryRep = state.countryReputation?.[player.clubCountryCode] ?? state.leagueReputation?.[player.clubCountryCode] ?? 0;
   const clubRep = state.clubRelations?.[clubName || player.club] ?? 0;
   const clubMemory = getClubMemoryScore(state.clubMemory, clubName || player.club);
+  const clubMemoryEntry = state.clubMemory?.[clubName || player.club] ?? {};
   const segmentRep = state.playerSegmentReputation?.[getPlayerSegment(player)] ?? 0;
   const credibility = state.credibility ?? 50;
 
   return Math.floor((countryRep - 10) / 12)
     + Math.floor(clubRep / 15)
-    + Math.floor((clubMemory - 50) / 10)
+    + Math.floor((clubMemory - 50) / 8)
+    + Math.floor(-(clubMemoryEntry.blocks ?? 0) * 2)
+    + Math.floor(-(clubMemoryEntry.lies ?? 0) * 2)
+    + Math.floor(-(clubMemoryEntry.promisesBroken ?? 0) * 3)
     + Math.floor(segmentRep / 14)
     + Math.floor((credibility - 50) / 10);
 };
