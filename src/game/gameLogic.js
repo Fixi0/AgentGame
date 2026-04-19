@@ -572,6 +572,7 @@ export const migrateState = (state) => {
     lastFixtures: state.lastFixtures ?? [],
     nextFixtures: state.nextFixtures ?? [],
     agencyLevel: state.agencyLevel ?? 4,
+    history: Array.isArray(state.history) ? state.history : [],
     news: state.news ?? [],
     messages: state.messages ?? [],
     agencyGoals: state.agencyGoals ?? createLongTermAgencyGoals(),
@@ -583,6 +584,7 @@ export const migrateState = (state) => {
     worldCupState: state.worldCupState ?? null,
     sentSeasonalMessages: state.sentSeasonalMessages ?? [],
     activePeriod: state.activePeriod ?? null,
+    stats: state.stats ?? { totalEarned: 0, playersSigned: 0, transfersDone: 0, seasonsPlayed: 0 },
     roster: (state.roster ?? []).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(state.reputation ?? 15);
       const personality = player.personality ?? pick(PERSONALITIES);

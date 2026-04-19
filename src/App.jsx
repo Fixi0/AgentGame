@@ -298,7 +298,8 @@ export default function FootballAgentGame() {
   };
 
   const handlePlayWeek = () => {
-    if (!state.roster.length) {
+    const playableState = migrateState(state);
+    if (!playableState.roster.length) {
       showToast('Recrute au moins 1 joueur', 'error');
       return;
     }
@@ -306,7 +307,8 @@ export default function FootballAgentGame() {
     try {
       setModal(null);
       setWeekTickerData(null);
-      const result = playWeek(state);
+      if (playableState !== state) setState(playableState);
+      const result = playWeek(playableState);
       if (!result?.state || !result?.report) {
         throw new Error('playWeek() a renvoyé un résultat incomplet');
       }
