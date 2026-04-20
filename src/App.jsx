@@ -212,7 +212,7 @@ const moreItems = [
   { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase },
   { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network },
   { key: 'dossiers', label: 'Dossiers', desc: 'Messages, tensions, mémoire', icon: FileText },
-  { key: 'standings', label: 'Ligues', desc: 'Classements et clubs', icon: Trophy },
+  { key: 'standings', label: 'Ligues', desc: 'Classements nationaux + Europe', icon: Trophy },
   { key: 'calendar', label: 'Calendrier', desc: 'Affiches et résultats', icon: CalendarDays },
   { key: 'deadline', label: 'Deadline Day', desc: 'Appels mercato', icon: Timer },
   { key: 'scouting', label: 'Scouting', desc: 'Missions et rapports', icon: Telescope },

@@ -271,7 +271,7 @@ function SeasonArc({ currentWeek, totalWeeks }) {
   );
 }
 
-function SeasonRoadmap({ phase, roster, worldCupState }) {
+function SeasonRoadmap({ phase, roster, worldCupState, onNav }) {
   const currentSeason = phase?.season ?? Math.floor(((phase?.seasonWeek ?? 1) - 1) / 38) + 1;
   const euroPlayers = roster
     .map((player) => ({ player, competition: getEuropeanCompetition(player, currentSeason) }))
@@ -382,6 +382,11 @@ function SeasonRoadmap({ phase, roster, worldCupState }) {
           <span>Mercato / repos</span>
           <strong>{phase.mercato ? 'Fenêtre ouverte' : `${remainingWeeks} sem. avant la fin de saison`}</strong>
         </div>
+        {onNav && (
+          <button onClick={() => onNav('standings')} style={{ ...S.secBtn, marginBottom: 0, marginTop: 4 }}>
+            Voir le classement UEFA
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1014,7 +1019,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
       </div>
 
       <WorldCupSpotlight worldCupState={state.worldCupState} />
-      <SeasonRoadmap phase={phase} roster={state.roster} worldCupState={state.worldCupState} />
+      <SeasonRoadmap phase={phase} roster={state.roster} worldCupState={state.worldCupState} onNav={onNav} />
 
       {/* Beginner Guide — visible only for first 5 weeks */}
       <BeginnerGuide state={state} phase={phase} onNav={onNav} onPlay={onPlay} />
