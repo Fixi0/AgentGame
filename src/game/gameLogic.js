@@ -16,7 +16,7 @@ import { rollCompetitorThreat } from '../systems/competitorSystem';
 import { createLongTermAgencyGoals } from '../systems/agencyGoalsSystem';
 import { createCareerGoal, createScoutReport, updateSeasonStats } from '../systems/playerDevelopmentSystem';
 import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } from '../systems/promiseSystem';
-import { buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
+import { MATCH_INCIDENT_EVENTS, buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
 import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, EURO_CUP_LABELS } from '../systems/europeanCupSystem';
 import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview } from '../systems/worldCupSystem';

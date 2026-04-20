@@ -272,6 +272,20 @@ const incidentLabels = {
   disallowed_goal: 'but refusé',
 };
 
+export const MATCH_INCIDENT_EVENTS = {
+  clean_sheet: { label: 'Cage inviolée', good: true, money: 1800, rep: 2, val: 1.02 },
+  distribution_error: { label: 'Erreur de relance', good: false, money: -1200, rep: -2, val: 0.97 },
+  penalty_saved: { label: 'Penalty arrêté', good: true, money: 2400, rep: 4, val: 1.04 },
+  goalkeeper_blunder: { label: 'Boulette', good: false, money: -2600, rep: -5, val: 0.94 },
+  line_clearance: { label: 'Sauvetage sur la ligne', good: true, money: 1400, rep: 2, val: 1.02 },
+  lost_duel: { label: 'Duel clé perdu', good: false, money: -1000, rep: -2, val: 0.97 },
+  defensive_masterclass: { label: 'Match patron', good: true, money: 2200, rep: 4, val: 1.05 },
+  tempo_control: { label: 'Contrôle du tempo', good: true, money: 1700, rep: 3, val: 1.03 },
+  dangerous_turnover: { label: 'Perte de balle dangereuse', good: false, money: -1500, rep: -3, val: 0.96 },
+  wasteful_finishing: { label: 'Manque de réalisme', good: false, money: -1300, rep: -2, val: 0.96 },
+  disallowed_goal: { label: 'But refusé', good: false, money: 0, rep: 1, val: 1.01 },
+};
+
 const getMatchReport = ({ player, minutes, goals, assists, matchRating, saves, tackles, keyPasses, xg, passAccuracy, incidents, teamResult, opponentGoals, absenceReason = '' }) => {
   if (!minutes) return `Absent${absenceReason ? ` · ${absenceReason}` : ''}.`;
   const reasons = [];
