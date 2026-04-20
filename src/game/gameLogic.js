@@ -2139,7 +2139,16 @@ export const playWeek = (state) => {
     }
   });
 
-  const leavingPlayers = chainedRoster.filter((player) => Math.random() < getDepartureRisk(player));
+  const leavingPlayers = chainedRoster
+    .map((player) => {
+      const departureRisk = getDepartureRisk(player);
+      return {
+        ...player,
+        departureRisk: departureRisk.risk,
+        departureReason: departureRisk.reason,
+      };
+    })
+    .filter((player) => player.departureRisk > 0 && Math.random() < player.departureRisk);
   const departedPlayerIds = new Set(leavingPlayers.map((player) => player.id));
   const keepsDepartedClean = (item) => !item?.playerId || !departedPlayerIds.has(item.playerId);
   const net = totalIncome - totalCost;

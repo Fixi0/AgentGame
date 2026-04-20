@@ -391,6 +391,9 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               {data.leavingPlayers.map((player) => (
                 <div key={player.id} style={S.leavingRow}>
                   {player.firstName} {player.lastName} quitte l'agence
+                  <div style={{ marginTop: 2, fontSize: 10, color: '#8b949e', fontFamily: 'system-ui,sans-serif' }}>
+                    Raison: {player.departureReason ?? 'non précisée'}
+                  </div>
                 </div>
               ))}
             </div>
