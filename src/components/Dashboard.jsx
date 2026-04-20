@@ -495,10 +495,11 @@ function WorldCupWidget({ worldCupState }) {
   const { year, phase, selectedPlayers, heritageCards = [], countryPressure = {}, drawGroups = {} } = worldCupState;
   if (phase === 'done' && !heritageCards.length) return null;
   const phaseIdx = WC_PHASES.indexOf(phase);
-  const champions = selectedPlayers.filter((p) => p.champion);
-  const eliminated = selectedPlayers.filter((p) => p.eliminated);
-  const still_in = selectedPlayers.filter((p) => !p.eliminated && !p.champion);
-  const topScorer = [...selectedPlayers].sort((a, b) => b.goals - a.goals)[0];
+  const safePlayers = selectedPlayers.filter(Boolean);
+  const champions = safePlayers.filter((p) => p.champion);
+  const eliminated = safePlayers.filter((p) => p.eliminated);
+  const still_in = safePlayers.filter((p) => !p.eliminated && !p.champion);
+  const topScorer = [...safePlayers].sort((a, b) => (Number(b?.goals ?? 0) - Number(a?.goals ?? 0)))[0];
 
   return (
     <div style={{

@@ -1770,8 +1770,12 @@ export const playWeek = (state) => {
     // Avancer la phase CdM
     wcState = advanceWorldCupPhase(wcState);
     if (wcState.phase === 'done') {
-      const heritageCards = [...wcState.selectedPlayers]
-        .sort((a, b) => (b.goals + b.assists * 0.5 + b.avgRating) - (a.goals + a.assists * 0.5 + a.avgRating))
+      const heritageCards = [...(wcState.selectedPlayers ?? [])]
+        .filter(Boolean)
+        .sort((a, b) => (
+          (Number(b?.goals ?? 0) + Number(b?.assists ?? 0) * 0.5 + Number(b?.avgRating ?? 0))
+          - (Number(a?.goals ?? 0) + Number(a?.assists ?? 0) * 0.5 + Number(a?.avgRating ?? 0))
+        ))
         .slice(0, 5)
         .map((player) => ({
           playerId: player.playerId,

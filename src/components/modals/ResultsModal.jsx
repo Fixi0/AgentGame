@@ -5,7 +5,9 @@ import { S } from '../styles';
 
 function getBigHeadline(data) {
   // Find the single most exciting thing that happened
-  const topWorldCup = (data.worldCupMatchResults ?? []).reduce((best, m) => (!best || (m.matchRating ?? 0) > (best.matchRating ?? 0)) ? m : best, null);
+  const topWorldCup = (data.worldCupMatchResults ?? []).filter(Boolean).reduce((best, m) => (
+    !best || (m.matchRating ?? 0) > (best.matchRating ?? 0) ? m : best
+  ), null);
   if (topWorldCup?.isChampion) {
     return { emoji: '🏆', title: `Champion du monde !`, sub: `${topWorldCup.playerName} · ${topWorldCup.countryName} · match décisif ${topWorldCup.score}` };
   }
@@ -15,14 +17,18 @@ function getBigHeadline(data) {
   if (topWorldCup && ((topWorldCup.goals ?? 0) >= 2 || (topWorldCup.matchRating ?? 0) >= 8.5)) {
     return { emoji: '🌍', title: `CdM — ${topWorldCup.playerName} en lumière`, sub: `${topWorldCup.countryName} · ${topWorldCup.score} · Note ${topWorldCup.matchRating ?? '—'}` };
   }
-  const topScorer = (data.matchResults ?? []).reduce((best, m) => (!best || (m.goals ?? 0) > (best.goals ?? 0)) ? m : best, null);
+  const topScorer = (data.matchResults ?? []).filter(Boolean).reduce((best, m) => (
+    !best || (m.goals ?? 0) > (best.goals ?? 0) ? m : best
+  ), null);
   if (topScorer && (topScorer.goals ?? 0) >= 3) {
     return { emoji: '🔥', title: `Triplé de ${topScorer.playerName} !`, sub: `${topScorer.goals} buts · ${topScorer.club} ${topScorer.score} · Note ${topScorer.matchRating ?? '—'}` };
   }
   if (topScorer && (topScorer.goals ?? 0) >= 2) {
     return { emoji: '⚡', title: `Doublé de ${topScorer.playerName}`, sub: `${topScorer.goals} buts · Note ${topScorer.matchRating ?? '—'}` };
   }
-  const topEuroScorer = (data.euroMatchResults ?? []).reduce((best, m) => (!best || (m.goals ?? 0) > (best.goals ?? 0)) ? m : best, null);
+  const topEuroScorer = (data.euroMatchResults ?? []).filter(Boolean).reduce((best, m) => (
+    !best || (m.goals ?? 0) > (best.goals ?? 0) ? m : best
+  ), null);
   if (topEuroScorer && (topEuroScorer.goals ?? 0) >= 1) {
     return { emoji: '🏆', title: `But européen — ${topEuroScorer.playerName}`, sub: `${topEuroScorer.competitionLabel} · ${topEuroScorer.opponent} ${topEuroScorer.score}` };
   }
@@ -34,6 +40,67 @@ function getBigHeadline(data) {
   if ((data.net ?? 0) > 10000) return { emoji: '💰', title: 'Très bonne semaine financière', sub: `+${formatMoney(data.net)} de bénéfice net` };
   if ((data.net ?? 0) >= 0) return { emoji: '📊', title: 'Semaine bouclée', sub: `Bénéfice +${formatMoney(data.net)}` };
   return { emoji: '📉', title: 'Semaine difficile', sub: `Déficit ${formatMoney(Math.abs(data.net))}` };
+}
+
+function WorldCupPhotoCard({ match }) {
+  if (!match) return null;
+
+  return (
+    <div style={{
+      marginBottom: 12,
+      borderRadius: 14,
+      overflow: 'hidden',
+      background: 'linear-gradient(135deg,#0f172a 0%,#1d4f7a 48%,#203a43 100%)',
+      border: '1px solid rgba(125,211,252,.22)',
+      boxShadow: '0 16px 34px rgba(15,23,32,.24)',
+      color: '#ffffff',
+    }}>
+      <div style={{
+        minHeight: 180,
+        padding: 16,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        background: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,.16), transparent 35%), radial-gradient(circle at 80% 30%, rgba(245,200,66,.16), transparent 26%), linear-gradient(135deg, rgba(9,17,30,.35), rgba(9,17,30,.10))',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: '#7dd3fc', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>
+              PHOTO DU MATCH
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 950, lineHeight: 1.15 }}>
+              {match.countryFlag ?? '🌍'} {match.countryName} vs {match.opponentFlag ?? '⚽'} {match.opponent}
+            </div>
+          </div>
+          <div style={{
+            minWidth: 82,
+            padding: '8px 10px',
+            borderRadius: 10,
+            background: 'rgba(255,255,255,.10)',
+            border: '1px solid rgba(255,255,255,.14)',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 900 }}>Score</div>
+            <div style={{ fontSize: 18, fontWeight: 950 }}>{match.score}</div>
+          </div>
+        </div>
+
+        <div style={{
+          marginTop: 16,
+          alignSelf: 'flex-start',
+          padding: '8px 10px',
+          borderRadius: 999,
+          background: 'rgba(255,255,255,.10)',
+          border: '1px solid rgba(255,255,255,.14)',
+          fontSize: 12,
+          fontFamily: 'system-ui,sans-serif',
+          fontWeight: 800,
+        }}>
+          {match.phase} · note {match.matchRating} · {match.minutes} min
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function MatchScorecard({ match }) {
@@ -86,6 +153,9 @@ function MatchScorecard({ match }) {
 export default function ResultsModal({ data, onClose, onInteractive }) {
   const [step, setStep] = useState('results');
   const [showDetails, setShowDetails] = useState(false);
+  const topWorldCupMatch = (data.worldCupMatchResults ?? []).filter(Boolean).reduce((best, match) => (
+    !best || (match.matchRating ?? 0) > (best.matchRating ?? 0) ? match : best
+  ), null);
 
   if (step === 'prompt' && data.interactiveEvent) {
     const { event, player } = data.interactiveEvent;
@@ -131,6 +201,8 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           </button>
         </div>
         <div style={S.mBody}>
+          {topWorldCupMatch && <WorldCupPhotoCard match={topWorldCupMatch} />}
+
           {/* Big Headline */}
           <div style={S.resultsBigHeadline}>
             <span style={S.resultsBigEmoji}>{bigHeadline.emoji}</span>

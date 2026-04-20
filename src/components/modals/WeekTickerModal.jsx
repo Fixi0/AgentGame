@@ -178,6 +178,55 @@ function WeekDayCard({ item, visible }) {
         <div style={{ fontSize: 14, fontWeight: 900, color: isMajor ? '#ffffff' : '#172026', marginBottom: 3, lineHeight: 1.25 }}>
           {item.title ?? ''}
         </div>
+        {isWorldCupMatch && item.match && (
+          <div style={{
+            marginTop: 8,
+            marginBottom: 8,
+            minHeight: 120,
+            borderRadius: 10,
+            overflow: 'hidden',
+            background: 'linear-gradient(135deg,#0f172a 0%,#1d4f7a 52%,#203a43 100%)',
+            border: '1px solid rgba(125,211,252,.20)',
+            boxShadow: '0 14px 28px rgba(15,23,32,.20)',
+          }}>
+            <div style={{
+              height: '100%',
+              minHeight: 120,
+              padding: 12,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              background: 'radial-gradient(circle at 18% 20%, rgba(255,255,255,.16), transparent 28%), radial-gradient(circle at 82% 25%, rgba(245,200,66,.18), transparent 24%)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#7dd3fc', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 5 }}>
+                    Photo du match
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 950, color: '#ffffff', lineHeight: 1.18 }}>
+                    {item.match.countryFlag ?? '🌍'} {item.match.countryName ?? item.match.playerName}
+                  </div>
+                </div>
+                <div style={{
+                  minWidth: 64,
+                  padding: '7px 9px',
+                  borderRadius: 10,
+                  background: 'rgba(255,255,255,.12)',
+                  border: '1px solid rgba(255,255,255,.16)',
+                  textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: 9, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 900 }}>Score</div>
+                  <div style={{ fontSize: 16, fontWeight: 950, color: '#ffffff' }}>{item.match.score}</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', color: 'rgba(255,255,255,.82)', fontSize: 11, fontFamily: 'system-ui,sans-serif' }}>
+                <span>{item.match.phase}</span>
+                <span>Note {item.match.matchRating}</span>
+                <span>{item.match.minutes} min</span>
+              </div>
+            </div>
+          </div>
+        )}
         <div style={{ fontSize: 12, color: isMajor ? 'rgba(255,255,255,.82)' : '#3f5663', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
           {item.text ?? ''}
         </div>
