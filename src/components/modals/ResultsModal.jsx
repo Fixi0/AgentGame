@@ -203,7 +203,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           )}
 
           {data.worldCupMatchResults?.length > 0 && (
-            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg,#0f172a,#1d4f7a)', border: '1px solid rgba(125,211,252,.24)', boxShadow: '0 16px 34px rgba(15,23,32,.20)', color: '#ffffff' }}>
+            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #07111f 0%, #163456 44%, #0f172a 100%)', border: '1px solid rgba(125,211,252,.28)', boxShadow: '0 16px 34px rgba(15,23,32,.24)', color: '#ffffff' }}>
               <div style={S.secTitle}>
                 <Trophy size={14} />
                 <span style={{ color: '#7dd3fc' }}>COUPE DU MONDE</span>
@@ -307,7 +307,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                 </div>
               )}
               {data.euroMatchResults?.length > 0 && (
-                <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: '#fffaf0', border: '1px solid #fde68a' }}>
+                <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #fffaf0 0%, #fff7d9 52%, #fffdf7 100%)', border: '1px solid #fde68a', boxShadow: '0 10px 24px rgba(245, 158, 11, .10)' }}>
                   <div style={S.secTitle}><Trophy size={14} /><span>EUROPE</span></div>
                   <div style={{ fontSize: 12, color: '#8a6f1f', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45, marginBottom: 10 }}>
                     Tous les matchs européens de la semaine, avec une mise en avant plus forte.
