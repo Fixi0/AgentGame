@@ -14,8 +14,8 @@
 import { CLUBS } from '../data/clubs';
 import { rand, makeId } from '../utils/helpers';
 
-// Pays dont les clubs accèdent à la CL (top 5 + Portugal)
-const TOP_LEAGUE_COUNTRIES = new Set(['FR', 'ES', 'EN', 'DE', 'IT', 'PT', 'NL']);
+// Pays dont les clubs accèdent à la CL (top leagues européennes + variantes de code UK)
+const TOP_LEAGUE_COUNTRIES = new Set(['FR', 'ES', 'EN', 'GB', 'DE', 'IT', 'PT', 'NL']);
 
 const EURO_SCHEDULE = {
   CL: {
