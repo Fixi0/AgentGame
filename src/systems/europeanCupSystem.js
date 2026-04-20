@@ -359,7 +359,7 @@ export const normalizeEuropeanMatch = (match = {}) => {
     competitionLabel: match.competitionLabel ?? cup?.name ?? competition,
     phase: match.phase ?? match.stage ?? 'Phase européenne',
     stage: match.stage ?? 'league',
-    opponent: match.opponent ?? match.opponentName ?? 'Adversaire inconnu',
+    opponent: match.opponent ?? match.opponentName ?? null,
     opponentName: match.opponentName ?? match.opponent ?? null,
     score: match.score ?? '0-0',
     matchRating: Number.isFinite(match.matchRating) ? match.matchRating : null,
