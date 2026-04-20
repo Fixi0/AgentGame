@@ -1244,6 +1244,7 @@ export default function FootballAgentGame() {
   return (
     <div style={S.app}>
       <style>{CSS}</style>
+      <div style={S.scrollArea}>
       <header style={S.header}>
         <div style={S.brandRow}>
           <div style={S.logo}>
@@ -1303,29 +1304,6 @@ export default function FootballAgentGame() {
           ))}
         </div>
       </header>
-      <nav style={S.nav}>
-        {mainNav.map(([key, item]) => {
-          const Icon = item.icon;
-          const active = key === 'more'
-            ? !['dashboard', 'roster', 'market', 'messages'].includes(view)
-            : view === key;
-          return (
-          <button
-            key={key}
-            onClick={() => setView(key === 'more' ? 'more' : key)}
-            style={{
-              ...S.navBtn,
-              color: active ? '#172026' : '#64727d',
-              borderBottom: active ? '2px solid #00a676' : '2px solid transparent',
-            }}
-          >
-            <Icon size={16} />
-            <span>{item.label}</span>
-            {key === 'messages' && pendingCounts.total > 0 && <span style={S.navBadge}>{pendingCounts.total}</span>}
-          </button>
-          );
-        })}
-      </nav>
       <main style={S.main}>
         {view === 'dashboard' && <Dashboard state={state} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} />}
         {view === 'market' && <Market state={state} market={state.market} freeAgents={state.freeAgents} money={state.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
@@ -1355,6 +1333,30 @@ export default function FootballAgentGame() {
         {view === 'contracts' && <ContractDashboard state={state} onNego={(player, type) => startNegotiation(player, type ?? 'extend')} onOpenPlayer={showPlayerDetails} />}
         {view === 'contacts' && <Contacts state={state} onCall={handleCallContact} />}
       </main>
+      </div>{/* end scrollArea */}
+      <nav style={S.nav}>
+        {mainNav.map(([key, item]) => {
+          const Icon = item.icon;
+          const active = key === 'more'
+            ? !['dashboard', 'roster', 'market', 'messages'].includes(view)
+            : view === key;
+          return (
+          <button
+            key={key}
+            onClick={() => setView(key === 'more' ? 'more' : key)}
+            style={{
+              ...S.navBtn,
+              color: active ? '#172026' : '#64727d',
+              borderBottom: active ? '2px solid #00a676' : '2px solid transparent',
+            }}
+          >
+            <Icon size={16} />
+            <span>{item.label}</span>
+            {key === 'messages' && pendingCounts.total > 0 && <span style={S.navBadge}>{pendingCounts.total}</span>}
+          </button>
+          );
+        })}
+      </nav>
       {weekTickerData && (
         <WeekTickerModal
           report={weekTickerData}
