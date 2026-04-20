@@ -1630,16 +1630,20 @@ export const playWeek = (state) => {
       newChainedEvents.push(...newChains);
     }
 
+    const developmentCurveBoost = updatedPlayer.developmentBoost ?? 0;
     const developmentChance = 0.035
       + (matchResult?.minutes >= 55 ? 0.025 : 0)
       + ((updatedPlayer.form - 60) / 1000)
       + ((updatedPlayer.moral - 50) / 1200)
       + dataAnalystLevel * 0.012
-      + (specialization.youthProgress ?? 0) / 2;
-    if (updatedPlayer.age < 24 && Math.random() < developmentChance && updatedPlayer.rating < updatedPlayer.potential) {
+      + (specialization.youthProgress ?? 0) / 2
+      + developmentCurveBoost;
+    const developmentAgeCap = updatedPlayer.developmentCurve === 'superstar_gem' ? 28 : 24;
+    const developmentGain = updatedPlayer.developmentCurve === 'superstar_gem' ? 2 : 1;
+    if (updatedPlayer.age < developmentAgeCap && Math.random() < developmentChance && updatedPlayer.rating < updatedPlayer.potential) {
       updatedPlayer = {
         ...updatedPlayer,
-        rating: Math.min(updatedPlayer.potential, updatedPlayer.rating + 1),
+        rating: Math.min(updatedPlayer.potential, updatedPlayer.rating + developmentGain),
         value: Math.floor(updatedPlayer.value * 1.035),
         timeline: [{ week: state.week, type: 'progression', label: 'Progression validée par le temps de jeu' }, ...(updatedPlayer.timeline ?? [])].slice(0, 18),
       };

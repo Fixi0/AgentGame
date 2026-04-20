@@ -31,6 +31,93 @@ const HIDDEN_TRAIT_KEYS = [
   'mentality_monster','tactical_genius',
 ];
 
+const GABRIEL_FIXIO_SEED = 0x9f3a7b1d;
+const GABRIEL_FIXIO_ID = 'sig_gabriel_fixio';
+const GABRIEL_FIXIO_CLUB = 'Marseille';
+
+const getMarseilleClub = () =>
+  CLUBS.find((club) => club.name === GABRIEL_FIXIO_CLUB) ?? CLUBS[0];
+
+const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
+  const fixioClub = club?.name === GABRIEL_FIXIO_CLUB ? club : getMarseilleClub();
+  const roleObj = POSITION_ROLES.MIL?.find((role) => role.id === 'attacking_mid')
+    ?? POSITION_ROLES.MIL?.[0]
+    ?? POSITION_ROLES.ATT?.[0];
+  const baseAge = 20;
+  const baseRating = 53;
+  const potential = 99;
+  const rating = evolveRating(baseRating, baseAge, potential, season);
+  const age = baseAge + (season - 1);
+  const countryData = COUNTRIES.find((c) => c.code === 'FR') ?? COUNTRIES[0];
+  const value = estimateValue(rating, potential, age, 1);
+  const weeklySalary = Math.max(2500, Math.floor(value / 140));
+
+  return {
+    id: GABRIEL_FIXIO_ID,
+    firstName: 'Gabriel',
+    lastName: 'Fixio',
+    birthDate: '2006-05-04',
+    birthDateLabel: '4 mai 2006',
+    birthPlace: 'Marseille',
+    position: 'MIL',
+    roleId: roleObj.id,
+    roleLabel: 'Milieu offensif central',
+    roleShort: 'MOC',
+    countryCode: countryData.code,
+    countryLabel: countryData.label,
+    countryFlag: countryData.flag,
+    personality: 'ambitieux',
+    age,
+    rating,
+    potential,
+    value,
+    weeklySalary,
+    signingCost: Math.max(12000, Math.floor(value * 0.009)),
+    club: fixioClub.name,
+    clubTier: fixioClub.tier ?? 1,
+    clubCountry: (COUNTRIES.find((c) => c.code === fixioClub.countryCode) ?? COUNTRIES[0]).flag,
+    clubCountryCode: fixioClub.countryCode,
+    clubCity: fixioClub.city ?? 'Marseille',
+    form: 60 + sInt(GABRIEL_FIXIO_SEED, 4, 0, 10),
+    brandValue: 6 + sInt(GABRIEL_FIXIO_SEED, 5, 0, 8),
+    fatigue: 14 + sInt(GABRIEL_FIXIO_SEED, 6, 0, 10),
+    injured: 0,
+    moral: 68 + sInt(GABRIEL_FIXIO_SEED, 7, 0, 12),
+    trust: 58,
+    contractWeeksLeft: 64,
+    contractStartWeek: 0,
+    commission: 0.08,
+    agentContract: null,
+    timeline: [
+      { week: season * 38 - 37, type: 'origin', label: 'Jeune talent marseillais' },
+    ],
+    careerGoal: null,
+    scoutReport: null,
+    hiddenTrait: 'tactical_genius',
+    traitRevealed: false,
+    lastInteractionWeek: 0,
+    europeanCompetition: null,
+    seasonStats: {
+      appearances: 0, goals: 0, assists: 0, saves: 0,
+      tackles: 0, keyPasses: 0, xg: 0, injuries: 0,
+      ratings: [], averageRating: null,
+    },
+    publicRep: null,
+    pressure: 18,
+    recentResults: [],
+    previousRating: null,
+    matchHistory: [],
+    activeActions: [],
+    physique: 'technique',
+    playStyle: 'créateur',
+    foot: 'G',
+    developmentBoost: 0.055,
+    developmentCurve: 'superstar_gem',
+    signaturePlayer: true,
+    hiddenPotential: true,
+  };
+};
+
 // Plages de ratings selon le tier du club
 const TIER_RATING = {
   1: { starterMin: 79, starterMax: 91, benchMin: 71, benchMax: 81 },
@@ -258,6 +345,9 @@ const pickNationality = (club, seed, slotN) => {
 // ── Génération d'un joueur senior ────────────────────────────────────────────
 
 const buildSquadPlayer = (club, slotIdx, season) => {
+  if (club?.name === GABRIEL_FIXIO_CLUB && slotIdx === 10) {
+    return buildGabrielFixio(club, season);
+  }
   // Seed STABLE (sans saison) → même joueur d'une saison à l'autre
   const baseSeed = hashStr(`${club.name}:${slotIdx}`);
   const slot     = SQUAD_SLOTS[slotIdx];
@@ -483,8 +573,16 @@ export const drawMarketPlayers = ({
   const usedClubsThisBatch = new Set();
   const result = [];
   const eligibleClubs = getEligibleClubs(reputation);
+  const specialGabriel = buildGabrielFixio(getMarseilleClub(), season);
+  let specialInjected = false;
 
   for (const position of positionQuota) {
+    if (!specialInjected && position === specialGabriel.position && !usedIds.has(specialGabriel.id)) {
+      result.push(specialGabriel);
+      usedIds.add(specialGabriel.id);
+      specialInjected = true;
+      continue;
+    }
     const player = drawOnePlayer({ position, eligibleClubs, usedIds, usedClubsThisBatch, season, scoutLevel, reputation });
     if (player) {
       result.push(player);

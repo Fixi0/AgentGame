@@ -104,6 +104,7 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             <div style={S.sumRow}><span style={S.sumK}>Statut</span><strong>{dossierStatus.label}{dossierStatus.detail ? ` · ${dossierStatus.detail}` : ''}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Contrat</span><strong>{(player.contractWeeksLeft ?? 0) > 0 ? `${player.contractWeeksLeft} sem. restantes` : 'Expiré'}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Saison</span><strong>{seasonStats.appearances ?? 0} matchs · {seasonStats.goals ?? 0} buts · {seasonStats.assists ?? 0} passes</strong></div>
+            {player.birthDateLabel && <div style={S.sumRow}><span style={S.sumK}>Naissance</span><strong>{player.birthDateLabel} · {player.birthPlace ?? player.clubCity ?? '-'}</strong></div>}
             <div style={S.sumRow}><span style={S.sumK}>Coupe du monde</span><strong>{worldCupSelection ? `${worldCupCountry?.flag ?? worldCupSelection.countryFlag ?? player.countryFlag ?? ''} ${worldCupCountry?.name ?? player.countryLabel ?? 'Sélection'} · ${worldCupSelection.selectionNote ?? 'sélectionné'}` : 'Hors tournoi'}</strong></div>
           </div>
           <div style={S.kpiGrid}>
