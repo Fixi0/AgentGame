@@ -11,6 +11,7 @@
  *   - puis élimination directe
  */
 
+import { CLUBS } from '../data/clubs';
 import { rand, makeId } from '../utils/helpers';
 
 // Pays dont les clubs accèdent à la CL (top 5 + Portugal)
@@ -143,6 +144,62 @@ export const getEuropeanPhaseLabel = (seasonWeek, competition) => {
   return 'FINALE';
 };
 
+const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const getEuropeanSelectionProfile = (player) => {
+  if (!player || (player.injured ?? 0) > 0) {
+    return { score: -Infinity, starterChance: 0, note: 'Blessé' };
+  }
+
+  const stats = player.seasonStats ?? {};
+  const appearances = stats.appearances ?? 0;
+  const avgRating = stats.averageRating && stats.averageRating > 0 ? stats.averageRating : ((player.form ?? player.rating ?? 60) / 10);
+  const recentForm = player.form ?? 60;
+  const moral = player.moral ?? 50;
+  const clubRole = player.clubRole ?? 'Rotation';
+  const roleBonus = clubRole === 'Star' ? 8 : clubRole === 'Titulaire' ? 5 : clubRole === 'Rotation' ? 1 : -8;
+  const workloadBonus = appearances >= 24 ? 4 : appearances >= 16 ? 2 : appearances >= 8 ? 1 : -1;
+  const fatiguePenalty = (player.fatigue ?? 20) > 80 ? 5 : (player.fatigue ?? 20) > 70 ? 2 : 0;
+  const score =
+    (player.rating - 60) * 1.15 +
+    (recentForm - 50) * 0.42 +
+    (avgRating - 6.4) * 13 +
+    (moral - 50) * 0.16 +
+    roleBonus +
+    workloadBonus -
+    fatiguePenalty;
+
+  const starterChance = clampNumber(0.28 + (score / 125) + (clubRole === 'Star' ? 0.15 : clubRole === 'Titulaire' ? 0.05 : 0), 0.18, 0.94);
+
+  return {
+    score,
+    starterChance,
+    note:
+      clubRole === 'Star' ? 'Cadre européen'
+      : clubRole === 'Titulaire' ? 'Titulaire européen'
+        : clubRole === 'Rotation' ? 'Rotation européenne'
+          : 'Temps de jeu fragile',
+  };
+};
+
+export const getEuropeanInterestClubs = (player, euroMatch) => {
+  if (!player || !euroMatch) return [];
+  const momentum = (euroMatch.matchRating ?? 0) + (euroMatch.goals ?? 0) * 1.4 + (euroMatch.assists ?? 0) * 1 + (euroMatch.isFinal ? 2.2 : 0);
+  const score = momentum + (player.rating ?? 0) / 22;
+  if (score < 12.5) return [];
+
+  const tierMin = score >= 18 ? 1 : score >= 15 ? 2 : 3;
+  const tierMax = euroMatch.competition === 'CL' ? 2 : euroMatch.competition === 'EL' ? 3 : 4;
+  const clubs = CLUBS
+    .filter((club) => club.name !== player.club)
+    .filter((club) => club.tier >= tierMin && club.tier <= tierMax)
+    .filter((club) => club.countryCode !== player.clubCountryCode || Math.random() < 0.4)
+    .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+
+  const limit = euroMatch.competition === 'CL' || euroMatch.goals >= 2 || euroMatch.matchRating >= 8.5 ? 3 : 2;
+  return clubs.slice(0, limit).map((club) => club.name);
+};
+
 /** Génère un adversaire fictif (club européen) pour le match */
 const EURO_OPPONENTS = [
   { name: 'Bayern München', country: '🇩🇪' },
@@ -202,8 +259,11 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
   const injured = player.injured > 0;
   if (injured) return null; // ne joue pas
 
-  const starts = Math.random() < (player.clubRole === 'Star' ? 0.9 : player.clubRole === 'Titulaire' ? 0.75 : 0.45);
-  const minutes = starts ? rand(65, 90) : rand(0, 35);
+  const selection = getEuropeanSelectionProfile(player);
+  const starts = Math.random() < selection.starterChance;
+  const minutes = starts
+    ? rand(selection.starterChance >= 0.8 ? 72 : selection.starterChance >= 0.66 ? 64 : 58, 90)
+    : rand(0, selection.starterChance >= 0.45 ? 35 : 28);
   if (minutes === 0) return null;
 
   // Stats de jeu basées sur le rôle
@@ -253,6 +313,10 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
     matchRating,
     isKnockout: stage !== 'league',
     selectionStatus: starts ? 'titulaire' : 'remplaçant',
+    selectionScore: Number(selection.score.toFixed(1)),
+    starterChance: Number(selection.starterChance.toFixed(2)),
+    selectionNote: selection.note,
+    starter: starts,
   };
 };
 

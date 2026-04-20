@@ -396,6 +396,11 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                     <div key={`${match.playerId}-${match.competition}-${match.opponent}`} style={{ ...S.evRow, borderLeft: `3px solid ${match.result === 'win' ? '#00a676' : match.result === 'loss' ? '#b42318' : '#2f80ed'}`, marginBottom: 4 }}>
                       <div style={S.evPlayer}>{match.playerName} · {match.competitionLabel}</div>
                       <div style={S.evLabel}>{match.opponent} · {match.score} · note {match.matchRating}{match.goals ? ` · ${match.goals} but${match.goals > 1 ? 's' : ''}` : ''}{match.assists ? ` · ${match.assists} passe${match.assists > 1 ? 's' : ''}` : ''}</div>
+                      {Array.isArray(match.interestClubs) && match.interestClubs.length > 0 && (
+                        <div style={{ marginTop: 4, fontSize: 10, color: '#2f80ed', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 }}>
+                          Clubs en alerte : {match.interestClubs.slice(0, 3).join(', ')}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

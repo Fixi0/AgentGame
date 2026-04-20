@@ -18,7 +18,7 @@ import { createCareerGoal, createScoutReport, updateSeasonStats } from '../syste
 import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } from '../systems/promiseSystem';
 import { MATCH_INCIDENT_EVENTS, buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
-import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, EURO_CUP_LABELS } from '../systems/europeanCupSystem';
+import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS } from '../systems/europeanCupSystem';
 import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview, getWorldCupInterestClubs } from '../systems/worldCupSystem';
 import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSeasonalNewsItem } from '../systems/calendarEventsSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
@@ -1597,6 +1597,38 @@ export const playWeek = (state) => {
           account: { name: cup?.short ?? 'UEFA', kind: 'media', icon: cup?.icon ?? '🏆', color: cup?.color ?? '#1a1a6e' },
         }));
         reputationChange += scaleReputationDelta(newsData.reputationImpact);
+      }
+
+      const euroInterestClubs = getEuropeanInterestClubs(player, euroMatch);
+      if (euroInterestClubs.length > 0) {
+        euroMatch.interestClubs = euroInterestClubs;
+        generatedNews.push(createManualNewsPost({
+          type: 'transfert',
+          player,
+          week: state.week + 1,
+          text: `${euroInterestClubs.slice(0, 3).join(', ')} gardent un oeil sur ${player.firstName} ${player.lastName} après son match européen.`,
+          reputationImpact: 1,
+          account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
+        }));
+        if (euroMatch.competition === 'CL' || euroMatch.goals >= 1 || euroMatch.matchRating >= 8.2) {
+          generatedMessages.push({
+            id: makeId('msg'),
+            week: state.week + 1,
+            sortWeek: state.week + 1 + 0.012,
+            type: 'secret_offer',
+            context: `europe_interest:${euroMatch.competition}`,
+            threadKey: player.id,
+            threadLabel: `${player.firstName} ${player.lastName}`,
+            playerId: player.id,
+            playerName: `${player.firstName} ${player.lastName}`,
+            senderRole: 'player',
+            senderName: `${player.firstName} ${player.lastName}`,
+            subject: 'Des clubs européens se renseignent',
+            body: `${euroInterestClubs.slice(0, 2).join(' et ')} suivent mon dossier depuis le match. Je voulais te prévenir avant que ça s'accélère.`,
+            read: false,
+            resolved: false,
+          });
+        }
       }
 
       // Event hat_trick_cl — uniquement si match CL et 3+ buts

@@ -473,13 +473,20 @@ function EuropeanCupWidget({ roster }) {
               {cup.icon} {cup.name}
             </div>
             {players.map((p) => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #f0f4f7' }}>
-                <span style={{ fontSize: 11, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>
-                  {p.firstName} {p.lastName}
-                </span>
-                <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
-                  {p.club} · {p.position}
-                </span>
+              <div key={p.id} style={{ padding: '5px 0', borderBottom: '1px solid #f0f4f7' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontSize: 11, color: '#172026', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>
+                    {p.firstName} {p.lastName}
+                  </span>
+                  <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
+                    {p.club} · {p.position}
+                  </span>
+                </div>
+                {p.selectionNote && (
+                  <div style={{ marginTop: 2, fontSize: 9, color: '#8b949e', fontFamily: 'system-ui,sans-serif' }}>
+                    {p.selectionNote}{p.starterChance ? ` · titulaire ${Math.round(p.starterChance * 100)}%` : ''}
+                  </div>
+                )}
               </div>
             ))}
           </div>
