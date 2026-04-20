@@ -1,6 +1,6 @@
 import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
 import { COUNTRY_NAME_POOLS, FIRST_NAMES, HIDDEN_TRAITS, LAST_NAMES, LEGENDARY_PLAYERS, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
-import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA, createPlayerCatalog, getMarketRatingCeiling, getMarketCountryCodes, GABRIEL_FIXIO_ID } from '../data/squadDatabase';
+import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA, createPlayerCatalog, getMarketRatingCeiling, getMarketCountryCodes, GABRIEL_FIXIO_ID, reconcilePlayerWithCatalog } from '../data/squadDatabase';
 import { createDefaultAgencyRecord } from '../data/gameDatabase';
 import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
@@ -418,6 +418,7 @@ export const createFreshState = () => ({
   promises: [],
   clubOffers: [],
   pendingTransfers: [],
+  transferHistory: [],
   negotiationCooldowns: {},
   messageQueue: [],
   socialCrisisCooldowns: {},
@@ -524,28 +525,12 @@ export const migrateState = (state) => {
     return current;
   };
   const playerCatalog = createPlayerCatalog(currentSeason);
+  const reconcileCatalogPlayer = (player) => reconcilePlayerWithCatalog(player, currentSeason);
   const normalizeMarketShelf = (list, count = 5) => {
     const current = asArray(list);
     const marketCap = getMarketRatingCeiling(reputation, marketScoutLevel);
     const sanitized = current
-      .map((player) => {
-        const catalogPlayer = playerCatalog.find((item) => item.id === player?.id);
-        if (!catalogPlayer) return player;
-        // Pour les joueurs signature (ex: Gabriel Fixio), le catalogue prime sur la sauvegarde
-        // pour les champs clés afin de refléter immédiatement les mises à jour du code
-        if (player.id === GABRIEL_FIXIO_ID) {
-          return {
-            ...player,
-            ...catalogPlayer,
-            // On conserve les données de progression en jeu si le joueur a déjà été vu
-            form: player.form ?? catalogPlayer.form,
-            moral: player.moral ?? catalogPlayer.moral,
-            fatigue: player.fatigue ?? catalogPlayer.fatigue,
-            trust: player.trust ?? catalogPlayer.trust,
-          };
-        }
-        return { ...catalogPlayer, ...player };
-      })
+      .map(reconcileCatalogPlayer)
       .filter((player) => (player?.rating ?? 0) <= marketCap || player?.id === GABRIEL_FIXIO_ID)
       .filter(isMarketCountryAllowed);
     // Garantir que Gabriel Fixio est toujours présent dans le marché
@@ -578,6 +563,7 @@ export const migrateState = (state) => {
     const current = asArray(list);
     const marketCap = Math.max(58, getMarketRatingCeiling(reputation, marketScoutLevel) - 4);
     const sanitized = current
+      .map(reconcileCatalogPlayer)
       .filter((player) => (player?.rating ?? 0) <= marketCap)
       .filter(isMarketCountryAllowed);
     const existingIds = new Set([
@@ -607,6 +593,7 @@ export const migrateState = (state) => {
     promises: normalizePromises(state.promises ?? []),
     clubOffers: state.clubOffers ?? [],
     pendingTransfers: state.pendingTransfers ?? [],
+    transferHistory: state.transferHistory ?? [],
     negotiationCooldowns: state.negotiationCooldowns ?? {},
     messageQueue: state.messageQueue ?? [],
     socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
@@ -652,12 +639,14 @@ export const migrateState = (state) => {
     },
     clubOffers: asArray(state.clubOffers),
     pendingTransfers: asArray(state.pendingTransfers).map(normalizePendingTransfer).filter(Boolean),
+    transferHistory: asArray(state.transferHistory),
     negotiationCooldowns: state.negotiationCooldowns ?? {},
     messageQueue: asArray(state.messageQueue).map(normalizeMessageRecord),
     socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
     dossierMemory: state.dossierMemory ?? createDefaultDossierMemory(),
     pendingChainedEvents: asArray(state.pendingChainedEvents),
-    market: normalizeMarketShelf(state.market, 5).map((player) => {
+    market: normalizeMarketShelf(state.market, 5).map((rawPlayer) => {
+      const player = reconcileCatalogPlayer(rawPlayer);
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
@@ -691,7 +680,8 @@ export const migrateState = (state) => {
         europeanCompetition: getPlayerEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
       };
     }),
-    freeAgents: normalizeFreeAgentShelf(state.freeAgents, 4).map((player) => {
+    freeAgents: normalizeFreeAgentShelf(state.freeAgents, 4).map((rawPlayer) => {
+      const player = reconcileCatalogPlayer(rawPlayer);
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
@@ -725,7 +715,8 @@ export const migrateState = (state) => {
       };
     }),
     promises: normalizePromises(asArray(state.promises)),
-    roster: asArray(state.roster).map((player) => {
+    roster: asArray(state.roster).map((rawPlayer) => {
+      const player = reconcileCatalogPlayer(rawPlayer);
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
@@ -764,7 +755,8 @@ export const migrateState = (state) => {
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
       };
     }),
-    market: normalizeMarketShelf(state.market, 5).map((player) => {
+    market: normalizeMarketShelf(state.market, 5).map((rawPlayer) => {
+      const player = reconcileCatalogPlayer(rawPlayer);
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
@@ -2708,6 +2700,7 @@ export const playWeek = (state) => {
   let pendingTransferIncome = 0;
   let pendingTransferReputation = 0;
   const completedOfferIds = [];
+  const completedTransferHistory = [];
   const updatedNegotiationCooldowns = { ...(state.negotiationCooldowns ?? {}) };
   duePendingTransfers.forEach((transfer) => {
     const playerBeforeMove = finalRoster.find((item) => item.id === transfer.playerId);
@@ -2718,6 +2711,23 @@ export const playWeek = (state) => {
     pendingTransferReputation += 3;
     updatedNegotiationCooldowns[transfer.playerId] = state.week + 4;
     completedOfferIds.push(transfer.offerId);
+    completedTransferHistory.push({
+      id: `transfer_${transfer.playerId}_${state.week + 1}_${transfer.offer?.club ?? 'club'}`,
+      playerId: transfer.playerId,
+      playerName: transfer.playerName,
+      fromClub: playerBeforeMove.club,
+      fromClubId: playerBeforeMove.club ? `club_${String(playerBeforeMove.club).toLowerCase().replace(/\W+/g, '_')}` : null,
+      toClub: transfer.offer.club,
+      toClubId: transfer.offer.club ? `club_${String(transfer.offer.club).toLowerCase().replace(/\W+/g, '_')}` : null,
+      type: transfer.offer.type ?? 'transfer',
+      fee: transfer.offer.amount ?? 0,
+      commission: transfer.agreement.commission ?? 0,
+      week: state.week + 1,
+      season: Math.floor((state.week) / 38) + 1,
+      result: 'completed',
+      context: transfer.offer.context ?? 'pré-accord activé',
+      offerId: transfer.offerId,
+    });
     generatedNews.unshift(
       createManualNewsPost({
         type: 'transfert',
@@ -2828,6 +2838,7 @@ export const playWeek = (state) => {
     messageQueue: remainingMessageQueue,
     clubOffers: [...newClubOffers, ...expiredOffers].filter(keepsDepartedClean).slice(0, 30),
     pendingTransfers: remainingPendingTransfers.filter(keepsDepartedClean),
+    transferHistory: [...completedTransferHistory, ...(state.transferHistory ?? [])].slice(0, 120),
     negotiationCooldowns: updatedNegotiationCooldowns,
     socialCrisisCooldowns: { ...(state.socialCrisisCooldowns ?? {}), ...socialCrisisCooldowns },
     stats: {

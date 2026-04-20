@@ -634,6 +634,51 @@ export const createPlayerCatalog = (season = 1) => {
   return catalog;
 };
 
+export const getCatalogPlayerById = (playerId, season = 1) => {
+  if (!playerId) return null;
+  return createPlayerCatalog(season).find((player) => player.id === playerId) ?? null;
+};
+
+export const reconcilePlayerWithCatalog = (player, season = 1) => {
+  if (!player?.id) return player;
+  const catalogPlayer = getCatalogPlayerById(player.id, season);
+  if (!catalogPlayer) return player;
+  const liveRating = Number.isFinite(player.rating) ? player.rating : null;
+  const catalogRating = Number.isFinite(catalogPlayer.rating) ? catalogPlayer.rating : null;
+  const merged = {
+    ...catalogPlayer,
+    ...player,
+    catalogPlayerId: catalogPlayer.id,
+    databaseBacked: true,
+    age: player.age ?? catalogPlayer.age,
+    rating: liveRating == null ? catalogRating : catalogRating == null ? liveRating : Math.max(liveRating, catalogRating),
+    potential: Math.max(player.potential ?? 0, catalogPlayer.potential ?? 0) || (player.potential ?? catalogPlayer.potential),
+    dreamClub: player.dreamClub ?? catalogPlayer.dreamClub,
+    pressureTolerance: player.pressureTolerance ?? catalogPlayer.pressureTolerance,
+    developmentCurve: player.developmentCurve ?? catalogPlayer.developmentCurve,
+    developmentBoost: player.developmentBoost ?? catalogPlayer.developmentBoost,
+    hiddenPotential: player.hiddenPotential ?? catalogPlayer.hiddenPotential,
+    signaturePlayer: player.signaturePlayer ?? catalogPlayer.signaturePlayer,
+    foot: player.foot ?? catalogPlayer.foot,
+    physique: player.physique ?? catalogPlayer.physique,
+    playStyle: player.playStyle ?? catalogPlayer.playStyle,
+    form: player.form ?? catalogPlayer.form,
+    moral: player.moral ?? catalogPlayer.moral,
+    fatigue: player.fatigue ?? catalogPlayer.fatigue,
+    trust: player.trust ?? catalogPlayer.trust,
+    seasonStats: player.seasonStats ?? catalogPlayer.seasonStats,
+    matchHistory: Array.isArray(player.matchHistory) ? player.matchHistory : catalogPlayer.matchHistory,
+    timeline: Array.isArray(player.timeline) ? player.timeline : catalogPlayer.timeline,
+    agentContract: player.agentContract ?? catalogPlayer.agentContract,
+    careerGoal: player.careerGoal ?? catalogPlayer.careerGoal,
+    scoutReport: player.scoutReport ?? catalogPlayer.scoutReport,
+    traitRevealed: player.traitRevealed ?? catalogPlayer.traitRevealed,
+    hiddenTrait: player.hiddenTrait ?? catalogPlayer.hiddenTrait,
+    lastInteractionWeek: player.lastInteractionWeek ?? catalogPlayer.lastInteractionWeek,
+  };
+  return merged;
+};
+
 const chooseCatalogPlayer = ({ catalog, position, targetRating, usedIds, usedClubsThisBatch, eligibleClubs, allowedCountryCodes = null, maxRating = 99, salt = 0 }) => {
   const allowedCountrySet = allowedCountryCodes?.length ? new Set(allowedCountryCodes) : null;
   const collectCandidates = (relaxClubUniqueness = false) => catalog.filter((player) => {

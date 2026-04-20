@@ -3,12 +3,12 @@ import { setDatabasePlayerCatalog } from './squadDatabase';
 import { STORAGE_KEY } from '../game/gameLogic';
 
 const DB_NAME = 'agent_foot_local_db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const SAVE_ID = 'active_save';
 const CATALOG_ID = 'catalog_v2';
 // Bumper cette valeur à chaque modification de la base de données de joueurs
 // pour forcer un re-seed automatique sans perdre la sauvegarde en cours.
-const CATALOG_DATA_VERSION = '2026-04-20-v5';
+const CATALOG_DATA_VERSION = '2026-04-20-v6';
 
 const STATIC_TABLES = [
   'countries',
@@ -47,6 +47,7 @@ const GAME_TABLES = [
   'scouting_reports',
   'promises',
   'club_offers',
+  'market_snapshots',
   'fixtures',
   'match_results',
   'league_table_rows',
@@ -133,6 +134,13 @@ const STORE_DEFINITIONS = [
   { name: 'scouting_reports', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'player_id', keyPath: 'player_id' }] },
   { name: 'promises', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'player_id', keyPath: 'player_id' }] },
   { name: 'club_offers', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'status', keyPath: 'status' }, { name: 'club_id', keyPath: 'club_id' }] },
+  { name: 'market_snapshots', keyPath: 'id', indexes: [
+    { name: 'agency_id', keyPath: 'agency_id' },
+    { name: 'player_id', keyPath: 'player_id' },
+    { name: 'week', keyPath: 'week' },
+    { name: 'market_type', keyPath: 'market_type' },
+    { name: 'expires_week', keyPath: 'expires_week' },
+  ] },
   { name: 'fixtures', keyPath: 'id', indexes: [{ name: 'week', keyPath: 'week' }, { name: 'club_id', keyPath: 'club_id' }, { name: 'status', keyPath: 'status' }] },
   { name: 'match_results', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'week', keyPath: 'week' }, { name: 'competition', keyPath: 'competition' }] },
   { name: 'league_table_rows', keyPath: 'id', indexes: [{ name: 'country_code', keyPath: 'country_code' }, { name: 'season_id', keyPath: 'season_id' }] },
@@ -202,23 +210,90 @@ const idbRead = async (storeName, key) => {
   });
 };
 
-const normalizeRow = (storeName, row, index = 0) => {
+const stableRowId = (storeName, row) => {
+  if (!row || typeof row !== 'object') return null;
+  switch (storeName) {
+    case 'agency_upgrades':
+      return row.agency_id ? `agency_upgrades_${row.agency_id}` : null;
+    case 'staff':
+      return row.agency_id && row.role ? `staff_${row.agency_id}_${row.role}` : null;
+    case 'player_agent_relationships':
+      return row.agency_id && row.player_id ? `rel_${row.agency_id}_${row.player_id}` : null;
+    case 'careers':
+      return row.player_id && row.season_id ? `career_${row.player_id}_${row.season_id}` : null;
+    case 'contracts':
+      return row.player_id && row.club_id ? `contract_${row.player_id}_${row.club_id}_${row.start_date ?? 'start'}` : null;
+    case 'transfers':
+      return row.player_id && row.season_id
+        ? `transfer_${row.player_id}_${row.season_id}_${row.transfer_date ?? row.effective_week ?? 'date'}_${row.to_club_id ?? 'club'}`
+        : null;
+    case 'negotiation_turns':
+      return row.negotiation_id && row.round_number ? `turn_${row.negotiation_id}_${row.round_number}` : null;
+    case 'objectives':
+      return row.agency_id && row.season_id && row.type_objectif ? `objective_${row.agency_id}_${row.season_id}_${row.type_objectif}` : null;
+    case 'event_instances':
+      return row.agency_id && row.template_id && row.triggered_at_week ? `event_${row.agency_id}_${row.template_id}_${row.triggered_at_week}_${row.player_id ?? 'global'}` : null;
+    case 'message_choices':
+      return row.message_id && row.label ? `choice_${row.message_id}_${String(row.label).toLowerCase().replace(/\W+/g, '_')}` : null;
+    case 'chosen_message_responses':
+      return row.message_id && row.choice_id ? `chosen_${row.message_id}_${row.choice_id}` : null;
+    case 'market_snapshots':
+      return row.agency_id && row.week && row.market_type && row.player_id
+        ? `market_${row.agency_id}_${row.week}_${row.market_type}_${row.player_id}`
+        : null;
+    case 'fixtures':
+      return row.week && row.home_club_id && row.away_club_id
+        ? `fixture_${row.season_id ?? 'season'}_${row.week}_${row.competition ?? 'league'}_${row.home_club_id}_${row.away_club_id}`
+        : null;
+    case 'match_results':
+      return row.player_id && row.week
+        ? `match_${row.player_id}_${row.week}_${row.competition ?? 'league'}_${row.fixture_id ?? row.opponent ?? 'opponent'}`
+        : null;
+    case 'league_table_rows':
+      return row.club_id && row.season_id ? `table_${row.season_id}_${row.club_id}` : null;
+    case 'club_season_history':
+      return row.club_id && row.season_id ? `club_history_${row.season_id}_${row.club_id}` : null;
+    case 'club_memory':
+      return row.club_id ? `club_memory_${row.club_id}` : null;
+    case 'club_relations':
+      return row.club_id ? `club_relations_${row.club_id}` : null;
+    case 'dossier_memory':
+      return row.player_id ? `dossier_${row.player_id}_${row.week ?? 'latest'}` : null;
+    case 'decision_history':
+      return row.week && (row.player_id || row.club_id || row.type)
+        ? `decision_${row.week}_${row.type ?? 'note'}_${row.player_id ?? row.club_id ?? 'global'}`
+        : null;
+    case 'contacts':
+      return row.type && (row.club_id || row.name) ? `contact_${row.type}_${row.club_id ?? String(row.name).toLowerCase().replace(/\W+/g, '_')}` : null;
+    case 'agency_goals':
+      return row.metric ? `goal_${row.metric}` : null;
+    case 'world_states':
+      return row.season_id ? `world_state_${row.season_id}` : null;
+    case 'world_cups':
+      return row.season_id && row.phase ? `world_cup_${row.season_id}_${row.phase}` : null;
+    case 'european_competitions':
+      return row.season_id && row.competition ? `europe_${row.season_id}_${row.competition}` : null;
+    case 'narrative_arcs':
+      return row.player_id && row.type ? `arc_${row.player_id}_${row.type}` : null;
+    case 'season_awards':
+      return row.season_id ? `awards_${row.season_id}` : null;
+    default:
+      return null;
+  }
+};
+
+const validateRow = (storeName, row) => {
+  if (!row?.id) return false;
+  if ((storeName === 'players' || storeName === 'catalog_players') && (!row.id || (!row.firstName && !row.first_name))) return false;
+  return true;
+};
+
+const normalizeRow = (storeName, row) => {
   if (!row || typeof row !== 'object') return null;
   if (row.id != null && row.id !== '') return row;
-  const parts = [
-    storeName,
-    row.agency_id,
-    row.player_id,
-    row.message_id,
-    row.negotiation_id,
-    row.season_id,
-    row.club_id,
-    row.week,
-    row.metric,
-    row.role,
-    index,
-  ].filter((part) => part != null && part !== '');
-  return { ...row, id: parts.join('_') };
+  const id = stableRowId(storeName, row);
+  const normalized = id ? { ...row, id } : null;
+  return validateRow(storeName, normalized) ? normalized : null;
 };
 
 const idbWrite = async (storeName, value) => {
@@ -300,7 +375,7 @@ const idbWriteTables = async (tables = {}, { clear = true } = {}) => {
       const store = tx.objectStore(storeName);
       if (clear) store.clear();
       rows.forEach((row, index) => {
-        const normalized = normalizeRow(storeName, row, index);
+        const normalized = normalizeRow(storeName, row);
         if (normalized) store.put(normalized);
       });
     });
@@ -529,6 +604,7 @@ export const getLocalGameDatabaseView = async () => {
     'world_cups',
     'world_states',
     'club_offers',
+    'market_snapshots',
     'messages',
     'message_choices',
     'decision_history',
@@ -550,6 +626,7 @@ export const getLocalGameDatabaseView = async () => {
     worldCups: tables.world_cups ?? [],
     worldStates: tables.world_states ?? [],
     clubOffers: tables.club_offers ?? [],
+    marketSnapshots: tables.market_snapshots ?? [],
     messages: tables.messages ?? [],
     messageChoices: tables.message_choices ?? [],
     decisionHistory: tables.decision_history ?? [],

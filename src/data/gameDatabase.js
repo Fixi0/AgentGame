@@ -243,6 +243,7 @@ const buildPlayerRow = (player, agencyId, source, season, week) => {
   const fullName = playerName(player);
   return {
     id: player.id,
+    catalog_player_id: player.catalogPlayerId ?? player.id,
     agency_id: agencyId,
     source,
     first_name: player.firstName ?? '',
@@ -258,6 +259,9 @@ const buildPlayerRow = (player, agencyId, source, season, week) => {
     main_position: player.position ?? null,
     role_id: player.roleId ?? null,
     secondary_position: player.secondaryPosition ?? null,
+    foot: player.foot ?? null,
+    physique: player.physique ?? null,
+    play_style: player.playStyle ?? null,
     personality_id: personalityId,
     club_current_id: clubId,
     club_name: player.club ?? null,
@@ -276,13 +280,22 @@ const buildPlayerRow = (player, agencyId, source, season, week) => {
     satisfaction: player.satisfaction ?? player.moral ?? null,
     form: player.form ?? null,
     popularity: player.brandValue ?? null,
+    public_rep: player.publicRep ?? null,
     discipline: player.discipline ?? null,
     injury_current: player.injured ?? 0,
     injury_duration: player.injured ?? 0,
     market_status: marketStatus,
     career_status: careerStatus,
     tag: player.signaturePlayer ? 'star' : player.freeAgent ? 'free' : player.hiddenPotential ? 'prospect' : null,
+    signature_player: Boolean(player.signaturePlayer),
+    hidden_potential: Boolean(player.hiddenPotential),
     hidden_projection: player.hiddenPotential ? player.potential ?? null : null,
+    dream_club: player.dreamClub ?? null,
+    pressure_tolerance: player.pressureTolerance ?? null,
+    development_curve: player.developmentCurve ?? null,
+    development_boost: player.developmentBoost ?? null,
+    hidden_trait: player.hiddenTrait ?? null,
+    trait_revealed: Boolean(player.traitRevealed),
     sensitive_history: (player.timeline ?? []).slice(0, 5),
     match_history: safeArray(player.matchHistory),
     season_stats: player.seasonStats ?? {},
@@ -543,6 +556,66 @@ const buildScoutingRows = (state = {}, season = 1, week = 1, agencyId = defaultA
   scouting_cost: player.scoutReport.cost ?? 0,
   created_at: makeGameStamp(season, week),
 }] : []);
+
+const buildMarketSnapshotRows = (state = {}, season = 1, week = 1, agencyId = defaultAgency.id) => {
+  const makeRows = (players, marketType) => safeArray(players)
+    .filter((player) => player?.id)
+    .map((player) => ({
+      id: `market_${agencyId}_${week}_${marketType}_${player.id}`,
+      agency_id: agencyId,
+      player_id: player.id,
+      player_name: playerName(player),
+      season_id: getSeasonId(season),
+      week,
+      market_type: marketType,
+      expires_week: week + 1,
+      club_id: clubIdFromName(player.club),
+      club_name: player.club ?? null,
+      country_code: player.countryCode ?? player.clubCountryCode ?? null,
+      position: player.position ?? null,
+      rating: player.rating ?? null,
+      potential: player.potential ?? null,
+      asking_price: marketType === 'free_agent' ? player.signingCost ?? 0 : player.value ?? 0,
+      salary_weekly: player.weeklySalary ?? null,
+      scout_level: state.office?.scoutLevel ?? 0,
+      source: player.databaseBacked ? 'catalog_players' : 'state',
+      visible: true,
+    }));
+  return [
+    ...makeRows(state.market, 'market'),
+    ...makeRows(state.freeAgents, 'free_agent'),
+  ];
+};
+
+const buildTransferRows = (state = {}, season = 1, week = 1) => {
+  const completed = safeArray(state.transferHistory).map((transfer) => ({
+    id: transfer.id ?? `transfer_${transfer.playerId ?? 'player'}_${transfer.season ?? season}_${transfer.week ?? week}_${transfer.toClub ?? 'club'}`,
+    player_id: transfer.playerId ?? null,
+    from_club_id: transfer.fromClubId ?? clubIdFromName(transfer.fromClub),
+    to_club_id: transfer.toClubId ?? clubIdFromName(transfer.toClub),
+    transfer_type: transfer.type ?? 'transfer',
+    fee: transfer.fee ?? transfer.amount ?? 0,
+    agent_commission: transfer.commission ?? 0,
+    transfer_date: transfer.week ?? week,
+    season_id: getSeasonId(transfer.season ?? season),
+    result: transfer.result ?? 'completed',
+    context: transfer.context ?? transfer.comment ?? '',
+  }));
+  const pending = safeArray(state.pendingTransfers).map((transfer) => ({
+    id: transfer.id ?? `transfer_${transfer.playerId ?? 'player'}_${transfer.effectiveWeek ?? week}_${transfer.offer?.club ?? 'club'}`,
+    player_id: transfer.playerId ?? null,
+    from_club_id: transfer.offer?.fromClubId ?? null,
+    to_club_id: transfer.offer?.club ? `club_${slugId(transfer.offer.club)}` : null,
+    transfer_type: transfer.offer?.type ?? 'transfer',
+    fee: transfer.offer?.amount ?? 0,
+    agent_commission: transfer.agreement?.commission ?? 0,
+    transfer_date: transfer.effectiveWeek ?? week,
+    season_id: getSeasonId(season),
+    result: 'pending',
+    context: transfer.offer?.context ?? '',
+  }));
+  return [...completed, ...pending];
+};
 
 const buildPromiseRows = (state = {}, agencyId = defaultAgency.id) => safeArray(state.promises).map((promise) => ({
   id: promise.id ?? `promise_${slugId(`${promise.playerId ?? ''}_${promise.type ?? ''}`)}`,
@@ -1036,6 +1109,7 @@ export const createGameDatabaseSnapshot = (state = {}) => {
   const clubOffers = buildClubOfferRows(state, season, week, agency.id);
   const fixtures = buildFixtureRows(state, season, week);
   const matchResults = buildMatchResultRows(state, season, week);
+  const marketSnapshots = buildMarketSnapshotRows(state, season, week, agency.id);
 
   return {
     agency: [agency],
@@ -1068,19 +1142,7 @@ export const createGameDatabaseSnapshot = (state = {}) => {
     player_agent_relationships: relationships,
     careers: buildCareerRows(players, season),
     contracts,
-    transfers: safeArray(state.pendingTransfers).map((transfer, index) => ({
-      id: transfer.id ?? `transfer_${transfer.playerId ?? 'player'}_${transfer.effectiveWeek ?? week}_${index}`,
-      player_id: transfer.playerId ?? null,
-      from_club_id: transfer.offer?.fromClubId ?? null,
-      to_club_id: transfer.offer?.club ? `club_${slugId(transfer.offer.club)}` : null,
-      transfer_type: transfer.offer?.type ?? 'transfer',
-      fee: transfer.offer?.amount ?? 0,
-      agent_commission: transfer.agreement?.commission ?? 0,
-      transfer_date: transfer.effectiveWeek ?? week,
-      season_id: getSeasonId(season),
-      result: 'pending',
-      context: transfer.offer?.context ?? '',
-    })),
+    transfers: buildTransferRows(state, season, week),
     loans: safeArray(state.loans).map((loan, index) => ({
       id: loan.id ?? `loan_${index}`,
       player_id: loan.playerId ?? null,
@@ -1133,6 +1195,7 @@ export const createGameDatabaseSnapshot = (state = {}) => {
     scouting_reports: buildScoutingRows(state, season, week, agency.id),
     promises: buildPromiseRows(state, agency.id),
     club_offers: clubOffers,
+    market_snapshots: marketSnapshots,
     fixtures,
     match_results: matchResults,
     league_table_rows: buildLeagueTableRows(state, season),
