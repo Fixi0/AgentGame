@@ -202,13 +202,13 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
             </div>
           )}
 
-          {data.worldCupMatchResults?.length > 0 && (
-            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #07111f 0%, #163456 44%, #0f172a 100%)', border: '1px solid rgba(125,211,252,.28)', boxShadow: '0 16px 34px rgba(15,23,32,.24)', color: '#ffffff' }}>
+              {data.worldCupMatchResults?.length > 0 && (
+            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #06101d 0%, #133764 38%, #0b1930 100%)', border: '1px solid rgba(125,211,252,.34)', boxShadow: '0 16px 34px rgba(15,23,32,.28), inset 0 1px 0 rgba(255,255,255,.08)', color: '#ffffff' }}>
               <div style={S.secTitle}>
                 <Trophy size={14} />
                 <span style={{ color: '#7dd3fc' }}>COUPE DU MONDE</span>
               </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.78)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginBottom: 10 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.82)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginBottom: 10 }}>
                 Tous les matchs de Coupe du monde de la semaine, au format normal mais mis en avant.
               </div>
               <div style={{ display: 'grid', gap: 8 }}>
@@ -307,9 +307,9 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                 </div>
               )}
               {data.euroMatchResults?.length > 0 && (
-                <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #fffaf0 0%, #fff7d9 52%, #fffdf7 100%)', border: '1px solid #fde68a', boxShadow: '0 10px 24px rgba(245, 158, 11, .10)' }}>
+                <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #fff9ef 0%, #f4fde9 55%, #ffffff 100%)', border: '1px solid #cde7a5', boxShadow: '0 10px 24px rgba(34, 197, 94, .10), inset 0 1px 0 rgba(255,255,255,.85)' }}>
                   <div style={S.secTitle}><Trophy size={14} /><span>EUROPE</span></div>
-                  <div style={{ fontSize: 12, color: '#8a6f1f', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45, marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, color: '#5f7f33', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45, marginBottom: 10 }}>
                     Tous les matchs européens de la semaine, avec une mise en avant plus forte.
                   </div>
                   {euroMatches.slice(0, 8).map((match) => (
