@@ -108,6 +108,47 @@ const getClubForPlayerLevel = (countryCode, rating, potential) => {
   return pick(matchingClubs.length ? matchingClubs : CLUBS.filter((club) => allowedTiers.includes(club.tier)));
 };
 
+const estimateTransferValue = ({
+  rating = 65,
+  potential = rating,
+  age = 24,
+  form = 70,
+  clubTier = 3,
+  brandValue = 20,
+}) => {
+  const safeRating = clamp(Number.isFinite(rating) ? rating : 65, 50, 99);
+  const safePotential = clamp(Number.isFinite(potential) ? potential : safeRating, safeRating, 99);
+  const safeAge = clamp(Number.isFinite(age) ? age : 24, 16, 38);
+  const safeForm = clamp(Number.isFinite(form) ? form : 70, 30, 95);
+  const safeBrandValue = clamp(Number.isFinite(brandValue) ? brandValue : 20, 0, 100);
+
+  const ratingFactor = Math.exp((safeRating - 65) / 9.2);
+  const ageFactor = safeAge <= 18
+    ? 1.18 + (18 - safeAge) * 0.04
+    : safeAge <= 21
+      ? 1.16 - (safeAge - 18) * 0.03
+      : safeAge <= 24
+        ? 1.05 - (safeAge - 22) * 0.02
+        : safeAge <= 27
+          ? 0.96 - (safeAge - 25) * 0.025
+          : safeAge <= 30
+            ? 0.84 - (safeAge - 28) * 0.03
+            : Math.max(0.45, 0.72 - (safeAge - 31) * 0.025);
+  const potentialFactor = 1 + clamp((safePotential - safeRating) / 18, 0, 0.2);
+  const formFactor = 1 + clamp((safeForm - 70) / 120, -0.12, 0.18);
+  const brandFactor = 1 + clamp((safeBrandValue - 20) / 300, -0.05, 0.1);
+  const clubFactor = clubTier === 1
+    ? 1.08
+    : clubTier === 2
+      ? 1.03
+      : clubTier === 3
+        ? 0.98
+        : 0.9;
+  const noise = rand(96, 104) / 100;
+
+  return Math.round(clamp(3_850_000 * ratingFactor * ageFactor * potentialFactor * formFactor * brandFactor * clubFactor * noise, 250000, 280000000));
+};
+
 const generateRealisticRating = (reputation, scoutLevel, young) => {
   const repTier = normalizeAgencyReputation(reputation);
   // Base range tightened — young players are raw prospects, not stars
@@ -225,13 +266,22 @@ export const generatePlayer = (reputation, scoutLevel = 0, young = false, forced
   const potentialCeiling = rating >= 86 ? 96 : rating >= 80 ? 92 : 88;
   const potential = clamp(rating + rand(0, 13 - Math.min(12, Math.max(0, age - 18))), rating, potentialCeiling);
   const club = getClubForPlayerLevel(country.code, rating, potential);
-  const value = Math.floor((rating / 60) ** 5 * rand(650000, 4200000));
   const personality = pick(PERSONALITIES);
   const position = pick(POSITIONS);
   const roleProfile = pick(POSITION_ROLES[position] ?? POSITION_ROLES.ATT);
   const name = getGeneratedName(country.code);
   const basePlayer = { personality, age, rating, potential };
   const deepProfile = createDeepPlayerProfile(basePlayer, country.code, club);
+  const form = 70 + rand(-15, 20);
+  const brandValue = rand(8, 35);
+  const value = estimateTransferValue({
+    rating,
+    potential,
+    age,
+    form,
+    clubTier: club.tier,
+    brandValue,
+  });
 
   return {
     id: makeId('p'),
@@ -250,15 +300,15 @@ export const generatePlayer = (reputation, scoutLevel = 0, young = false, forced
     rating,
     potential,
     value,
-    weeklySalary: Math.floor(value / rand(95, 155)),
+    weeklySalary: Math.max(500, Math.floor(value / rand(95, 155))),
     signingCost: Math.floor(value * 0.012 + 1500),
     club: club.name,
     clubTier: club.tier,
     clubCountry: country.flag,
     clubCountryCode: club.countryCode,
     clubCity: club.city,
-    form: 70 + rand(-15, 20),
-    brandValue: rand(8, 35),
+    form,
+    brandValue,
     fatigue: rand(12, 36),
     injured: 0,
     moral: rand(60, 85),
@@ -403,6 +453,22 @@ export const migrateState = (state) => {
     }
     return objective;
   };
+  const normalizeTransferValue = (player, club) => {
+    const estimated = estimateTransferValue({
+      rating: player?.rating,
+      potential: player?.potential,
+      age: player?.age,
+      form: player?.form,
+      clubTier: player?.clubTier ?? club?.tier ?? 3,
+      brandValue: player?.brandValue,
+    });
+    const current = Number.isFinite(player?.value) ? player.value : null;
+
+    if (!current || current <= 0) return estimated;
+    if (current < 500000) return current * 1000;
+    if (current < estimated * 0.5 || current > estimated * 2.5) return estimated;
+    return current;
+  };
 
   return {
     ...state,
@@ -471,7 +537,36 @@ export const migrateState = (state) => {
     dossierMemory: state.dossierMemory ?? createDefaultDossierMemory(),
     pendingChainedEvents: asArray(state.pendingChainedEvents),
     market: asArray(state.market),
-    freeAgents: asArray(state.freeAgents),
+    freeAgents: asArray(state.freeAgents).map((player) => {
+      const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
+      const personality = player.personality ?? pick(PERSONALITIES);
+      const club = normalizeClubForPlayer(player, country.code);
+
+      return {
+        ...player,
+        ...ensureDeepPlayerProfile(player, country.code, club),
+        ...normalizeRoleProfile(player),
+        club: club.name,
+        clubTier: player.clubTier ?? club.tier,
+        clubCountryCode: club.countryCode,
+        clubCity: club.city,
+        countryCode: player.countryCode ?? country.code,
+        countryLabel: player.countryLabel ?? country.label,
+        countryFlag: player.countryFlag ?? country.flag,
+        value: normalizeTransferValue(player, club),
+        weeklySalary: player.weeklySalary < 1000 ? player.weeklySalary * 20 : player.weeklySalary,
+        signingCost: player.signingCost < 1000 ? player.signingCost * 10 : player.signingCost,
+        fatigue: player.fatigue ?? rand(12, 36),
+        brandValue: player.brandValue ?? rand(8, 35),
+        seasonStats: player.seasonStats ?? { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
+        careerGoal: player.careerGoal ?? createCareerGoal(player),
+        agentContract: player.agentContract ?? createAgentContract(player),
+        timeline: player.timeline ?? [],
+        personality,
+        trust: player.trust ?? getInitialTrust(personality),
+        matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
+      };
+    }),
     promises: normalizePromises(asArray(state.promises)),
     roster: asArray(state.roster).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
@@ -489,7 +584,7 @@ export const migrateState = (state) => {
         countryCode: player.countryCode ?? country.code,
         countryLabel: player.countryLabel ?? country.label,
         countryFlag: player.countryFlag ?? country.flag,
-        value: player.value < 500000 ? player.value * 1000 : player.value,
+        value: normalizeTransferValue(player, club),
         weeklySalary: player.weeklySalary < 1000 ? player.weeklySalary * 20 : player.weeklySalary,
         signingCost: player.signingCost < 1000 ? player.signingCost * 10 : player.signingCost,
         fatigue: player.fatigue ?? rand(12, 36),
@@ -525,7 +620,7 @@ export const migrateState = (state) => {
         countryCode: player.countryCode ?? country.code,
         countryLabel: player.countryLabel ?? country.label,
         countryFlag: player.countryFlag ?? country.flag,
-        value: player.value < 500000 ? player.value * 1000 : player.value,
+        value: normalizeTransferValue(player, club),
         weeklySalary: player.weeklySalary < 1000 ? player.weeklySalary * 20 : player.weeklySalary,
         signingCost: player.signingCost < 1000 ? player.signingCost * 10 : player.signingCost,
         fatigue: player.fatigue ?? rand(12, 36),

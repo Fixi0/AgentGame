@@ -174,7 +174,10 @@ function MatchScorecard({ match, highlight = false }) {
 export default function ResultsModal({ data, onClose, onInteractive }) {
   const [step, setStep] = useState('results');
   const [showDetails, setShowDetails] = useState(false);
-  const topWorldCupMatch = (data.worldCupMatchResults ?? []).filter(Boolean).reduce((best, match) => (
+  const matchResults = (data.matchResults ?? []).filter(Boolean);
+  const euroMatches = (data.euroMatchResults ?? []).filter(Boolean);
+  const worldCupMatches = (data.worldCupMatchResults ?? []).filter(Boolean);
+  const topWorldCupMatch = worldCupMatches.reduce((best, match) => (
     !best || (match.matchRating ?? 0) > (best.matchRating ?? 0) ? match : best
   ), null);
 
@@ -205,12 +208,11 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
   }
 
   const bigHeadline = getBigHeadline(data);
-  const totalGoals = (data.matchResults ?? []).reduce((s, m) => s + (m.goals ?? 0), 0);
-  const totalAssists = (data.matchResults ?? []).reduce((s, m) => s + (m.assists ?? 0), 0);
-  const wins = (data.matchResults ?? []).filter((m) => m.result === 'win').length;
-  const hasWorldCup = (data.worldCupMatchResults?.length > 0) || Boolean(data.worldCupActive);
-  const hasDetails = (data.events?.length > 0) || (data.matchResults?.length > 0) || (data.euroMatchResults?.length > 0) || (data.worldCupMatchResults?.length > 0) || (data.lockerRoom?.length > 0) || (data.worldSummary?.length > 0) || (data.clubOffers?.length > 0) || (data.leavingPlayers?.length > 0);
-  const euroMatches = (data.euroMatchResults ?? []).filter(Boolean);
+  const totalGoals = matchResults.reduce((s, m) => s + (m.goals ?? 0), 0);
+  const totalAssists = matchResults.reduce((s, m) => s + (m.assists ?? 0), 0);
+  const wins = matchResults.filter((m) => m.result === 'win').length;
+  const hasWorldCup = worldCupMatches.length > 0 || Boolean(data.worldCupActive);
+  const hasDetails = (data.events?.length > 0) || (matchResults.length > 0) || (euroMatches.length > 0) || (worldCupMatches.length > 0) || (data.lockerRoom?.length > 0) || (data.worldSummary?.length > 0) || (data.clubOffers?.length > 0) || (data.leavingPlayers?.length > 0);
   const euroTheme = (() => {
     const comps = euroMatches.map((match) => match.competition).filter(Boolean);
     if (comps.includes('CL')) return { border: '#3b82f6', bg: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 45%, #f8fbff 100%)', title: '#1d4ed8', glow: 'rgba(59,130,246,.12)' };
@@ -284,7 +286,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
             </div>
           )}
 
-          {data.worldCupMatchResults?.length > 0 && (
+          {worldCupMatches.length > 0 && (
             <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: worldCupTheme.bg, border: `1px solid ${worldCupTheme.border}`, boxShadow: `0 18px 38px ${worldCupTheme.glow}, inset 0 1px 0 rgba(255,255,255,.08)`, color: '#ffffff' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 10, padding: '5px 9px', borderRadius: 8, background: 'rgba(245,200,66,.12)', border: '1px solid rgba(245,200,66,.28)', color: '#f5c842', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
                 🌍 Mondial
@@ -297,7 +299,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                 Tous les matchs de Coupe du monde de la semaine, au format normal mais mis en avant.
               </div>
               <div style={{ display: 'grid', gap: 8 }}>
-                {(data.worldCupMatchResults ?? []).filter(Boolean).map((match) => (
+                {worldCupMatches.map((match) => (
                   <MatchScorecard
                     key={`${match.playerId}-${match.countryName}-${match.opponent}-${match.phase}`}
                     match={{
@@ -325,7 +327,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               <span style={{ color: data.repChange >= 0 ? '#00a676' : '#b42318' }}>
                 ⭐ {data.repChange >= 0 ? '+' : ''}{data.repChange} rép.
               </span>
-              {data.matchResults?.length > 0 && <span>⚽ {totalGoals} buts · 🅰️ {totalAssists} passes</span>}
+              {matchResults.length > 0 && <span>⚽ {totalGoals} buts · 🅰️ {totalAssists} passes</span>}
               {wins > 0 && <span style={{ color: '#00a676' }}>✅ {wins} victoire{wins > 1 ? 's' : ''}</span>}
             </div>
           </div>
@@ -383,15 +385,15 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                   ))}
                 </div>
               )}
-              {data.matchResults?.length > 0 && (
+              {matchResults.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
                   <div style={S.secTitle}><Activity size={14} /><span>RÉSULTATS CLUBS</span></div>
-                  {data.matchResults.slice(0, 8).map((match) => (
+                  {matchResults.slice(0, 8).map((match) => (
                     <MatchScorecard key={`${match.playerId}-${match.opponent}`} match={match} />
                   ))}
                 </div>
               )}
-          {data.euroMatchResults?.length > 0 && (
+          {euroMatches.length > 0 && (
             <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: euroTheme.bg, border: `1px solid ${euroTheme.border}`, boxShadow: `0 12px 26px ${euroTheme.glow}, inset 0 1px 0 rgba(255,255,255,.9)` }}>
                   <div style={S.secTitle}><Trophy size={14} /><span style={{ color: euroTheme.title }}>EUROPE</span></div>
                   <div style={{ fontSize: 12, color: euroTheme.title, fontFamily: 'system-ui,sans-serif', lineHeight: 1.45, marginBottom: 10 }}>
