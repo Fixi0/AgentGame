@@ -1,6 +1,6 @@
 import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
 import { COUNTRY_NAME_POOLS, FIRST_NAMES, HIDDEN_TRAITS, LAST_NAMES, LEGENDARY_PLAYERS, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
-import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA, createPlayerCatalog, getMarketRatingCeiling, getMarketCountryCodes } from '../data/squadDatabase';
+import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA, createPlayerCatalog, getMarketRatingCeiling, getMarketCountryCodes, GABRIEL_FIXIO_ID } from '../data/squadDatabase';
 import { createDefaultAgencyRecord } from '../data/gameDatabase';
 import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
@@ -530,9 +530,23 @@ export const migrateState = (state) => {
     const sanitized = current
       .map((player) => {
         const catalogPlayer = playerCatalog.find((item) => item.id === player?.id);
-        return catalogPlayer ? { ...catalogPlayer, ...player } : player;
+        if (!catalogPlayer) return player;
+        // Pour les joueurs signature (ex: Gabriel Fixio), le catalogue prime sur la sauvegarde
+        // pour les champs clés afin de refléter immédiatement les mises à jour du code
+        if (player.id === GABRIEL_FIXIO_ID) {
+          return {
+            ...player,
+            ...catalogPlayer,
+            // On conserve les données de progression en jeu si le joueur a déjà été vu
+            form: player.form ?? catalogPlayer.form,
+            moral: player.moral ?? catalogPlayer.moral,
+            fatigue: player.fatigue ?? catalogPlayer.fatigue,
+            trust: player.trust ?? catalogPlayer.trust,
+          };
+        }
+        return { ...catalogPlayer, ...player };
       })
-      .filter((player) => (player?.rating ?? 0) <= marketCap)
+      .filter((player) => (player?.rating ?? 0) <= marketCap || player?.id === GABRIEL_FIXIO_ID)
       .filter(isMarketCountryAllowed);
     const targetCount = Math.max(count, sanitized.length);
     const existingIds = new Set([

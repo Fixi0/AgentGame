@@ -33,7 +33,7 @@ const HIDDEN_TRAIT_KEYS = [
 ];
 
 const GABRIEL_FIXIO_SEED = 0x9f3a7b1d;
-const GABRIEL_FIXIO_ID = 'sig_gabriel_fixio';
+export const GABRIEL_FIXIO_ID = 'sig_gabriel_fixio';
 const GABRIEL_FIXIO_CLUB = 'Marseille';
 
 const getMarseilleClub = () =>
