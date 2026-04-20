@@ -6,6 +6,9 @@ const DB_NAME = 'agent_foot_local_db';
 const DB_VERSION = 3;
 const SAVE_ID = 'active_save';
 const CATALOG_ID = 'catalog_v2';
+// Bumper cette valeur à chaque modification de la base de données de joueurs
+// pour forcer un re-seed automatique sans perdre la sauvegarde en cours.
+const CATALOG_DATA_VERSION = '2026-04-20-v5';
 
 const STATIC_TABLES = [
   'countries',
@@ -392,7 +395,12 @@ const hydrateRuntimeCatalogFromDb = async () => {
 const seedCatalogIfNeeded = async () => {
   const existingCatalog = await idbRead('catalog', CATALOG_ID);
   const existingPlayers = await idbGetAll('catalog_players');
-  if (existingCatalog && existingPlayers.length) {
+  // Catalogue valide uniquement si la version des données correspond
+  const catalogIsUpToDate = existingCatalog
+    && existingPlayers.length
+    && existingCatalog.dataVersion === CATALOG_DATA_VERSION;
+
+  if (catalogIsUpToDate) {
     await hydrateRuntimeCatalogFromDb();
     const upgradedCatalog = {
       ...existingCatalog,
@@ -414,11 +422,13 @@ const seedCatalogIfNeeded = async () => {
     return upgradedCatalog;
   }
 
+  // Catalogue absent ou version obsolète → re-seed depuis le code
   const catalog = createGameCatalog();
   await idbWriteTables(buildCatalogTables(catalog), { clear: true });
   const record = {
     id: CATALOG_ID,
     schemaVersion: DB_VERSION,
+    dataVersion: CATALOG_DATA_VERSION,
     createdAt: existingCatalog?.createdAt ?? Date.now(),
     updatedAt: Date.now(),
     tableCounts: {

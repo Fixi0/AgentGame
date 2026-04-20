@@ -548,15 +548,31 @@ export const migrateState = (state) => {
       })
       .filter((player) => (player?.rating ?? 0) <= marketCap || player?.id === GABRIEL_FIXIO_ID)
       .filter(isMarketCountryAllowed);
-    const targetCount = Math.max(count, sanitized.length);
+    // Garantir que Gabriel Fixio est toujours présent dans le marché
+    // (sauf s'il est déjà dans le roster ou les agents libres)
+    const rosterIds = new Set(asArray(state.roster).map((player) => player?.id).filter(Boolean));
+    const freeAgentIds = new Set(asArray(state.freeAgents).map((player) => player?.id).filter(Boolean));
+    const gabrielAlreadySigned = rosterIds.has(GABRIEL_FIXIO_ID) || freeAgentIds.has(GABRIEL_FIXIO_ID);
+    const gabrielInMarket = sanitized.some((player) => player?.id === GABRIEL_FIXIO_ID);
+    let finalList = sanitized;
+    if (!gabrielAlreadySigned && !gabrielInMarket) {
+      const gabrielFromCatalog = playerCatalog.find((player) => player.id === GABRIEL_FIXIO_ID);
+      if (gabrielFromCatalog) {
+        // Remplace le dernier joueur du marché pour faire de la place, ou ajoute en fin
+        finalList = sanitized.length >= count
+          ? [...sanitized.slice(0, count - 1), { ...gabrielFromCatalog }]
+          : [...sanitized, { ...gabrielFromCatalog }];
+      }
+    }
+    const targetCount = Math.max(count, finalList.length);
     const existingIds = new Set([
-      ...asArray(state.roster).map((player) => player?.id).filter(Boolean),
-      ...asArray(state.freeAgents).map((player) => player?.id).filter(Boolean),
-      ...sanitized.map((player) => player?.id).filter(Boolean),
+      ...rosterIds,
+      ...freeAgentIds,
+      ...finalList.map((player) => player?.id).filter(Boolean),
     ]);
-    if (sanitized.length >= count) return sanitized.slice(0, count);
-    const filler = generateMarket(reputation, marketScoutLevel, targetCount - sanitized.length, [...existingIds], currentSeason, agencyCountryCode);
-    return [...sanitized, ...filler].slice(0, count);
+    if (finalList.length >= count) return finalList.slice(0, count);
+    const filler = generateMarket(reputation, marketScoutLevel, targetCount - finalList.length, [...existingIds], currentSeason, agencyCountryCode);
+    return [...finalList, ...filler].slice(0, count);
   };
   const normalizeFreeAgentShelf = (list, count = 4) => {
     const current = asArray(list);
