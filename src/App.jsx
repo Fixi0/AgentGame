@@ -1212,13 +1212,27 @@ export default function FootballAgentGame() {
 
   if (saveMenuOpen) {
     return (
-      <SaveMenu
-        hasSave={hasSave}
-        savePreview={savePreview}
-        onContinue={() => setSaveMenuOpen(false)}
-        onNewGame={handleNewGame}
-        onReset={handleResetGame}
-      />
+      <>
+        <style>{CSS}</style>
+        <SaveMenu
+          hasSave={hasSave}
+          savePreview={savePreview}
+          onContinue={() => setSaveMenuOpen(false)}
+          onNewGame={handleNewGame}
+          onReset={handleResetGame}
+        />
+        {confirmDialog && (
+          <ConfirmModal
+            title={confirmDialog.title}
+            body={confirmDialog.body}
+            confirmLabel={confirmDialog.confirmLabel}
+            cancelLabel="Annuler"
+            tone={confirmDialog.tone}
+            onConfirm={confirmDialog.onConfirm}
+            onCancel={() => setConfirmDialog(null)}
+          />
+        )}
+      </>
     );
   }
 

@@ -23,16 +23,16 @@ export default function SaveMenu({ hasSave, savePreview, onContinue, onNewGame, 
             <div style={{ ...S.sumRow, borderBottom: 'none' }}><span style={S.sumK}>Réputation</span><strong>{savePreview.reputation}</strong></div>
           </div>
         )}
-        <button onClick={onContinue} disabled={!hasSave} style={{ ...S.primaryBtn, opacity: hasSave ? 1 : 0.45 }}>
+        <button type="button" onClick={onContinue} disabled={!hasSave} style={{ ...S.primaryBtn, opacity: hasSave ? 1 : 0.45 }}>
           <Save size={16} />
           {continueLabel}
         </button>
-        <button onClick={onNewGame} style={S.secBtn}>
+        <button type="button" onClick={onNewGame} style={S.secBtn}>
           <Sparkles size={14} />
           NOUVELLE PARTIE
         </button>
         {hasSave && (
-          <button onClick={onReset} style={{ ...S.secBtn, color: '#b42318' }}>
+          <button type="button" onClick={onReset} style={{ ...S.secBtn, color: '#b42318' }}>
             <RotateCcw size={14} />
             RESET SAUVEGARDE
           </button>

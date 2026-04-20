@@ -239,6 +239,37 @@ const getGeneratedName = (countryCode) => {
   };
 };
 
+const normalizePlayerCoreProfile = (player, countryCode, club) => {
+  const baseCountryCode = countryCode ?? player.countryCode ?? club?.countryCode ?? 'FR';
+  const generatedName = getGeneratedName(baseCountryCode);
+  const firstName = typeof player.firstName === 'string' && player.firstName.trim()
+    ? player.firstName.trim()
+    : generatedName.firstName;
+  const lastName = typeof player.lastName === 'string' && player.lastName.trim()
+    ? player.lastName.trim()
+    : generatedName.lastName;
+
+  const ratingCandidates = [player.rating, player.note, player.overall, player.rank];
+  const rawRating = ratingCandidates.find((value) => Number.isFinite(Number(value)));
+  const seed = hashStr(`${player.id ?? firstName}:${club?.name ?? player.club ?? baseCountryCode}:${player.position ?? 'MIL'}`);
+  const rating = Number.isFinite(Number(rawRating))
+    ? Number(rawRating)
+    : sInt(seed, 0, 54, 78);
+
+  const potentialCandidates = [player.potential, player.maxRating, player.ceiling];
+  const rawPotential = potentialCandidates.find((value) => Number.isFinite(Number(value)));
+  const potential = Number.isFinite(Number(rawPotential))
+    ? Number(rawPotential)
+    : Math.min(99, Math.max(rating, rating + sInt(seed, 1, 4, 12)));
+
+  return {
+    firstName,
+    lastName,
+    rating: clamp(Math.round(rating), 50, 99),
+    potential: clamp(Math.round(potential), Math.round(rating), 99),
+  };
+};
+
 const normalizeRoleProfile = (player) => {
   const role = (POSITION_ROLES[player.position] ?? POSITION_ROLES.ATT).find((item) => item.id === player.roleId)
     ?? pick(POSITION_ROLES[player.position] ?? POSITION_ROLES.ATT);
@@ -403,7 +434,7 @@ export const createFreshState = () => ({
   money: 25000,
   gems: 0,
   legendarySeenIds: [],
-  reputation: 120,
+  reputation: 20,
   credibility: 52,
   difficulty: 'realiste',
   startProfile: 'ancien_joueur',
@@ -411,7 +442,7 @@ export const createFreshState = () => ({
   agencyLevel: 1,
   agencyProfile: DEFAULT_AGENCY_PROFILE,
   segmentReputation: createDefaultSegmentReputation(),
-  countryReputation: createDefaultCountryReputation(DEFAULT_AGENCY_PROFILE.countryCode, 12),
+  countryReputation: createDefaultCountryReputation(DEFAULT_AGENCY_PROFILE.countryCode, 20),
   mediaRelations: createDefaultMediaRelations(),
   playerSegmentReputation: createDefaultPlayerSegmentReputation(),
   rivalAgents: createDefaultRivalAgents(),
@@ -431,10 +462,10 @@ export const createFreshState = () => ({
   worldCupState: null,
   europeanCupData: {},
   contacts: createDefaultContacts(),
-  seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 120 }),
+  seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 20 }),
   roster: [],
-  market: generateMarket(12, 0, 6, [], 1),
-  freeAgents: generateFreeAgents(12, 4, [], 1),
+  market: generateMarket(20, 0, 6, [], 1),
+  freeAgents: generateFreeAgents(20, 4, [], 1),
   leagueTables: createInitialLeagueTables(),
   leagueReputation: createDefaultLeagueReputation(DEFAULT_AGENCY_PROFILE.countryCode),
   clubRelations: createDefaultClubRelations(),
@@ -589,9 +620,11 @@ export const migrateState = (state) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
+      const coreProfile = normalizePlayerCoreProfile(player, country.code, club);
 
       return {
         ...player,
+        ...coreProfile,
         ...ensureDeepPlayerProfile(player, country.code, club),
         ...normalizeRoleProfile(player),
         club: club.name,
@@ -621,9 +654,11 @@ export const migrateState = (state) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
+      const coreProfile = normalizePlayerCoreProfile(player, country.code, club);
 
       return {
         ...player,
+        ...coreProfile,
         ...ensureDeepPlayerProfile(player, country.code, club),
         ...normalizeRoleProfile(player),
         club: club.name,
@@ -658,9 +693,11 @@ export const migrateState = (state) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
+      const coreProfile = normalizePlayerCoreProfile(player, country.code, club);
 
       return {
         ...player,
+        ...coreProfile,
         ...ensureDeepPlayerProfile(player, country.code, club),
         ...normalizeRoleProfile(player),
         club: club.name,
