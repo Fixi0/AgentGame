@@ -1,6 +1,14 @@
 export const buildProgressiveCosts = (base, multiplier, levels = 10) =>
   Array.from({ length: levels }, (_, index) => Math.round(base * (multiplier ** index)));
 
+export const buildLevelCostMap = (base, multiplier, maxLevel = 10) =>
+  Array.from({ length: Math.max(0, maxLevel - 1) }, (_, index) => Math.round(base * (multiplier ** index)))
+    .reduce((map, cost, index) => ({ ...map, [index + 1]: cost }), {});
+
+export const buildLevelValueMap = (base, multiplier, maxLevel = 10) =>
+  Array.from({ length: maxLevel }, (_, index) => Math.round(base * (multiplier ** index)))
+    .reduce((map, value, index) => ({ ...map, [index + 1]: value }), {});
+
 export const OFFICE_UPGRADE_COSTS = {
   scoutLevel: buildProgressiveCosts(25000, 1.58, 10),
   lawyerLevel: buildProgressiveCosts(18000, 1.6, 10),
@@ -44,6 +52,31 @@ export const OFFICE_UPGRADE_EFFECTS = {
     'Couverture médiatique favorable',
     'Machine de communication totale',
   ],
+};
+
+export const AGENCY_CAPACITY_BY_LEVEL = {
+  1: 3,
+  2: 5,
+  3: 8,
+  4: 12,
+  5: 16,
+  6: 21,
+  7: 27,
+  8: 34,
+  9: 42,
+  10: 50,
+};
+
+export const AGENCY_UPGRADE_COSTS = {
+  1: 45000,
+  2: 75000,
+  3: 120000,
+  4: 190000,
+  5: 290000,
+  6: 430000,
+  7: 620000,
+  8: 860000,
+  9: 1150000,
 };
 
 // Fixed weekly agency running costs per level — creates meaningful spend pressure

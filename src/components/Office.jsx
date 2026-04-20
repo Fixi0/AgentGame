@@ -3,8 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { COUNTRIES, getCitiesForCountry } from '../data/clubs';
 import { DIFFICULTIES, STARTING_PROFILES } from '../systems/agencyReputationSystem';
 import { getAgencyCapacity, getAgencyProgressSnapshot, getAgencyUpgradeCost } from '../systems/agencySystem';
-import { OFFICE_UPGRADE_EFFECTS } from '../game/economy';
-import { STAFF_ROLES } from '../systems/staffSystem';
+import { OFFICE_UPGRADE_COSTS, OFFICE_UPGRADE_EFFECTS } from '../game/economy';
+import { STAFF_ROLES, getStaffLevelEffect } from '../systems/staffSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
 
@@ -20,13 +20,14 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
   const availableCities = useMemo(() => getCitiesForCountry(profile.countryCode), [profile.countryCode]);
   const progression = getAgencyProgressSnapshot(state);
   const getModuleEffect = (key, level) => OFFICE_UPGRADE_EFFECTS[key]?.[level] ?? 'Niveau maximum';
+  const moduleCosts = OFFICE_UPGRADE_COSTS;
   useEffect(() => {
     setProfile(state.agencyProfile);
   }, [state.agencyProfile]);
   const items = [
-    { key: 'scoutLevel', icon: <Search size={22} color="#00a676" />, label: 'Scouts', desc: 'Meilleurs joueurs et nouveaux pays', level: state.office.scoutLevel, costs: [10000, 25000, 60000] },
-    { key: 'lawyerLevel', icon: <FileText size={22} color="#2f80ed" />, label: 'Avocat', desc: 'Meilleures négociations', level: state.office.lawyerLevel, costs: [8000, 20000, 50000] },
-    { key: 'mediaLevel', icon: <Shield size={22} color="#3f5663" />, label: 'Communication', desc: 'Réduit les scandales', level: state.office.mediaLevel, costs: [12000, 30000, 70000] },
+    { key: 'scoutLevel', icon: <Search size={22} color="#00a676" />, label: 'Scouts', desc: 'Meilleurs joueurs et nouveaux pays', level: state.office.scoutLevel, costs: moduleCosts.scoutLevel },
+    { key: 'lawyerLevel', icon: <FileText size={22} color="#2f80ed" />, label: 'Avocat', desc: 'Meilleures négociations', level: state.office.lawyerLevel, costs: moduleCosts.lawyerLevel },
+    { key: 'mediaLevel', icon: <Shield size={22} color="#3f5663" />, label: 'Communication', desc: 'Réduit les scandales', level: state.office.mediaLevel, costs: moduleCosts.mediaLevel },
   ];
   const agencyUpgradeCost = getAgencyUpgradeCost(state.agencyLevel);
   const handleProfileChange = (field, value) => {
@@ -134,7 +135,8 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
           <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
             <div style={S.promiseRow}><span>Réputation</span><strong>{progression.metrics.reputation}/1000</strong></div>
             <div style={S.promiseRow}><span>Structure</span><strong>{progression.metrics.officeLevel}/30</strong></div>
-            <div style={S.promiseRow}><span>Staff</span><strong>{progression.metrics.staffLevel}/20</strong></div>
+            <div style={S.promiseRow}><span>Staff</span><strong>{progression.metrics.staffLevel}/40</strong></div>
+            <div style={S.promiseRow}><span>Agence</span><strong>{progression.metrics.agencyLevel}/10</strong></div>
             <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(progression.metrics.portfolioValue)}</strong></div>
             <div style={S.promiseRow}><span>Confiance clubs</span><strong>{progression.metrics.relationScore}/100</strong></div>
             <div style={S.promiseRow}><span>Occupation</span><strong>{progression.metrics.utilization}%</strong></div>
@@ -154,7 +156,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             <Briefcase size={22} color="#172026" />
             <div style={{ flex: 1 }}>
               <div style={S.offLabel}>Taille d'agence</div>
-              <div style={S.offDesc}>Niveau {state.agencyLevel} · capacité {getAgencyCapacity(state.agencyLevel)} joueurs</div>
+              <div style={S.offDesc}>Niveau {state.agencyLevel}/10 · capacité {getAgencyCapacity(state.agencyLevel)} joueurs</div>
             </div>
           </div>
           {agencyUpgradeCost ? (
@@ -209,6 +211,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
                     <span>Niv. {level}/{role.maxLevel}</span>
                   </div>
                   <div style={S.offDesc}>{role.desc}</div>
+                  <div style={S.offDesc}>Effet niveau {Math.min(level + 1, role.maxLevel)}: {getStaffLevelEffect(key, Math.min(level + 1, role.maxLevel))}</div>
                   {level < role.maxLevel ? (
                     <button onClick={() => onUpgradeStaff(key)} style={S.staffBtn}>
                       RECRUTER · {formatMoney(cost)}

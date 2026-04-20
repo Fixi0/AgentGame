@@ -43,6 +43,7 @@ export default function AgencyProfile({ state }) {
           <div style={S.promiseRow}><span>Réputation</span><strong>{progression.metrics.reputation}/1000</strong></div>
           <div style={S.promiseRow}><span>Crédibilité</span><strong>{progression.metrics.credibility}/100</strong></div>
           <div style={S.promiseRow}><span>Confiance moyenne</span><strong>{progression.metrics.avgTrust}/100</strong></div>
+          <div style={S.promiseRow}><span>Agence</span><strong>{progression.metrics.agencyLevel}/10</strong></div>
           <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(portfolioValue)}</strong></div>
         </div>
         <div style={{ marginTop: 12 }}>
