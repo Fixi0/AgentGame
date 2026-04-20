@@ -1107,6 +1107,7 @@ export default function FootballAgentGame() {
         } catch {
           // Visible reset already happened; storage cleanup can fail silently.
         }
+        window.location.reload();
       },
     });
   };
@@ -1268,7 +1269,10 @@ export default function FootballAgentGame() {
         <SaveMenu
           hasSave={hasSave}
           savePreview={savePreview}
-          onContinue={() => setSaveMenuOpen(false)}
+          onContinue={() => {
+            setSaveMenuOpen(false);
+            setView('dashboard');
+          }}
           onNewGame={handleNewGame}
           onReset={handleHardResetGame}
         />
