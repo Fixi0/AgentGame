@@ -1,6 +1,6 @@
 import React from 'react';
 import { Award, Briefcase, TrendingUp, Users } from 'lucide-react';
-import { getAgencyCapacity } from '../systems/agencySystem';
+import { getAgencyCapacity, getAgencyProgressSnapshot } from '../systems/agencySystem';
 import { MEDIA_RELATION_TEMPLATES, RIVAL_AGENT_PROFILES } from '../systems/agencyReputationSystem';
 import { getStaffWeeklyCost, STAFF_ROLES } from '../systems/staffSystem';
 import { COUNTRIES } from '../data/clubs';
@@ -12,6 +12,7 @@ export default function AgencyProfile({ state }) {
   const portfolioValue = state.roster.reduce((sum, player) => sum + player.value, 0);
   const activePromises = (state.promises ?? []).filter((promise) => !promise.resolved && !promise.failed);
   const staffCost = getStaffWeeklyCost(state.staff);
+  const progression = getAgencyProgressSnapshot(state);
 
   return (
     <div style={S.vp}>
@@ -29,6 +30,14 @@ export default function AgencyProfile({ state }) {
         <ProfileMetric icon={<TrendingUp size={18} />} label="Portefeuille" value={formatMoney(portfolioValue)} />
         <ProfileMetric icon={<Award size={18} />} label="Staff / sem." value={formatMoney(staffCost)} />
         <ProfileMetric icon={<Award size={18} />} label="Crédibilité" value={`${state.credibility ?? 50}/100`} />
+      </div>
+      <div style={S.objCard}>
+        <div style={S.secTitle}>PROGRESSION AGENCE</div>
+        <div style={S.sumRow}><span style={S.sumK}>Palier</span><strong>{progression.stage}</strong></div>
+        <div style={S.sumRow}><span style={S.sumK}>Lecture</span><strong>{progression.stageHint}</strong></div>
+        <div style={S.sumRow}><span style={S.sumK}>Score</span><strong>{progression.score}/100</strong></div>
+        <div style={S.progBar}><div style={{ ...S.progFill, width: `${progression.progress}%` }} /></div>
+        <div style={S.objReward}>{progression.nextStage ? `Vers ${progression.nextStage}` : 'Sommet atteint'}</div>
       </div>
       <div style={S.segmentGrid}>
         {Object.entries(state.segmentReputation ?? {}).map(([key, value]) => (

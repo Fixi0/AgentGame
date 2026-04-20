@@ -2,7 +2,7 @@ import { Briefcase, FileText, Search, Shield } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { COUNTRIES, getCitiesForCountry } from '../data/clubs';
 import { DIFFICULTIES, STARTING_PROFILES } from '../systems/agencyReputationSystem';
-import { getAgencyCapacity, getAgencyUpgradeCost } from '../systems/agencySystem';
+import { getAgencyCapacity, getAgencyProgressSnapshot, getAgencyUpgradeCost } from '../systems/agencySystem';
 import { STAFF_ROLES } from '../systems/staffSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
@@ -17,6 +17,7 @@ const agencyStyles = [
 export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeStaff, onUpdateAgencyProfile, onStartScoutingMission }) {
   const [profile, setProfile] = useState(state.agencyProfile);
   const availableCities = useMemo(() => getCitiesForCountry(profile.countryCode), [profile.countryCode]);
+  const progression = getAgencyProgressSnapshot(state);
   useEffect(() => {
     setProfile(state.agencyProfile);
   }, [state.agencyProfile]);
@@ -110,6 +111,29 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             </label>
           </div>
           <button onClick={saveProfile} style={S.upBtn}>ENREGISTRER L'IDENTITE</button>
+        </div>
+        <div style={S.offCard}>
+          <div style={S.offHead}>
+            <Briefcase size={22} color="#00a676" />
+            <div style={{ flex: 1 }}>
+              <div style={S.offLabel}>Progression de l'agence</div>
+              <div style={S.offDesc}>{progression.stage} · {progression.stageHint}</div>
+            </div>
+            <div style={S.offLvl}>
+              <div style={{ ...S.lvlDot, background: '#00a676' }} />
+            </div>
+          </div>
+          <div style={S.sumRow}><span style={S.sumK}>Score</span><strong>{progression.score}/100</strong></div>
+          <div style={S.progBar}><div style={{ ...S.progFill, width: `${progression.progress}%` }} /></div>
+          <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 8, lineHeight: 1.45 }}>
+            {progression.nextStage ? `Prochain palier: ${progression.nextStage}` : 'Tu as atteint le palier le plus haut.'}
+          </div>
+          <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+            <div style={S.promiseRow}><span>Réputation</span><strong>{progression.metrics.reputation}/1000</strong></div>
+            <div style={S.promiseRow}><span>Structure</span><strong>{progression.metrics.officeLevel}/9</strong></div>
+            <div style={S.promiseRow}><span>Staff</span><strong>{progression.metrics.staffLevel}/12</strong></div>
+            <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(progression.metrics.portfolioValue)}</strong></div>
+          </div>
         </div>
         <div style={S.offCard}>
           <div style={S.offHead}>
