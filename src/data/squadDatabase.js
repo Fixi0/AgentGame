@@ -162,6 +162,12 @@ const ROLE_LEFT_FOOT = {
 const DEFAULT_LEFT_FOOT_CHANCE = 0.22; // ~22% de gauchers dans le foot mondial
 const playerCatalogCache = new Map();
 
+export const getMarketRatingCeiling = (reputation = 12, scoutLevel = 0) => {
+  const rep = Math.max(0, reputation);
+  const base = rep < 15 ? 62 : rep < 30 ? 68 : rep < 45 ? 74 : rep < 60 ? 80 : 86;
+  return clamp(base + Math.floor(scoutLevel * 0.8), 58, 92);
+};
+
 // ── Quota de postes pour le marché ─────────────────────────────────────────
 export const MARKET_POSITION_QUOTA = ['GK','DEF','DEF','MIL','MIL','ATT'];
 export const FREE_AGENT_POSITION_QUOTA = ['GK','DEF','MIL','ATT'];
@@ -573,12 +579,13 @@ export const createPlayerCatalog = (season = 1) => {
   return catalog;
 };
 
-const chooseCatalogPlayer = ({ catalog, position, targetRating, usedIds, usedClubsThisBatch, eligibleClubs, salt = 0 }) => {
+const chooseCatalogPlayer = ({ catalog, position, targetRating, usedIds, usedClubsThisBatch, eligibleClubs, maxRating = 99, salt = 0 }) => {
   const candidates = catalog.filter((player) => {
     if (usedIds.has(player.id)) return false;
     if (usedClubsThisBatch.has(player.club)) return false;
     if (eligibleClubs.length && !eligibleClubs.some((club) => club.name === player.club)) return false;
     if (position && player.position !== position) return false;
+    if ((player.rating ?? 0) > maxRating) return false;
     return true;
   });
   if (!candidates.length) return null;
@@ -606,6 +613,7 @@ export const drawMarketPlayers = ({
   const eligibleClubs = getEligibleClubs(reputation);
   const catalog = createPlayerCatalog(season);
   const targetRating = clamp(54 + reputation * 0.28 + scoutLevel * 1.6, 50, 91);
+  const maxRating = getMarketRatingCeiling(reputation, scoutLevel);
   const specialGabriel = catalog.find((player) => player.id === GABRIEL_FIXIO_ID);
 
   for (const position of positionQuota) {
@@ -623,6 +631,7 @@ export const drawMarketPlayers = ({
       usedIds,
       usedClubsThisBatch,
       eligibleClubs,
+      maxRating,
       salt: result.length,
     });
     if (player) {
@@ -639,6 +648,7 @@ export const drawMarketPlayers = ({
       usedIds,
       usedClubsThisBatch,
       eligibleClubs,
+      maxRating,
       salt: result.length + 11,
     });
     if (fallback) {
@@ -665,6 +675,7 @@ export const drawFreeAgents = ({
   const eligibleClubs = getEligibleClubs(Math.max(0, reputation - 12));
   const catalog = createPlayerCatalog(season);
   const targetRating = clamp(50 + reputation * 0.22, 50, 82);
+  const maxRating = Math.max(58, getMarketRatingCeiling(reputation, 0) - 4);
 
   for (const position of positionQuota) {
     const player = chooseCatalogPlayer({
@@ -674,6 +685,7 @@ export const drawFreeAgents = ({
       usedIds,
       usedClubsThisBatch: new Set(),
       eligibleClubs,
+      maxRating,
       salt: result.length + 31,
     });
     if (player) {

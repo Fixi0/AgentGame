@@ -1,6 +1,6 @@
 import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
 import { COUNTRY_NAME_POOLS, FIRST_NAMES, HIDDEN_TRAITS, LAST_NAMES, LEGENDARY_PLAYERS, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
-import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA } from '../data/squadDatabase';
+import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA, createPlayerCatalog, getMarketRatingCeiling } from '../data/squadDatabase';
 import { createDefaultAgencyRecord } from '../data/gameDatabase';
 import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
@@ -506,17 +506,25 @@ export const migrateState = (state) => {
     if (current < estimated * 0.5 || current > estimated * 2.5) return estimated;
     return current;
   };
+  const playerCatalog = createPlayerCatalog(currentSeason);
   const normalizeMarketShelf = (list, count = 5) => {
     const current = asArray(list);
-    const targetCount = Math.max(count, current.length);
+    const marketCap = getMarketRatingCeiling(reputation, state.office?.scoutLevel ?? 0);
+    const sanitized = current
+      .map((player) => {
+        const catalogPlayer = playerCatalog.find((item) => item.id === player?.id);
+        return catalogPlayer ? { ...catalogPlayer, ...player } : player;
+      })
+      .filter((player) => (player?.rating ?? 0) <= marketCap);
+    const targetCount = Math.max(count, sanitized.length);
     const existingIds = new Set([
       ...asArray(state.roster).map((player) => player?.id).filter(Boolean),
       ...asArray(state.freeAgents).map((player) => player?.id).filter(Boolean),
-      ...current.map((player) => player?.id).filter(Boolean),
+      ...sanitized.map((player) => player?.id).filter(Boolean),
     ]);
-    if (current.length >= count) return current;
-    const filler = generateMarket(reputation, state.office?.scoutLevel ?? 0, targetCount - current.length, [...existingIds], currentSeason);
-    return [...current, ...filler].slice(0, count);
+    if (sanitized.length >= count) return sanitized.slice(0, count);
+    const filler = generateMarket(reputation, state.office?.scoutLevel ?? 0, targetCount - sanitized.length, [...existingIds], currentSeason);
+    return [...sanitized, ...filler].slice(0, count);
   };
 
   return {

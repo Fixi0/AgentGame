@@ -49,8 +49,8 @@ export const COUNTRY_NAME_POOLS = {
     first: [
       'Mateo','Iker','Dario','Tomas','Unai','Nico','Hugo','Sergio','Pablo','Diego',
       'Adrian','Javi','Alvaro','Mario','Ruben','Ivan','Saul','Cesar','Carlos','Jorge',
-      'Roberto','David','Marc','Pau','Ferran','Gavi','Pedri','Ansu','Yannick','Borja',
-      'Alejandro','Nico','Joselu','Mikel','Asier','Andoni','Jon','Julen','Aitor','Kepa',
+      'Roberto','David','Marc','Pau','Ferran','Izan','Bruno','Ares','Yannick','Borja',
+      'Alejandro','Liam','Iker','Mikel','Asier','Andoni','Jon','Julen','Aitor','Kepa',
       'Raul','Fernando','Hernan','Pedro','Victor','Marcos','Gonzalo','Miguel','Oscar','Juanmi',
     ],
     last: [
@@ -58,23 +58,23 @@ export const COUNTRY_NAME_POOLS = {
       'Iglesias','Soler','Campos','Arias','Rojas','Medina','Moreno','Garcia','Lopez','Martinez',
       'Fernandez','Torres','Rodriguez','Gonzalez','Sanchez','Perez','Gomez','Ruiz','Jimenez',
       'Diaz','Herrera','Flores','Castro','Reyes','Gutierrez','Romero','Vargas','Blanco',
-      'Sanz','Pardo','Munoz','Gil','Moya','Llorente','Carvajal','Bellingham','Yamal','Pedri',
+      'Sanz','Pardo','Munoz','Gil','Moya','Llorente','Carvajal','Nadal','Valero','Prat',
     ],
   },
 
   // ── Angleterre / Royaume-Uni ─────────────────────────────────────────────────
   GB: {
     first: [
-      'Oscar','Isaac','Aaron','Mason','Elliot','Jude','Archie','Harvey','Callum','Lewis',
+      'Oscar','Isaac','Aaron','Mason','Elliot','Noah','Archie','Harvey','Callum','Lewis',
       'Finley','Reece','Owen','Liam','Jayden','Corey','Jack','Harry','James','George',
       'Charlie','Oliver','William','Ethan','Tyler','Ben','Ryan','Sam','Alex','Tom',
       'Jake','Jamie','Luke','Scott','Jordan','Connor','Kyle','Adam','Josh','Nathan',
-      'Kieran','Marcus','Raheem','Trent','Declan','Phil','Curtis','Bukayo','Cole','Ebere',
+      'Kieran','Marcus','Rico','Trent','Declan','Phil','Curtis','Bailey','Cole','Emery',
     ],
     last: [
       'Walker','Bennett','Cooper','Reed','Murphy','Carter','Hughes','Watson','Morris','Parker',
       'Foster','Hayes','Mason','Webb','Ellis','Walsh','Shaw','Ward','Phillips','Henderson',
-      'Maguire','Sterling','Rashford','Trippier','Saka','Bellingham','Rice','Grealish','Mount',
+      'Maguire','Barker','Hugheson','Trippier','Sayer','Bramwell','Rice','Greaves','Moss',
       'Gallagher','Evans','Dier','Gomez','Stones','Coady','White','Ramsdale','Pope','Pickford',
       'Smith','Jones','Taylor','Brown','Wilson','Clarke','Hall','Davis','Thomas','Jackson',
     ],
@@ -84,16 +84,16 @@ export const COUNTRY_NAME_POOLS = {
   DE: {
     first: [
       'Lukas','Jonas','Finn','Mats','Timo','Niklas','Emil','Leon','Felix','Ben',
-      'Anton','Moritz','Noel','Jannik','Lennart','Florian','Leroy','Thomas','Serge',
-      'Robin','Joshua','Marco','Kai','Ilkay','Toni','Christopher','Marco','Nico','Luca',
+      'Anton','Moritz','Noel','Jannik','Lennart','Florian','Lars','Tom','Serge',
+      'Robin','Joshua','Marco','Kai','Ilhan','Toni','Christopher','Noah','Nico','Luca',
       'Tobias','Christian','Sven','Stefan','Michael','Daniel','Kevin','Marcel','Simon',
       'Fabian','Dennis','Bastian','Lars','Jan','Rene','Patrick','Andre','Julian','Erik',
     ],
     last: [
       'Schneider','Keller','Vogel','Meier','Becker','Hoffmann','Kruger','Fischer','Brandt','Weber',
       'Hartmann','Kraus','Neumann','Seidel','Muller','Koch','Richter','Klein','Schulz','Schäfer',
-      'Werner','Goretzka','Rudiger','Gundogan','Havertz','Musiala','Wirtz','Sane','Gnabry',
-      'Kimmich','Ter Stegen','Neuer','Hummels','Boateng','Süle','Kehrer','Henrichs','Arnold',
+      'Werner','Bruckner','Kasper','Kellermann','Hassler','Meyer','Wolff','Brandst','Gies',
+      'Kaiser','Stein','Neumann','Hummel','Baer','Sule','Kehrer','Henrichs','Arnold',
       'Andrich','Sule','Tah','Anton','Pieper','Schlotterbeck','Raum','Mittelstadt','Undav',
     ],
   },
@@ -109,10 +109,10 @@ export const COUNTRY_NAME_POOLS = {
     ],
     last: [
       'Russo','Conti','Rinaldi','Bianchi','Gallo','Romano','Ferrari','Marino','Greco','Ricci',
-      'Lombardi','Fontana','Barone','Vitale','Esposito','Ferrara','De Ligt','Barella','Verratti',
-      'Tonali','Frattesi','Pellegrini','Chiesa','Zaniolo','Locatelli','Bastoni','Acerbi','Darmian',
-      'Mancini','Cristante','Jorginho','Donnarumma','Meret','Provedel','Scalvini','Fagioli',
-      'Cambiaso','Gatti','Miretti','Casadei','Gnonto','Lucumi','Kayode','Nzola','Chukwueze',
+      'Lombardi','Fontana','Barone','Vitale','Esposito','Ferrara','Belardi','Sannino','Rossi',
+      'Tonelli','Frattini','Pellegrino','Chiari','Zanetti','Locati','Bassi','Acerbi','Darmian',
+      'Mancini','Cristiano','Giordano','Donati','Meret','Proietti','Scaletti','Fagioli',
+      'Cambiasso','Gatti','Miretti','Casadei','Gnotti','Lucenti','Kayode','Nzola','Chukwueze',
     ],
   },
 
@@ -120,13 +120,13 @@ export const COUNTRY_NAME_POOLS = {
   NL: {
     first: [
       'Daan','Milan','Sem','Levi','Jens','Ties','Noud','Ruben','Mees','Bram',
-      'Stijn','Joris','Frenkie','Memphis','Virgil','Daley','Stefan','Georginio',
+      'Stijn','Joris','Frenk','Milo','Virgil','Daley','Stefan','Gino',
       'Denzel','Matthijs','Jurrien','Ryan','Nathan','Xavi','Cody','Wout','Brian',
       'Bart','Lars','Sander','Tim','Tom','Finn','Max','Noah','Luuk','Bas',
     ],
     last: [
       'De Vries','Van Dijk','Jansen','Bakker','Visser','Smit','Meijer','Bos','Vos','Peters',
-      'Kuiper','Mulder','De Jong','Dumfries','Blind','Depay','Bergwijn','Gakpo','Timber',
+      'Kuiper','Mulder','De Jong','Dumfries','Blind','Depay','Bergs','Gako','Timber',
       'Gravenberch','Malen','Weghorst','Janssen','Klaassen','Noppert','Flekken','Verbruggen',
       'Van den Berg','Schouten','Veerman','Reijnders','Wieffer','Geertruida','Hartman',
     ],
@@ -143,8 +143,8 @@ export const COUNTRY_NAME_POOLS = {
     last: [
       'Ferreira','Mendes','Ribeiro','Costa','Pereira','Barbosa','Duarte','Borges','Cardoso',
       'Vieira','Teixeira','Rocha','Silva','Santos','Sousa','Carvalho','Fernandes','Neves',
-      'Cancelo','Dias','Semedo','Guerreiro','Moutinho','Danilo','Ruben Neves','Vitinha',
-      'Bernardo','Pedro Neto','Trincao','Jota','Leao','Conceicao','Felix','Horta','Otavio',
+      'Canelas','Dias','Semedo','Guerreiro','Moutinho','Danilo','Neveso','Vitinha',
+      'Bernal','Neto','Trincao','Jota','Lemos','Conceicao','Felix','Horta','Otavio',
     ],
   },
 
@@ -152,10 +152,10 @@ export const COUNTRY_NAME_POOLS = {
   BR: {
     first: [
       'Caio','Joao','Rafael','Bruno','Felipe','Thiago','Renan','Igor','Lucas','Davi',
-      'Kaique','Matheus','Wesley','Caua','Rodrygo','Vinicius','Endrick','Savinho','Raphinha',
-      'Gabriel','Marquinhos','Casemiro','Fred','Fabinho','Allison','Ederson','Alex','Tite',
-      'Anderson','Willian','Douglas','Roberto','Ronaldo','Neymar','Malcom','Richarlison',
-      'Firmino','Joelinton','Everton','Antony','Andreas','Eder','Victor','Ruan','Talles',
+      'Kaique','Matheus','Wesley','Caua','Rodrigo','Vincent','Eden','Savio','Rafael',
+      'Gabriel','Marcos','Casio','Fred','Fabio','Allan','Edson','Alex','Tito',
+      'Anderson','Willian','Douglas','Roberto','Rodolfo','Natan','Malcom','Rian',
+      'Firmino','Joel','Everton','Antoni','Andreas','Eder','Victor','Ruan','Talles',
     ],
     last: [
       'Borges','Cardoso','Vieira','Santos','Lima','Moura','Araujo','Batista','Rezende',
@@ -175,9 +175,9 @@ export const COUNTRY_NAME_POOLS = {
     ],
     last: [
       'Sosa','Acosta','Ferreyra','Ponce','Molina','Vera','Cabrera','Pereyra','Luna','Correa',
-      'Roldan','Benitez','Martinez','Messi','De Paul','Mac Allister','Fernandez','Almada',
-      'Otamendi','Romero','Lisandro','Tagliafico','Acuna','Enzo','Julian','Lautaro',
-      'Dybala','Di Maria','Paredes','Lo Celso','Papu','Exequiel','Nahuel','Guido',
+      'Roldan','Benitez','Martinez','Mena','Del Valle','Macias','Fernandez','Almada',
+      'Otamendi','Romero','Lisandro','Tagliafico','Acuna','Ledesma','Julio','Lautaro',
+      'Dybala','Diaz','Paredes','Lo Celso','Paz','Exequiel','Nahuel','Guido',
     ],
   },
 
@@ -186,7 +186,7 @@ export const COUNTRY_NAME_POOLS = {
     first: [
       'Sadio','Idrissa','Kalidou','Ismaila','Moussa','Cheikhou','Pape','Abdou','Bamba',
       'Lamine','Iliman','Nicolas','Pathé','Habib','Saliou','Mamadou','Ibrahima','Seydou',
-      'Diomaye','Aliou','Seny','Abdallah','Cheikh','Daouda','Papiss','Modou','Amara',
+      'Diomaye','Aliou','Seny','Abdallah','Cheikh','Daouda','Papis','Modou','Amara',
     ],
     last: [
       'Mane','Gueye','Koulibaly','Sarr','Kouyate','Kouyate','Diagne','Sabaly','Diallo',
@@ -200,11 +200,11 @@ export const COUNTRY_NAME_POOLS = {
     first: [
       'Andre','Vincent','Samuel','Harold','Olivier','Nicolas','Jean','Maxime','Bryan',
       'Cedric','Christian','Patrice','Pierre','Stephane','Joel','Thierry','Franck',
-      'Jean-Pierre','Karl','Collins','Gaetan','Arnaud','Axel','Sébastien',
+      'Jean-Pierre','Karl','Collins','Gaetan','Arnaud','Axel','Sebastien',
     ],
     last: [
       'Onana','Zambo','Anguissa','Choupo','Moukandjo','Aboubakar','Tolo','Ngadeu','Fai',
-      'Ntcham','Oyongo','Bassogog','Toko','Ekambi','Wooh','Mbappe','Lyle','Ebosse',
+      'Ntcham','Oyongo','Bassogog','Toko','Ekambi','Wooh','Mbacke','Lyle','Ebosse',
       'Lomb','Bengui','Trescos','Nkoudou','Biface','Djigui',
     ],
   },
@@ -212,7 +212,7 @@ export const COUNTRY_NAME_POOLS = {
   // ── Côte d'Ivoire ─────────────────────────────────────────────────────────────
   CI: {
     first: [
-      'Franck','Wilfried','Nicolas','Serge','Gradel','Kessie','Pépé','Zaha','Haller',
+      'Franck','Wilfried','Nicolas','Serge','Gradel','Kessie','Pape','Zaha','Haller',
       'Deli','Oumar','Kouassi','Konan','Yao','Koffi','Eboue','Tiote','Bamba',
       'Gervais','Ismael','Lacina','Sylvain','Arouna','Cheick',
     ],
@@ -228,7 +228,7 @@ export const COUNTRY_NAME_POOLS = {
     first: [
       'Achraf','Hakim','Romain','Noussair','Sofyan','Youssef','Azzedine','Yahya','Amine',
       'Zakaria','Ilias','Said','Nayef','Adam','Anass','Mehdi','Brahim','Selim',
-      'Imraan','Tarik','Abde','Jawad','Hamza','Yassine',
+      'Imraan','Tarik','Abdel','Jawad','Hamza','Yassine',
     ],
     last: [
       'Hakimi','Ziyech','Saiss','Mazraoui','Amrabat','En-Nesyri','Boufal','Benoun',
@@ -240,9 +240,9 @@ export const COUNTRY_NAME_POOLS = {
   // ── Nigeria ───────────────────────────────────────────────────────────────────
   NG: {
     first: [
-      'Victor','Wilfried','Emmanuel','Kelechi','Alex','Moses','Oghenekaro','Alex','Odion',
+      'Victor','Wilfried','Emmanuel','Kelechi','Alex','Moses','Oghenekaro','Ayo','Odion',
       'Ahmed','Taiwo','Kenneth','Chukwuemeka','Cyriel','Chidera','Samson','Paul',
-      'Chisom','Blessing','Terem','Fisayo','Ola','Eze','Ebere',
+      'Chisom','Blessing','Terem','Fisayo','Ola','Emeka','Ebere',
     ],
     last: [
       'Osimhen','Iheanacho','Lookman','Musa','Simon','Aina','Etebo','Troost-Ekong',
@@ -255,7 +255,7 @@ export const COUNTRY_NAME_POOLS = {
   GH: {
     first: [
       'Mohammed','Thomas','Andre','Jordan','Baba','Christian','Kamaldeen','Antoine',
-      'Joseph','Daniel','Emmanuel','Inaki','Nicholas','Felix','Osman','Ransford',
+      'Joseph','Daniel','Emmanuel','Inaki','Nicholas','Foster','Osman','Ransford',
       'Elisha','Iddrisu','Tariq','Majeed',
     ],
     last: [
