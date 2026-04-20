@@ -1736,8 +1736,10 @@ export const playWeek = (state) => {
       + dataAnalystLevel * 0.012
       + (specialization.youthProgress ?? 0) / 2
       + developmentCurveBoost;
-    const developmentAgeCap = updatedPlayer.developmentCurve === 'superstar_gem' ? 28 : 24;
-    const developmentGain = updatedPlayer.developmentCurve === 'superstar_gem' ? 2 : 1;
+    // late_bloomer : continue de progresser jusqu'à 33 ans (au lieu de s'arrêter à 24/28)
+    const isLateBloomer = updatedPlayer.hiddenTrait === 'late_bloomer';
+    const developmentAgeCap = isLateBloomer ? 33 : updatedPlayer.developmentCurve === 'superstar_gem' ? 28 : 24;
+    const developmentGain = updatedPlayer.developmentCurve === 'superstar_gem' ? 3 : 1;
     if (updatedPlayer.age < developmentAgeCap && Math.random() < developmentChance && updatedPlayer.rating < updatedPlayer.potential) {
       updatedPlayer = {
         ...updatedPlayer,
@@ -1745,7 +1747,7 @@ export const playWeek = (state) => {
         value: Math.floor(updatedPlayer.value * 1.035),
         timeline: [{ week: state.week, type: 'progression', label: 'Progression validée par le temps de jeu' }, ...(updatedPlayer.timeline ?? [])].slice(0, 18),
       };
-    } else if (updatedPlayer.age > 30 && Math.random() < 0.06) {
+    } else if (updatedPlayer.age > 30 && !isLateBloomer && Math.random() < 0.06) {
       updatedPlayer = { ...updatedPlayer, rating: Math.max(60, updatedPlayer.rating - 1), value: Math.floor(updatedPlayer.value * 0.95) };
     }
 

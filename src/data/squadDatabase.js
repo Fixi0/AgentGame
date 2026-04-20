@@ -45,7 +45,7 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     ?? POSITION_ROLES.MIL?.[0]
     ?? POSITION_ROLES.ATT?.[0];
   const baseAge = 20;
-  const baseRating = 53;
+  const baseRating = 65;
   const potential = 99;
   const rating = evolveRating(baseRating, baseAge, potential, season);
   const age = baseAge + (season - 1);
@@ -59,7 +59,7 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     lastName: 'Fixio',
     birthDate: '2006-05-04',
     birthDateLabel: '4 mai 2006',
-    birthPlace: 'Marseille',
+    birthPlace: 'Aix-en-Provence',
     position: 'MIL',
     roleId: roleObj.id,
     roleLabel: 'Milieu offensif central',
@@ -67,7 +67,7 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     countryCode: countryData.code,
     countryLabel: countryData.label,
     countryFlag: countryData.flag,
-    personality: 'ambitieux',
+    personality: 'professionnel',
     age,
     rating,
     potential,
@@ -79,22 +79,22 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     clubCountry: (COUNTRIES.find((c) => c.code === fixioClub.countryCode) ?? COUNTRIES[0]).flag,
     clubCountryCode: fixioClub.countryCode,
     clubCity: fixioClub.city ?? 'Marseille',
-    form: 60 + sInt(GABRIEL_FIXIO_SEED, 4, 0, 10),
-    brandValue: 6 + sInt(GABRIEL_FIXIO_SEED, 5, 0, 8),
-    fatigue: 14 + sInt(GABRIEL_FIXIO_SEED, 6, 0, 10),
+    form: 95,
+    brandValue: 10 + sInt(GABRIEL_FIXIO_SEED, 5, 0, 8),
+    fatigue: 5,
     injured: 0,
-    moral: 68 + sInt(GABRIEL_FIXIO_SEED, 7, 0, 12),
-    trust: 58,
+    moral: 98,
+    trust: 85,
     contractWeeksLeft: 64,
     contractStartWeek: 0,
     commission: 0.08,
     agentContract: null,
     timeline: [
-      { week: season * 38 - 37, type: 'origin', label: 'Jeune talent marseillais' },
+      { week: season * 38 - 37, type: 'origin', label: 'Pépite d\'Aix-en-Provence' },
     ],
     careerGoal: null,
     scoutReport: null,
-    hiddenTrait: 'tactical_genius',
+    hiddenTrait: 'late_bloomer',
     traitRevealed: false,
     lastInteractionWeek: 0,
     europeanCompetition: null,
@@ -104,17 +104,17 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
       ratings: [], averageRating: null,
     },
     publicRep: null,
-    pressure: 18,
+    pressure: 5,
     recentResults: [],
     previousRating: null,
     matchHistory: [],
     activeActions: [],
     physique: 'technique',
-    playStyle: 'créateur',
+    playStyle: 'box_to_box',
     foot: 'G',
     developmentBoost: 0.055,
     developmentCurve: 'superstar_gem',
-    signaturePlayer: true,
+    signaturePlayer: false,
     hiddenPotential: true,
   };
 };
@@ -246,10 +246,20 @@ const evolveRating = (baseRating, baseAge, potential, season) => {
   let r = baseRating;
   let a = baseAge;
   for (let s = 1; s < season; s++) {
-    if (a < 20)      r = Math.min(potential, r + 2);
-    else if (a < 23) r = Math.min(potential, r + 1);
-    else if (a < 29) r = r; // plateau
-    else             r = Math.max(50, r - 1);
+    const gap = potential - r;
+    if (a < 23) {
+      // Jeune : croissance rapide proportionnelle au potentiel restant
+      r = Math.min(potential, r + (gap > 25 ? 4 : gap > 15 ? 3 : gap > 8 ? 2 : 1));
+    } else if (a < 29) {
+      // Plateau/prime : croissance modérée si écart important
+      r = Math.min(potential, r + (gap > 18 ? 2 : gap > 8 ? 1 : 0));
+    } else if (a < 32) {
+      // Début déclin, peut encore progresser si gros écart
+      r = Math.min(potential, r + (gap > 22 ? 1 : 0));
+      if (gap <= 22) r = Math.max(50, r - 1);
+    } else {
+      r = Math.max(50, r - 1);
+    }
     a++;
   }
   return Math.min(99, Math.max(50, r));
@@ -676,7 +686,6 @@ export const drawMarketPlayers = ({
       && !usedIds.has(specialGabriel.id)
       && !usedClubsThisBatch.has(specialGabriel.club)
       && marketCountrySet.has(specialGabriel.countryCode ?? specialGabriel.clubCountryCode)
-      && (specialGabriel.rating ?? 0) <= maxRating
     ) {
       result.push({ ...specialGabriel });
       usedIds.add(specialGabriel.id);
