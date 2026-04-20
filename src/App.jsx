@@ -1095,19 +1095,14 @@ export default function FootballAgentGame() {
       confirmLabel: 'Nouvelle partie',
       tone: 'danger',
       onConfirm: async () => {
-        setState(createFreshState());
+        const freshState = createFreshState();
+        setConfirmDialog(null);
+        setHasSave(false);
         setSavePreview(null);
+        setState(freshState);
         setView('dashboard');
         setSaveMenuOpen(false);
-        setHasSave(false);
-        setConfirmDialog(null);
         showToast('Nouvelle partie', 'success');
-        try {
-          await clearLocalGameProgress();
-        } catch {
-          // Visible reset already happened; storage cleanup can fail silently.
-        }
-        window.location.reload();
       },
     });
   };

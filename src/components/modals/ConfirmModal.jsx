@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { S } from '../styles';
 
@@ -14,15 +14,19 @@ export default function ConfirmModal({
   const isDanger = tone === 'danger';
   const accent = isDanger ? '#b42318' : '#00a676';
   const accentBg = isDanger ? '#fef2f2' : '#f0fdf8';
-  const confirmTriggeredRef = useRef(false);
-  const triggerConfirm = (event) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const triggerConfirm = async (event) => {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
-    if (confirmTriggeredRef.current) return;
-    confirmTriggeredRef.current = true;
-    onConfirm?.();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onConfirm?.();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   const triggerCancel = (event) => {
     if (event) {
@@ -49,22 +53,23 @@ export default function ConfirmModal({
           <div style={{ display: 'grid', gap: 10, marginTop: 'auto', paddingTop: 4 }}>
             <button
               type="button"
-              onPointerUp={triggerConfirm}
               onClick={triggerConfirm}
+              disabled={isSubmitting}
               style={{
                 ...S.choiceBtn,
                 background: accent,
                 color: '#ffffff',
                 borderColor: accent,
                 boxShadow: isDanger ? '0 12px 26px rgba(180,35,24,.22)' : '0 12px 26px rgba(0,166,118,.18)',
+                opacity: isSubmitting ? 0.7 : 1,
               }}
             >
               <div>
-                <div style={S.chLabel}>{confirmLabel}</div>
-                <div style={S.chDesc}>Action irréversible</div>
+                <div style={S.chLabel}>{isSubmitting ? 'Traitement…' : confirmLabel}</div>
+                <div style={S.chDesc}>{isSubmitting ? 'Lancement en cours' : 'Action irréversible'}</div>
               </div>
             </button>
-            <button type="button" onPointerUp={triggerCancel} onClick={triggerCancel} style={{ ...S.choiceBtn, borderColor: '#d6dde3' }}>
+            <button type="button" onClick={triggerCancel} style={{ ...S.choiceBtn, borderColor: '#d6dde3' }} disabled={isSubmitting}>
               <div>
                 <div style={S.chLabel}>{cancelLabel}</div>
                 <div style={S.chDesc}>Retour sans rien changer</div>
