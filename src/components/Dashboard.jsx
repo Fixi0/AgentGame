@@ -1,4 +1,4 @@
-import { Activity, ArrowRight, Briefcase, CheckCircle, ChevronRight, Circle, Clock, Heart, MessageCircle, Play, Target, Trophy, UserPlus, Zap } from 'lucide-react';
+import { Activity, ArrowRight, Briefcase, CalendarDays, CheckCircle, ChevronRight, Circle, Clock, Heart, MessageCircle, Play, Target, Trophy, UserPlus, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { getAgencyCapacity } from '../systems/agencySystem';
 import { getActiveDossierPlayerIds, getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
@@ -271,6 +271,119 @@ function SeasonArc({ currentWeek, totalWeeks }) {
   );
 }
 
+function SeasonRoadmap({ phase, roster, worldCupState }) {
+  const euroPlayers = roster.filter((player) => player.europeanCompetition);
+  const competitions = ['CL', 'EL', 'ECL']
+    .map((key) => {
+      const cup = EURO_CUP_LABELS[key];
+      const players = euroPlayers.filter((player) => player.europeanCompetition === key);
+      return { key, cup, players };
+    })
+    .filter((item) => item.players.length > 0);
+  const isWorldCupActive = Boolean(worldCupState && worldCupState.phase !== 'done');
+  const remainingWeeks = Math.max(0, 38 - (phase.seasonWeek ?? 1));
+
+  const rows = [
+    {
+      label: 'Championnat',
+      value: phase.mercato && phase.window === 'été' ? 'Pause' : 'En cours',
+      sub: phase.mercato && phase.window === 'été'
+        ? 'Pas de matchs de club pendant le mercato été'
+        : isWorldCupActive
+          ? 'Suspendu pendant la CdM'
+          : 'Tous les clubs jouent leur saison',
+      tone: phase.mercato && phase.window === 'été' ? 'warn' : 'good',
+    },
+    {
+      label: 'Europe',
+      value: competitions.length ? `${competitions.reduce((sum, item) => sum + item.players.length, 0)} joueurs` : 'Aucun',
+      sub: competitions.length
+        ? competitions.map((item) => `${item.cup.short} ${item.players.length}`).join(' · ')
+        : 'Aucun de tes joueurs en coupe européenne',
+      tone: competitions.length ? 'info' : 'neutral',
+    },
+    {
+      label: 'Coupe du monde',
+      value: isWorldCupActive ? worldCupState.phase : 'Hors tournoi',
+      sub: isWorldCupActive
+        ? `${worldCupState.selectedPlayers?.length ?? 0} sélectionnés`
+        : 'La sélection nationale ne prend pas toute la saison',
+      tone: isWorldCupActive ? 'warn' : 'neutral',
+    },
+    {
+      label: 'Mercato',
+      value: phase.mercato ? (phase.deadlineDay ? 'Deadline' : 'Ouvert') : 'À venir',
+      sub: phase.mercato
+        ? `Fenêtre ${phase.window ?? 'à confirmer'}`
+        : phase.seasonWeek <= 18
+          ? 'Pré-accords possibles'
+          : phase.seasonWeek <= 37
+            ? 'Préparation du prochain marché'
+            : 'Repos avant reprise',
+      tone: phase.mercato ? 'warn' : 'info',
+    },
+  ];
+
+  return (
+    <div style={S.objCard}>
+      <div style={S.secTitle}>
+        <CalendarDays size={14} />
+        <span>DÉROULÉ DE SAISON</span>
+      </div>
+      <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+        {rows.map((item) => (
+          <div
+            key={item.label}
+            style={{
+              borderRadius: 8,
+              padding: '10px 12px',
+              background:
+                item.tone === 'warn' ? '#fffbeb'
+                  : item.tone === 'good' ? '#f0fdf8'
+                    : item.tone === 'info' ? '#eff6ff'
+                      : '#f7f9fb',
+              border: `1px solid ${
+                item.tone === 'warn' ? '#fde68a'
+                  : item.tone === 'good' ? '#cfeee3'
+                    : item.tone === 'info' ? '#dbeafe'
+                      : '#e5eaf0'
+              }`,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+              <strong style={{ fontSize: 12, color: '#172026' }}>{item.label}</strong>
+              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: item.tone === 'warn' ? '#8a6f1f' : item.tone === 'good' ? '#246555' : item.tone === 'info' ? '#1d4ed8' : '#64727d' }}>
+                {item.value}
+              </span>
+            </div>
+            <div style={{ marginTop: 3, fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 }}>
+              {item.sub}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ ...S.promiseRow, background: '#f7f9fb', borderRadius: 8, padding: '8px 10px' }}>
+          <span>Championnat</span>
+          <strong>{phase.mercato && phase.window === 'été' ? 'Pause été' : 'Tous les clubs engagés'}</strong>
+        </div>
+        <div style={{ ...S.promiseRow, background: '#f7f9fb', borderRadius: 8, padding: '8px 10px' }}>
+          <span>Europe</span>
+          <strong>{competitions.length ? competitions.map((item) => item.cup.short).join(' · ') : 'Aucun club qualifié'}</strong>
+        </div>
+        <div style={{ ...S.promiseRow, background: '#f7f9fb', borderRadius: 8, padding: '8px 10px' }}>
+          <span>CdM</span>
+          <strong>{isWorldCupActive ? 'Joueurs sélectionnés' : 'Pas en cours'}</strong>
+        </div>
+        <div style={{ ...S.promiseRow, background: '#f7f9fb', borderRadius: 8, padding: '8px 10px' }}>
+          <span>Mercato / repos</span>
+          <strong>{phase.mercato ? 'Fenêtre ouverte' : `${remainingWeeks} sem. avant la fin de saison`}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Newspaper "Une" component ──────────────────────────────────────────────
 const PRESS_ICONS = { transfer: '🔄', scandal: '🔴', performance: '⚽', injury: '🤕', media: '📰', financial: '💰', default: '📋' };
 
@@ -469,8 +582,13 @@ function EuropeanCupWidget({ roster }) {
         const cup = EURO_CUP_LABELS[comp] ?? { name: comp, short: comp, icon: '⚽', color: '#1a1a6e' };
         return (
           <div key={comp} style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: cup.color, letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', marginBottom: 4 }}>
-              {cup.icon} {cup.name}
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: cup.color, letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif' }}>
+                {cup.icon} {cup.name}
+              </div>
+              <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+                {players.length} joueur{players.length > 1 ? 's' : ''}
+              </div>
             </div>
             {players.map((p) => (
               <div key={p.id} style={{ padding: '5px 0', borderBottom: '1px solid #f0f4f7' }}>
@@ -890,6 +1008,7 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
       </div>
 
       <WorldCupSpotlight worldCupState={state.worldCupState} />
+      <SeasonRoadmap phase={phase} roster={state.roster} worldCupState={state.worldCupState} />
 
       {/* Beginner Guide — visible only for first 5 weeks */}
       <BeginnerGuide state={state} phase={phase} onNav={onNav} onPlay={onPlay} />
