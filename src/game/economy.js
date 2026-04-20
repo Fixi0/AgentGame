@@ -1,7 +1,49 @@
+export const buildProgressiveCosts = (base, multiplier, levels = 10) =>
+  Array.from({ length: levels }, (_, index) => Math.round(base * (multiplier ** index)));
+
 export const OFFICE_UPGRADE_COSTS = {
-  scoutLevel:   [25000, 70000, 180000, 360000, 650000],
-  lawyerLevel:  [18000, 55000, 140000, 290000, 520000],
-  mediaLevel:   [22000, 65000, 160000, 320000, 580000],
+  scoutLevel: buildProgressiveCosts(25000, 1.58, 10),
+  lawyerLevel: buildProgressiveCosts(18000, 1.6, 10),
+  mediaLevel: buildProgressiveCosts(22000, 1.57, 10),
+};
+
+export const OFFICE_UPGRADE_EFFECTS = {
+  scoutLevel: [
+    'Rapports plus lisibles',
+    'Marché voisin plus solide',
+    'Prospects plus jeunes',
+    'Détection plus large',
+    'Moins d’incertitude sur les rapports',
+    'Entrées sur de nouveaux pays',
+    'Cibles premium plus fréquentes',
+    'Scouting d’élite en Europe',
+    'Dossiers rares plus accessibles',
+    'Réseau mondial de repérage',
+  ],
+  lawyerLevel: [
+    'Négociations plus souples',
+    'Prime mieux défendue',
+    'Moins de refus au premier tour',
+    'Clauses mieux verrouillées',
+    'Rôle plus crédible',
+    'Durées plus faciles à obtenir',
+    'Pré-accords plus stables',
+    'Transferts plus propres',
+    'Pression contractuelle élevée',
+    'Niveau négociation elite',
+  ],
+  mediaLevel: [
+    'Petites crises mieux amorties',
+    'Réponses médias plus calmes',
+    'Rumeurs moins agressives',
+    'Presse plus facile à contrôler',
+    'Impact réputation réduit',
+    'Retour au calme plus rapide',
+    'Scandales plus rares',
+    'Crises bien contenues',
+    'Couverture médiatique favorable',
+    'Machine de communication totale',
+  ],
 };
 
 // Fixed weekly agency running costs per level — creates meaningful spend pressure

@@ -1258,7 +1258,7 @@ export const playWeek = (state) => {
   const dataAnalystLevel = getStaffEffect(state.staff, 'dataAnalyst');
   const specialization = SPECIALIZATION_EFFECTS[state.agencyProfile?.style ?? 'equilibre'] ?? SPECIALIZATION_EFFECTS.equilibre;
   const staffWeeklyCost = getStaffWeeklyCost(state.staff);
-  const mediaReduction = 1 - office.mediaLevel * 0.15 - communityManagerLevel * 0.07;
+  const mediaReduction = Math.max(0.35, 1 - office.mediaLevel * 0.06 - communityManagerLevel * 0.07);
   totalCost += staffWeeklyCost;
   totalCost += WEEKLY_OVERHEAD[state.agencyLevel ?? 1] ?? 300;
 

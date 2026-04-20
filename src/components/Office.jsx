@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { COUNTRIES, getCitiesForCountry } from '../data/clubs';
 import { DIFFICULTIES, STARTING_PROFILES } from '../systems/agencyReputationSystem';
 import { getAgencyCapacity, getAgencyProgressSnapshot, getAgencyUpgradeCost } from '../systems/agencySystem';
+import { OFFICE_UPGRADE_EFFECTS } from '../game/economy';
 import { STAFF_ROLES } from '../systems/staffSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
@@ -18,6 +19,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
   const [profile, setProfile] = useState(state.agencyProfile);
   const availableCities = useMemo(() => getCitiesForCountry(profile.countryCode), [profile.countryCode]);
   const progression = getAgencyProgressSnapshot(state);
+  const getModuleEffect = (key, level) => OFFICE_UPGRADE_EFFECTS[key]?.[level] ?? 'Niveau maximum';
   useEffect(() => {
     setProfile(state.agencyProfile);
   }, [state.agencyProfile]);
@@ -131,7 +133,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
           </div>
           <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
             <div style={S.promiseRow}><span>Réputation</span><strong>{progression.metrics.reputation}/1000</strong></div>
-            <div style={S.promiseRow}><span>Structure</span><strong>{progression.metrics.officeLevel}/15</strong></div>
+            <div style={S.promiseRow}><span>Structure</span><strong>{progression.metrics.officeLevel}/30</strong></div>
             <div style={S.promiseRow}><span>Staff</span><strong>{progression.metrics.staffLevel}/20</strong></div>
             <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(progression.metrics.portfolioValue)}</strong></div>
             <div style={S.promiseRow}><span>Confiance clubs</span><strong>{progression.metrics.relationScore}/100</strong></div>
@@ -170,6 +172,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
               <div style={{ flex: 1 }}>
                 <div style={S.offLabel}>{item.label}</div>
                 <div style={S.offDesc}>{item.desc}</div>
+                <div style={S.offDesc}>Effet niveau {Math.min(item.level + 1, item.costs.length)}: {getModuleEffect(item.key, item.level)}</div>
               </div>
               <div style={S.offLvl}>
                 {Array.from({ length: item.costs.length }).map((_, index) => (
@@ -179,7 +182,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             </div>
             {item.level < item.costs.length ? (
               <button onClick={() => onUpgrade(item.key)} style={S.upBtn}>
-                AMELIORER · {formatMoney(item.costs[item.level])}
+                AMELIORER · {formatMoney(item.costs[item.level])} · {getModuleEffect(item.key, item.level)}
               </button>
             ) : (
               <div style={S.maxLvl}>NIVEAU MAX</div>
