@@ -251,7 +251,7 @@ export const buildWeeklyTimeline = ({
       major: true,
       kind: 'euroResult',
       title: `${topEuroMatch.competitionLabel ?? EURO_CUP_LABELS[topEuroMatch.competition]?.name ?? topEuroMatch.competition ?? 'Europe'} · ${topEuroMatch.playerName ?? 'Joueur'}`,
-      text: `Match européen: ${topEuroMatch.club ?? 'Club'} ${topEuroMatch.score ?? '0-0'} ${topEuroMatch.opponent ?? topEuroMatch.opponentName ?? 'Club adverse'} · note ${topEuroMatch.matchRating ?? '—'}.`,
+      text: `Match européen: ${topEuroMatch.club ?? 'Club'} ${topEuroMatch.score ?? '0-0'} ${topEuroMatch.opponentName ?? topEuroMatch.opponent ?? 'Adversaire'} · note ${topEuroMatch.matchRating ?? '—'}.`,
       chips: [topEuroMatch.phase ?? 'Europe', `${topEuroMatch.minutes ?? 0} min`, topEuroMatch.result === 'win' ? 'Victoire' : topEuroMatch.result === 'loss' ? 'Défaite' : 'Nul'],
     } : null,
     {
