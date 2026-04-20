@@ -4,6 +4,13 @@ import { formatMoney } from '../../utils/format';
 import { EURO_CUP_LABELS } from '../../systems/europeanCupSystem';
 import { S } from '../styles';
 
+const safeText = (value, fallback) => {
+  if (typeof value !== 'string') return fallback;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === 'undefined' || trimmed === 'null') return fallback;
+  return trimmed;
+};
+
 function getBigHeadline(data) {
   // Find the single most exciting thing that happened
   const topWorldCup = (data.worldCupMatchResults ?? []).filter(Boolean).reduce((best, m) => (
@@ -32,7 +39,10 @@ function getBigHeadline(data) {
   ), null);
   if (topEuroScorer && (topEuroScorer.goals ?? 0) >= 1) {
     const cup = EURO_CUP_LABELS[topEuroScorer.competition] ?? {};
-    return { emoji: '🏆', title: `But européen — ${topEuroScorer.playerName}`, sub: `${topEuroScorer.competitionLabel ?? cup.name ?? topEuroScorer.competition ?? 'Europe'} · ${topEuroScorer.opponent ?? 'Adversaire'} ${topEuroScorer.score ?? ''}` };
+    const competitionName = safeText(topEuroScorer.competitionLabel, safeText(cup.name, safeText(topEuroScorer.competition, 'Europe')));
+    const opponentName = safeText(topEuroScorer.opponent, 'Adversaire');
+    const scoreText = safeText(topEuroScorer.score, '');
+    return { emoji: '🏆', title: `But européen — ${safeText(topEuroScorer.playerName, 'Joueur')}`, sub: `${competitionName} · ${opponentName}${scoreText ? ` ${scoreText}` : ''}` };
   }
   if (data.seasonRecap) {
     return { emoji: '🗓️', title: `Saison ${data.seasonRecap.season} terminée`, sub: `${data.seasonRecap.transfers} transferts · ${formatMoney(data.seasonRecap.earned)} gagnés` };
@@ -50,7 +60,7 @@ function MatchScorecard({ match, highlight = false }) {
     ? `linear-gradient(135deg, ${match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff'} 0%, #ffffff 100%)`
     : match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff';
   const resultLabel = match.result === 'win' ? 'V' : match.result === 'loss' ? 'D' : 'N';
-  const competitionLabel = match.competitionLabel ?? EURO_CUP_LABELS[match.competition]?.name ?? null;
+  const competitionLabel = safeText(match.competitionLabel, safeText(EURO_CUP_LABELS[match.competition]?.name, null));
 
   const stats = [];
   if (match.goals > 0) stats.push(`⚽ ${match.goals}`);
@@ -69,7 +79,7 @@ function MatchScorecard({ match, highlight = false }) {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 850, color: '#172026' }}>{match.playerName}</span>
+          <span style={{ fontSize: 12, fontWeight: 850, color: '#172026' }}>{safeText(match.playerName, 'Joueur')}</span>
           {match.roleShort && <span style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', background: '#f0f4f7', borderRadius: 4, padding: '1px 5px' }}>{match.roleShort}</span>}
           {competitionLabel && (
             <span style={{ fontSize: 9, color: highlight ? '#9a6700' : '#64727d', fontFamily: 'system-ui,sans-serif', background: highlight ? '#fff8db' : '#f0f4f7', borderRadius: 4, padding: '1px 5px', fontWeight: 900, letterSpacing: '.04em' }}>
@@ -80,9 +90,9 @@ function MatchScorecard({ match, highlight = false }) {
         <span style={{ fontSize: 11, fontWeight: 900, color: resultColor, background: `${resultColor}22`, borderRadius: 6, padding: '2px 7px' }}>{resultLabel}</span>
       </div>
       <div style={{ ...S.scoreboardScore, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.club}</span>
+        <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.club, 'Club')}</span>
         <span style={{ fontWeight: 900, fontSize: 18, color: '#172026', minWidth: 60, textAlign: 'center' }}>{match.score}</span>
-        <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{match.opponent}</span>
+        <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.opponent, 'Adversaire')}</span>
       </div>
       {stats.length > 0 && (
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 6, fontSize: 11, color: '#3f5663', fontFamily: 'system-ui,sans-serif', flexWrap: 'wrap' }}>
@@ -203,7 +213,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           )}
 
               {data.worldCupMatchResults?.length > 0 && (
-            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #06101d 0%, #133764 38%, #0b1930 100%)', border: '1px solid rgba(125,211,252,.34)', boxShadow: '0 16px 34px rgba(15,23,32,.28), inset 0 1px 0 rgba(255,255,255,.08)', color: '#ffffff' }}>
+            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #04101d 0%, #102a4a 38%, #07101c 100%)', border: '1px solid rgba(125,211,252,.42)', boxShadow: '0 18px 38px rgba(15,23,32,.30), inset 0 1px 0 rgba(255,255,255,.08)' , color: '#ffffff' }}>
               <div style={S.secTitle}>
                 <Trophy size={14} />
                 <span style={{ color: '#7dd3fc' }}>COUPE DU MONDE</span>
@@ -307,7 +317,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                 </div>
               )}
               {data.euroMatchResults?.length > 0 && (
-                <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #fff9ef 0%, #f4fde9 55%, #ffffff 100%)', border: '1px solid #cde7a5', boxShadow: '0 10px 24px rgba(34, 197, 94, .10), inset 0 1px 0 rgba(255,255,255,.85)' }}>
+                <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #fff9ef 0%, #f4fde9 45%, #ffffff 100%)', border: '1px solid #b9d98a', boxShadow: '0 12px 26px rgba(34, 197, 94, .12), inset 0 1px 0 rgba(255,255,255,.9)' }}>
                   <div style={S.secTitle}><Trophy size={14} /><span>EUROPE</span></div>
                   <div style={{ fontSize: 12, color: '#5f7f33', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45, marginBottom: 10 }}>
                     Tous les matchs européens de la semaine, avec une mise en avant plus forte.
