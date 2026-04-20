@@ -97,13 +97,40 @@ function MatchScorecard({ match, highlight = false }) {
   const resultColor = match.result === 'win' ? '#16a34a' : match.result === 'loss' ? '#e83a3a' : '#2563eb';
   const competitionKey = match.competition;
   const competitionTheme = competitionKey === 'CL'
-    ? { color: '#1d4ed8', bg: 'linear-gradient(135deg, #eef4ff 0%, #ffffff 55%, #f8fbff 100%)', chipBg: '#dbeafe', chipColor: '#1d4ed8' }
+    ? {
+      accent: '#7dd3fc',
+      cardBg: 'linear-gradient(135deg, #08162f 0%, #10285a 48%, #0a1a38 100%)',
+      border: 'rgba(125,211,252,.34)',
+      chipBg: 'rgba(125,211,252,.16)',
+      chipColor: '#7dd3fc',
+      text: '#ffffff',
+      subText: 'rgba(255,255,255,.82)',
+      scoreBg: 'rgba(255,255,255,.12)',
+    }
     : competitionKey === 'EL'
-      ? { color: '#f97316', bg: 'linear-gradient(135deg, #fff4e8 0%, #ffffff 55%, #fffaf4 100%)', chipBg: '#ffedd5', chipColor: '#c2410c' }
+      ? {
+        accent: '#f5c842',
+        cardBg: 'linear-gradient(135deg, #2a1407 0%, #ad4f12 48%, #3f1f08 100%)',
+        border: 'rgba(245,200,66,.34)',
+        chipBg: 'rgba(245,200,66,.16)',
+        chipColor: '#f5c842',
+        text: '#ffffff',
+        subText: 'rgba(255,255,255,.82)',
+        scoreBg: 'rgba(255,255,255,.12)',
+      }
       : competitionKey === 'ECL'
-        ? { color: '#16a34a', bg: 'linear-gradient(135deg, #effdf3 0%, #ffffff 55%, #fbfffc 100%)', chipBg: '#dcfce7', chipColor: '#15803d' }
+        ? {
+          accent: '#86efac',
+          cardBg: 'linear-gradient(135deg, #071d11 0%, #0e5f3a 48%, #082014 100%)',
+          border: 'rgba(134,239,172,.34)',
+          chipBg: 'rgba(134,239,172,.16)',
+          chipColor: '#86efac',
+          text: '#ffffff',
+          subText: 'rgba(255,255,255,.82)',
+          scoreBg: 'rgba(255,255,255,.12)',
+        }
         : { color: resultColor, bg: null, chipBg: '#f0f4f7', chipColor: '#64727d' };
-  const resultBg = competitionTheme.bg
+  const resultBg = competitionTheme.cardBg
     ?? (highlight
       ? `linear-gradient(135deg, ${match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff'} 0%, #ffffff 100%)`
       : (match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff'));
@@ -131,14 +158,28 @@ function MatchScorecard({ match, highlight = false }) {
   return (
     <div style={{
       ...S.scoreboard,
-      borderLeft: `4px solid ${highlight ? '#f5c842' : resultColor}`,
+      borderLeft: competitionTheme.border ? `4px solid ${competitionTheme.border}` : `4px solid ${highlight ? '#f5c842' : resultColor}`,
       background: resultBg,
-      boxShadow: highlight ? '0 10px 24px rgba(245,200,66,.12)' : undefined,
+      borderColor: competitionTheme.border ?? S.scoreboard.border,
+      boxShadow: highlight ? '0 14px 34px rgba(0,0,0,.18)' : undefined,
+      color: competitionTheme.text ?? '#172026',
+      position: 'relative',
+      overflow: 'hidden',
     }}>
+      {competitionTheme.accent && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(circle at 18% 16%, rgba(255,255,255,.10), transparent 24%), radial-gradient(circle at 84% 22%, rgba(255,255,255,.08), transparent 20%)',
+          pointerEvents: 'none',
+          opacity: .85,
+        }} />
+      )}
+      <div style={{ position: 'relative', zIndex: 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 850, color: '#172026' }}>{safeText(match.playerName, 'Joueur')}</span>
-          {match.roleShort && <span style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', background: '#f0f4f7', borderRadius: 4, padding: '1px 5px' }}>{match.roleShort}</span>}
+          <span style={{ fontSize: 12, fontWeight: 850, color: competitionTheme.text ?? '#172026' }}>{safeText(match.playerName, 'Joueur')}</span>
+          {match.roleShort && <span style={{ fontSize: 9, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', background: competitionTheme.scoreBg ?? '#f0f4f7', borderRadius: 4, padding: '1px 5px' }}>{match.roleShort}</span>}
           {competitionLabel && (
             <span style={{ fontSize: 9, color: competitionTheme.chipColor, fontFamily: 'system-ui,sans-serif', background: competitionTheme.chipBg, borderRadius: 4, padding: '1px 5px', fontWeight: 900, letterSpacing: '.04em' }}>
               {competitionLabel}
@@ -148,26 +189,27 @@ function MatchScorecard({ match, highlight = false }) {
         <span style={{ fontSize: 11, fontWeight: 900, color: resultColor, background: `${resultColor}22`, borderRadius: 6, padding: '2px 7px' }}>{resultLabel}</span>
       </div>
       <div style={{ ...S.scoreboardScore, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.club, 'Club')}</span>
-        <span style={{ fontWeight: 900, fontSize: 18, color: '#172026', minWidth: 60, textAlign: 'center' }}>{match.score}</span>
-        <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.opponent, 'Adversaire')}</span>
+        <span style={{ fontSize: 11, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.club, 'Club')}</span>
+        <span style={{ fontWeight: 950, fontSize: 19, color: competitionTheme.text ?? '#172026', minWidth: 60, textAlign: 'center', background: competitionTheme.scoreBg ?? 'transparent', padding: '2px 10px', borderRadius: 8, border: competitionTheme.scoreBg ? '1px solid rgba(255,255,255,.12)' : 'none' }}>{match.score}</span>
+        <span style={{ fontSize: 11, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.opponent, 'Adversaire')}</span>
       </div>
       {stats.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 6, fontSize: 11, color: '#3f5663', fontFamily: 'system-ui,sans-serif', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 6, fontSize: 11, color: competitionTheme.subText ?? '#3f5663', fontFamily: 'system-ui,sans-serif', flexWrap: 'wrap' }}>
           {stats.map((s, i) => <span key={i}>{s}</span>)}
         </div>
       )}
       {matchSummary && (
-        <div style={{ marginTop: 5, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', fontStyle: match.matchReport ? 'italic' : 'normal', lineHeight: 1.4, textAlign: 'center' }}>{matchSummary}</div>
+        <div style={{ marginTop: 5, fontSize: 10, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', fontStyle: match.matchReport ? 'italic' : 'normal', lineHeight: 1.4, textAlign: 'center' }}>{matchSummary}</div>
       )}
       {match.isFriendly && (
-        <div style={{ marginTop: 4, fontSize: 9, color: '#b45309', fontFamily: 'system-ui,sans-serif', textAlign: 'center', background: '#fffbeb', borderRadius: 4, padding: '2px 6px', display: 'inline-block' }}>Amical</div>
+        <div style={{ marginTop: 4, fontSize: 9, color: competitionTheme.chipColor ?? '#b45309', fontFamily: 'system-ui,sans-serif', textAlign: 'center', background: competitionTheme.chipBg ?? '#fffbeb', borderRadius: 4, padding: '2px 6px', display: 'inline-block' }}>Amical</div>
       )}
       {!match.minutes && (
-        <div style={{ marginTop: 4, fontSize: 10, color: '#9aa7b2', fontFamily: 'system-ui,sans-serif', textAlign: 'center' }}>
+        <div style={{ marginTop: 4, fontSize: 10, color: competitionTheme.subText ?? '#9aa7b2', fontFamily: 'system-ui,sans-serif', textAlign: 'center' }}>
           Absent{match.absenceReason ? ` · ${match.absenceReason}` : ''}
         </div>
       )}
+      </div>
     </div>
   );
 }
