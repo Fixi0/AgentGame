@@ -1,7 +1,9 @@
 import { normalizeAgencyReputation } from './reputationSystem';
+import { getEuropeanCompetition } from './europeanCupSystem';
 
 export const getStrategicSuggestions = (state) => {
   const suggestions = [];
+  const currentSeason = Math.floor(((state.week ?? 1) - 1) / 38) + 1;
   const averageTrust = state.roster.length
     ? Math.round(state.roster.reduce((sum, player) => sum + (player.trust ?? 50), 0) / state.roster.length)
     : 0;
@@ -20,7 +22,7 @@ export const getStrategicSuggestions = (state) => {
   if (state.worldCupState && state.worldCupState.phase !== 'done') {
     suggestions.push("Suivre la Coupe du Monde de près: une grosse perf peut faire décoller la valeur et les offres.");
   }
-  if ((state.roster ?? []).some((player) => player.europeanCompetition)) {
+  if ((state.roster ?? []).some((player) => getEuropeanCompetition(player, currentSeason))) {
     suggestions.push('Exploiter les coupes européennes: un grand match en Europe change le poids d’un dossier.');
   }
   if ((state.roster ?? []).some((player) => player.countryCode && ['FR', 'ES', 'EN', 'DE', 'IT', 'PT'].includes(player.countryCode)) && (state.worldCupState?.phase === 'groupes')) {

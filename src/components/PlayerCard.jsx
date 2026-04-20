@@ -1,7 +1,7 @@
 import { ArrowUpRight, Handshake, X } from 'lucide-react';
 import React from 'react';
 import { PERSONALITY_LABELS } from '../data/players';
-import { EURO_CUP_LABELS } from '../systems/europeanCupSystem';
+import { EURO_CUP_LABELS, getEuropeanCompetition } from '../systems/europeanCupSystem';
 import { getPlayerDossierStatus } from '../systems/dossierSystem';
 import { getDossierHistorySummary, getRecentDossierEvents } from '../systems/coherenceSystem';
 import { formatMoney } from '../utils/format';
@@ -57,6 +57,7 @@ function MoraleBar({ label, value }) {
 }
 
 export default function PlayerCard({ player, state, mode, money, onSign, onRelease, onNego, onDetails }) {
+  const currentSeason = Math.floor(((state?.week ?? 1) - 1) / 38) + 1;
   const ratingColor = player.rating >= 85 ? '#00a676' : player.rating >= 75 ? '#2f80ed' : '#9aa7b2';
   const canSign = mode === 'sign' ? money >= player.signingCost : true;
   const isFreeInRoster = mode === 'roster' && (player.freeAgent || player.club === 'Libre');
@@ -75,6 +76,7 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
   const posColor = POS_COLORS[player.position] ?? '#64727d';
   const notoriety = getNotoriety(player.rating);
   const clubDot = hashClubColor(player.club);
+  const currentCompetition = getEuropeanCompetition(player, currentSeason);
 
   // Rating trend
   let trendArrow = null;
@@ -123,8 +125,8 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
               : <span style={{ ...S.notorietyBadge, background: notoriety.bg, color: notoriety.color }}>{notoriety.label}</span>
             }
             {hasMercatoOffer && <span style={S.mercatoBadge}>Offre 🔴</span>}
-            {player.europeanCompetition && (() => {
-              const cup = EURO_CUP_LABELS[player.europeanCompetition];
+            {currentCompetition && (() => {
+              const cup = EURO_CUP_LABELS[currentCompetition];
               return cup ? <span style={{ fontSize: 9, fontWeight: 800, color: '#fff', background: cup.color, borderRadius: 4, padding: '1px 5px', letterSpacing: '.05em' }}>{cup.icon} {cup.short}</span> : null;
             })()}
           </div>

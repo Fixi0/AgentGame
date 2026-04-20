@@ -7,7 +7,7 @@ import { getStrategicSuggestions } from '../systems/suggestionSystem';
 import { getAgencyGoalProgress } from '../systems/agencyGoalsSystem';
 import { MEDIA_RELATION_TEMPLATES } from '../systems/agencyReputationSystem';
 import { getRivalLeaderboard } from '../systems/leaderboardSystem';
-import { EURO_CUP_LABELS } from '../systems/europeanCupSystem';
+import { EURO_CUP_LABELS, getEuropeanCompetition } from '../systems/europeanCupSystem';
 import { WC_PHASES, NATIONAL_TEAMS } from '../systems/worldCupSystem';
 import { COUNTRIES } from '../data/clubs';
 import { formatMoney } from '../utils/format';
@@ -272,11 +272,14 @@ function SeasonArc({ currentWeek, totalWeeks }) {
 }
 
 function SeasonRoadmap({ phase, roster, worldCupState }) {
-  const euroPlayers = roster.filter((player) => player.europeanCompetition);
+  const currentSeason = phase?.season ?? Math.floor(((phase?.seasonWeek ?? 1) - 1) / 38) + 1;
+  const euroPlayers = roster
+    .map((player) => ({ player, competition: getEuropeanCompetition(player, currentSeason) }))
+    .filter((entry) => entry.competition);
   const competitions = ['CL', 'EL', 'ECL']
     .map((key) => {
       const cup = EURO_CUP_LABELS[key];
-      const players = euroPlayers.filter((player) => player.europeanCompetition === key);
+      const players = euroPlayers.filter((entry) => entry.competition === key).map((entry) => entry.player);
       return { key, cup, players };
     })
     .filter((item) => item.players.length > 0);
@@ -561,8 +564,11 @@ function NewspaperFront({ news, history, roster, phase, worldCupState, onNav }) 
   );
 }
 
-function EuropeanCupWidget({ roster }) {
-  const euPlayers = roster.filter((p) => p.europeanCompetition);
+function EuropeanCupWidget({ roster, currentSeason }) {
+  const euPlayers = roster
+    .map((player) => ({ player, competition: getEuropeanCompetition(player, currentSeason) }))
+    .filter((entry) => entry.competition)
+    .map((entry) => ({ ...entry.player, europeanCompetition: entry.competition }));
   if (!euPlayers.length) return null;
 
   const byComp = euPlayers.reduce((acc, p) => {

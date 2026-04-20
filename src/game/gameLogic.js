@@ -216,6 +216,13 @@ const normalizeRoleProfile = (player) => {
   };
 };
 
+const getPlayerEuropeanCompetition = (player, season) => getEuropeanCompetition({
+  ...player,
+  club: player.club,
+  clubTier: player.clubTier,
+  clubCountryCode: player.clubCountryCode,
+}, season);
+
 const createDeepPlayerProfile = (player, countryCode, club) => {
   const ambitionBase = player.personality === 'ambitieux' ? 70 : player.personality === 'mercenaire' ? 62 : rand(28, 68);
   const loyaltyBase = player.personality === 'loyal' ? 78 : player.personality === 'mercenaire' ? 25 : rand(30, 72);
@@ -601,7 +608,7 @@ export const migrateState = (state) => {
         hiddenTrait: player.hiddenTrait ?? null,
         traitRevealed: player.traitRevealed ?? false,
         lastInteractionWeek: player.lastInteractionWeek ?? 0,
-        europeanCompetition: getEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
+        europeanCompetition: getPlayerEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
       };
     }),
@@ -634,7 +641,7 @@ export const migrateState = (state) => {
         personality,
         trust: player.trust ?? getInitialTrust(personality),
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
-        europeanCompetition: getEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
+        europeanCompetition: getPlayerEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
       };
     }),
   };
@@ -650,7 +657,7 @@ export const signPlayer = (state, player) => {
     ...player,
     careerGoal: player.careerGoal ?? createCareerGoal(player),
     agentContract: player.agentContract ?? createAgentContract(player),
-    europeanCompetition: getEuropeanCompetition(player, currentSeason),
+        europeanCompetition: getPlayerEuropeanCompetition(player, currentSeason),
     timeline: [
       { week: state.week, type: 'signature', label: `Signature avec ${state.agencyProfile?.name ?? 'ton agence'}` },
       ...(player.timeline ?? []),
@@ -1392,7 +1399,7 @@ export const playWeek = (state) => {
       contractWeeksLeft: Math.max(0, player.contractWeeksLeft - 1),
       agentContract: tickAgentContract(player.agentContract ?? createAgentContract(player)),
       fatigue: player.injured > 0 ? clamp((player.fatigue ?? 20) - 8, 0, 100) : player.fatigue ?? 20,
-      europeanCompetition: getEuropeanCompetition(player, currentSeason),
+      europeanCompetition: getPlayerEuropeanCompetition(player, currentSeason),
     };
     const { salaryCost, commissionIncome } = calculateWeeklyPlayerEconomy(updatedPlayer);
     totalCost += salaryCost;
@@ -1662,7 +1669,7 @@ export const playWeek = (state) => {
   let euRoster = caredRoster;
   if (!isWorldCupActive) {
     for (const player of caredRoster) {
-      const comp = player.europeanCompetition ?? getEuropeanCompetition(player);
+      const comp = getPlayerEuropeanCompetition(player, currentSeason);
       if (!comp) continue;
       if (!isEuropeanMatchWeek(phase.seasonWeek, comp)) continue;
       const euroMatch = simulateEuropeanMatch(player, comp, phase.seasonWeek);
