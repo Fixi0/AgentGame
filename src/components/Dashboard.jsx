@@ -557,9 +557,16 @@ function WorldCupWidget({ worldCupState }) {
             return (
               <div key={p.playerId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
                 <span style={{ fontSize: 13 }}>{team?.flag ?? '🌍'}</span>
-                <span style={{ flex: 1, fontSize: 11, color: p.champion ? '#f5c842' : p.eliminated ? '#9aa7b2' : '#fff', fontFamily: 'system-ui,sans-serif', textDecoration: p.eliminated ? 'line-through' : 'none' }}>
-                  {p.playerName}
-                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: p.champion ? '#f5c842' : p.eliminated ? '#9aa7b2' : '#fff', fontFamily: 'system-ui,sans-serif', textDecoration: p.eliminated ? 'line-through' : 'none' }}>
+                    {p.playerName}
+                  </div>
+                  {p.selectionNote && (
+                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,.68)', fontFamily: 'system-ui,sans-serif' }}>
+                      {p.selectionNote}{p.starterChance ? ` · titulaire ${Math.round(p.starterChance * 100)}%` : ''}
+                    </div>
+                  )}
+                </div>
                 <span style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif' }}>
                   {p.goals}⚽ {p.assists}🅰️
                 </span>

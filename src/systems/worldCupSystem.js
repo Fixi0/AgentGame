@@ -16,6 +16,7 @@
  *   - La valeur marchande peut monter de 10-40% pour les héros du tournoi
  */
 
+import { CLUBS } from '../data/clubs';
 import { rand, makeId } from '../utils/helpers';
 
 // Pays représentés avec drapeaux et noms
@@ -104,45 +105,21 @@ export const shouldTriggerWorldCup = (season, worldCupState) => {
 export const createWorldCupState = (season, roster) => {
   const year = 2026 + (season - 1) * 4;
   const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-  const getSelectionScore = (player) => {
-    if (!player || player.freeAgent || !player.countryCode) return -Infinity;
-    if ((player.injured ?? 0) > 0) return -Infinity;
-
-    const stats = player.seasonStats ?? {};
-    const appearances = stats.appearances ?? 0;
-    const avgRating = stats.averageRating ?? ((player.form ?? player.rating ?? 60) / 10);
-    const recentForm = player.form ?? player.rating ?? 60;
-    const moral = player.moral ?? 50;
-    const injuries = stats.injuries ?? 0;
-
-    const ratingScore = (player.rating - 60) * 1.25;
-    const formScore = (recentForm - 50) * 0.55;
-    const avgRatingScore = (avgRating - 6.5) * 14;
-    const moralScore = (moral - 50) * 0.18;
-    const appearancesScore = Math.min(10, appearances * 0.75);
-    const injuryPenalty = injuries * 4;
-    const fatiguePenalty = (player.fatigue ?? 20) > 80 ? 4 : 0;
-    const clubMinutesBonus = appearances >= 20 ? 4 : appearances >= 12 ? 2 : 0;
-
-    return ratingScore + formScore + avgRatingScore + moralScore + appearancesScore + clubMinutesBonus - injuryPenalty - fatiguePenalty;
-  };
-
   const selectedPlayers = roster
     .filter((p) => p.rating >= 65 && !p.freeAgent && p.countryCode)
-    .map((p) => ({ player: p, score: getSelectionScore(p) }))
+    .map((p) => ({ player: p, ...getWorldCupSelectionProfile(p) }))
     .filter(({ score }) => score > 0)
-    .filter(({ player, score }) => {
+    .filter(({ score }) => {
       const selectionChance = Math.max(0.05, Math.min(0.98, 0.08 + score / 90));
       return Math.random() < selectionChance;
     })
     .sort((a, b) => b.score - a.score)
-    .map(({ player }) => player)
-    .map((p) => ({
-      playerId: p.id,
-      playerName: `${p.firstName} ${p.lastName}`,
-      countryCode: p.countryCode,
-      countryFlag: p.countryFlag,
-      rating: p.rating,
+    .map(({ player, score, starterChance, note }) => ({
+      playerId: player.id,
+      playerName: `${player.firstName} ${player.lastName}`,
+      countryCode: player.countryCode,
+      countryFlag: player.countryFlag,
+      rating: player.rating,
       group: groupLetters[Math.floor(Math.random() * groupLetters.length)],
       goals: 0,
       assists: 0,
@@ -150,6 +127,9 @@ export const createWorldCupState = (season, roster) => {
       appearances: 0,
       eliminated: false,
       champion: false,
+      selectionScore: Number(score.toFixed(1)),
+      starterChance: Number(starterChance.toFixed(2)),
+      selectionNote: note,
     }));
 
   return {
@@ -178,6 +158,71 @@ const getNationalTeamStrength = (countryCode) => {
   return rand(55, 73);
 };
 
+const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const getWorldCupSelectionProfile = (player) => {
+  if (!player || player.freeAgent || !player.countryCode) {
+    return { score: -Infinity, starterChance: 0, note: 'Non éligible' };
+  }
+  if ((player.injured ?? 0) > 0) {
+    return { score: -Infinity, starterChance: 0, note: 'Blessé' };
+  }
+
+  const stats = player.seasonStats ?? {};
+  const appearances = stats.appearances ?? 0;
+  const avgRating = stats.averageRating && stats.averageRating > 0
+    ? stats.averageRating
+    : ((player.form ?? player.rating ?? 60) / 10);
+  const recentForm = player.form ?? 60;
+  const moral = player.moral ?? 50;
+  const clubRole = player.clubRole ?? 'Rotation';
+  const roleBonus = clubRole === 'Star' ? 8 : clubRole === 'Titulaire' ? 5 : clubRole === 'Rotation' ? 1 : -8;
+  const workloadBonus = appearances >= 24 ? 4 : appearances >= 16 ? 2 : appearances >= 8 ? 1 : -2;
+  const injuryPenalty = (stats.injuries ?? 0) * 5;
+  const fatiguePenalty = (player.fatigue ?? 20) > 82 ? 4 : 0;
+
+  const score =
+    (player.rating - 60) * 1.2 +
+    (recentForm - 50) * 0.48 +
+    (avgRating - 6.4) * 14 +
+    (moral - 50) * 0.18 +
+    roleBonus +
+    workloadBonus -
+    injuryPenalty -
+    fatiguePenalty;
+
+  const starterChance = clampNumber(0.24 + (score / 120) + (clubRole === 'Star' ? 0.14 : clubRole === 'Titulaire' ? 0.06 : 0), 0.18, 0.95);
+
+  return {
+    score,
+    starterChance,
+    note:
+      clubRole === 'Star' ? 'Indiscutable en club'
+      : clubRole === 'Titulaire' ? 'Solide titulaire'
+        : clubRole === 'Rotation' ? 'Dans la rotation'
+          : 'Situation fragile',
+  };
+};
+
+export const getWorldCupInterestClubs = (player, wcMatch) => {
+  if (!player || !wcMatch) return [];
+
+  const momentum = (wcMatch.matchRating ?? 0) + (wcMatch.goals ?? 0) * 1.7 + (wcMatch.assists ?? 0) * 1.1 + (wcMatch.isChampion ? 2.5 : 0);
+  const totalScore = momentum + (player.rating ?? 0) / 20;
+  if (totalScore < 13.5) return [];
+
+  const tierMax = wcMatch.isChampion || totalScore >= 18 ? 2 : totalScore >= 15.5 ? 3 : 4;
+  const tierMin = totalScore >= 19 ? 1 : wcMatch.goals >= 2 ? 2 : 3;
+  const clubs = CLUBS
+    .filter((club) => club.name !== player.club)
+    .filter((club) => club.tier >= tierMin && club.tier <= tierMax)
+    .filter((club) => club.countryCode !== player.countryCode || Math.random() < 0.35)
+    .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+
+  const limit = wcMatch.isChampion || wcMatch.goals >= 2 || wcMatch.matchRating >= 8.5 ? 3 : 2;
+  return clubs.slice(0, limit).map((club) => club.name);
+};
+
 /**
  * Simule un match de CdM pour un joueur individuel pendant une phase donnée.
  */
@@ -200,8 +245,10 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
   const result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
 
   // Performances individuelles
-  const isStarter = Math.random() < (player.rating >= 75 ? 0.85 : 0.6);
-  const minutes = isStarter ? rand(65, 90) : rand(0, 35);
+  const isStarter = Math.random() < (playerEntry.starterChance ?? (player.rating >= 75 ? 0.85 : 0.6));
+  const minutes = isStarter
+    ? rand(playerEntry.starterChance >= 0.8 ? 72 : playerEntry.starterChance >= 0.66 ? 64 : 58, 90)
+    : rand(0, playerEntry.starterChance >= 0.45 ? 35 : 28);
   if (minutes === 0) return null;
 
   const profile = {
@@ -240,6 +287,9 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
     isEliminated,
     isChampion,
     fixturePreview,
+    selectionScore: playerEntry.selectionScore ?? null,
+    starterChance: playerEntry.starterChance ?? null,
+    starter: isStarter,
   };
 };
 

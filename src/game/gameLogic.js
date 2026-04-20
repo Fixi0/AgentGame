@@ -19,7 +19,7 @@ import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } f
 import { MATCH_INCIDENT_EVENTS, buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
 import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, EURO_CUP_LABELS } from '../systems/europeanCupSystem';
-import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview } from '../systems/worldCupSystem';
+import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview, getWorldCupInterestClubs } from '../systems/worldCupSystem';
 import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSeasonalNewsItem } from '../systems/calendarEventsSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
 import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/consequenceSystem';
@@ -1730,6 +1730,37 @@ export const playWeek = (state) => {
             [player.countryCode]: clamp((wcState.countryPressure?.[player.countryCode] ?? 50) + (wcMatch.matchRating >= 8 ? 8 : wcMatch.goals > 0 ? 5 : wcMatch.result === 'loss' ? -4 : 2), 0, 100),
           },
         };
+        const interestClubs = getWorldCupInterestClubs(player, wcMatch);
+        if (interestClubs.length > 0) {
+          wcMatch.interestClubs = interestClubs;
+          generatedNews.push(createManualNewsPost({
+            type: 'transfert',
+            player,
+            week: state.week + 1,
+            text: `${interestClubs.slice(0, 3).join(', ')} surveillent ${player.firstName} ${player.lastName} après la Coupe du Monde.`,
+            reputationImpact: 2,
+            account: { name: 'Mercato Insider', kind: 'journal', icon: 'MI', color: '#172026' },
+          }));
+          if (wcMatch.isChampion || wcMatch.matchRating >= 8.2 || wcMatch.goals >= 1) {
+            generatedMessages.push({
+              id: makeId('msg'),
+              week: state.week + 1,
+              sortWeek: state.week + 1 + 0.015,
+              type: 'secret_offer',
+              context: 'world_cup_interest',
+              threadKey: player.id,
+              threadLabel: `${player.firstName} ${player.lastName}`,
+              playerId: player.id,
+              playerName: `${player.firstName} ${player.lastName}`,
+              senderRole: 'player',
+              senderName: `${player.firstName} ${player.lastName}`,
+              subject: 'Des clubs se renseignent',
+              body: `${interestClubs.slice(0, 2).join(' et ')} me suivent depuis le match. Je voulais que tu le saches avant que ça prenne trop d'ampleur.`,
+              read: false,
+              resolved: false,
+            });
+          }
+        }
         if (wcMatch.isChampion || wcMatch.matchRating >= 8 || wcMatch.goals >= 2) {
           generatedMessages.push({
             id: makeId('msg'),
