@@ -11,6 +11,45 @@ const safeText = (value, fallback) => {
   return trimmed;
 };
 
+const buildMatchSummary = (match) => {
+  const rating = Number.isFinite(match?.matchRating) ? match.matchRating : null;
+  const goals = match?.goals ?? 0;
+  const assists = match?.assists ?? 0;
+  const keyPasses = match?.keyPasses ?? 0;
+  const saves = match?.saves ?? 0;
+  const tackles = match?.tackles ?? 0;
+  const minutes = match?.minutes ?? 0;
+
+  if (goals >= 2) {
+    return `Doublé et soirée référence · Note ${rating ?? '—'}/10 · ${keyPasses || 0} passes clés`;
+  }
+  if (goals >= 1 && assists >= 1) {
+    return `Buteur et passeur décisif · Note ${rating ?? '—'}/10 · ${minutes} min`;
+  }
+  if (goals >= 1) {
+    return `But important · Note ${rating ?? '—'}/10 · ${minutes} min`;
+  }
+  if (assists >= 2) {
+    return `Chef d’orchestre dans le dernier tiers · ${assists} passes · Note ${rating ?? '—'}/10`;
+  }
+  if (assists >= 1) {
+    return `Passe clé au bon moment · Note ${rating ?? '—'}/10 · ${minutes} min`;
+  }
+  if (saves >= 3) {
+    return `Match propre derrière · ${saves} arrêts · Note ${rating ?? '—'}/10`;
+  }
+  if (tackles >= 4) {
+    return `Présence défensive solide · ${tackles} tacles · Note ${rating ?? '—'}/10`;
+  }
+  if (rating && rating >= 8.5) {
+    return `Très grosse prestation · Note ${rating}/10 · ${keyPasses || 0} passes clés`;
+  }
+  if (rating && rating <= 6) {
+    return `Marge de progression · Note ${rating}/10 · ${minutes} min`;
+  }
+  return `Note ${rating ?? '—'}/10 · ${minutes} min${keyPasses ? ` · ${keyPasses} passes clés` : ''}`;
+};
+
 function getBigHeadline(data) {
   // Find the single most exciting thing that happened
   const topWorldCup = (data.worldCupMatchResults ?? []).filter(Boolean).reduce((best, m) => (
@@ -78,7 +117,7 @@ function MatchScorecard({ match, highlight = false }) {
     match.saves ? `${match.saves} arrêts` : null,
     match.tackles ? `${match.tackles} tacles` : null,
   ].filter(Boolean);
-  const matchSummary = safeText(match.matchReport, summaryParts.join(' · ') || null);
+  const matchSummary = safeText(match.matchReport, buildMatchSummary(match) ?? (summaryParts.join(' · ') || null));
 
   return (
     <div style={{
