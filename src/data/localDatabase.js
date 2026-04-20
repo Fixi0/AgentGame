@@ -467,6 +467,160 @@ const hydrateRuntimeCatalogFromDb = async () => {
   return players.length;
 };
 
+const readRuntimeTables = async () => {
+  const tableNames = [...new Set([...GAME_TABLES, 'clubs', 'countries', 'leagues'])];
+  const entries = await Promise.all(tableNames.map(async (storeName) => [storeName, await idbGetAll(storeName)]));
+  return Object.fromEntries(entries);
+};
+
+const rowsToRawList = (rows = [], rawKey) =>
+  rows
+    .map((row) => row?.[rawKey] ?? null)
+    .filter((item) => item && typeof item === 'object');
+
+const rebuildLeagueTables = (rows = [], fallback = {}) => {
+  if (!rows.length) return fallback;
+  return rows.reduce((tables, row) => {
+    const countryCode = row.country_code;
+    const clubName = row.club_name;
+    if (!countryCode || !clubName) return tables;
+    return {
+      ...tables,
+      [countryCode]: {
+        ...(tables[countryCode] ?? {}),
+        [clubName]: row.raw_row ?? {
+          club: clubName,
+          played: row.played ?? 0,
+          win: row.wins ?? 0,
+          draw: row.draws ?? 0,
+          loss: row.losses ?? 0,
+          goalsFor: row.goals_for ?? 0,
+          goalsAgainst: row.goals_against ?? 0,
+          points: row.points ?? 0,
+          form: row.form ?? [],
+        },
+      },
+    };
+  }, fallback);
+};
+
+const rebuildClubMap = (rows = [], rawKey, fallback = {}) => {
+  if (!rows.length) return fallback;
+  return rows.reduce((map, row) => {
+    if (!row.club_name) return map;
+    return { ...map, [row.club_name]: row[rawKey] ?? row.raw ?? row.relation_score ?? row };
+  }, fallback);
+};
+
+const rebuildDossierMemory = (rows = [], fallback = {}) => {
+  if (!rows.length) return fallback;
+  const next = {
+    players: { ...(fallback.players ?? {}) },
+    clubs: { ...(fallback.clubs ?? {}) },
+    media: { ...(fallback.media ?? {}) },
+  };
+  rows.forEach((row) => {
+    if (row.scope === 'player' && row.player_id && row.raw_entry) next.players[row.player_id] = row.raw_entry;
+    if (row.scope === 'club' && row.club_name && row.raw_entry) next.clubs[row.club_name] = row.raw_entry;
+    if (row.scope === 'media' && row.media_id && row.raw_entry) next.media[row.media_id] = row.raw_entry;
+  });
+  return next;
+};
+
+const hydrateStateFromTables = (fallbackState = {}, tables = {}) => {
+  const players = tables.players ?? [];
+  const rawPlayers = players.filter((row) => row?.raw_player);
+  const roster = rawPlayers.filter((row) => row.market_status === 'roster' || row.source === 'roster').map((row) => row.raw_player);
+  const market = rawPlayers.filter((row) => row.market_status === 'market' || row.source === 'market').map((row) => row.raw_player);
+  const freeAgents = rawPlayers.filter((row) => row.market_status === 'free_agent' || row.source === 'freeAgent').map((row) => ({ ...row.raw_player, freeAgent: true }));
+  const rawMessages = (tables.messages ?? []).filter((row) => row?.raw_message);
+  const inboxMessages = rawMessages.filter((row) => row.source !== 'queue').map((row) => row.raw_message);
+  const queuedMessages = rawMessages.filter((row) => row.source === 'queue').map((row) => row.raw_message);
+  const agency = (tables.agency ?? [])[0] ?? null;
+  const agencyUpgrades = (tables.agency_upgrades ?? [])[0] ?? null;
+  const worldState = (tables.world_states ?? []).sort((a, b) => (b.week ?? 0) - (a.week ?? 0))[0]?.raw;
+  const worldCupState = (tables.world_cups ?? []).sort((a, b) => (b.week ?? 0) - (a.week ?? 0))[0]?.raw;
+  const europeanCupData = (tables.european_competitions ?? []).reduce((data, row) => {
+    if (!row.competition_key) return data;
+    return { ...data, [row.competition_key]: row.raw ?? {} };
+  }, fallbackState.europeanCupData ?? {});
+
+  return {
+    ...fallbackState,
+    agencyProfile: agency ? {
+      ...(fallbackState.agencyProfile ?? {}),
+      id: agency.id,
+      name: agency.name,
+      country: agency.country,
+      countryCode: agency.country_code ?? agency.countryCode,
+      city: agency.city,
+      ownerName: agency.director_name ?? agency.ownerName,
+      emblem: agency.emblem,
+      color: agency.color,
+      style: agency.positioning ?? agency.style,
+      difficulty: agency.difficulty,
+      startProfile: agency.start_profile ?? agency.startProfile,
+      onboarded: fallbackState.agencyProfile?.onboarded ?? true,
+    } : fallbackState.agencyProfile,
+    money: agency?.money ?? fallbackState.money,
+    reputation: agency?.reputation ?? fallbackState.reputation,
+    credibility: agency?.credibility ?? fallbackState.credibility,
+    agencyLevel: agency?.agency_level ?? fallbackState.agencyLevel,
+    week: agency?.current_week ?? fallbackState.week,
+    difficulty: agency?.difficulty ?? fallbackState.difficulty,
+    startProfile: agency?.start_profile ?? fallbackState.startProfile,
+    office: agencyUpgrades ? {
+      ...(fallbackState.office ?? {}),
+      scoutLevel: agencyUpgrades.scouting_level ?? fallbackState.office?.scoutLevel ?? 0,
+      lawyerLevel: agencyUpgrades.lawyer_level ?? fallbackState.office?.lawyerLevel ?? 0,
+      mediaLevel: agencyUpgrades.communication_level ?? fallbackState.office?.mediaLevel ?? 0,
+    } : fallbackState.office,
+    roster: roster.length ? roster : fallbackState.roster ?? [],
+    market: market.length ? market : fallbackState.market ?? [],
+    freeAgents: freeAgents.length ? freeAgents : fallbackState.freeAgents ?? [],
+    messages: rawMessages.length ? inboxMessages : fallbackState.messages ?? [],
+    messageQueue: rawMessages.length ? queuedMessages : fallbackState.messageQueue ?? [],
+    clubOffers: rowsToRawList(tables.club_offers, 'raw').length ? rowsToRawList(tables.club_offers, 'raw') : fallbackState.clubOffers ?? [],
+    promises: rowsToRawList(tables.promises, 'raw_promise').length ? rowsToRawList(tables.promises, 'raw_promise') : fallbackState.promises ?? [],
+    contacts: rowsToRawList(tables.contacts, 'raw').length ? rowsToRawList(tables.contacts, 'raw') : fallbackState.contacts ?? [],
+    decisionHistory: rowsToRawList(tables.decision_history, 'raw').length ? rowsToRawList(tables.decision_history, 'raw') : fallbackState.decisionHistory ?? [],
+    news: rowsToRawList(tables.news_posts, 'raw_news').length ? rowsToRawList(tables.news_posts, 'raw_news') : fallbackState.news ?? [],
+    nextFixtures: rowsToRawList((tables.fixtures ?? []).filter((row) => row.source === 'nextFixtures'), 'raw').length
+      ? rowsToRawList((tables.fixtures ?? []).filter((row) => row.source === 'nextFixtures'), 'raw')
+      : fallbackState.nextFixtures ?? [],
+    lastFixtures: rowsToRawList((tables.fixtures ?? []).filter((row) => row.source === 'lastFixtures'), 'raw').length
+      ? rowsToRawList((tables.fixtures ?? []).filter((row) => row.source === 'lastFixtures'), 'raw')
+      : fallbackState.lastFixtures ?? [],
+    leagueTables: rebuildLeagueTables(tables.league_table_rows ?? [], fallbackState.leagueTables ?? {}),
+    clubSeasonHistory: rebuildClubMap(tables.club_season_history ?? [], 'raw_history', fallbackState.clubSeasonHistory ?? {}),
+    clubMemory: rebuildClubMap(tables.club_memory ?? [], 'raw', fallbackState.clubMemory ?? {}),
+    clubRelations: rebuildClubMap(tables.club_relations ?? [], 'raw_score', fallbackState.clubRelations ?? {}),
+    dossierMemory: rebuildDossierMemory(tables.dossier_memory ?? [], fallbackState.dossierMemory ?? {}),
+    agencyGoals: rowsToRawList(tables.agency_goals, 'raw_goal').length ? rowsToRawList(tables.agency_goals, 'raw_goal') : fallbackState.agencyGoals ?? [],
+    worldState: worldState ?? fallbackState.worldState,
+    worldCupState: worldCupState ?? fallbackState.worldCupState,
+    europeanCupData,
+    activeNarratives: rowsToRawList(tables.narrative_arcs, 'raw_arc').length ? rowsToRawList(tables.narrative_arcs, 'raw_arc') : fallbackState.activeNarratives ?? [],
+    seasonAwards: (tables.season_awards ?? []).reduce((awards, row) => {
+      const seasonKey = String(row.season_id ?? '').replace('season_', '');
+      return seasonKey ? { ...awards, [seasonKey]: row.raw_awards ?? row.awards ?? {} } : awards;
+    }, fallbackState.seasonAwards ?? {}),
+    databaseHydrated: true,
+  };
+};
+
+const hydrateSavedRecordFromDatabase = async (record) => {
+  if (!record?.state) return record;
+  const tables = await readRuntimeTables();
+  const hasGameRows = (tables.players ?? []).length || (tables.agency ?? []).length;
+  if (!hasGameRows) return record;
+  return {
+    ...record,
+    state: hydrateStateFromTables(record.state, tables),
+    databaseTables: tables,
+  };
+};
+
 const seedCatalogIfNeeded = async () => {
   const existingCatalog = await idbRead('catalog', CATALOG_ID);
   const existingPlayers = await idbGetAll('catalog_players');
@@ -536,19 +690,19 @@ export const ensureLocalGameDatabase = async () => {
 export const loadLocalGameProgress = async () => {
   await ensureLocalGameDatabase();
   const saved = await idbRead('saves', SAVE_ID);
-  if (saved?.state) return saved;
+  if (saved?.state) return hydrateSavedRecordFromDatabase(saved);
   const saves = await idbGetAll('saves');
   const latest = saves
     .filter((save) => save?.state)
     .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
-  if (latest?.state) return latest;
+  if (latest?.state) return hydrateSavedRecordFromDatabase(latest);
 
   const legacy = readLegacySave();
   if (!legacy) return null;
   const record = buildSaveRecord(legacy, 1);
   await idbWrite('saves', record);
   await idbWriteTables(buildSnapshotTables(record.snapshot), { clear: true });
-  return record;
+  return hydrateSavedRecordFromDatabase(record);
 };
 
 export const saveLocalGameProgress = async (state, slot = 1) => {
@@ -593,32 +747,27 @@ export const getLocalRowsByIndex = async (storeName, indexName, value, options =
 
 export const getLocalGameDatabaseView = async () => {
   await ensureLocalGameDatabase();
-  const tableNames = [
-    'players',
-    'clubs',
-    'fixtures',
-    'match_results',
-    'league_table_rows',
-    'club_season_history',
-    'european_competitions',
-    'world_cups',
-    'world_states',
-    'club_offers',
-    'market_snapshots',
-    'transfers',
-    'messages',
-    'message_choices',
-    'decision_history',
-    'contacts',
-    'agency_goals',
-  ];
-  const entries = await Promise.all(tableNames.map(async (storeName) => [storeName, await idbGetAll(storeName)]));
-  const tables = Object.fromEntries(entries);
+  const tables = await readRuntimeTables();
   return {
     loadedAt: Date.now(),
     tables,
+    agency: tables.agency ?? [],
+    agencyUpgrades: tables.agency_upgrades ?? [],
+    staff: tables.staff ?? [],
     players: tables.players ?? [],
     clubs: tables.clubs ?? [],
+    countries: tables.countries ?? [],
+    leagues: tables.leagues ?? [],
+    playerAgentRelationships: tables.player_agent_relationships ?? [],
+    careers: tables.careers ?? [],
+    contracts: tables.contracts ?? [],
+    transfers: tables.transfers ?? [],
+    loans: tables.loans ?? [],
+    negotiations: tables.negotiations ?? [],
+    negotiationTurns: tables.negotiation_turns ?? [],
+    seasons: tables.seasons ?? [],
+    objectives: tables.objectives ?? [],
+    eventInstances: tables.event_instances ?? [],
     fixtures: tables.fixtures ?? [],
     matchResults: tables.match_results ?? [],
     leagueTableRows: tables.league_table_rows ?? [],
@@ -628,12 +777,24 @@ export const getLocalGameDatabaseView = async () => {
     worldStates: tables.world_states ?? [],
     clubOffers: tables.club_offers ?? [],
     marketSnapshots: tables.market_snapshots ?? [],
-    transfers: tables.transfers ?? [],
     messages: tables.messages ?? [],
     messageChoices: tables.message_choices ?? [],
+    chosenMessageResponses: tables.chosen_message_responses ?? [],
+    newsPosts: tables.news_posts ?? [],
+    sponsors: tables.sponsors ?? [],
+    rivalAgents: tables.rival_agents ?? [],
+    rivalAgentRelations: tables.rival_agent_relations ?? [],
+    scoutingReports: tables.scouting_reports ?? [],
+    promises: tables.promises ?? [],
+    clubMemory: tables.club_memory ?? [],
+    clubRelations: tables.club_relations ?? [],
+    dossierMemory: tables.dossier_memory ?? [],
     decisionHistory: tables.decision_history ?? [],
     contacts: tables.contacts ?? [],
     agencyGoals: tables.agency_goals ?? [],
+    narrativeArcs: tables.narrative_arcs ?? [],
+    seasonAwards: tables.season_awards ?? [],
+    saveSlots: tables.save_slots ?? [],
   };
 };
 

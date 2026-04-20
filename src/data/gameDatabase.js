@@ -520,6 +520,7 @@ const buildNewsRows = (state = {}, season = 1, week = 1) => safeArray(state.news
   impact_popularity: post.popularityImpact ?? 0,
   viral_score: post.viralScore ?? 0,
   public: post.public ?? true,
+  raw_news: post,
   created_at: post.createdAt ?? makeGameStamp(season, week),
 }));
 
@@ -629,6 +630,7 @@ const buildPromiseRows = (state = {}, agencyId = defaultAgency.id) => safeArray(
   deadline: promise.dueWeek ?? promise.deadline ?? null,
   kept: promise.resolved ? true : promise.failed ? false : null,
   impact_if_broken: promise.impactIfBroken ?? null,
+  raw_promise: promise,
 }));
 
 const findStatePlayer = (state = {}, playerId = null) =>
@@ -821,7 +823,8 @@ const buildLeagueTableRows = (state = {}, season = 1) =>
         goals_against: row.goalsAgainst ?? 0,
         goal_difference: (row.goalsFor ?? 0) - (row.goalsAgainst ?? 0),
         points: row.points ?? 0,
-        form: safeArray(row.form),
+    form: safeArray(row.form),
+    raw_row: row,
       })));
 
 const buildClubSeasonHistoryRows = (state = {}, season = 1) =>
@@ -835,6 +838,7 @@ const buildClubSeasonHistoryRows = (state = {}, season = 1) =>
     league_history: safeArray(history?.league),
     europe_history: safeArray(history?.europe),
     summary: safeArray(history?.summary),
+    raw_history: history ?? {},
   }));
 
 const buildClubMemoryRows = (state = {}) =>
@@ -856,6 +860,7 @@ const buildClubRelationRows = (state = {}) =>
     club_id: clubIdFromName(clubName),
     club_name: clubName,
     relation_score: score ?? 0,
+    raw_score: score ?? 0,
   }));
 
 const buildDossierMemoryRows = (state = {}) => {
@@ -950,6 +955,7 @@ const buildAgencyGoalRows = (state = {}, agencyId = defaultAgency.id) =>
       current_value: currentValue,
       reward_money: goal.reward ?? goal.rewardMoney ?? 0,
       completed: currentValue >= (goal.target ?? Infinity),
+      raw_goal: goal,
     };
   });
 
@@ -981,6 +987,7 @@ const buildWorldCupRows = (state = {}, season = 1, week = 1) => state.worldCupSt
   champion: state.worldCupState.champion ?? null,
   heritage_cards: safeArray(state.worldCupState.heritageCards),
   next_featured_match: state.worldCupState.nextFeaturedMatch ?? null,
+  raw: state.worldCupState,
 }] : [];
 
 const buildEuropeanCompetitionRows = (state = {}, season = 1) =>
@@ -1007,6 +1014,7 @@ const buildNarrativeRows = (state = {}) =>
     started_week: arc.startedWeek ?? null,
     weeks_left: arc.weeksLeft ?? 0,
     intensity: arc.intensity ?? 1,
+    raw_arc: arc,
   }));
 
 const buildSeasonAwardRows = (state = {}) =>
@@ -1014,6 +1022,7 @@ const buildSeasonAwardRows = (state = {}) =>
     id: `season_awards_${seasonKey}`,
     season_id: getSeasonId(Number(seasonKey) || seasonKey),
     awards,
+    raw_awards: awards,
   }));
 
 const buildSeasonRows = (state = {}, week = 1) => [{
