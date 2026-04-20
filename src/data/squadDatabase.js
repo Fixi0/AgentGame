@@ -160,6 +160,7 @@ const ROLE_LEFT_FOOT = {
   right_back: 0.08, right_winger: 0.10, right_wing_back: 0.10,
 };
 const DEFAULT_LEFT_FOOT_CHANCE = 0.22; // ~22% de gauchers dans le foot mondial
+const playerCatalogCache = new Map();
 
 // ── Quota de postes pour le marché ─────────────────────────────────────────
 export const MARKET_POSITION_QUOTA = ['GK','DEF','DEF','MIL','MIL','ATT'];
@@ -559,8 +560,38 @@ export const getClubSquadByPosition = (club, position, season = 1) =>
 export const getClubYouthPlayers = (club, season = 1) =>
   YOUTH_SLOTS.map((_, idx) => buildYouthPlayer(club, idx, season));
 
+export const createPlayerCatalog = (season = 1) => {
+  const cached = playerCatalogCache.get(season);
+  if (cached) return cached;
+
+  const catalog = CLUBS.flatMap((club) => [
+    ...getClubSquad(club, season),
+    ...getClubYouthPlayers(club, season),
+  ]);
+
+  playerCatalogCache.set(season, catalog);
+  return catalog;
+};
+
+const chooseCatalogPlayer = ({ catalog, position, targetRating, usedIds, usedClubsThisBatch, eligibleClubs, salt = 0 }) => {
+  const candidates = catalog.filter((player) => {
+    if (usedIds.has(player.id)) return false;
+    if (usedClubsThisBatch.has(player.club)) return false;
+    if (eligibleClubs.length && !eligibleClubs.some((club) => club.name === player.club)) return false;
+    if (position && player.position !== position) return false;
+    return true;
+  });
+  if (!candidates.length) return null;
+
+  return [...candidates].sort((a, b) => {
+    const aScore = Math.abs((a.rating ?? 0) - targetRating) + seededFloat(hashStr(a.id), salt) * 2;
+    const bScore = Math.abs((b.rating ?? 0) - targetRating) + seededFloat(hashStr(b.id), salt) * 2;
+    return aScore - bScore;
+  })[0] ?? null;
+};
+
 /**
- * Construit le marché avec quota de postes stricts.
+ * Construit le marché à partir du catalogue de joueurs du jeu.
  */
 export const drawMarketPlayers = ({
   reputation = 12,
@@ -573,23 +604,50 @@ export const drawMarketPlayers = ({
   const usedClubsThisBatch = new Set();
   const result = [];
   const eligibleClubs = getEligibleClubs(reputation);
-  const specialGabriel = buildGabrielFixio(getMarseilleClub(), season);
-  let specialInjected = false;
+  const catalog = createPlayerCatalog(season);
+  const targetRating = clamp(54 + reputation * 0.28 + scoutLevel * 1.6, 50, 91);
+  const specialGabriel = catalog.find((player) => player.id === GABRIEL_FIXIO_ID);
 
   for (const position of positionQuota) {
-    if (!specialInjected && position === specialGabriel.position && !usedIds.has(specialGabriel.id)) {
-      result.push(specialGabriel);
+    if (position === specialGabriel?.position && !usedIds.has(specialGabriel.id) && !usedClubsThisBatch.has(specialGabriel.club) && (!eligibleClubs.length || eligibleClubs.some((club) => club.name === specialGabriel.club))) {
+      result.push({ ...specialGabriel });
       usedIds.add(specialGabriel.id);
-      specialInjected = true;
+      usedClubsThisBatch.add(specialGabriel.club);
       continue;
     }
-    const player = drawOnePlayer({ position, eligibleClubs, usedIds, usedClubsThisBatch, season, scoutLevel, reputation });
+
+    const player = chooseCatalogPlayer({
+      catalog,
+      position,
+      targetRating,
+      usedIds,
+      usedClubsThisBatch,
+      eligibleClubs,
+      salt: result.length,
+    });
     if (player) {
-      result.push(player);
+      result.push({ ...player });
       usedIds.add(player.id);
       usedClubsThisBatch.add(player.club);
+      continue;
+    }
+
+    const fallback = chooseCatalogPlayer({
+      catalog,
+      position: null,
+      targetRating,
+      usedIds,
+      usedClubsThisBatch,
+      eligibleClubs,
+      salt: result.length + 11,
+    });
+    if (fallback) {
+      result.push({ ...fallback });
+      usedIds.add(fallback.id);
+      usedClubsThisBatch.add(fallback.club);
     }
   }
+
   return result;
 };
 
@@ -605,16 +663,18 @@ export const drawFreeAgents = ({
   const usedIds = new Set(existingIds);
   const result = [];
   const eligibleClubs = getEligibleClubs(Math.max(0, reputation - 12));
+  const catalog = createPlayerCatalog(season);
+  const targetRating = clamp(50 + reputation * 0.22, 50, 82);
 
   for (const position of positionQuota) {
-    const player = drawOnePlayer({
+    const player = chooseCatalogPlayer({
+      catalog,
       position,
-      eligibleClubs,
+      targetRating,
       usedIds,
       usedClubsThisBatch: new Set(),
-      season,
-      scoutLevel: 0,
-      reputation: Math.max(0, reputation - 4),
+      eligibleClubs,
+      salt: result.length + 31,
     });
     if (player) {
       const freePlayer = {
@@ -645,18 +705,18 @@ export const drawProspects = ({
 }) => {
   const usedIds = new Set(existingIds);
   const eligibleClubs = getEligibleClubs(Math.max(8, reputation - 8));
+  const catalog = createPlayerCatalog(season);
   const result = [];
-  const shuffled = [...eligibleClubs].sort(() => Math.random() - 0.5);
+  const shuffled = [...eligibleClubs].sort((a, b) => seededFloat(hashStr(a.name), 91) - seededFloat(hashStr(b.name), 91));
 
   for (const club of shuffled) {
     if (result.length >= count) break;
-    for (let yi = 0; yi < YOUTH_SLOTS.length; yi++) {
-      const p = buildYouthPlayer(club, yi, season);
-      if (!usedIds.has(p.id)) {
-        result.push(p);
-        usedIds.add(p.id);
-        break;
-      }
+    const candidate = catalog
+      .filter((player) => player.club === club.name && player.isProspect)
+      .find((player) => !usedIds.has(player.id));
+    if (candidate) {
+      result.push({ ...candidate });
+      usedIds.add(candidate.id);
     }
   }
   return result;

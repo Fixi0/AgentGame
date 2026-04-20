@@ -1,6 +1,7 @@
 import { CLUBS, COUNTRIES, getCitiesForCountry } from './clubs';
 import { PERSONALITIES, PERSONALITY_LABELS, PERSONALITY_PROFILES } from './players';
 import { INTERACTIVE_EVENTS, PASSIVE_EVENTS } from './events';
+import { createPlayerCatalog } from './squadDatabase';
 import { STAFF_ROLES, createDefaultStaff } from '../systems/staffSystem';
 import { createDefaultClubMemory, createDefaultClubRelations, getClubProfile } from '../systems/clubSystem';
 import { getAgencyCapacity } from '../systems/agencySystem';
@@ -492,6 +493,7 @@ export const createGameCatalog = () => ({
   cities: createCityRows(),
   leagues: createLeagueRows(),
   clubs: createClubRows(),
+  players: createPlayerCatalog(1),
   personalities: createPersonalityRows(),
   event_templates: createEventTemplateRows(),
   staff_roles: Object.entries(STAFF_ROLES).map(([key, role]) => ({
