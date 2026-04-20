@@ -256,14 +256,16 @@ export default function FootballAgentGame() {
           reputation: parsed.reputation ?? 0,
           money: parsed.money ?? 0,
         });
+        setSaveMenuOpen(true);
       } else {
-        setState(createFreshState());
+        setState(null);
         setSavePreview(null);
+        setSaveMenuOpen(true);
       }
-      setSaveMenuOpen(Boolean(saved));
     } catch {
-      setState(createFreshState());
+      setState(null);
       setSavePreview(null);
+      setSaveMenuOpen(true);
     } finally {
       setLoaded(true);
     }
