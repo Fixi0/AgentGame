@@ -1,8 +1,22 @@
 import { RotateCcw, Save, Sparkles } from 'lucide-react';
-import React from 'react';
+import React, { useRef } from 'react';
 import { S } from './styles';
 
 export default function SaveMenu({ hasSave, savePreview, onContinue, onNewGame, onReset }) {
+  const lockRef = useRef(false);
+  const trigger = (handler) => (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (!handler || lockRef.current) return;
+    lockRef.current = true;
+    try {
+      handler();
+    } finally {
+      setTimeout(() => { lockRef.current = false; }, 120);
+    }
+  };
   const continueLabel = savePreview
     ? `Reprendre S${savePreview.season} · S${savePreview.seasonWeek}/38`
     : 'CONTINUER';
@@ -27,16 +41,16 @@ export default function SaveMenu({ hasSave, savePreview, onContinue, onNewGame, 
           Si tu démarres une nouvelle agence, tu passeras d'abord par la création. La navbar arrive ensuite dans la carrière.
         </div>
         <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
-          <button type="button" onClick={onNewGame} style={S.primaryBtn}>
+          <button type="button" onPointerUp={trigger(onNewGame)} onClick={trigger(onNewGame)} style={S.primaryBtn}>
             <Sparkles size={14} />
             NOUVELLE PARTIE
           </button>
-          <button type="button" onClick={onContinue} disabled={!hasSave} style={{ ...S.secBtn, opacity: hasSave ? 1 : 0.45, marginBottom: 0 }}>
+          <button type="button" onPointerUp={trigger(onContinue)} onClick={trigger(onContinue)} disabled={!hasSave} style={{ ...S.secBtn, opacity: hasSave ? 1 : 0.45, marginBottom: 0 }}>
             <Save size={14} />
             {continueLabel}
           </button>
           {hasSave && (
-            <button type="button" onClick={onReset} style={{ ...S.secBtn, color: '#b42318', marginBottom: 0, background: '#fff6f6', borderColor: '#f3c7c2' }}>
+            <button type="button" onPointerUp={trigger(onReset)} onClick={trigger(onReset)} style={{ ...S.secBtn, color: '#b42318', marginBottom: 0, background: '#fff6f6', borderColor: '#f3c7c2' }}>
               <RotateCcw size={14} />
               EFFACER LA SAUVEGARDE
             </button>

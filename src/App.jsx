@@ -243,6 +243,7 @@ export default function FootballAgentGame() {
   const [weekTickerData, setWeekTickerData] = useState(null);
   const [saveFlash, setSaveFlash] = useState(false);
   const [lastWeekError, setLastWeekError] = useState(null);
+  const [forceOnboarding, setForceOnboarding] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -490,7 +491,8 @@ export default function FootballAgentGame() {
   };
 
   const handleCompleteOnboarding = (profile) => {
-    commitResult(updateAgencyProfile(state, profile), 'Agence créée');
+    const done = commitResult(updateAgencyProfile(state, profile), 'Agence créée');
+    if (done) setForceOnboarding(false);
   };
 
   const handlePlayWeek = () => {
@@ -1096,6 +1098,7 @@ export default function FootballAgentGame() {
     setHasSave(false);
     setSavePreview(null);
     setState(freshState);
+    setForceOnboarding(true);
     setView('dashboard');
     setSaveMenuOpen(false);
     showToast('Nouvelle partie', 'success');
@@ -1290,7 +1293,7 @@ export default function FootballAgentGame() {
   });
   const agencyProfile = state.agencyProfile;
 
-  if (!agencyProfile.onboarded) {
+  if (forceOnboarding || !agencyProfile.onboarded) {
     return (
       <div style={S.app}>
         <style>{CSS}</style>
