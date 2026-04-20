@@ -26,6 +26,22 @@ export default function SaveMenu({ hasSave, savePreview, onContinue, onNewGame, 
         }}>
           Si tu démarres une nouvelle agence, tu passeras d'abord par la création. La navbar arrive ensuite dans la carrière.
         </div>
+        <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+          <button type="button" onClick={onNewGame} style={S.primaryBtn}>
+            <Sparkles size={14} />
+            NOUVELLE PARTIE
+          </button>
+          <button type="button" onClick={onContinue} disabled={!hasSave} style={{ ...S.secBtn, opacity: hasSave ? 1 : 0.45, marginBottom: 0 }}>
+            <Save size={14} />
+            {continueLabel}
+          </button>
+          {hasSave && (
+            <button type="button" onClick={onReset} style={{ ...S.secBtn, color: '#b42318', marginBottom: 0 }}>
+              <RotateCcw size={14} />
+              RESET SAUVEGARDE
+            </button>
+          )}
+        </div>
         {savePreview && (
           <div style={S.objCard}>
             <div style={S.secTitle}>PARTIE EN COURS</div>
@@ -36,20 +52,6 @@ export default function SaveMenu({ hasSave, savePreview, onContinue, onNewGame, 
             <div style={S.sumRow}><span style={S.sumK}>Capital</span><strong>{savePreview.money.toLocaleString('fr-FR')} €</strong></div>
             <div style={{ ...S.sumRow, borderBottom: 'none' }}><span style={S.sumK}>Réputation</span><strong>{savePreview.reputation}</strong></div>
           </div>
-        )}
-        <button type="button" onClick={onContinue} disabled={!hasSave} style={{ ...S.primaryBtn, opacity: hasSave ? 1 : 0.45 }}>
-          <Save size={16} />
-          {continueLabel}
-        </button>
-        <button type="button" onClick={onNewGame} style={S.secBtn}>
-          <Sparkles size={14} />
-          NOUVELLE PARTIE
-        </button>
-        {hasSave && (
-          <button type="button" onClick={onReset} style={{ ...S.secBtn, color: '#b42318' }}>
-            <RotateCcw size={14} />
-            RESET SAUVEGARDE
-          </button>
         )}
       </div>
     </div>
