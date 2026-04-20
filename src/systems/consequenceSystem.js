@@ -119,7 +119,7 @@ export const applyNewsConsequences = ({ state, roster, posts, week }) => {
   let nextRoster = roster;
   let mediaRelations = state.mediaRelations;
   let clubRelations = state.clubRelations;
-  let countryReputation = state.countryReputation ?? createDefaultCountryReputation(state.agencyProfile?.countryCode ?? 'FR', normalizeAgencyReputation(state.reputation ?? 120));
+  let countryReputation = state.countryReputation ?? createDefaultCountryReputation(state.agencyProfile?.countryCode ?? 'FR', normalizeAgencyReputation(state.reputation ?? 20));
   let leagueReputation = state.leagueReputation;
   let playerSegmentReputation = state.playerSegmentReputation;
   let credibility = state.credibility ?? 50;

@@ -697,7 +697,7 @@ const drawOnePlayer = ({ position, eligibleClubs, usedIds, usedClubsThisBatch, s
       return player;
     }
   }
-  return buildFallbackPlayer(position, reputation, season);
+  return null;
 };
 
 const buildFallbackPlayer = (position, reputation, season) => {

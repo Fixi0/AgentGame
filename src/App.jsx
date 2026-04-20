@@ -226,13 +226,13 @@ const moreItems = [
 
 
 export default function FootballAgentGame() {
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(true);
   const [state, setState] = useState(null);
   const [view, setView] = useState('dashboard');
   const [modal, setModal] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [toast, setToast] = useState(null);
-  const [saveMenuOpen, setSaveMenuOpen] = useState(false);
+  const [saveMenuOpen, setSaveMenuOpen] = useState(true);
   const [hasSave, setHasSave] = useState(false);
   const [savePreview, setSavePreview] = useState(null);
   const [activeMessageThreadKey, setActiveMessageThreadKey] = useState(null);

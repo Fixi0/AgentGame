@@ -1,6 +1,6 @@
 import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
 import { COUNTRY_NAME_POOLS, FIRST_NAMES, HIDDEN_TRAITS, LAST_NAMES, LEGENDARY_PLAYERS, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
-import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA } from '../data/squadDatabase';
+import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA } from '../data/squadDatabase';
 import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
 import { getAgencyCapacity, getAgencyUpgradeCost } from '../systems/agencySystem';
@@ -239,28 +239,53 @@ const getGeneratedName = (countryCode) => {
   };
 };
 
-const normalizePlayerCoreProfile = (player, countryCode, club) => {
+const resolveDatabasePlayerTemplate = (player, club, season = 1) => {
+  const clubName = club?.name ?? player.club;
+  const clubList = clubName ? [CLUBS.find((item) => item.name === clubName), ...CLUBS.filter((item) => item.name !== clubName)] : CLUBS;
+  for (const item of clubList.filter(Boolean)) {
+    const squad = getClubSquad(item, season);
+    const exact = squad.find((candidate) => candidate.id === player.id);
+    if (exact) return exact;
+    const sameName = squad.find((candidate) =>
+      candidate.firstName === player.firstName
+      && candidate.lastName === player.lastName
+      && candidate.position === player.position,
+    );
+    if (sameName) return sameName;
+  }
+  return null;
+};
+
+const normalizePlayerCoreProfile = (player, countryCode, club, season = 1) => {
+  const dbPlayer = resolveDatabasePlayerTemplate(player, club, season);
+  if (dbPlayer) {
+    return {
+      firstName: dbPlayer.firstName,
+      lastName: dbPlayer.lastName,
+      rating: clamp(Math.round(dbPlayer.rating), 50, 99),
+      potential: clamp(Math.round(dbPlayer.potential ?? dbPlayer.rating), Math.round(dbPlayer.rating), 99),
+    };
+  }
+
   const baseCountryCode = countryCode ?? player.countryCode ?? club?.countryCode ?? 'FR';
-  const generatedName = getGeneratedName(baseCountryCode);
   const firstName = typeof player.firstName === 'string' && player.firstName.trim()
     ? player.firstName.trim()
-    : generatedName.firstName;
+    : 'Joueur';
   const lastName = typeof player.lastName === 'string' && player.lastName.trim()
     ? player.lastName.trim()
-    : generatedName.lastName;
+    : club?.name ?? 'Libre';
 
   const ratingCandidates = [player.rating, player.note, player.overall, player.rank];
   const rawRating = ratingCandidates.find((value) => Number.isFinite(Number(value)));
-  const seed = hashStr(`${player.id ?? firstName}:${club?.name ?? player.club ?? baseCountryCode}:${player.position ?? 'MIL'}`);
   const rating = Number.isFinite(Number(rawRating))
     ? Number(rawRating)
-    : sInt(seed, 0, 54, 78);
+    : clamp(60 + (club?.tier ? (4 - Math.min(4, club.tier)) * 4 : 0), 50, 80);
 
   const potentialCandidates = [player.potential, player.maxRating, player.ceiling];
   const rawPotential = potentialCandidates.find((value) => Number.isFinite(Number(value)));
   const potential = Number.isFinite(Number(rawPotential))
     ? Number(rawPotential)
-    : Math.min(99, Math.max(rating, rating + sInt(seed, 1, 4, 12)));
+    : Math.min(99, Math.max(rating, rating + 6));
 
   return {
     firstName,
@@ -330,74 +355,7 @@ const ensureDeepPlayerProfile = (player, countryCode, club) => ({
   ),
 });
 
-export const generatePlayer = (reputation, scoutLevel = 0, young = false, forcedCountryCode = null) => {
-  const country = forcedCountryCode ? getCountry(forcedCountryCode) : getWeightedCountry(reputation + scoutLevel * 6);
-  const rating = generateRealisticRating(reputation, scoutLevel, young);
-  const age = young ? rand(17, 20) : rand(17, 32);
-  const potentialCeiling = rating >= 86 ? 96 : rating >= 80 ? 92 : 88;
-  const potential = clamp(rating + rand(0, 13 - Math.min(12, Math.max(0, age - 18))), rating, potentialCeiling);
-  const club = getClubForPlayerLevel(country.code, rating, potential);
-  const personality = pick(PERSONALITIES);
-  const position = pick(POSITIONS);
-  const roleProfile = pick(POSITION_ROLES[position] ?? POSITION_ROLES.ATT);
-  const name = getGeneratedName(country.code);
-  const basePlayer = { personality, age, rating, potential };
-  const deepProfile = createDeepPlayerProfile(basePlayer, country.code, club);
-  const form = 70 + rand(-15, 20);
-  const brandValue = rand(8, 35);
-  const value = estimateTransferValue({
-    rating,
-    potential,
-    age,
-    form,
-    clubTier: club.tier,
-    brandValue,
-  });
-
-  return {
-    id: makeId('p'),
-    firstName: name.firstName,
-    lastName: name.lastName,
-    position,
-    roleId: roleProfile.id,
-    roleLabel: roleProfile.label,
-    roleShort: roleProfile.short,
-    countryCode: country.code,
-    countryLabel: country.label,
-    countryFlag: country.flag,
-    personality,
-    ...deepProfile,
-    age,
-    rating,
-    potential,
-    value,
-    weeklySalary: Math.max(500, Math.floor(value / rand(95, 155))),
-    signingCost: Math.floor(value * 0.012 + 1500),
-    club: club.name,
-    clubTier: club.tier,
-    clubCountry: country.flag,
-    clubCountryCode: club.countryCode,
-    clubCity: club.city,
-    form,
-    brandValue,
-    fatigue: rand(12, 36),
-    injured: 0,
-    moral: rand(60, 85),
-    trust: getInitialTrust(personality),
-    contractWeeksLeft: rand(20, 100),
-    commission: 0.1,
-    agentContract: null,
-    timeline: [],
-    careerGoal: null,
-    scoutReport: null,
-    hiddenTrait: pick(['clutch_player','locker_room_leader','silent_perfectionist','social_media_magnet','late_bloomer','glass_cannon','mentality_monster','tactical_genius']),
-    traitRevealed: false,
-    lastInteractionWeek: 0,
-    europeanCompetition: null, // assigned lazily below
-    seasonStats: { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
-    publicRep: null,  // initialized lazily on first use
-  };
-};
+export const generatePlayer = () => null;
 
 export const generateMarket = (reputation, scoutLevel = 0, size = 6, existingIds = [], season = 1) => {
   // Quota de postes pour un marché équilibré (ajusté si size != 6)
@@ -516,7 +474,7 @@ export const migrateState = (state) => {
       effectiveWeek: Number.isFinite(transfer.effectiveWeek) ? transfer.effectiveWeek : offer.effectiveWeek ?? (state.week ?? 1) + 1,
     };
   };
-  const rawReputation = state.reputation ?? 120;
+  const rawReputation = state.reputation ?? 20;
   const reputation = rawReputation <= 100 ? rawReputation * 10 : rawReputation;
   const clubSeasonHistory = normalizeClubSeasonHistory(state.clubSeasonHistory ?? {}, currentSeason);
   const convertLegacyObjective = (objective) => {
@@ -554,7 +512,7 @@ export const migrateState = (state) => {
     credibility: state.credibility ?? 52,
     difficulty: state.difficulty ?? state.agencyProfile?.difficulty ?? 'realiste',
     startProfile: state.startProfile ?? state.agencyProfile?.startProfile ?? 'ancien_joueur',
-    countryReputation: state.countryReputation ?? createDefaultCountryReputation(state.agencyProfile?.countryCode ?? 'FR', normalizeAgencyReputation(state.reputation ?? 120)),
+    countryReputation: state.countryReputation ?? createDefaultCountryReputation(state.agencyProfile?.countryCode ?? 'FR', normalizeAgencyReputation(state.reputation ?? 20)),
     mediaRelations: { ...createDefaultMediaRelations(), ...(state.mediaRelations ?? {}) },
     playerSegmentReputation: { ...createDefaultPlayerSegmentReputation(), ...(state.playerSegmentReputation ?? {}) },
     rivalAgents: state.rivalAgents ?? createDefaultRivalAgents(),
@@ -620,7 +578,7 @@ export const migrateState = (state) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
-      const coreProfile = normalizePlayerCoreProfile(player, country.code, club);
+      const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
 
       return {
         ...player,
@@ -654,7 +612,7 @@ export const migrateState = (state) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
-      const coreProfile = normalizePlayerCoreProfile(player, country.code, club);
+      const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
 
       return {
         ...player,
@@ -693,7 +651,7 @@ export const migrateState = (state) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
-      const coreProfile = normalizePlayerCoreProfile(player, country.code, club);
+      const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
 
       return {
         ...player,
@@ -2510,7 +2468,17 @@ export const playWeek = (state) => {
     if (mission.status !== 'active') return mission;
     const weeksLeft = mission.weeksLeft - 1;
     if (weeksLeft > 0) return { ...mission, weeksLeft };
-    const prospectBase = generatePlayer(state.reputation + mission.scoutLevel * 5, mission.scoutLevel, true, mission.countryCode);
+    const prospectBase = drawProspects({
+      reputation: state.reputation + mission.scoutLevel * 5,
+      season: Math.floor(((state.week ?? 1) - 1) / 38) + 1,
+      existingIds: [
+        ...(state.roster ?? []).map((p) => p.id),
+        ...(state.market ?? []).map((p) => p.id),
+        ...(state.freeAgents ?? []).map((p) => p.id),
+      ],
+      count: 1,
+    })[0] ?? null;
+    if (!prospectBase) return { ...mission, weeksLeft: 0, status: 'completed' };
     const prospect = {
       ...prospectBase,
       careerGoal: createCareerGoal(prospectBase),
@@ -2853,7 +2821,19 @@ export const applyChoice = (state, event, player, choice) => {
   nextState = { ...nextState, news: [news, ...nextState.news].slice(0, 60) };
 
   if (choice.flag === 'add_young_prospect') {
-    const prospectBase = generatePlayer(nextState.reputation, nextState.office.scoutLevel, true);
+    const prospectBase = drawProspects({
+      reputation: nextState.reputation,
+      season: Math.floor(((nextState.week ?? 1) - 1) / 38) + 1,
+      existingIds: [
+        ...(nextState.roster ?? []).map((p) => p.id),
+        ...(nextState.market ?? []).map((p) => p.id),
+        ...(nextState.freeAgents ?? []).map((p) => p.id),
+      ],
+      count: 1,
+    })[0] ?? null;
+    if (!prospectBase) {
+      return { state: nextState, followUp: choice.flag, followUpData: null };
+    }
     const scoutLevel = getStaffEffect(nextState.staff, 'scoutAfrica') + nextState.office.scoutLevel;
     const prospect = {
       ...prospectBase,
