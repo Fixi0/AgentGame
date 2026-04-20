@@ -253,6 +253,36 @@ const idbGetAll = async (storeName) => {
   });
 };
 
+const sortRows = (rows = [], sortBy = null, direction = 'asc') => {
+  if (!sortBy) return rows;
+  const multiplier = direction === 'desc' ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const left = a?.[sortBy];
+    const right = b?.[sortBy];
+    if (left == null && right == null) return 0;
+    if (left == null) return 1;
+    if (right == null) return -1;
+    if (typeof left === 'number' && typeof right === 'number') return (left - right) * multiplier;
+    return String(left).localeCompare(String(right)) * multiplier;
+  });
+};
+
+const idbGetAllByIndex = async (storeName, indexName, value) => {
+  const db = await openDb();
+  if (!db || !db.objectStoreNames.contains(storeName)) return [];
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+    if (!store.indexNames.contains(indexName)) {
+      resolve([]);
+      return;
+    }
+    const req = store.index(indexName).getAll(IDBKeyRange.only(value));
+    req.onsuccess = () => resolve(req.result ?? []);
+    req.onerror = () => reject(req.error);
+  });
+};
+
 const idbWriteTables = async (tables = {}, { clear = true } = {}) => {
   const db = await openDb();
   if (!db) return null;
@@ -458,6 +488,64 @@ export const clearLocalGameProgress = async () => {
   await idbDelete('meta', 'active_save');
   await idbClearStores(GAME_TABLES);
   removeLegacySave();
+};
+
+export const getLocalTableRows = async (storeName, options = {}) => {
+  await ensureLocalGameDatabase();
+  if (!STORE_NAMES.includes(storeName)) return [];
+  const rows = await idbGetAll(storeName);
+  const sorted = sortRows(rows, options.sortBy, options.direction);
+  return Number.isFinite(options.limit) ? sorted.slice(0, options.limit) : sorted;
+};
+
+export const getLocalRowsByIndex = async (storeName, indexName, value, options = {}) => {
+  await ensureLocalGameDatabase();
+  if (!STORE_NAMES.includes(storeName)) return [];
+  const rows = await idbGetAllByIndex(storeName, indexName, value);
+  const sorted = sortRows(rows, options.sortBy, options.direction);
+  return Number.isFinite(options.limit) ? sorted.slice(0, options.limit) : sorted;
+};
+
+export const getLocalGameDatabaseView = async () => {
+  await ensureLocalGameDatabase();
+  const tableNames = [
+    'players',
+    'clubs',
+    'fixtures',
+    'match_results',
+    'league_table_rows',
+    'club_season_history',
+    'european_competitions',
+    'world_cups',
+    'world_states',
+    'club_offers',
+    'messages',
+    'message_choices',
+    'decision_history',
+    'contacts',
+    'agency_goals',
+  ];
+  const entries = await Promise.all(tableNames.map(async (storeName) => [storeName, await idbGetAll(storeName)]));
+  const tables = Object.fromEntries(entries);
+  return {
+    loadedAt: Date.now(),
+    tables,
+    players: tables.players ?? [],
+    clubs: tables.clubs ?? [],
+    fixtures: tables.fixtures ?? [],
+    matchResults: tables.match_results ?? [],
+    leagueTableRows: tables.league_table_rows ?? [],
+    clubSeasonHistory: tables.club_season_history ?? [],
+    europeanCompetitions: tables.european_competitions ?? [],
+    worldCups: tables.world_cups ?? [],
+    worldStates: tables.world_states ?? [],
+    clubOffers: tables.club_offers ?? [],
+    messages: tables.messages ?? [],
+    messageChoices: tables.message_choices ?? [],
+    decisionHistory: tables.decision_history ?? [],
+    contacts: tables.contacts ?? [],
+    agencyGoals: tables.agency_goals ?? [],
+  };
 };
 
 export const hasLocalGameProgress = async () => {

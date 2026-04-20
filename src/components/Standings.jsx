@@ -24,6 +24,20 @@ const EURO_STAGE_TRACKER = [
 
 const getSeasonFromWeek = (week = 1) => Math.floor(((week - 1) / 38)) + 1;
 const getSeasonWeekFromWeek = (week = 1) => ((week - 1) % 38) + 1;
+const getSeasonId = (season = 1) => `season_${season}`;
+
+const mapDbLeagueRow = (row) => ({
+  club: row.club_name,
+  countryCode: row.country_code,
+  played: row.played ?? 0,
+  win: row.wins ?? 0,
+  draw: row.draws ?? 0,
+  loss: row.losses ?? 0,
+  goalsFor: row.goals_for ?? 0,
+  goalsAgainst: row.goals_against ?? 0,
+  points: row.points ?? 0,
+  form: row.form ?? [],
+});
 
 const parseScore = (score = '0-0') => {
   const [homeRaw = '0', awayRaw = '0'] = String(score).split('-');
@@ -35,12 +49,29 @@ const parseScore = (score = '0-0') => {
   };
 };
 
-const buildEuropeRows = (state, competition, season) => {
+const getClubHistoryMap = (state, databaseView, season) => {
+  const dbRows = databaseView?.clubSeasonHistory?.filter((row) => row.season_id === getSeasonId(season)) ?? [];
+  if (dbRows.length) {
+    return Object.fromEntries(dbRows.map((row) => [row.club_name, {
+      season,
+      club: row.club_name,
+      countryCode: row.country_code,
+      competition: row.european_competition,
+      league: row.league_history ?? [],
+      europe: row.europe_history ?? [],
+      summary: row.summary ?? [],
+    }]));
+  }
+  return state.clubSeasonHistory ?? {};
+};
+
+const buildEuropeRows = (state, competition, season, databaseView = null) => {
   const roster = state.roster ?? [];
+  const clubHistory = getClubHistoryMap(state, databaseView, season);
   const rows = CLUBS
     .filter((club) => getClubEuropeanCompetition(club, season) === competition)
     .map((club) => {
-      const history = state.clubSeasonHistory?.[club.name] ?? null;
+      const history = clubHistory?.[club.name] ?? null;
       const matches = (history?.europe ?? [])
         .filter((entry) => entry.competition === competition)
         .map((entry) => ({ ...entry }));
@@ -81,12 +112,12 @@ const buildEuropeRows = (state, competition, season) => {
   return rows;
 };
 
-function EuropeCompetitionCard({ state, competition, season, seasonWeek, onClubDetails }) {
+function EuropeCompetitionCard({ state, databaseView, competition, season, seasonWeek, onClubDetails }) {
   const cup = EURO_CUP_LABELS[competition];
   const currentStageKey = getEuropeanStage(seasonWeek, competition);
   const currentStageLabel = getEuropeanPhaseLabel(seasonWeek, competition);
   const stageIndex = EURO_STAGE_TRACKER.findIndex((stage) => stage.key === currentStageKey);
-  const rows = buildEuropeRows(state, competition, season);
+  const rows = buildEuropeRows(state, competition, season, databaseView);
 
   const boardBg = competition === 'CL'
     ? 'linear-gradient(135deg, #eef4ff 0%, #f7fbff 100%)'
@@ -221,7 +252,7 @@ function EuropeCompetitionCard({ state, competition, season, seasonWeek, onClubD
   );
 }
 
-export default function Standings({ state, onClubDetails }) {
+export default function Standings({ state, databaseView = null, onClubDetails }) {
   const availableCountries = useMemo(() => COUNTRIES.filter((country) => CLUBS.some((club) => club.countryCode === country.code)), []);
   const [viewMode, setViewMode] = useState('domestic');
   const [countryCode, setCountryCode] = useState(availableCountries[0]?.code ?? 'FR');
@@ -229,7 +260,13 @@ export default function Standings({ state, onClubDetails }) {
   const currentSeason = getSeasonFromWeek(state.week ?? 1);
   const currentSeasonWeek = getSeasonWeekFromWeek(state.week ?? 1);
   const selectedCountry = availableCountries.find((country) => country.code === countryCode) ?? availableCountries[0];
-  const table = selectedCountry ? getSortedTable(state.leagueTables, selectedCountry.code) : [];
+  const dbTable = selectedCountry
+    ? (databaseView?.leagueTableRows ?? [])
+      .filter((row) => row.country_code === selectedCountry.code && row.season_id === getSeasonId(currentSeason))
+      .sort((a, b) => (a.position ?? 999) - (b.position ?? 999))
+      .map(mapDbLeagueRow)
+    : [];
+  const table = dbTable.length ? dbTable : selectedCountry ? getSortedTable(state.leagueTables, selectedCountry.code) : [];
   const selectedClub = CLUBS.find((club) => club.name === selectedClubName) ?? CLUBS.find((club) => club.name === table[0]?.club);
   const clubProfile = selectedClub ? getClubProfile(selectedClub, state.clubRelations?.[selectedClub.name] ?? 50) : null;
   const leagueRep = state.leagueReputation?.[selectedCountry?.code] ?? 0;
@@ -335,6 +372,7 @@ export default function Standings({ state, onClubDetails }) {
             <EuropeCompetitionCard
               key={competition}
               state={state}
+              databaseView={databaseView}
               competition={competition}
               season={currentSeason}
               seasonWeek={currentSeasonWeek}

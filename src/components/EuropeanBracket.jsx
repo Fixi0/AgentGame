@@ -19,6 +19,22 @@ const resultLabel = (r) => r === 'win' ? 'V' : r === 'loss' ? 'D' : 'N';
 
 const fmt = (v) => v ?? '?';
 
+const getSeasonFromWeek = (week = 1) => Math.floor(((week - 1) / 38)) + 1;
+
+const buildEuropeanDataFromDb = (databaseView = null) => {
+  const rows = databaseView?.europeanCompetitions ?? [];
+  return rows.reduce((acc, row) => ({
+    ...acc,
+    [row.competition_key]: {
+      competition: row.competition,
+      season: Number(String(row.season_id ?? '').replace('season_', '')) || null,
+      opponentHistory: row.opponent_history ?? {},
+      koPath: row.ko_path ?? {},
+      bracketClubs: row.bracket_clubs ?? null,
+    },
+  }), {});
+};
+
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 const SectionTitle = ({ children }) => (
@@ -104,8 +120,38 @@ const ClubMatchCell = ({ club, cupColor }) => (
 );
 
 /** Stats buteurs européens des joueurs de l'agent */
-const TopScorers = ({ roster, competition }) => {
+const TopScorers = ({ roster, competition, matchResults = [] }) => {
   const scorers = useMemo(() => {
+    if (matchResults.length) {
+      const playersById = Object.fromEntries((roster ?? []).map((player) => [player.id, player]));
+      const totals = matchResults
+        .filter((match) => match.competition === competition && (match.minutes ?? 0) > 0)
+        .reduce((acc, match) => {
+          const key = match.player_id;
+          if (!key) return acc;
+          const player = playersById[key];
+          const nameParts = String(match.player_name ?? '').trim().split(/\s+/).filter(Boolean);
+          const current = acc[key] ?? {
+            id: key,
+            firstName: player?.firstName ?? nameParts[0] ?? 'Joueur',
+            lastName: player?.lastName ?? nameParts.slice(1).join(' '),
+            club: match.club_name ?? player?.club ?? 'Club',
+            goals: 0,
+            apps: 0,
+          };
+          acc[key] = {
+            ...current,
+            goals: current.goals + (match.goals ?? 0),
+            apps: current.apps + 1,
+          };
+          return acc;
+        }, {});
+      return Object.values(totals)
+        .filter((item) => item.apps > 0)
+        .sort((a, b) => b.goals - a.goals || b.apps - a.apps)
+        .slice(0, 5)
+        .map((item) => ({ player: item, goals: item.goals, apps: item.apps }));
+    }
     const list = (roster ?? [])
       .filter((p) => p.europeanCompetition === competition)
       .map((p) => {
@@ -118,7 +164,7 @@ const TopScorers = ({ roster, competition }) => {
       .filter((s) => s.apps > 0)
       .sort((a, b) => b.goals - a.goals || b.apps - a.apps);
     return list.slice(0, 5);
-  }, [roster, competition]);
+  }, [roster, competition, matchResults]);
 
   if (!scorers.length) return null;
 
@@ -197,12 +243,17 @@ const ClubEuroView = ({ clubName, compData, competition, cupLabel }) => {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
-export default function EuropeanBracket({ state }) {
-  const { roster = [], europeanCupData = {} } = state ?? {};
+export default function EuropeanBracket({ state, databaseView = null }) {
+  const roster = state?.roster ?? [];
+  const europeanCupData = useMemo(() => {
+    const dbData = buildEuropeanDataFromDb(databaseView);
+    return Object.keys(dbData).length ? dbData : state?.europeanCupData ?? {};
+  }, [databaseView, state?.europeanCupData]);
+  const dbMatchResults = databaseView?.matchResults ?? [];
 
   // Collecter les compétitions actives (clubs de l'agent)
   const activeComps = useMemo(() => {
-    const season = Math.floor(((state?.week ?? 1) - 1) / 38) + 1;
+    const season = getSeasonFromWeek(state?.week ?? 1);
     const compMap = {}; // comp → Set<clubName>
     for (const p of roster) {
       const comp = p.europeanCompetition;
@@ -222,7 +273,7 @@ export default function EuropeanBracket({ state }) {
   const [activeComp, setActiveComp] = useState(() => activeComps[0]?.comp ?? null);
 
   const currentCompEntry = activeComps.find((e) => e.comp === activeComp) ?? activeComps[0];
-  const season = Math.floor(((state?.week ?? 1) - 1) / 38) + 1;
+  const season = getSeasonFromWeek(state?.week ?? 1);
 
   if (!activeComps.length) {
     return (
@@ -308,7 +359,7 @@ export default function EuropeanBracket({ state }) {
           ))}
 
           {/* Top Scorers */}
-          <TopScorers roster={roster} competition={currentCompEntry.comp} />
+          <TopScorers roster={roster} competition={currentCompEntry.comp} matchResults={dbMatchResults} />
         </div>
       )}
     </div>

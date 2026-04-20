@@ -56,6 +56,7 @@ import {
 } from './game/gameLogic';
 import {
   clearLocalGameProgress,
+  getLocalGameDatabaseView,
   loadLocalGameProgress,
   saveLocalGameProgress,
 } from './data/localDatabase';
@@ -244,6 +245,7 @@ export default function FootballAgentGame() {
   const [saveFlash, setSaveFlash] = useState(false);
   const [lastWeekError, setLastWeekError] = useState(null);
   const [forceOnboarding, setForceOnboarding] = useState(false);
+  const [databaseView, setDatabaseView] = useState(null);
   const startupActionLockRef = useRef(false);
 
   useEffect(() => {
@@ -266,9 +268,17 @@ export default function FootballAgentGame() {
               reputation: parsed.reputation ?? saved.preview?.reputation ?? 0,
               money: parsed.money ?? saved.preview?.money ?? 0,
             });
+            getLocalGameDatabaseView()
+              .then((view) => {
+                if (!cancelled) setDatabaseView(view);
+              })
+              .catch(() => {
+                if (!cancelled) setDatabaseView(null);
+              });
           } else {
             setState(null);
             setSavePreview(null);
+            setDatabaseView(null);
           }
           setSaveMenuOpen(true);
         })
@@ -277,6 +287,7 @@ export default function FootballAgentGame() {
           if (startupActionLockRef.current) return;
           setState(null);
           setSavePreview(null);
+          setDatabaseView(null);
           setSaveMenuOpen(true);
         })
         .finally(() => {
@@ -286,6 +297,7 @@ export default function FootballAgentGame() {
       if (!cancelled) {
         setState(null);
         setSavePreview(null);
+        setDatabaseView(null);
         setSaveMenuOpen(true);
         setLoaded(true);
       }
@@ -304,7 +316,7 @@ export default function FootballAgentGame() {
   useEffect(() => {
     if (!loaded || !state) return;
     let cancelled = false;
-    saveLocalGameProgress(state).then((record) => {
+    saveLocalGameProgress(state).then(async (record) => {
       if (cancelled) return;
       setSavePreview(record?.preview ?? {
         agencyName: state.agencyProfile?.name ?? 'Agent FC',
@@ -315,6 +327,12 @@ export default function FootballAgentGame() {
         reputation: state.reputation ?? 0,
         money: state.money ?? 0,
       });
+      try {
+        const view = await getLocalGameDatabaseView();
+        if (!cancelled) setDatabaseView(view);
+      } catch {
+        if (!cancelled) setDatabaseView(null);
+      }
       setHasSave(true);
       setSaveFlash(true);
       const t = setTimeout(() => setSaveFlash(false), 1200);
@@ -1066,6 +1084,7 @@ export default function FootballAgentGame() {
       onConfirm: async () => {
         setState(createFreshState());
         setSavePreview(null);
+        setDatabaseView(null);
         setView('dashboard');
         setSaveMenuOpen(false);
         setHasSave(false);
@@ -1087,6 +1106,7 @@ export default function FootballAgentGame() {
     setConfirmDialog(null);
     setHasSave(false);
     setSavePreview(null);
+    setDatabaseView(null);
     setState(freshState);
     setForceOnboarding(true);
     setView('dashboard');
@@ -1375,9 +1395,9 @@ export default function FootballAgentGame() {
         {view === 'messages' && <Messages messages={state.messages} messageQueue={state.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
         {view === 'shop' && <Shop state={state} phase={phase} onBuy={handleBuyShopItem} />}
-        {view === 'calendar' && <Calendar state={state} onClubDetails={showClubDetails} />}
-        {view === 'standings' && <Standings state={state} onClubDetails={showClubDetails} />}
-        {view === 'europe' && <EuropeanBracket state={state} />}
+        {view === 'calendar' && <Calendar state={state} databaseView={databaseView} onClubDetails={showClubDetails} />}
+        {view === 'standings' && <Standings state={state} databaseView={databaseView} onClubDetails={showClubDetails} />}
+        {view === 'europe' && <EuropeanBracket state={state} databaseView={databaseView} />}
         {view === 'deadline' && <DeadlineDay state={state} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={state} onStartMission={handleStartScoutingMission} />}
         {view === 'vestiaire' && <Vestiaire state={state} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} />}

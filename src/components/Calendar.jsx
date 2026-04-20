@@ -3,6 +3,20 @@ import React from 'react';
 import { getCalendarSnapshot, getSeasonMilestones } from '../systems/seasonSystem';
 import { S } from './styles';
 
+const toFixtureFromDb = (row) => ({
+  fixtureId: row.fixture_id ?? row.id,
+  homeClub: {
+    name: row.home_club_name ?? 'Club',
+    city: row.raw?.homeClub?.city ?? row.raw?.homeClub?.name ?? '',
+  },
+  awayClub: {
+    name: row.away_club_name ?? 'Adversaire',
+    city: row.raw?.awayClub?.city ?? row.raw?.awayClub?.name ?? '',
+  },
+  homeGoals: row.home_goals,
+  awayGoals: row.away_goals,
+});
+
 const FixtureRow = ({ fixture, played, onClubDetails }) => (
   <div style={S.fixtureRow}>
     <div>
@@ -16,11 +30,20 @@ const FixtureRow = ({ fixture, played, onClubDetails }) => (
   </div>
 );
 
-export default function Calendar({ state, onClubDetails }) {
+export default function Calendar({ state, databaseView = null, onClubDetails }) {
   const currentDate = getCalendarSnapshot(state.week);
   const nextDate = getCalendarSnapshot(state.week + 1);
-  const nextFixtures = state.nextFixtures ?? [];
-  const lastFixtures = state.lastFixtures ?? [];
+  const dbFixtures = databaseView?.fixtures ?? [];
+  const nextFixturesFromDb = dbFixtures
+    .filter((fixture) => fixture.status === 'scheduled')
+    .sort((a, b) => (a.week ?? 0) - (b.week ?? 0))
+    .map(toFixtureFromDb);
+  const lastFixturesFromDb = dbFixtures
+    .filter((fixture) => fixture.status === 'played')
+    .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
+    .map(toFixtureFromDb);
+  const nextFixtures = nextFixturesFromDb.length ? nextFixturesFromDb : state.nextFixtures ?? [];
+  const lastFixtures = lastFixturesFromDb.length ? lastFixturesFromDb : state.lastFixtures ?? [];
   const milestones = getSeasonMilestones(state.week);
 
   return (
