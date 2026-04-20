@@ -1087,24 +1087,14 @@ export default function FootballAgentGame() {
   };
 
   const handleNewGame = () => {
-    setConfirmDialog({
-      title: 'Commencer une nouvelle partie ?',
-      body: hasSave
-        ? 'La sauvegarde actuelle sera remplacée. Tu peux relancer une nouvelle agence juste après.'
-        : 'Tu démarres une nouvelle partie et tu repars de zéro.',
-      confirmLabel: 'Nouvelle partie',
-      tone: 'danger',
-      onConfirm: async () => {
-        const freshState = createFreshState();
-        setConfirmDialog(null);
-        setHasSave(false);
-        setSavePreview(null);
-        setState(freshState);
-        setView('dashboard');
-        setSaveMenuOpen(false);
-        showToast('Nouvelle partie', 'success');
-      },
-    });
+    const freshState = createFreshState();
+    setConfirmDialog(null);
+    setHasSave(false);
+    setSavePreview(null);
+    setState(freshState);
+    setView('dashboard');
+    setSaveMenuOpen(false);
+    showToast('Nouvelle partie', 'success');
   };
 
   const startNegotiation = (player, type) => {
