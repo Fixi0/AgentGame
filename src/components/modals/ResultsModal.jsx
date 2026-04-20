@@ -207,6 +207,11 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
   const wins = (data.matchResults ?? []).filter((m) => m.result === 'win').length;
   const hasWorldCup = (data.worldCupMatchResults?.length > 0) || Boolean(data.worldCupActive);
   const hasDetails = (data.events?.length > 0) || (data.matchResults?.length > 0) || (data.euroMatchResults?.length > 0) || (data.worldCupMatchResults?.length > 0) || (data.lockerRoom?.length > 0) || (data.worldSummary?.length > 0) || (data.clubOffers?.length > 0) || (data.leavingPlayers?.length > 0);
+  const euroMatches = (data.euroMatchResults ?? []).filter(Boolean);
+  const topEuroMatch = euroMatches.reduce((best, match) => (
+    !best || (match.matchRating ?? 0) > (best.matchRating ?? 0) ? match : best
+  ), null);
+  const euroSummaryCount = euroMatches.length;
 
   return (
     <div style={S.overlay}>
@@ -394,17 +399,24 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               {data.euroMatchResults?.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
                   <div style={S.secTitle}><Trophy size={14} /><span>EUROPE</span></div>
-                  {data.euroMatchResults.slice(0, 5).map((match) => (
-                    <div key={`${match.playerId}-${match.competition}-${match.opponent}`} style={{ ...S.evRow, borderLeft: `3px solid ${match.result === 'win' ? '#00a676' : match.result === 'loss' ? '#b42318' : '#2f80ed'}`, marginBottom: 4 }}>
-                      <div style={S.evPlayer}>{match.playerName} · {match.competitionLabel ?? EURO_CUP_LABELS[match.competition]?.name ?? match.competition ?? 'Europe'}</div>
-                      <div style={S.evLabel}>{match.opponent ?? 'Adversaire'} · {match.score ?? '0-0'} · note {match.matchRating ?? '—'}{match.goals ? ` · ${match.goals} but${match.goals > 1 ? 's' : ''}` : ''}{match.assists ? ` · ${match.assists} passe${match.assists > 1 ? 's' : ''}` : ''}</div>
-                      {Array.isArray(match.interestClubs) && match.interestClubs.length > 0 && (
+                  {topEuroMatch ? (
+                    <div style={{ ...S.evRow, borderLeft: `3px solid ${topEuroMatch.result === 'win' ? '#00a676' : topEuroMatch.result === 'loss' ? '#b42318' : '#2f80ed'}`, marginBottom: 4 }}>
+                      <div style={S.evPlayer}>{topEuroMatch.playerName} · {topEuroMatch.competitionLabel ?? EURO_CUP_LABELS[topEuroMatch.competition]?.name ?? topEuroMatch.competition ?? 'Europe'}</div>
+                      <div style={S.evLabel}>{topEuroMatch.opponent ?? 'Adversaire'} · {topEuroMatch.score ?? '0-0'} · note {topEuroMatch.matchRating ?? '—'}{topEuroMatch.goals ? ` · ${topEuroMatch.goals} but${topEuroMatch.goals > 1 ? 's' : ''}` : ''}{topEuroMatch.assists ? ` · ${topEuroMatch.assists} passe${topEuroMatch.assists > 1 ? 's' : ''}` : ''}</div>
+                      {Array.isArray(topEuroMatch.interestClubs) && topEuroMatch.interestClubs.length > 0 && (
                         <div style={{ marginTop: 4, fontSize: 10, color: '#2f80ed', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 }}>
-                          Clubs en alerte : {match.interestClubs.slice(0, 3).join(', ')}
+                          Clubs en alerte : {topEuroMatch.interestClubs.slice(0, 3).join(', ')}
+                        </div>
+                      )}
+                      {euroSummaryCount > 1 && (
+                        <div style={{ marginTop: 4, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 }}>
+                          + {euroSummaryCount - 1} autre{euroSummaryCount > 2 ? 's' : ''} match{euroSummaryCount > 2 ? 's' : ''} européen{euroSummaryCount > 2 ? 's' : ''} cette semaine
                         </div>
                       )}
                     </div>
-                  ))}
+                  ) : (
+                    <div style={S.emptySmall}>Aucun match européen notable cette semaine.</div>
+                  )}
                 </div>
               )}
               {data.lockerRoom?.length > 0 && (
