@@ -3,14 +3,16 @@
  * ─────────────────────────────────────────────────────────────────
  * Base de données d'effectifs réalistes et déterministes par club.
  *
- * Chaque club a exactement 16 joueurs :
- *   2 GK  ·  5 DEF  ·  5 MIL  ·  4 ATT
+ * Chaque club a :
+ *   · 16 joueurs seniors   (2 GK · 5 DEF · 5 MIL · 4 ATT)
+ *   · 4  prospects U21     (1 par ligne de jeu)
  *
- * La génération est SEEDED (club + index + saison) → mêmes joueurs
- * pour le même club sur la même saison, quelle que soit la session.
- *
- * Le marché tire des joueurs de ces effectifs avec un quota de postes
- * pour éviter les doublons (pas de 5 GK d'un même club dans le marché).
+ * Nouveautés vs v1 :
+ *   1. Nationalités réalistes par club (profils maison)
+ *   2. Pools de noms étendus par nationalité (~50 noms/pays)
+ *   3. Attributs physiques (foot, physique, style de jeu)
+ *   4. Jeunes prospects (U21) dédiés
+ *   5. IDs stables entre saisons + évolution stats (âge/note)
  */
 
 import { CLUBS, COUNTRIES } from './clubs';
@@ -24,9 +26,9 @@ const TRUST_BY_PERSONALITY = {
 };
 
 const HIDDEN_TRAIT_KEYS = [
-  'clutch_player', 'locker_room_leader', 'silent_perfectionist',
-  'social_media_magnet', 'late_bloomer', 'glass_cannon',
-  'mentality_monster', 'tactical_genius',
+  'clutch_player','locker_room_leader','silent_perfectionist',
+  'social_media_magnet','late_bloomer','glass_cannon',
+  'mentality_monster','tactical_genius',
 ];
 
 // Plages de ratings selon le tier du club
@@ -37,43 +39,75 @@ const TIER_RATING = {
   4: { starterMin: 55, starterMax: 68, benchMin: 50, benchMax: 62 },
 };
 
-// Quota de postes pour le marché (par batch de 6)
-export const MARKET_POSITION_QUOTA = [
-  'GK', 'DEF', 'DEF', 'MIL', 'MIL', 'ATT',
-];
+// ── Physique & Style de jeu ─────────────────────────────────────────────────
+// Par roleId → profil dominant (physique + style)
+const ROLE_PROFILE = {
+  goalkeeper:     { physique: 'puissant',  style: 'gardien'    },
+  sweeper_keeper: { physique: 'rapide',    style: 'gardien'    },
+  center_back:    { physique: 'puissant',  style: 'défenseur'  },
+  libero:         { physique: 'technique', style: 'défenseur'  },
+  right_back:     { physique: 'rapide',    style: 'défenseur'  },
+  left_back:      { physique: 'rapide',    style: 'défenseur'  },
+  right_wing_back:{ physique: 'rapide',    style: 'box_to_box' },
+  left_wing_back: { physique: 'rapide',    style: 'box_to_box' },
+  defensive_mid:  { physique: 'puissant',  style: 'défenseur'  },
+  box_to_box:     { physique: 'endurance', style: 'box_to_box' },
+  central_mid:    { physique: 'technique', style: 'créateur'   },
+  playmaker:      { physique: 'technique', style: 'créateur'   },
+  attacking_mid:  { physique: 'technique', style: 'créateur'   },
+  right_winger:   { physique: 'rapide',    style: 'créateur'   },
+  left_winger:    { physique: 'rapide',    style: 'créateur'   },
+  striker:        { physique: 'puissant',  style: 'buteur'     },
+  target_man:     { physique: 'puissant',  style: 'buteur'     },
+  second_striker: { physique: 'technique', style: 'buteur'     },
+  false_9:        { physique: 'technique', style: 'créateur'   },
+  winger_forward: { physique: 'rapide',    style: 'buteur'     },
+};
 
-// Quota de postes pour les agents libres (par batch de 4)
-export const FREE_AGENT_POSITION_QUOTA = [
-  'GK', 'DEF', 'MIL', 'ATT',
-];
+const PHYSIQUES = ['rapide','puissant','technique','endurance'];
 
-// Template d'effectif : 2 GK + 5 DEF + 5 MIL + 4 ATT = 16
+// ── Probabilités pied par rôle ───────────────────────────────────────────────
+// leftFootChance : probabilité d'être gaucher
+const ROLE_LEFT_FOOT = {
+  left_back: 0.60, left_winger: 0.55, left_wing_back: 0.58,
+  right_back: 0.08, right_winger: 0.10, right_wing_back: 0.10,
+};
+const DEFAULT_LEFT_FOOT_CHANCE = 0.22; // ~22% de gauchers dans le foot mondial
+
+// ── Quota de postes pour le marché ─────────────────────────────────────────
+export const MARKET_POSITION_QUOTA = ['GK','DEF','DEF','MIL','MIL','ATT'];
+export const FREE_AGENT_POSITION_QUOTA = ['GK','DEF','MIL','ATT'];
+
+// ── Template effectif senior : 16 joueurs ────────────────────────────────────
 const SQUAD_SLOTS = [
-  // GK
   { position: 'GK',  roleId: 'goalkeeper',     starter: true  },
   { position: 'GK',  roleId: 'sweeper_keeper',  starter: false },
-  // DEF
   { position: 'DEF', roleId: 'center_back',     starter: true  },
   { position: 'DEF', roleId: 'center_back',     starter: true  },
   { position: 'DEF', roleId: 'right_back',      starter: true  },
   { position: 'DEF', roleId: 'left_back',       starter: true  },
   { position: 'DEF', roleId: 'libero',          starter: false },
-  // MIL
   { position: 'MIL', roleId: 'defensive_mid',   starter: true  },
   { position: 'MIL', roleId: 'box_to_box',      starter: true  },
   { position: 'MIL', roleId: 'right_winger',    starter: true  },
   { position: 'MIL', roleId: 'attacking_mid',   starter: true  },
   { position: 'MIL', roleId: 'central_mid',     starter: false },
-  // ATT
   { position: 'ATT', roleId: 'striker',         starter: true  },
   { position: 'ATT', roleId: 'winger_forward',  starter: true  },
   { position: 'ATT', roleId: 'second_striker',  starter: false },
   { position: 'ATT', roleId: 'false_9',         starter: false },
 ];
 
-// ── RNG déterministe ─────────────────────────────────────────────────────────
+// ── Template prospects U21 : 4 joueurs ───────────────────────────────────────
+const YOUTH_SLOTS = [
+  { position: 'GK',  roleId: 'goalkeeper',    ageMin: 16, ageMax: 20 },
+  { position: 'DEF', roleId: 'center_back',   ageMin: 17, ageMax: 21 },
+  { position: 'MIL', roleId: 'attacking_mid', ageMin: 17, ageMax: 21 },
+  { position: 'ATT', roleId: 'striker',       ageMin: 16, ageMax: 20 },
+];
 
-/** Hash FNV-1a sur une string → entier 32-bit non signé */
+// ── RNG déterministe ──────────────────────────────────────────────────────────
+
 const hashStr = (str) => {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
@@ -83,7 +117,6 @@ const hashStr = (str) => {
   return h;
 };
 
-/** Float [0, 1) déterministe depuis seed + incrément */
 const seededFloat = (seed, n = 0) => {
   let s = ((seed >>> 0) + Math.imul(n + 1, 2654435761)) >>> 0;
   s = Math.imul(s ^ (s >>> 16), 0x45d9f3b) >>> 0;
@@ -91,100 +124,224 @@ const seededFloat = (seed, n = 0) => {
   return (s ^ (s >>> 16)) >>> 0 / 0x100000000;
 };
 
-const sInt = (seed, n, min, max) =>
-  Math.floor(seededFloat(seed, n) * (max - min + 1)) + min;
+const sInt   = (seed, n, min, max) => Math.floor(seededFloat(seed, n) * (max - min + 1)) + min;
+const sPick  = (seed, n, arr) => arr[Math.floor(seededFloat(seed, n) * arr.length)];
+const sBool  = (seed, n, prob) => seededFloat(seed, n) < prob;
 
-const sPick = (seed, n, arr) =>
-  arr[Math.floor(seededFloat(seed, n) * arr.length)];
-
-// ── Estimation de valeur marchande ──────────────────────────────────────────
+// ── Valeur marchande ──────────────────────────────────────────────────────────
 
 const estimateValue = (rating, potential, age, tier) => {
   const r = Math.min(99, Math.max(50, rating));
   const ratingFactor = Math.exp((r - 65) / 9.2);
   const ageFactor = age <= 20 ? 1.15 : age <= 24 ? 1.05 : age <= 27 ? 0.94 : age <= 30 ? 0.80 : 0.58;
-  const potFactor = 1 + Math.min(0.2, Math.max(0, (potential - rating) / 18));
+  const potFactor  = 1 + Math.min(0.2, Math.max(0, (potential - rating) / 18));
   const tierFactor = tier === 1 ? 1.08 : tier === 2 ? 1.03 : tier === 3 ? 0.97 : 0.88;
   const raw = 3_850_000 * ratingFactor * ageFactor * potFactor * tierFactor;
   return Math.round(Math.min(280_000_000, Math.max(250_000, raw)) / 1000) * 1000;
 };
 
-// ── Génération d'un joueur d'effectif ────────────────────────────────────────
+// ── Évolution inter-saisons ───────────────────────────────────────────────────
+/**
+ * Fait évoluer le rating d'un joueur de la saison 1 à la saison N.
+ * Jeunes (<23) : +1–2/saison  |  Plateau (23–28) : ±0  |  Déclin (>28) : −1/saison
+ */
+const evolveRating = (baseRating, baseAge, potential, season) => {
+  if (season <= 1) return baseRating;
+  let r = baseRating;
+  let a = baseAge;
+  for (let s = 1; s < season; s++) {
+    if (a < 20)      r = Math.min(potential, r + 2);
+    else if (a < 23) r = Math.min(potential, r + 1);
+    else if (a < 29) r = r; // plateau
+    else             r = Math.max(50, r - 1);
+    a++;
+  }
+  return Math.min(99, Math.max(50, r));
+};
+
+// ── Nationalités réalistes par club ─────────────────────────────────────────
+/**
+ * Profils de nationalité par club (nom exact du club dans clubs.js).
+ * Format : [[countryCode, weightPercentage], ...]
+ * Les % restants vont à une sélection mondiale aléatoire.
+ */
+const CLUB_NAT_PROFILES = {
+  // France
+  'PSG':         [['FR',30],['BR',12],['PT',10],['ES',8],['SN',6]],
+  'Marseille':   [['FR',42],['SN',8],['CM',6],['MA',5],['CI',4]],
+  'Monaco':      [['FR',28],['BR',10],['PT',10],['SN',7]],
+  'Lyon':        [['FR',44],['SN',7],['CI',6],['MA',5]],
+  'Lille':       [['FR',46],['PT',6],['SN',6],['CM',5]],
+  'Nice':        [['FR',46],['BR',7],['AR',5],['SN',5]],
+  'Lens':        [['FR',50],['SN',7],['CM',5]],
+  'Rennes':      [['FR',52],['SN',6],['MA',5]],
+  // Espagne
+  'Barcelona':   [['ES',40],['BR',8],['AR',7],['FR',5]],
+  'Real Madrid': [['ES',35],['BR',10],['FR',8],['PT',6]],
+  'Atletico':    [['ES',40],['AR',8],['BR',6],['PT',5]],
+  'Athletic':    [['ES',88]],  // règle basque
+  'Villarreal':  [['ES',45],['AR',8],['BR',6]],
+  'Real Betis':  [['ES',48],['BR',6],['AR',5]],
+  'Real Sociedad':[['ES',55],['FR',6],['AR',5]],
+  // Angleterre
+  'Arsenal':     [['GB',25],['BR',8],['FR',7],['GH',5],['NG',5]],
+  'Man City':    [['GB',22],['BR',8],['ES',8],['AR',7]],
+  'Liverpool':   [['GB',28],['BR',8],['SN',5],['NG',5]],
+  'Man United':  [['GB',28],['BR',7],['AR',5],['FR',5]],
+  'Chelsea':     [['GB',24],['BR',8],['FR',7],['NG',5]],
+  'Newcastle':   [['GB',32],['BR',7],['FR',6]],
+  'Aston Villa': [['GB',30],['BR',7],['NG',5]],
+  'Tottenham':   [['GB',28],['BR',7],['FR',5],['SN',5]],
+  // Allemagne
+  'Bayern':      [['DE',48],['ES',7],['FR',6],['BR',5]],
+  'Dortmund':    [['DE',44],['BR',8],['FR',6]],
+  'Leverkusen':  [['DE',42],['BR',6],['NG',5],['ES',5]],
+  'Leipzig':     [['DE',44],['BR',6],['FR',5]],
+  // Italie
+  'Inter':       [['IT',42],['AR',8],['BR',6],['FR',5]],
+  'Milan':       [['IT',38],['FR',8],['CI',6],['BR',5]],
+  'Juventus':    [['IT',42],['BR',8],['AR',6],['FR',5]],
+  'Napoli':      [['IT',44],['AR',7],['BR',6]],
+  // Portugal
+  'Benfica':     [['PT',50],['BR',15],['AR',5]],
+  'Porto':       [['PT',45],['BR',15],['AR',5]],
+  'Sporting':    [['PT',48],['BR',12]],
+  // Pays-Bas
+  'Ajax':        [['NL',50],['GH',8],['SN',6]],
+  'PSV':         [['NL',50],['BR',7],['CI',5]],
+};
+
+// Pays "monde" pour le fallback
+const WORLD_COUNTRIES = ['BR','AR','SN','CM','CI','MA','NG','GH','TR','PT','ES','IT','FR','DE','NL'];
+
+/**
+ * Sélectionne une nationalité pour un joueur donné selon le profil du club.
+ * Résultat déterministe via seed.
+ */
+const pickNationality = (club, seed, slotN) => {
+  const profile = CLUB_NAT_PROFILES[club.name];
+  const countryCode = club.countryCode;
+
+  if (!profile) {
+    // Clubs sans profil : chance étrangère selon tier
+    const foreignChance = club.tier === 1 ? 0.55 : club.tier === 2 ? 0.40 : 0.22;
+    if (!sBool(seed, slotN, foreignChance)) return countryCode;
+    const foreign = WORLD_COUNTRIES.filter((c) => c !== countryCode);
+    return sPick(seed, slotN + 1, foreign);
+  }
+
+  // Construire la roue de sélection
+  const wheel = [];
+  let total = 0;
+  for (const [cc, w] of profile) { wheel.push([cc, w]); total += w; }
+  // Reste = monde
+  if (total < 100) {
+    const worldWeight = 100 - total;
+    const worldPool = WORLD_COUNTRIES.filter((c) => !profile.some(([cc]) => cc === c));
+    if (worldPool.length) wheel.push(['__world__', worldWeight, worldPool]);
+  }
+
+  const r = seededFloat(seed, slotN + 50) * 100;
+  let acc = 0;
+  for (const entry of wheel) {
+    acc += entry[1];
+    if (r < acc) {
+      if (entry[0] === '__world__') {
+        return sPick(seed, slotN + 51, entry[2]);
+      }
+      return entry[0];
+    }
+  }
+  return countryCode;
+};
+
+// ── Génération d'un joueur senior ────────────────────────────────────────────
 
 const buildSquadPlayer = (club, slotIdx, season) => {
-  const seed = hashStr(`${club.name}:${slotIdx}:${season}`);
-  const slot = SQUAD_SLOTS[slotIdx];
-  const tier = club.tier ?? 4;
-  const ranges = TIER_RATING[tier] ?? TIER_RATING[4];
+  // Seed STABLE (sans saison) → même joueur d'une saison à l'autre
+  const baseSeed = hashStr(`${club.name}:${slotIdx}`);
+  const slot     = SQUAD_SLOTS[slotIdx];
+  const tier     = club.tier ?? 4;
+  const ranges   = TIER_RATING[tier] ?? TIER_RATING[4];
 
-  // Role
+  // Rôle
   const roleObj = POSITION_ROLES[slot.position]?.find((r) => r.id === slot.roleId)
     ?? POSITION_ROLES[slot.position]?.[0]
     ?? POSITION_ROLES.ATT[0];
 
-  // Attributs déterministes
-  const rating = sInt(seed, 0, slot.starter ? ranges.starterMin : ranges.benchMin,
-                                slot.starter ? ranges.starterMax : ranges.benchMax);
-  const age = slot.starter ? sInt(seed, 1, 21, 32) : sInt(seed, 1, 17, 27);
+  // Attributs de base (saison 1)
+  const baseRating = sInt(baseSeed, 0,
+    slot.starter ? ranges.starterMin : ranges.benchMin,
+    slot.starter ? ranges.starterMax : ranges.benchMax,
+  );
+  const baseAge = slot.starter ? sInt(baseSeed, 1, 21, 32) : sInt(baseSeed, 1, 17, 27);
   const potentialCeil = slot.starter ? 96 : 88;
-  const potential = Math.min(potentialCeil, rating + sInt(seed, 2, 0, age <= 22 ? 12 : 6));
-  const personality = sPick(seed, 3, PERSONALITIES);
-  const form = 55 + sInt(seed, 4, 0, 40);
-  const brandValue = sInt(seed, 5, 8, 38);
-  const moral = sInt(seed, 6, 58, 88);
-  const fatigue = sInt(seed, 7, 10, 38);
-  const contractWeeksLeft = sInt(seed, 8, 18, 104);
-  const hiddenTrait = sPick(seed, 9, HIDDEN_TRAIT_KEYS);
+  const potential = Math.min(potentialCeil, baseRating + sInt(baseSeed, 2, 0, baseAge <= 22 ? 12 : 6));
 
-  // Nationalité : préférence pour le pays du club, parfois étrangère
-  const foreignChance = tier === 1 ? 0.55 : tier === 2 ? 0.40 : 0.22;
-  let countryCode = club.countryCode;
-  if (seededFloat(seed, 10) < foreignChance) {
-    const allCodes = Object.keys(COUNTRY_NAME_POOLS);
-    const foreign = allCodes.filter((c) => c !== club.countryCode);
-    countryCode = sPick(seed, 11, foreign);
-  }
-  const countryData = COUNTRIES.find((c) => c.code === countryCode) ?? COUNTRIES[0];
-  const namePool = COUNTRY_NAME_POOLS[countryCode] ?? COUNTRY_NAME_POOLS.FR;
-  const firstName = sPick(seed, 12, namePool.first);
-  const lastName = sPick(seed, 13, namePool.last);
+  // Évolution inter-saisons
+  const rating = evolveRating(baseRating, baseAge, potential, season);
+  const age    = baseAge + (season - 1);
+
+  // Attributs stables
+  const personality    = sPick(baseSeed, 3, PERSONALITIES);
+  const form           = 55 + sInt(baseSeed, 4, 0, 40);
+  const brandValue     = sInt(baseSeed, 5, 8, 38);
+  const moral          = sInt(baseSeed, 6, 58, 88);
+  const fatigue        = sInt(baseSeed, 7, 10, 38);
+  const contractWeeksLeft = sInt(baseSeed, 8, 18, 104);
+  const hiddenTrait    = sPick(baseSeed, 9, HIDDEN_TRAIT_KEYS);
+
+  // Nationalité réaliste
+  const countryCode  = pickNationality(club, baseSeed, 10);
+  const countryData  = COUNTRIES.find((c) => c.code === countryCode) ?? COUNTRIES[0];
+  const namePool     = COUNTRY_NAME_POOLS[countryCode] ?? COUNTRY_NAME_POOLS.FR;
+  const firstName    = sPick(baseSeed, 20, namePool.first);
+  const lastName     = sPick(baseSeed, 21, namePool.last);
+
+  // Attributs physiques
+  const rp = ROLE_PROFILE[slot.roleId] ?? { physique: 'technique', style: 'box_to_box' };
+  const physique  = sBool(baseSeed, 22, 0.65) ? rp.physique : sPick(baseSeed, 23, PHYSIQUES);
+  const playStyle = rp.style;
+  const leftChance = ROLE_LEFT_FOOT[slot.roleId] ?? DEFAULT_LEFT_FOOT_CHANCE;
+  const foot      = sBool(baseSeed, 24, leftChance) ? 'G' : sBool(baseSeed, 25, 0.08) ? 'D+G' : 'D';
 
   const value = estimateValue(rating, potential, age, tier);
 
   return {
-    id: `sq_${hashStr(club.name).toString(36)}_${slotIdx}_s${season}`,
+    // ID stable (sans saison) pour continuité entre saisons
+    id: `sq_${hashStr(club.name).toString(36)}_${slotIdx}`,
     firstName,
     lastName,
-    position: slot.position,
-    roleId: roleObj.id,
-    roleLabel: roleObj.label,
-    roleShort: roleObj.short,
+    position:    slot.position,
+    roleId:      roleObj.id,
+    roleLabel:   roleObj.label,
+    roleShort:   roleObj.short,
     countryCode,
     countryLabel: countryData.label,
-    countryFlag: countryData.flag,
+    countryFlag:  countryData.flag,
     personality,
     age,
     rating,
     potential,
     value,
-    weeklySalary: Math.max(500, Math.floor(value / (110 + sInt(seed, 14, 0, 30)))),
-    signingCost: Math.floor(value * 0.012 + 1500),
-    club: club.name,
-    clubTier: tier,
-    clubCountry: (COUNTRIES.find((c) => c.code === club.countryCode) ?? COUNTRIES[0]).flag,
+    weeklySalary:    Math.max(500, Math.floor(value / (110 + sInt(baseSeed, 14, 0, 30)))),
+    signingCost:     Math.floor(value * 0.012 + 1500),
+    club:            club.name,
+    clubTier:        tier,
+    clubCountry:     (COUNTRIES.find((c) => c.code === club.countryCode) ?? COUNTRIES[0]).flag,
     clubCountryCode: club.countryCode,
-    clubCity: club.city ?? '',
+    clubCity:        club.city ?? '',
     form,
     brandValue,
     fatigue,
-    injured: 0,
+    injured:   0,
     moral,
-    trust: TRUST_BY_PERSONALITY[personality] ?? 50,
+    trust:     TRUST_BY_PERSONALITY[personality] ?? 50,
     contractWeeksLeft,
     contractStartWeek: 0,
     commission: 0.1,
     agentContract: null,
-    timeline: [],
+    timeline:  [],
     careerGoal: null,
     scoutReport: null,
     hiddenTrait,
@@ -196,44 +353,124 @@ const buildSquadPlayer = (club, slotIdx, season) => {
       tackles: 0, keyPasses: 0, xg: 0, injuries: 0,
       ratings: [], averageRating: null,
     },
-    publicRep: null,
-    pressure: 25 + sInt(seed, 15, 0, 40),
-    recentResults: [],
+    publicRep:      null,
+    pressure:       25 + sInt(baseSeed, 15, 0, 40),
+    recentResults:  [],
     previousRating: null,
-    matchHistory: [],
-    activeActions: [],
+    matchHistory:   [],
+    activeActions:  [],
+    // Nouveaux attributs v2
+    physique,
+    playStyle,
+    foot,
+  };
+};
+
+// ── Génération d'un prospect U21 ─────────────────────────────────────────────
+
+const buildYouthPlayer = (club, youthSlotIdx, season) => {
+  const baseSeed = hashStr(`${club.name}:youth:${youthSlotIdx}`);
+  const slot     = YOUTH_SLOTS[youthSlotIdx];
+  const tier     = club.tier ?? 4;
+
+  const roleObj = POSITION_ROLES[slot.position]?.find((r) => r.id === slot.roleId)
+    ?? POSITION_ROLES[slot.position]?.[0];
+
+  const baseAge = sInt(baseSeed, 1, slot.ageMin, slot.ageMax);
+  const age     = baseAge + (season - 1);
+  // Prospects : rating bas, potential élevé
+  const baseRating = TIER_RATING[tier].benchMin - 5 + sInt(baseSeed, 0, 0, 10);
+  const rating     = evolveRating(baseRating, baseAge, 88, season);
+  const potential  = Math.min(92, baseRating + sInt(baseSeed, 2, 10, 22));
+
+  const personality = sPick(baseSeed, 3, PERSONALITIES);
+  const countryCode = pickNationality(club, baseSeed, 10);
+  const countryData = COUNTRIES.find((c) => c.code === countryCode) ?? COUNTRIES[0];
+  const namePool    = COUNTRY_NAME_POOLS[countryCode] ?? COUNTRY_NAME_POOLS.FR;
+
+  const rp       = ROLE_PROFILE[slot.roleId] ?? { physique: 'rapide', style: 'box_to_box' };
+  const physique  = sBool(baseSeed, 22, 0.7) ? rp.physique : sPick(baseSeed, 23, PHYSIQUES);
+  const leftChance = ROLE_LEFT_FOOT[slot.roleId] ?? DEFAULT_LEFT_FOOT_CHANCE;
+  const foot      = sBool(baseSeed, 24, leftChance) ? 'G' : sBool(baseSeed, 25, 0.08) ? 'D+G' : 'D';
+  const value     = estimateValue(rating, potential, age, tier);
+
+  return {
+    id: `sq_youth_${hashStr(club.name).toString(36)}_${youthSlotIdx}`,
+    firstName:  sPick(baseSeed, 20, namePool.first),
+    lastName:   sPick(baseSeed, 21, namePool.last),
+    position:   slot.position,
+    roleId:     roleObj.id,
+    roleLabel:  roleObj.label,
+    roleShort:  roleObj.short,
+    countryCode,
+    countryLabel: countryData.label,
+    countryFlag:  countryData.flag,
+    personality,
+    age,
+    rating,
+    potential,
+    value,
+    weeklySalary:    Math.max(200, Math.floor(value / 150)),
+    signingCost:     Math.floor(value * 0.008 + 800),
+    club:            club.name,
+    clubTier:        tier,
+    clubCountry:     (COUNTRIES.find((c) => c.code === club.countryCode) ?? COUNTRIES[0]).flag,
+    clubCountryCode: club.countryCode,
+    clubCity:        club.city ?? '',
+    form:            50 + sInt(baseSeed, 4, 0, 30),
+    brandValue:      sInt(baseSeed, 5, 3, 18),
+    fatigue:         sInt(baseSeed, 7, 5, 25),
+    injured:  0,
+    moral:    sInt(baseSeed, 6, 60, 90),
+    trust:    TRUST_BY_PERSONALITY[personality] ?? 50,
+    contractWeeksLeft:  sInt(baseSeed, 8, 8, 52),
+    contractStartWeek:  0,
+    commission: 0.12,
+    agentContract: null,
+    timeline:  [],
+    careerGoal: null,
+    scoutReport: null,
+    hiddenTrait: sPick(baseSeed, 9, HIDDEN_TRAIT_KEYS),
+    traitRevealed:   false,
+    lastInteractionWeek: 0,
+    europeanCompetition: null,
+    isProspect: true,
+    seasonStats: {
+      appearances: 0, goals: 0, assists: 0, saves: 0,
+      tackles: 0, keyPasses: 0, xg: 0, injuries: 0,
+      ratings: [], averageRating: null,
+    },
+    publicRep:      null,
+    pressure:       15 + sInt(baseSeed, 15, 0, 25),
+    recentResults:  [],
+    previousRating: null,
+    matchHistory:   [],
+    activeActions:  [],
+    physique,
+    playStyle: rp.style,
+    foot,
   };
 };
 
 // ── API publique ─────────────────────────────────────────────────────────────
 
-/**
- * Retourne l'effectif complet d'un club (16 joueurs).
- * Résultat déterministe pour le même club + saison.
- */
+/** Effectif senior complet d'un club (16 joueurs). */
 export const getClubSquad = (club, season = 1) =>
   SQUAD_SLOTS.map((_, idx) => buildSquadPlayer(club, idx, season));
 
-/**
- * Retourne les joueurs d'un club pour un poste donné.
- * Ex: getClubSquadByPosition('Bayern', 'GK', 1) → [GK titulaire, GK remplaçant]
- */
+/** Joueurs senior d'un club pour un poste donné. */
 export const getClubSquadByPosition = (club, position, season = 1) =>
   SQUAD_SLOTS
     .map((slot, idx) => ({ slot, idx }))
     .filter(({ slot }) => slot.position === position)
     .map(({ idx }) => buildSquadPlayer(club, idx, season));
 
+/** Prospects U21 d'un club (4 joueurs). */
+export const getClubYouthPlayers = (club, season = 1) =>
+  YOUTH_SLOTS.map((_, idx) => buildYouthPlayer(club, idx, season));
+
 /**
  * Construit le marché avec quota de postes stricts.
- *
- * @param {object} options
- * @param {number} options.reputation      — réputation de l'agence
- * @param {number} options.scoutLevel      — niveau de scouting (0–5)
- * @param {number} options.season          — saison en cours
- * @param {string[]} options.existingIds   — IDs déjà dans le roster ou marché actuel
- * @param {string[]} options.positionQuota — ex: ['GK','DEF','DEF','MIL','MIL','ATT']
- * @returns {object[]} joueurs générés
  */
 export const drawMarketPlayers = ({
   reputation = 12,
@@ -245,27 +482,16 @@ export const drawMarketPlayers = ({
   const usedIds = new Set(existingIds);
   const usedClubsThisBatch = new Set();
   const result = [];
-
-  // Clubs éligibles selon la réputation
   const eligibleClubs = getEligibleClubs(reputation);
 
   for (const position of positionQuota) {
-    const player = drawOnePlayer({
-      position,
-      eligibleClubs,
-      usedIds,
-      usedClubsThisBatch,
-      season,
-      scoutLevel,
-      reputation,
-    });
+    const player = drawOnePlayer({ position, eligibleClubs, usedIds, usedClubsThisBatch, season, scoutLevel, reputation });
     if (player) {
       result.push(player);
       usedIds.add(player.id);
       usedClubsThisBatch.add(player.club);
     }
   }
-
   return result;
 };
 
@@ -280,7 +506,6 @@ export const drawFreeAgents = ({
 }) => {
   const usedIds = new Set(existingIds);
   const result = [];
-  // Les agents libres viennent de clubs de rang inférieur (–1 tier)
   const eligibleClubs = getEligibleClubs(Math.max(0, reputation - 12));
 
   for (const position of positionQuota) {
@@ -288,7 +513,7 @@ export const drawFreeAgents = ({
       position,
       eligibleClubs,
       usedIds,
-      usedClubsThisBatch: new Set(), // les agents libres peuvent venir du même club
+      usedClubsThisBatch: new Set(),
       season,
       scoutLevel: 0,
       reputation: Math.max(0, reputation - 4),
@@ -307,127 +532,136 @@ export const drawFreeAgents = ({
       usedIds.add(player.id);
     }
   }
-
   return result;
 };
 
-// ── Helpers internes ─────────────────────────────────────────────────────────
+/**
+ * Tire des prospects U21 pour le marché (scouting jeunes).
+ * Retourne `count` prospects de clubs éligibles.
+ */
+export const drawProspects = ({
+  reputation = 12,
+  season = 1,
+  existingIds = [],
+  count = 4,
+}) => {
+  const usedIds = new Set(existingIds);
+  const eligibleClubs = getEligibleClubs(Math.max(8, reputation - 8));
+  const result = [];
+  const shuffled = [...eligibleClubs].sort(() => Math.random() - 0.5);
 
-/** Filtre les clubs accessibles selon la réputation */
+  for (const club of shuffled) {
+    if (result.length >= count) break;
+    for (let yi = 0; yi < YOUTH_SLOTS.length; yi++) {
+      const p = buildYouthPlayer(club, yi, season);
+      if (!usedIds.has(p.id)) {
+        result.push(p);
+        usedIds.add(p.id);
+        break;
+      }
+    }
+  }
+  return result;
+};
+
+// ── Helpers internes ──────────────────────────────────────────────────────────
+
 const getEligibleClubs = (reputation) => {
   const rep = Math.max(0, reputation);
   let allowedTiers;
-  if (rep >= 75) allowedTiers = [1, 2];
+  if (rep >= 75)      allowedTiers = [1, 2];
   else if (rep >= 50) allowedTiers = [1, 2, 3];
   else if (rep >= 30) allowedTiers = [2, 3];
   else if (rep >= 15) allowedTiers = [3, 4];
-  else allowedTiers = [4];
-
+  else                allowedTiers = [4];
   return CLUBS.filter((c) => allowedTiers.includes(c.tier));
 };
 
-/** Tire un joueur d'un poste précis depuis les clubs éligibles */
-const drawOnePlayer = ({
-  position,
-  eligibleClubs,
-  usedIds,
-  usedClubsThisBatch,
-  season,
-  scoutLevel,
-  reputation,
-}) => {
-  // Slots de l'effectif correspondant à ce poste
+const drawOnePlayer = ({ position, eligibleClubs, usedIds, usedClubsThisBatch, season, scoutLevel, reputation }) => {
   const slotsForPosition = SQUAD_SLOTS
     .map((slot, idx) => ({ slot, idx }))
     .filter(({ slot }) => slot.position === position);
 
-  // Mélange les clubs pour ne pas toujours prendre le premier
   const shuffled = [...eligibleClubs].sort(() => Math.random() - 0.5);
 
   for (const club of shuffled) {
-    // Évite d'avoir 2 joueurs du même club dans le même batch de marché
     if (usedClubsThisBatch.has(club.name)) continue;
 
-    // Essaie chaque slot du poste (titulaire en premier, puis remplaçants)
-    const orderedSlots = [...slotsForPosition].sort((a, b) =>
-      b.slot.starter - a.slot.starter,
-    );
+    const orderedSlots = [...slotsForPosition].sort((a, b) => b.slot.starter - a.slot.starter);
 
     for (const { idx } of orderedSlots) {
       const player = buildSquadPlayer(club, idx, season);
       if (usedIds.has(player.id)) continue;
 
-      // Filtre de niveau : si rating trop élevé pour la réputation, skip
       const maxRatingForRep = 58 + Math.floor(reputation / 2) + scoutLevel * 2;
       if (reputation < 40 && player.rating > maxRatingForRep) continue;
 
       return player;
     }
   }
-
-  // Fallback : aucun club disponible → génère un joueur aléatoire du bon poste
   return buildFallbackPlayer(position, reputation, season);
 };
 
-/** Fallback si tous les clubs sont épuisés */
 const buildFallbackPlayer = (position, reputation, season) => {
-  const allClubs = CLUBS;
-  const club = allClubs[Math.floor(Math.random() * allClubs.length)];
+  const club = CLUBS[Math.floor(Math.random() * CLUBS.length)];
   const slotsForPos = SQUAD_SLOTS
     .map((slot, idx) => ({ slot, idx }))
     .filter(({ slot }) => slot.position === position);
   const { idx } = slotsForPos[Math.floor(Math.random() * slotsForPos.length)];
-  // Génère avec un seed différent pour éviter les doublons
   const uniqueOffset = Math.floor(Math.random() * 10000);
   const seed = hashStr(`fallback:${club.name}:${idx}:${season}:${uniqueOffset}`);
-  const slot = SQUAD_SLOTS[idx];
-  const tier = club.tier ?? 4;
+  const slot  = SQUAD_SLOTS[idx];
+  const tier  = club.tier ?? 4;
   const ranges = TIER_RATING[tier] ?? TIER_RATING[4];
   const roleObj = POSITION_ROLES[slot.position]?.find((r) => r.id === slot.roleId)
     ?? POSITION_ROLES[slot.position]?.[0];
-  const rating = sInt(seed, 0, ranges.benchMin, ranges.benchMax);
-  const age = sInt(seed, 1, 18, 30);
-  const potential = Math.min(88, rating + sInt(seed, 2, 0, 8));
+  const baseRating = sInt(seed, 0, ranges.benchMin, ranges.benchMax);
+  const baseAge    = sInt(seed, 1, 18, 30);
+  const potential  = Math.min(88, baseRating + sInt(seed, 2, 0, 8));
+  const rating     = evolveRating(baseRating, baseAge, potential, season);
+  const age        = baseAge + (season - 1);
   const personality = sPick(seed, 3, PERSONALITIES);
-  const countryCode = club.countryCode;
+  const countryCode = pickNationality(club, seed, 10);
   const countryData = COUNTRIES.find((c) => c.code === countryCode) ?? COUNTRIES[0];
-  const namePool = COUNTRY_NAME_POOLS[countryCode] ?? COUNTRY_NAME_POOLS.FR;
+  const namePool    = COUNTRY_NAME_POOLS[countryCode] ?? COUNTRY_NAME_POOLS.FR;
+  const rp          = ROLE_PROFILE[slot.roleId] ?? { physique: 'technique', style: 'box_to_box' };
+  const leftChance  = ROLE_LEFT_FOOT[slot.roleId] ?? DEFAULT_LEFT_FOOT_CHANCE;
   const value = estimateValue(rating, potential, age, tier);
 
   return {
     id: `sq_fb_${hashStr(club.name + idx + uniqueOffset).toString(36)}`,
-    firstName: sPick(seed, 12, namePool.first),
-    lastName: sPick(seed, 13, namePool.last),
-    position: slot.position,
-    roleId: roleObj.id,
+    firstName: sPick(seed, 20, namePool.first),
+    lastName:  sPick(seed, 21, namePool.last),
+    position:  slot.position,
+    roleId:    roleObj.id,
     roleLabel: roleObj.label,
     roleShort: roleObj.short,
     countryCode,
     countryLabel: countryData.label,
-    countryFlag: countryData.flag,
+    countryFlag:  countryData.flag,
     personality,
     age,
     rating,
     potential,
     value,
-    weeklySalary: Math.max(500, Math.floor(value / 120)),
-    signingCost: Math.floor(value * 0.012 + 1500),
-    club: club.name,
-    clubTier: tier,
-    clubCountry: (COUNTRIES.find((c) => c.code === club.countryCode) ?? COUNTRIES[0]).flag,
+    weeklySalary:    Math.max(500, Math.floor(value / 120)),
+    signingCost:     Math.floor(value * 0.012 + 1500),
+    club:            club.name,
+    clubTier:        tier,
+    clubCountry:     (COUNTRIES.find((c) => c.code === club.countryCode) ?? COUNTRIES[0]).flag,
     clubCountryCode: club.countryCode,
-    clubCity: club.city ?? '',
-    form: 60 + sInt(seed, 4, 0, 30),
+    clubCity:        club.city ?? '',
+    form:       60 + sInt(seed, 4, 0, 30),
     brandValue: sInt(seed, 5, 8, 25),
-    fatigue: sInt(seed, 7, 10, 38),
+    fatigue:    sInt(seed, 7, 10, 38),
     injured: 0,
-    moral: sInt(seed, 6, 58, 85),
-    trust: TRUST_BY_PERSONALITY[personality] ?? 50,
-    contractWeeksLeft: sInt(seed, 8, 18, 80),
-    contractStartWeek: 0,
+    moral:   sInt(seed, 6, 58, 85),
+    trust:   TRUST_BY_PERSONALITY[personality] ?? 50,
+    contractWeeksLeft:  sInt(seed, 8, 18, 80),
+    contractStartWeek:  0,
     commission: 0.1,
     agentContract: null,
-    timeline: [],
+    timeline:  [],
     careerGoal: null,
     scoutReport: null,
     hiddenTrait: sPick(seed, 9, HIDDEN_TRAIT_KEYS),
@@ -436,10 +670,13 @@ const buildFallbackPlayer = (position, reputation, season) => {
     europeanCompetition: null,
     seasonStats: { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
     publicRep: null,
-    pressure: 25 + sInt(seed, 15, 0, 35),
-    recentResults: [],
+    pressure:       25 + sInt(seed, 15, 0, 35),
+    recentResults:  [],
     previousRating: null,
-    matchHistory: [],
-    activeActions: [],
+    matchHistory:   [],
+    activeActions:  [],
+    physique:   sBool(seed, 22, 0.65) ? rp.physique : sPick(seed, 23, PHYSIQUES),
+    playStyle:  rp.style,
+    foot:       sBool(seed, 24, leftChance) ? 'G' : sBool(seed, 25, 0.08) ? 'D+G' : 'D',
   };
 };
