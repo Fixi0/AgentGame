@@ -286,6 +286,9 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
 
           {data.worldCupMatchResults?.length > 0 && (
             <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: worldCupTheme.bg, border: `1px solid ${worldCupTheme.border}`, boxShadow: `0 18px 38px ${worldCupTheme.glow}, inset 0 1px 0 rgba(255,255,255,.08)`, color: '#ffffff' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 10, padding: '5px 9px', borderRadius: 8, background: 'rgba(245,200,66,.12)', border: '1px solid rgba(245,200,66,.28)', color: '#f5c842', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
+                🌍 Mondial
+              </div>
               <div style={S.secTitle}>
                 <Trophy size={14} />
                 <span style={{ color: worldCupTheme.title }}>COUPE DU MONDE</span>
