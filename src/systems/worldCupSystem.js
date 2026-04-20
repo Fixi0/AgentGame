@@ -104,14 +104,39 @@ export const shouldTriggerWorldCup = (season, worldCupState) => {
 export const createWorldCupState = (season, roster) => {
   const year = 2026 + (season - 1) * 4;
   const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-  // Sélectionner les joueurs éligibles (rating >= 65 + probabilité basée sur note)
+  const getSelectionScore = (player) => {
+    if (!player || player.freeAgent || !player.countryCode) return -Infinity;
+    if ((player.injured ?? 0) > 0) return -Infinity;
+
+    const stats = player.seasonStats ?? {};
+    const appearances = stats.appearances ?? 0;
+    const avgRating = stats.averageRating ?? ((player.form ?? player.rating ?? 60) / 10);
+    const recentForm = player.form ?? player.rating ?? 60;
+    const moral = player.moral ?? 50;
+    const injuries = stats.injuries ?? 0;
+
+    const ratingScore = (player.rating - 60) * 1.25;
+    const formScore = (recentForm - 50) * 0.55;
+    const avgRatingScore = (avgRating - 6.5) * 14;
+    const moralScore = (moral - 50) * 0.18;
+    const appearancesScore = Math.min(10, appearances * 0.75);
+    const injuryPenalty = injuries * 4;
+    const fatiguePenalty = (player.fatigue ?? 20) > 80 ? 4 : 0;
+    const clubMinutesBonus = appearances >= 20 ? 4 : appearances >= 12 ? 2 : 0;
+
+    return ratingScore + formScore + avgRatingScore + moralScore + appearancesScore + clubMinutesBonus - injuryPenalty - fatiguePenalty;
+  };
+
   const selectedPlayers = roster
-    .filter((p) => p.rating >= 65 && !p.freeAgent)
-    .filter((p) => {
-      const selectionChance = 0.3 + (p.rating - 65) / 70 + (p.moral - 50) / 200;
+    .filter((p) => p.rating >= 65 && !p.freeAgent && p.countryCode)
+    .map((p) => ({ player: p, score: getSelectionScore(p) }))
+    .filter(({ score }) => score > 0)
+    .filter(({ player, score }) => {
+      const selectionChance = Math.max(0.05, Math.min(0.98, 0.08 + score / 90));
       return Math.random() < selectionChance;
     })
-    .sort((a, b) => b.rating - a.rating)
+    .sort((a, b) => b.score - a.score)
+    .map(({ player }) => player)
     .map((p) => ({
       playerId: p.id,
       playerName: `${p.firstName} ${p.lastName}`,
