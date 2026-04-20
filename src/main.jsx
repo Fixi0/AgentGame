@@ -1,11 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`/sw.js?v=20260420`, { updateViaCache: 'none' }).catch(() => {});
-  });
-}
+// Temporarily disable service worker registration to avoid stale chunk/index mismatches
+// that cause "importing a module script failed" on mobile browsers.
 
 const rootEl = document.getElementById('root');
 const bootFallback = document.getElementById('boot-fallback');
