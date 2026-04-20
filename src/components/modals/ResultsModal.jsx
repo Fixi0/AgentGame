@@ -261,8 +261,8 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
             </div>
           )}
 
-              {data.worldCupMatchResults?.length > 0 && (
-            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #04101d 0%, #102a4a 38%, #07101c 100%)', border: '1px solid rgba(125,211,252,.42)', boxShadow: '0 18px 38px rgba(15,23,32,.30), inset 0 1px 0 rgba(255,255,255,.08)' , color: '#ffffff' }}>
+          {data.worldCupMatchResults?.length > 0 && (
+            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #06101d 0%, #11315a 42%, #07101c 100%)', border: '1px solid rgba(125,211,252,.42)', boxShadow: '0 18px 38px rgba(15,23,32,.30), inset 0 1px 0 rgba(255,255,255,.08)', color: '#ffffff' }}>
               <div style={S.secTitle}>
                 <Trophy size={14} />
                 <span style={{ color: '#7dd3fc' }}>COUPE DU MONDE</span>
@@ -365,8 +365,8 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                   ))}
                 </div>
               )}
-              {data.euroMatchResults?.length > 0 && (
-                <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #fff9ef 0%, #f4fde9 45%, #ffffff 100%)', border: '1px solid #b9d98a', boxShadow: '0 12px 26px rgba(34, 197, 94, .12), inset 0 1px 0 rgba(255,255,255,.9)' }}>
+          {data.euroMatchResults?.length > 0 && (
+            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #fff9ef 0%, #fff4dd 28%, #eef9ea 60%, #ffffff 100%)', border: '1px solid #b9d98a', boxShadow: '0 12px 26px rgba(34, 197, 94, .12), inset 0 1px 0 rgba(255,255,255,.9)' }}>
                   <div style={S.secTitle}><Trophy size={14} /><span>EUROPE</span></div>
                   <div style={{ fontSize: 12, color: '#5f7f33', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45, marginBottom: 10 }}>
                     Tous les matchs européens de la semaine, avec une mise en avant plus forte.
