@@ -29,7 +29,7 @@ export default function ConfirmModal({
               {body}
             </div>
           </div>
-          <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ display: 'grid', gap: 10, marginTop: 'auto', paddingTop: 4 }}>
             <button
               type="button"
               onClick={onConfirm}
@@ -38,6 +38,7 @@ export default function ConfirmModal({
                 background: accent,
                 color: '#ffffff',
                 borderColor: accent,
+                boxShadow: isDanger ? '0 12px 26px rgba(180,35,24,.22)' : '0 12px 26px rgba(0,166,118,.18)',
               }}
             >
               <div>
