@@ -162,6 +162,7 @@ const ROLE_LEFT_FOOT = {
 };
 const DEFAULT_LEFT_FOOT_CHANCE = 0.22; // ~22% de gauchers dans le foot mondial
 const playerCatalogCache = new Map();
+let databasePlayerCatalog = null;
 
 export const getMarketRatingCeiling = (reputation = 12, scoutLevel = 0) => {
   const rep = getMarketReputationScore(reputation);
@@ -567,16 +568,57 @@ export const getClubSquadByPosition = (club, position, season = 1) =>
 export const getClubYouthPlayers = (club, season = 1) =>
   YOUTH_SLOTS.map((_, idx) => buildYouthPlayer(club, idx, season));
 
+const evolveDatabaseCatalogPlayer = (player, season = 1) => {
+  const catalogSeason = player.catalogSeason ?? 1;
+  const relativeSeason = Math.max(1, season - catalogSeason + 1);
+  const baseAge = player.catalogBaseAge ?? player.age ?? 24;
+  const baseRating = player.catalogBaseRating ?? player.rating ?? 60;
+  const potential = player.catalogBasePotential ?? player.potential ?? baseRating;
+  const age = baseAge + Math.max(0, relativeSeason - 1);
+  const rating = evolveRating(baseRating, baseAge, potential, relativeSeason);
+  return {
+    ...player,
+    age,
+    rating,
+    previousRating: player.previousRating ?? null,
+  };
+};
+
+export const setDatabasePlayerCatalog = (players = []) => {
+  const normalized = (Array.isArray(players) ? players : [])
+    .filter((player) => player?.id && player?.firstName && player?.lastName)
+    .map((player) => ({
+      ...player,
+      catalogSeason: player.catalogSeason ?? 1,
+      catalogBaseAge: player.catalogBaseAge ?? player.age ?? 24,
+      catalogBaseRating: player.catalogBaseRating ?? player.rating ?? 60,
+      catalogBasePotential: player.catalogBasePotential ?? player.potential ?? player.rating ?? 60,
+      databaseBacked: true,
+    }));
+  databasePlayerCatalog = normalized.length ? normalized : null;
+  playerCatalogCache.clear();
+};
+
+export const clearDatabasePlayerCatalog = () => {
+  databasePlayerCatalog = null;
+  playerCatalogCache.clear();
+};
+
+export const getPlayerCatalogSource = () => (databasePlayerCatalog?.length ? 'indexeddb' : 'code');
+
 export const createPlayerCatalog = (season = 1) => {
-  const cached = playerCatalogCache.get(season);
+  const cacheKey = `${getPlayerCatalogSource()}:${season}`;
+  const cached = playerCatalogCache.get(cacheKey);
   if (cached) return cached;
 
-  const catalog = CLUBS.flatMap((club) => [
-    ...getClubSquad(club, season),
-    ...getClubYouthPlayers(club, season),
-  ]);
+  const catalog = databasePlayerCatalog?.length
+    ? databasePlayerCatalog.map((player) => evolveDatabaseCatalogPlayer(player, season))
+    : CLUBS.flatMap((club) => [
+      ...getClubSquad(club, season),
+      ...getClubYouthPlayers(club, season),
+    ]);
 
-  playerCatalogCache.set(season, catalog);
+  playerCatalogCache.set(cacheKey, catalog);
   return catalog;
 };
 

@@ -1,10 +1,122 @@
 import { createGameCatalog, createGameDatabaseSnapshot } from './gameDatabase';
+import { setDatabasePlayerCatalog } from './squadDatabase';
 import { STORAGE_KEY } from '../game/gameLogic';
 
 const DB_NAME = 'agent_foot_local_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const SAVE_ID = 'active_save';
-const CATALOG_ID = 'catalog_v1';
+const CATALOG_ID = 'catalog_v2';
+
+const STATIC_TABLES = [
+  'countries',
+  'cities',
+  'leagues',
+  'clubs',
+  'personalities',
+  'event_templates',
+  'staff_roles',
+  'agency_defaults',
+  'catalog_players',
+];
+
+const GAME_TABLES = [
+  'agency',
+  'agency_upgrades',
+  'staff',
+  'players',
+  'player_agent_relationships',
+  'careers',
+  'contracts',
+  'transfers',
+  'loans',
+  'negotiations',
+  'negotiation_turns',
+  'seasons',
+  'objectives',
+  'event_instances',
+  'messages',
+  'message_choices',
+  'chosen_message_responses',
+  'news_posts',
+  'sponsors',
+  'rival_agents',
+  'rival_agent_relations',
+  'scouting_reports',
+  'promises',
+  'save_slots',
+];
+
+const SNAPSHOT_TABLE_MAP = {
+  saves: 'save_slots',
+};
+
+const STORE_DEFINITIONS = [
+  { name: 'saves', keyPath: 'id', indexes: [{ name: 'updated_at', keyPath: 'updatedAt' }] },
+  { name: 'meta', keyPath: 'id' },
+  { name: 'catalog', keyPath: 'id' },
+  { name: 'countries', keyPath: 'id', indexes: [{ name: 'code', keyPath: 'code', unique: true }] },
+  { name: 'cities', keyPath: 'id', indexes: [{ name: 'country_id', keyPath: 'country_id' }] },
+  { name: 'leagues', keyPath: 'id', indexes: [{ name: 'country_id', keyPath: 'country_id' }] },
+  { name: 'clubs', keyPath: 'id', indexes: [{ name: 'country_id', keyPath: 'country_id' }, { name: 'league_id', keyPath: 'league_id' }] },
+  { name: 'personalities', keyPath: 'id', indexes: [{ name: 'code', keyPath: 'code', unique: true }] },
+  { name: 'event_templates', keyPath: 'id', indexes: [{ name: 'type', keyPath: 'type' }] },
+  { name: 'staff_roles', keyPath: 'id' },
+  { name: 'agency_defaults', keyPath: 'id' },
+  { name: 'catalog_players', keyPath: 'id', indexes: [
+    { name: 'club', keyPath: 'club' },
+    { name: 'countryCode', keyPath: 'countryCode' },
+    { name: 'position', keyPath: 'position' },
+    { name: 'rating', keyPath: 'rating' },
+  ] },
+  { name: 'agency', keyPath: 'id' },
+  { name: 'agency_upgrades', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }] },
+  { name: 'staff', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'role', keyPath: 'role' }] },
+  { name: 'players', keyPath: 'id', indexes: [
+    { name: 'club_id', keyPath: 'club_current_id' },
+    { name: 'status', keyPath: 'career_status' },
+    { name: 'market_status', keyPath: 'market_status' },
+    { name: 'agency_id', keyPath: 'agency_id' },
+  ] },
+  { name: 'player_agent_relationships', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'player_id', keyPath: 'player_id' }] },
+  { name: 'careers', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'season_id', keyPath: 'season_id' }] },
+  { name: 'contracts', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'end_date', keyPath: 'end_date' }] },
+  { name: 'transfers', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'season_id', keyPath: 'season_id' }] },
+  { name: 'loans', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'status', keyPath: 'status' }] },
+  { name: 'negotiations', keyPath: 'id', indexes: [
+    { name: 'agency_id', keyPath: 'agency_id' },
+    { name: 'status', keyPath: 'status' },
+    { name: 'agency_id_status', keyPath: ['agency_id', 'status'] },
+  ] },
+  { name: 'negotiation_turns', keyPath: 'id', indexes: [{ name: 'negotiation_id', keyPath: 'negotiation_id' }] },
+  { name: 'seasons', keyPath: 'id', indexes: [{ name: 'active', keyPath: 'active' }] },
+  { name: 'objectives', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'season_id', keyPath: 'season_id' }] },
+  { name: 'event_instances', keyPath: 'id', indexes: [
+    { name: 'agency_id', keyPath: 'agency_id' },
+    { name: 'status', keyPath: 'status' },
+    { name: 'agency_id_status', keyPath: ['agency_id', 'status'] },
+  ] },
+  { name: 'messages', keyPath: 'id', indexes: [
+    { name: 'agency_id', keyPath: 'agency_id' },
+    { name: 'status', keyPath: 'status' },
+    { name: 'player_id', keyPath: 'player_id' },
+    { name: 'agency_id_status', keyPath: ['agency_id', 'status'] },
+  ] },
+  { name: 'message_choices', keyPath: 'id', indexes: [{ name: 'message_id', keyPath: 'message_id' }] },
+  { name: 'chosen_message_responses', keyPath: 'id', indexes: [{ name: 'message_id', keyPath: 'message_id' }] },
+  { name: 'news_posts', keyPath: 'id', indexes: [
+    { name: 'agency_id', keyPath: 'agency_id' },
+    { name: 'created_at', keyPath: 'created_at' },
+    { name: 'agency_id_created_at', keyPath: ['agency_id', 'created_at'] },
+  ] },
+  { name: 'sponsors', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'player_id', keyPath: 'player_id' }] },
+  { name: 'rival_agents', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }] },
+  { name: 'rival_agent_relations', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'agency_id', keyPath: 'agency_id' }] },
+  { name: 'scouting_reports', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'player_id', keyPath: 'player_id' }] },
+  { name: 'promises', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'player_id', keyPath: 'player_id' }] },
+  { name: 'save_slots', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'updated_at', keyPath: 'updated_at' }] },
+];
+
+const STORE_NAMES = STORE_DEFINITIONS.map((definition) => definition.name);
 
 const supportsIndexedDb = () => typeof indexedDB !== 'undefined';
 
@@ -18,22 +130,26 @@ const legacyPreviewFromState = (state) => ({
   money: state?.money ?? 0,
 });
 
+const ensureIndex = (store, index) => {
+  if (!index?.name || store.indexNames.contains(index.name)) return;
+  store.createIndex(index.name, index.keyPath, { unique: Boolean(index.unique) });
+};
+
+const ensureObjectStore = (db, transaction, definition) => {
+  const store = db.objectStoreNames.contains(definition.name)
+    ? transaction.objectStore(definition.name)
+    : db.createObjectStore(definition.name, { keyPath: definition.keyPath ?? 'id' });
+  (definition.indexes ?? []).forEach((index) => ensureIndex(store, index));
+};
+
 const openDb = () => {
   if (!supportsIndexedDb()) return Promise.resolve(null);
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      if (!db.objectStoreNames.contains('saves')) {
-        const store = db.createObjectStore('saves', { keyPath: 'id' });
-        store.createIndex('updated_at', 'updatedAt', { unique: false });
-      }
-      if (!db.objectStoreNames.contains('meta')) {
-        db.createObjectStore('meta', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('catalog')) {
-        db.createObjectStore('catalog', { keyPath: 'id' });
-      }
+      const tx = request.transaction;
+      STORE_DEFINITIONS.forEach((definition) => ensureObjectStore(db, tx, definition));
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
@@ -42,7 +158,7 @@ const openDb = () => {
 
 const idbRead = async (storeName, key) => {
   const db = await openDb();
-  if (!db) return null;
+  if (!db || !db.objectStoreNames.contains(storeName)) return null;
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
     const req = tx.objectStore(storeName).get(key);
@@ -51,12 +167,30 @@ const idbRead = async (storeName, key) => {
   });
 };
 
+const normalizeRow = (storeName, row, index = 0) => {
+  if (!row || typeof row !== 'object') return null;
+  if (row.id != null && row.id !== '') return row;
+  const parts = [
+    storeName,
+    row.agency_id,
+    row.player_id,
+    row.message_id,
+    row.negotiation_id,
+    row.season_id,
+    row.role,
+    index,
+  ].filter((part) => part != null && part !== '');
+  return { ...row, id: parts.join('_') };
+};
+
 const idbWrite = async (storeName, value) => {
   const db = await openDb();
-  if (!db) return null;
+  if (!db || !db.objectStoreNames.contains(storeName)) return null;
+  const row = normalizeRow(storeName, value, 0);
+  if (!row) return null;
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
-    tx.objectStore(storeName).put(value);
+    tx.objectStore(storeName).put(row);
     tx.oncomplete = () => resolve(true);
     tx.onerror = () => reject(tx.error);
   });
@@ -64,7 +198,7 @@ const idbWrite = async (storeName, value) => {
 
 const idbDelete = async (storeName, key) => {
   const db = await openDb();
-  if (!db) return null;
+  if (!db || !db.objectStoreNames.contains(storeName)) return null;
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readwrite');
     tx.objectStore(storeName).delete(key);
@@ -75,12 +209,48 @@ const idbDelete = async (storeName, key) => {
 
 const idbGetAll = async (storeName) => {
   const db = await openDb();
-  if (!db) return [];
+  if (!db || !db.objectStoreNames.contains(storeName)) return [];
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly');
     const req = tx.objectStore(storeName).getAll();
     req.onsuccess = () => resolve(req.result ?? []);
     req.onerror = () => reject(req.error);
+  });
+};
+
+const idbWriteTables = async (tables = {}, { clear = true } = {}) => {
+  const db = await openDb();
+  if (!db) return null;
+  const entries = Object.entries(tables)
+    .map(([name, rows]) => [SNAPSHOT_TABLE_MAP[name] ?? name, Array.isArray(rows) ? rows : []])
+    .filter(([storeName, rows]) => db.objectStoreNames.contains(storeName) && rows.length >= 0);
+  if (!entries.length) return true;
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([...new Set(entries.map(([storeName]) => storeName))], 'readwrite');
+    entries.forEach(([storeName, rows]) => {
+      const store = tx.objectStore(storeName);
+      if (clear) store.clear();
+      rows.forEach((row, index) => {
+        const normalized = normalizeRow(storeName, row, index);
+        if (normalized) store.put(normalized);
+      });
+    });
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+};
+
+const idbClearStores = async (storeNames = []) => {
+  const db = await openDb();
+  if (!db) return null;
+  const names = storeNames.filter((storeName) => db.objectStoreNames.contains(storeName));
+  if (!names.length) return true;
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(names, 'readwrite');
+    names.forEach((storeName) => tx.objectStore(storeName).clear());
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
   });
 };
 
@@ -99,7 +269,7 @@ const writeLegacySave = (record) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(record.state));
     localStorage.setItem(`${STORAGE_KEY}_bak_0`, JSON.stringify(record.state));
   } catch {
-    // ignored on purpose
+    // Local storage is only a compatibility fallback.
   }
 };
 
@@ -125,25 +295,74 @@ const buildSaveRecord = (state, slot = 1) => {
     updatedAt: Date.now(),
     state,
     snapshot,
-    catalog: createGameCatalog(),
+    catalogId: CATALOG_ID,
+    catalogVersion: DB_VERSION,
     preview,
     season,
     week,
   };
 };
 
+const buildCatalogTables = (catalog = createGameCatalog()) =>
+  STATIC_TABLES.reduce((tables, storeName) => {
+    tables[storeName] = storeName === 'catalog_players'
+      ? catalog.catalog_players ?? catalog.players ?? []
+      : catalog[storeName] ?? [];
+    return tables;
+  }, {});
+
+const buildSnapshotTables = (snapshot = {}) =>
+  GAME_TABLES.reduce((tables, storeName) => {
+    const snapshotName = Object.entries(SNAPSHOT_TABLE_MAP).find(([, mapped]) => mapped === storeName)?.[0] ?? storeName;
+    tables[snapshotName] = Array.isArray(snapshot[snapshotName]) ? snapshot[snapshotName] : [];
+    return tables;
+  }, {});
+
+const hydrateRuntimeCatalogFromDb = async () => {
+  const players = await idbGetAll('catalog_players');
+  if (players.length) setDatabasePlayerCatalog(players);
+  return players.length;
+};
+
+const seedCatalogIfNeeded = async () => {
+  const existingCatalog = await idbRead('catalog', CATALOG_ID);
+  const existingPlayers = await idbGetAll('catalog_players');
+  if (existingCatalog && existingPlayers.length) {
+    await hydrateRuntimeCatalogFromDb();
+    return existingCatalog;
+  }
+
+  const catalog = createGameCatalog();
+  await idbWriteTables(buildCatalogTables(catalog), { clear: true });
+  const record = {
+    id: CATALOG_ID,
+    schemaVersion: DB_VERSION,
+    createdAt: existingCatalog?.createdAt ?? Date.now(),
+    updatedAt: Date.now(),
+    tableCounts: {
+      countries: catalog.countries.length,
+      clubs: catalog.clubs.length,
+      players: (catalog.catalog_players ?? catalog.players ?? []).length,
+      event_templates: catalog.event_templates.length,
+    },
+    data: catalog,
+  };
+  await idbWrite('catalog', record);
+  await idbWrite('meta', {
+    id: 'schema',
+    dbName: DB_NAME,
+    version: DB_VERSION,
+    stores: STORE_NAMES,
+    updatedAt: Date.now(),
+  });
+  await hydrateRuntimeCatalogFromDb();
+  return record;
+};
+
 export const ensureLocalGameDatabase = async () => {
   const db = await openDb();
   if (!db) return null;
-  const existing = await idbRead('catalog', CATALOG_ID);
-  if (!existing) {
-    await idbWrite('catalog', {
-      id: CATALOG_ID,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      data: createGameCatalog(),
-    });
-  }
+  await seedCatalogIfNeeded();
   return true;
 };
 
@@ -152,22 +371,30 @@ export const loadLocalGameProgress = async () => {
   const saved = await idbRead('saves', SAVE_ID);
   if (saved?.state) return saved;
   const saves = await idbGetAll('saves');
-  const latest = saves.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
+  const latest = saves
+    .filter((save) => save?.state)
+    .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
   if (latest?.state) return latest;
 
   const legacy = readLegacySave();
   if (!legacy) return null;
-  return buildSaveRecord(legacy, 1);
+  const record = buildSaveRecord(legacy, 1);
+  await idbWrite('saves', record);
+  await idbWriteTables(buildSnapshotTables(record.snapshot), { clear: true });
+  return record;
 };
 
 export const saveLocalGameProgress = async (state, slot = 1) => {
-  const record = buildSaveRecord(state, slot);
   await ensureLocalGameDatabase();
+  const record = buildSaveRecord(state, slot);
   await idbWrite('saves', record);
+  await idbWriteTables(buildSnapshotTables(record.snapshot), { clear: true });
   await idbWrite('meta', {
     id: 'active_save',
     saveId: SAVE_ID,
     updatedAt: record.updatedAt,
+    season: record.season,
+    week: record.week,
   });
   writeLegacySave(record);
   return record;
@@ -177,10 +404,25 @@ export const clearLocalGameProgress = async () => {
   await ensureLocalGameDatabase();
   await idbDelete('saves', SAVE_ID);
   await idbDelete('meta', 'active_save');
+  await idbClearStores(GAME_TABLES);
   removeLegacySave();
 };
 
 export const hasLocalGameProgress = async () => {
   const saved = await loadLocalGameProgress();
   return Boolean(saved?.state);
+};
+
+export const getLocalDatabaseStats = async () => {
+  await ensureLocalGameDatabase();
+  const counts = {};
+  for (const storeName of STORE_NAMES) {
+    counts[storeName] = (await idbGetAll(storeName)).length;
+  }
+  return {
+    name: DB_NAME,
+    version: DB_VERSION,
+    stores: STORE_NAMES,
+    counts,
+  };
 };

@@ -488,24 +488,38 @@ const buildSeasonRows = (state = {}, week = 1) => [{
   active: true,
 }];
 
-export const createGameCatalog = () => ({
-  countries: createCountryRows(),
-  cities: createCityRows(),
-  leagues: createLeagueRows(),
-  clubs: createClubRows(),
-  players: createPlayerCatalog(1),
-  personalities: createPersonalityRows(),
-  event_templates: createEventTemplateRows(),
-  staff_roles: Object.entries(STAFF_ROLES).map(([key, role]) => ({
-    id: key,
-    label: role.label,
-    description: role.desc,
-    cost: role.cost,
-    weekly_cost: role.weeklyCost,
-    max_level: role.maxLevel,
-  })),
-  agency_defaults: [createDefaultAgencyRecord()],
-});
+const createCatalogPlayerRows = () =>
+  createPlayerCatalog(1).map((player) => ({
+    ...player,
+    catalogSeason: player.catalogSeason ?? 1,
+    catalogBaseAge: player.catalogBaseAge ?? player.age ?? 24,
+    catalogBaseRating: player.catalogBaseRating ?? player.rating ?? 60,
+    catalogBasePotential: player.catalogBasePotential ?? player.potential ?? player.rating ?? 60,
+    databaseSource: player.databaseSource ?? 'seed',
+  }));
+
+export const createGameCatalog = () => {
+  const catalogPlayers = createCatalogPlayerRows();
+  return {
+    countries: createCountryRows(),
+    cities: createCityRows(),
+    leagues: createLeagueRows(),
+    clubs: createClubRows(),
+    catalog_players: catalogPlayers,
+    players: catalogPlayers,
+    personalities: createPersonalityRows(),
+    event_templates: createEventTemplateRows(),
+    staff_roles: Object.entries(STAFF_ROLES).map(([key, role]) => ({
+      id: key,
+      label: role.label,
+      description: role.desc,
+      cost: role.cost,
+      weekly_cost: role.weeklyCost,
+      max_level: role.maxLevel,
+    })),
+    agency_defaults: [createDefaultAgencyRecord()],
+  };
+};
 
 export const createGameDatabaseSnapshot = (state = {}) => {
   const week = state.week ?? 1;
