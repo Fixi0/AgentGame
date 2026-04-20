@@ -23,7 +23,7 @@ const weekToLabel = (week) => {
   return `${MONTHS[monthIdx]} S${season}`;
 };
 
-export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, worldCupState = null, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
+export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, clubSeasonHistory = {}, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, worldCupState = null, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
   const [tab, setTab] = useState('profile');
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
   const playerPromises = (promises ?? []).filter((promise) => promise.playerId === player.id && !promise.resolved && !promise.failed);
@@ -33,6 +33,7 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
   const clubRelation = clubRelations?.[player.club] ?? 50;
   const memorySummary = getClubMemorySummary(clubMemory, player.club);
   const clubMemoryScore = clubMemory?.[player.club]?.trust ?? 50;
+  const clubSeason = clubSeasonHistory?.[player.club] ?? null;
   const clubTension = Math.max(0, 100 - clubRelation + Math.max(0, 55 - (player.trust ?? 50)) + Math.max(0, 55 - clubMemoryScore));
   const tensionColor = clubTension > 68 ? '#b42318' : clubTension > 40 ? '#8a6f1f' : '#00a676';
   const dossierStatus = getPlayerDossierStatus(player, { week: currentWeek, messages, messageQueue, promises, clubOffers, pendingTransfers, negotiationCooldowns });
@@ -175,6 +176,14 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
               <div><strong>{seasonStats.xg ?? 0}</strong><span>xG</span></div>
             </div>
             <div style={S.sumRow}><span style={S.sumK}>Blessures saison</span><strong>{seasonStats.injuries ?? 0}</strong></div>
+            {clubSeason && (
+              <>
+                <div style={{ marginTop: 8, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.08em' }}>HISTORIQUE CLUB CETTE SAISON</div>
+                <div style={S.sumRow}><span style={S.sumK}>Coupe</span><strong>{clubSeason.competition ?? 'Aucune'}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Matchs club</span><strong>{(clubSeason.league?.length ?? 0) + (clubSeason.europe?.length ?? 0)}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Dernier résumé</span><strong>{clubSeason.summary?.[0] ?? 'Pas encore de résumé'}</strong></div>
+              </>
+            )}
           </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>DOSSIER JOUEUR</div>

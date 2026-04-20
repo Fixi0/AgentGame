@@ -18,7 +18,7 @@ import { createCareerGoal, createScoutReport, updateSeasonStats } from '../syste
 import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } from '../systems/promiseSystem';
 import { MATCH_INCIDENT_EVENTS, buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
-import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS, normalizeEuropeanMatch } from '../systems/europeanCupSystem';
+import { getClubEuropeanCompetition, getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS, normalizeEuropeanMatch } from '../systems/europeanCupSystem';
 import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview, getWorldCupInterestClubs } from '../systems/worldCupSystem';
 import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSeasonalNewsItem } from '../systems/calendarEventsSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
@@ -58,6 +58,38 @@ import { formatMoney } from '../utils/format';
 import { normalizePromises } from '../systems/promiseSystem';
 
 export const STORAGE_KEY = 'agent_fc_v4';
+
+const createClubSeasonHistory = (season = 1) =>
+  CLUBS.reduce((history, club) => ({
+    ...history,
+    [club.name]: {
+      season,
+      club: club.name,
+      countryCode: club.countryCode,
+      competition: getClubEuropeanCompetition(club, season),
+      league: [],
+      europe: [],
+      summary: [],
+    },
+  }), {});
+
+const normalizeClubSeasonHistory = (history = {}, season = 1) => {
+  const base = createClubSeasonHistory(season);
+  return Object.entries(base).reduce((acc, [clubName, baseRecord]) => {
+    const current = history?.[clubName];
+    const sameSeason = current?.season === season;
+    acc[clubName] = {
+      ...baseRecord,
+      ...(sameSeason ? current : {}),
+      season,
+      competition: sameSeason ? current.competition ?? baseRecord.competition : baseRecord.competition,
+      league: [...(sameSeason && Array.isArray(current.league) ? current.league : [])].slice(0, 12),
+      europe: [...(sameSeason && Array.isArray(current.europe) ? current.europe : [])].slice(0, 12),
+      summary: [...(sameSeason && Array.isArray(current.summary) ? current.summary : [])].slice(0, 8),
+    };
+    return acc;
+  }, {});
+};
 
 const DEFAULT_AGENCY_PROFILE = {
   name: 'Agent FC',
@@ -403,6 +435,7 @@ export const createFreshState = () => ({
   leagueReputation: createDefaultLeagueReputation(DEFAULT_AGENCY_PROFILE.countryCode),
   clubRelations: createDefaultClubRelations(),
   clubMemory: createDefaultClubMemory(),
+  clubSeasonHistory: createClubSeasonHistory(1),
   scoutingMissions: [],
   competitorThreats: [],
   lastFixtures: [],
@@ -450,6 +483,7 @@ export const migrateState = (state) => {
   };
   const rawReputation = state.reputation ?? 120;
   const reputation = rawReputation <= 100 ? rawReputation * 10 : rawReputation;
+  const clubSeasonHistory = normalizeClubSeasonHistory(state.clubSeasonHistory ?? {}, currentSeason);
   const convertLegacyObjective = (objective) => {
     if (!objective) return objective;
     if (objective.type === 'rep' || objective.type === 'reputation_gain') {
@@ -507,6 +541,7 @@ export const migrateState = (state) => {
     leagueReputation: state.leagueReputation ?? createDefaultLeagueReputation(state.agencyProfile?.countryCode ?? 'FR'),
     clubRelations: state.clubRelations ?? createDefaultClubRelations(),
     clubMemory: state.clubMemory ?? createDefaultClubMemory(),
+    clubSeasonHistory,
     scoutingMissions: asArray(state.scoutingMissions),
     competitorThreats: asArray(state.competitorThreats),
     lastFixtures: asArray(state.lastFixtures),
@@ -572,6 +607,7 @@ export const migrateState = (state) => {
         timeline: player.timeline ?? [],
         personality,
         trust: player.trust ?? getInitialTrust(personality),
+        clubSeasonHistory: clubSeasonHistory[club.name] ?? null,
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
       };
     }),
@@ -608,6 +644,7 @@ export const migrateState = (state) => {
         hiddenTrait: player.hiddenTrait ?? null,
         traitRevealed: player.traitRevealed ?? false,
         lastInteractionWeek: player.lastInteractionWeek ?? 0,
+        clubSeasonHistory: clubSeasonHistory[club.name] ?? null,
         europeanCompetition: getPlayerEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
       };
@@ -657,7 +694,8 @@ export const signPlayer = (state, player) => {
     ...player,
     careerGoal: player.careerGoal ?? createCareerGoal(player),
     agentContract: player.agentContract ?? createAgentContract(player),
-        europeanCompetition: getPlayerEuropeanCompetition(player, currentSeason),
+    europeanCompetition: getPlayerEuropeanCompetition(player, currentSeason),
+    clubSeasonHistory: state.clubSeasonHistory?.[player.club] ?? null,
     timeline: [
       { week: state.week, type: 'signature', label: `Signature avec ${state.agencyProfile?.name ?? 'ton agence'}` },
       ...(player.timeline ?? []),
@@ -1351,6 +1389,7 @@ export const playWeek = (state) => {
   const phase = getPhase(state.week);
   const isNewSeasonStart = getSeasonContext(state.week + 1).seasonWeek === 1 && state.week > 1;
   const currentSeason = phase.season;
+  let clubSeasonHistory = normalizeClubSeasonHistory(state.clubSeasonHistory ?? {}, currentSeason);
   const pendingWorldCupTrigger = phase.seasonWeek === 38 && shouldTriggerWorldCup(phase.season, state.worldCupState);
   const isWorldCupActive = Boolean((state.worldCupState && state.worldCupState.phase !== 'done') || pendingWorldCupTrigger);
   const events = [];
@@ -2163,6 +2202,63 @@ export const playWeek = (state) => {
     ? generateWorldState(nextPhase.season)
     : (state.worldState ?? generateWorldState(1));
 
+  weeklyFixtures.forEach((fixture) => {
+    const homeName = fixture.homeClub?.name;
+    const awayName = fixture.awayClub?.name;
+    if (homeName) {
+      const current = clubSeasonHistory[homeName] ?? createClubSeasonHistory(currentSeason)[homeName];
+      clubSeasonHistory = {
+        ...clubSeasonHistory,
+        [homeName]: {
+          ...current,
+          league: [
+            { week: state.week + 1, score: `${fixture.homeGoals}-${fixture.awayGoals}`, opponent: awayName, home: true },
+            ...(current.league ?? []),
+          ].slice(0, 12),
+          summary: [`${homeName} ${fixture.homeGoals}-${fixture.awayGoals} ${awayName}`, ...(current.summary ?? [])].slice(0, 8),
+        },
+      };
+    }
+    if (awayName) {
+      const current = clubSeasonHistory[awayName] ?? createClubSeasonHistory(currentSeason)[awayName];
+      clubSeasonHistory = {
+        ...clubSeasonHistory,
+        [awayName]: {
+          ...current,
+          league: [
+            { week: state.week + 1, score: `${fixture.awayGoals}-${fixture.homeGoals}`, opponent: homeName, home: false },
+            ...(current.league ?? []),
+          ].slice(0, 12),
+          summary: [`${awayName} ${fixture.awayGoals}-${fixture.homeGoals} ${homeName}`, ...(current.summary ?? [])].slice(0, 8),
+        },
+      };
+    }
+  });
+
+  euroMatchResults.forEach((match) => {
+    if (!match?.club) return;
+    const current = clubSeasonHistory[match.club] ?? createClubSeasonHistory(currentSeason)[match.club];
+    clubSeasonHistory = {
+      ...clubSeasonHistory,
+      [match.club]: {
+        ...current,
+        competition: match.competition ?? current.competition,
+        europe: [
+          {
+            week: state.week + 1,
+            competition: match.competition,
+            competitionLabel: match.competitionLabel,
+            score: match.score,
+            opponent: match.opponent,
+            result: match.result,
+          },
+          ...(current.europe ?? []),
+        ].slice(0, 12),
+        summary: [`${match.competitionLabel ?? 'Europe'} · ${match.score} vs ${match.opponent}`, ...(current.summary ?? [])].slice(0, 8),
+      },
+    };
+  });
+
   // Track season objectives progress from this week's events
   let currentObjectives = state.seasonObjectives ?? generateSeasonObjectives(state);
   if (totalIncome > 0) {
@@ -2496,6 +2592,7 @@ export const playWeek = (state) => {
     activePeriod: activePeriod ? { key: activePeriod.key, label: activePeriod.label, emoji: activePeriod.emoji } : null,
     pendingChainedEvents: updatedPendingChains,
     seasonAwards: annualCalendar.seasonAwards,
+    clubSeasonHistory: nextPhase.seasonWeek === 1 && state.week > 1 ? createClubSeasonHistory(nextPhase.season) : clubSeasonHistory,
     roster: finalRoster,
     market: [...completedScouting, ...(Array.isArray(state.market) ? state.market : [])].slice(0, 12),
     lastFixtures: weeklyFixtures,

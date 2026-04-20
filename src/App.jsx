@@ -1423,6 +1423,7 @@ export default function FootballAgentGame() {
             promises={state.promises}
             clubRelations={state.clubRelations}
             clubMemory={state.clubMemory}
+            clubSeasonHistory={state.clubSeasonHistory}
             dossierMemory={state.dossierMemory}
             decisionHistory={state.decisionHistory}
             pendingTransfers={state.pendingTransfers}

@@ -191,7 +191,7 @@ function MatchScorecard({ match, highlight = false }) {
       <div style={{ ...S.scoreboardScore, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
         <span style={{ fontSize: 11, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.club, 'Club')}</span>
         <span style={{ fontWeight: 950, fontSize: 19, color: competitionTheme.text ?? '#172026', minWidth: 60, textAlign: 'center', background: competitionTheme.scoreBg ?? 'transparent', padding: '2px 10px', borderRadius: 8, border: competitionTheme.scoreBg ? '1px solid rgba(255,255,255,.12)' : 'none' }}>{match.score}</span>
-        <span style={{ fontSize: 11, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.opponent, 'Adversaire')}</span>
+        <span style={{ fontSize: 11, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.opponent, safeText(match.opponentName, 'Club adverse'))}</span>
       </div>
       {stats.length > 0 && (
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 6, fontSize: 11, color: competitionTheme.subText ?? '#3f5663', fontFamily: 'system-ui,sans-serif', flexWrap: 'wrap' }}>
