@@ -1077,22 +1077,7 @@ export default function FootballAgentGame() {
     });
   };
 
-  const handleHardResetGame = async () => {
-    setState(createFreshState());
-    setSavePreview(null);
-    setHasSave(false);
-    setConfirmDialog(null);
-    setSaveMenuOpen(true);
-    setView('dashboard');
-    showToast('Sauvegarde effacée', 'success');
-    try {
-      await clearLocalGameProgress();
-    } catch {
-      // Keep UI responsive even if local DB cleanup is blocked.
-    }
-  };
-
-  const handleNewGame = () => {
+  const launchNewGame = async (clearExistingSave = false) => {
     const freshState = createFreshState();
     setConfirmDialog(null);
     setHasSave(false);
@@ -1102,6 +1087,19 @@ export default function FootballAgentGame() {
     setView('dashboard');
     setSaveMenuOpen(false);
     showToast('Nouvelle partie', 'success');
+    if (clearExistingSave) {
+      try {
+        await clearLocalGameProgress();
+      } catch {
+        // Keep UI responsive even if local DB cleanup is blocked.
+      }
+    }
+  };
+
+  const handleHardResetGame = () => launchNewGame(true);
+
+  const handleNewGame = () => {
+    launchNewGame(false);
   };
 
   const startNegotiation = (player, type) => {

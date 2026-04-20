@@ -49,12 +49,10 @@ export default function SaveMenu({ hasSave, savePreview, onContinue, onNewGame, 
             <Save size={14} />
             {continueLabel}
           </button>
-          {hasSave && (
-            <button type="button" onPointerUp={trigger(onReset)} onClick={trigger(onReset)} style={{ ...S.secBtn, color: '#b42318', marginBottom: 0, background: '#fff6f6', borderColor: '#f3c7c2' }}>
-              <RotateCcw size={14} />
-              EFFACER LA SAUVEGARDE
-            </button>
-          )}
+          <button type="button" onPointerUp={trigger(onReset)} onClick={trigger(onReset)} style={{ ...S.secBtn, color: '#b42318', marginBottom: 0, background: '#fff6f6', borderColor: '#f3c7c2', opacity: hasSave ? 1 : 0.9 }}>
+            <RotateCcw size={14} />
+            RESET SAUVEGARDE
+          </button>
         </div>
         {savePreview && (
           <div style={S.objCard}>
