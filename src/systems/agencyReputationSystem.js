@@ -7,7 +7,7 @@ export const DIFFICULTIES = {
   facile: {
     label: 'Facile',
     money: 65000,
-    reputation: 18,
+    reputation: 4,
     credibility: 62,
     eventPressure: 0.85,
     offerMultiplier: 1.15,
@@ -15,7 +15,7 @@ export const DIFFICULTIES = {
   realiste: {
     label: 'Réaliste',
     money: 35000,
-    reputation: 12,
+    reputation: 2,
     credibility: 52,
     eventPressure: 1,
     offerMultiplier: 1,
@@ -23,7 +23,7 @@ export const DIFFICULTIES = {
   hardcore: {
     label: 'Hardcore',
     money: 18000,
-    reputation: 8,
+    reputation: 1,
     credibility: 42,
     eventPressure: 1.25,
     offerMultiplier: 0.85,

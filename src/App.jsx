@@ -1204,7 +1204,7 @@ export default function FootballAgentGame() {
     showToast('Appel joueur ajouté aux messages', 'success');
   };
 
-  if (!loaded || !state) {
+  if (!loaded || (!state && !saveMenuOpen)) {
     return (
       <div style={S.loadScreen}>
         <div style={S.loadText}>CHARGEMENT</div>
