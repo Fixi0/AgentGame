@@ -44,83 +44,6 @@ function getBigHeadline(data) {
   return { emoji: '📉', title: 'Semaine difficile', sub: `Déficit ${formatMoney(Math.abs(data.net))}` };
 }
 
-function WorldCupPhotoCard({ match }) {
-  if (!match) return null;
-
-  return (
-    <div style={{
-      marginBottom: 12,
-      borderRadius: 14,
-      overflow: 'hidden',
-      background: 'linear-gradient(135deg,#0f172a 0%,#1d4f7a 48%,#203a43 100%)',
-      border: '1px solid rgba(125,211,252,.22)',
-      boxShadow: '0 16px 34px rgba(15,23,32,.24)',
-      color: '#ffffff',
-    }}>
-      <div style={{
-        minHeight: 180,
-        padding: 16,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        background: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,.16), transparent 35%), radial-gradient(circle at 80% 30%, rgba(245,200,66,.16), transparent 26%), linear-gradient(135deg, rgba(9,17,30,.35), rgba(9,17,30,.10))',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: '#7dd3fc', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>
-              PHOTO DU MATCH
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 950, lineHeight: 1.15 }}>
-              {match.countryFlag ?? '🌍'} {match.countryName} vs {match.opponentFlag ?? '⚽'} {match.opponent}
-            </div>
-          </div>
-          <div style={{
-            minWidth: 82,
-            padding: '8px 10px',
-            borderRadius: 10,
-            background: 'rgba(255,255,255,.10)',
-            border: '1px solid rgba(255,255,255,.14)',
-            textAlign: 'center',
-          }}>
-            <div style={{ fontSize: 10, color: '#a0c4d8', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 900 }}>Score</div>
-            <div style={{ fontSize: 18, fontWeight: 950 }}>{match.score}</div>
-          </div>
-        </div>
-
-        <div style={{
-          marginTop: 16,
-          alignSelf: 'flex-start',
-          padding: '8px 10px',
-          borderRadius: 999,
-          background: 'rgba(255,255,255,.10)',
-          border: '1px solid rgba(255,255,255,.14)',
-          fontSize: 12,
-          fontFamily: 'system-ui,sans-serif',
-          fontWeight: 800,
-        }}>
-          {match.phase} · note {match.matchRating} · {match.minutes} min
-        </div>
-        {Array.isArray(match.interestClubs) && match.interestClubs.length > 0 && (
-          <div style={{
-            marginTop: 10,
-            alignSelf: 'flex-start',
-            padding: '8px 10px',
-            borderRadius: 10,
-            background: 'rgba(255,255,255,.10)',
-            border: '1px solid rgba(255,255,255,.14)',
-            fontSize: 11,
-            fontFamily: 'system-ui,sans-serif',
-            lineHeight: 1.45,
-          }}>
-            <strong style={{ display: 'block', marginBottom: 2 }}>Clubs en alerte</strong>
-            {match.interestClubs.slice(0, 3).join(', ')}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function MatchScorecard({ match, highlight = false }) {
   const resultColor = match.result === 'win' ? '#16a34a' : match.result === 'loss' ? '#e83a3a' : '#2563eb';
   const resultBg = highlight
@@ -148,8 +71,8 @@ function MatchScorecard({ match, highlight = false }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 850, color: '#172026' }}>{match.playerName}</span>
           {match.roleShort && <span style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', background: '#f0f4f7', borderRadius: 4, padding: '1px 5px' }}>{match.roleShort}</span>}
-          {competitionLabel && highlight && (
-            <span style={{ fontSize: 9, color: '#9a6700', fontFamily: 'system-ui,sans-serif', background: '#fff8db', borderRadius: 4, padding: '1px 5px', fontWeight: 900, letterSpacing: '.04em' }}>
+          {competitionLabel && (
+            <span style={{ fontSize: 9, color: highlight ? '#9a6700' : '#64727d', fontFamily: 'system-ui,sans-serif', background: highlight ? '#fff8db' : '#f0f4f7', borderRadius: 4, padding: '1px 5px', fontWeight: 900, letterSpacing: '.04em' }}>
               {competitionLabel}
             </span>
           )}
@@ -233,8 +156,6 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           </button>
         </div>
         <div style={S.mBody}>
-          {topWorldCupMatch && <WorldCupPhotoCard match={topWorldCupMatch} />}
-
           {/* Big Headline */}
           <div style={S.resultsBigHeadline}>
             <span style={S.resultsBigEmoji}>{bigHeadline.emoji}</span>
@@ -288,7 +209,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                 <span style={{ color: '#7dd3fc' }}>COUPE DU MONDE</span>
               </div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,.78)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginBottom: 10 }}>
-                Tous les matchs de Coupe du monde de la semaine, avec une mise en avant plus forte.
+                Tous les matchs de Coupe du monde de la semaine, au format normal mais mis en avant.
               </div>
               <div style={{ display: 'grid', gap: 8 }}>
                 {(data.worldCupMatchResults ?? []).filter(Boolean).map((match) => (
