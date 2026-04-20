@@ -1071,6 +1071,17 @@ export default function FootballAgentGame() {
     });
   };
 
+  const handleHardResetGame = async () => {
+    await clearLocalGameProgress();
+    setState(createFreshState());
+    setSavePreview(null);
+    setHasSave(false);
+    setConfirmDialog(null);
+    setSaveMenuOpen(true);
+    setView('dashboard');
+    showToast('Sauvegarde effacée', 'success');
+  };
+
   const handleNewGame = () => {
     setConfirmDialog({
       title: 'Commencer une nouvelle partie ?',
@@ -1250,7 +1261,7 @@ export default function FootballAgentGame() {
           savePreview={savePreview}
           onContinue={() => setSaveMenuOpen(false)}
           onNewGame={handleNewGame}
-          onReset={handleResetGame}
+          onReset={handleHardResetGame}
         />
         {confirmDialog && (
           <ConfirmModal

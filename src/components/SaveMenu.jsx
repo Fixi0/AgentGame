@@ -36,9 +36,9 @@ export default function SaveMenu({ hasSave, savePreview, onContinue, onNewGame, 
             {continueLabel}
           </button>
           {hasSave && (
-            <button type="button" onClick={onReset} style={{ ...S.secBtn, color: '#b42318', marginBottom: 0 }}>
+            <button type="button" onClick={onReset} style={{ ...S.secBtn, color: '#b42318', marginBottom: 0, background: '#fff6f6', borderColor: '#f3c7c2' }}>
               <RotateCcw size={14} />
-              RESET SAUVEGARDE
+              EFFACER LA SAUVEGARDE
             </button>
           )}
         </div>
