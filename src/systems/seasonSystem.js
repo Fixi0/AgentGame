@@ -56,14 +56,17 @@ export const getSeasonMilestones = (week) => {
   const phase = getSeasonContext(week);
   const seasonWeek = phase.seasonWeek;
   const season = phase.season;
+  const worldCupSeason = ((season - 1) % 4) === 0;
   const milestones = [
     { key: 'start', week: (season - 1) * 38 + 1, label: `Début de saison ${season}`, detail: 'Le championnat repart et les dossiers s’installent.', tone: 'info' },
     { key: 'winter_approach', week: (season - 1) * 38 + 16, label: 'Approche du mercato d’hiver', detail: 'Les pré-accords et les discussions s’accélèrent.', tone: 'warn' },
     { key: 'winter_market', week: (season - 1) * 38 + 19, label: 'Mercato d’hiver', detail: 'Les offres peuvent se conclure et les dossiers bougent.', tone: 'danger' },
     { key: 'midseason', week: (season - 1) * 38 + 24, label: 'Mi-saison', detail: 'On voit les tendances, les tensions et les joueurs qui montent.', tone: 'info' },
     { key: 'europe_deep', week: (season - 1) * 38 + 26, label: 'Grandes soirées européennes', detail: 'Les coupes d’Europe prennent de la valeur.', tone: 'good' },
-    { key: 'world_cup', week: (season - 1) * 38 + 38, label: 'Coupe du monde', detail: 'La saison de clubs s’efface, la sélection prend le dessus.', tone: 'danger' },
-    { key: 'summer_market', week: (season - 1) * 38 + 39, label: 'Mercato d’été', detail: 'Les clubs passent en mode reconstruction et gros mouvements.', tone: 'warn' },
+    ...(worldCupSeason ? [
+      { key: 'world_cup', week: (season - 1) * 38 + 38, label: 'Coupe du monde', detail: 'La saison de clubs s’efface, la sélection prend le dessus.', tone: 'danger' },
+      { key: 'summer_market', week: (season - 1) * 38 + 39, label: 'Mercato d’été', detail: 'Les clubs passent en mode reconstruction et gros mouvements.', tone: 'warn' },
+    ] : []),
   ];
 
   return milestones

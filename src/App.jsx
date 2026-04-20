@@ -1429,6 +1429,7 @@ export default function FootballAgentGame() {
             clubOffers={state.clubOffers}
             negotiationCooldowns={state.negotiationCooldowns}
             currentWeek={state.week}
+            worldCupState={state.worldCupState}
             onClose={() => setModal(null)}
             onNego={(type) => startNegotiation(modal.data.player, type)}
             onMeeting={handlePlayerMeeting}

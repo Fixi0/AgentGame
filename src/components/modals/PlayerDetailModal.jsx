@@ -5,6 +5,7 @@ import { getCareerGoalProgress } from '../../systems/playerDevelopmentSystem';
 import { getClubMemorySummary } from '../../systems/clubSystem';
 import { getDossierHistorySummary, getRecentDossierEvents } from '../../systems/coherenceSystem';
 import { getPlayerDossierStatus, getRelevantDecisionHistory as getDecisionHistoryByPlayer, messageNeedsResponse } from '../../systems/dossierSystem';
+import { NATIONAL_TEAMS } from '../../systems/worldCupSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
@@ -22,7 +23,7 @@ const weekToLabel = (week) => {
   return `${MONTHS[monthIdx]} S${season}`;
 };
 
-export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
+export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, worldCupState = null, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
   const [tab, setTab] = useState('profile');
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
   const playerPromises = (promises ?? []).filter((promise) => promise.playerId === player.id && !promise.resolved && !promise.failed);
@@ -41,6 +42,8 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
   const promiseMemory = (promises ?? []).filter((promise) => promise.playerId === player.id).slice(0, 6);
   const dossierRecent = getRecentDossierEvents(dossierMemory ?? {}, player.id, 3);
   const dossierSummary = getDossierHistorySummary(dossierMemory ?? {}, player.id);
+  const worldCupSelection = worldCupState?.selectedPlayers?.find((entry) => entry.playerId === player.id) ?? null;
+  const worldCupCountry = worldCupSelection ? NATIONAL_TEAMS.find((team) => team.code === worldCupSelection.countryCode) : null;
   const actionGridStyle = {
     ...S.msgActions,
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
@@ -95,6 +98,13 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
           </div>
           {tab === 'profile' && (
             <>
+          <div style={S.objCard}>
+            <div style={S.secTitle}>RÉSUMÉ RAPIDE</div>
+            <div style={S.sumRow}><span style={S.sumK}>Statut</span><strong>{dossierStatus.label}{dossierStatus.detail ? ` · ${dossierStatus.detail}` : ''}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Contrat</span><strong>{(player.contractWeeksLeft ?? 0) > 0 ? `${player.contractWeeksLeft} sem. restantes` : 'Expiré'}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Saison</span><strong>{seasonStats.appearances ?? 0} matchs · {seasonStats.goals ?? 0} buts · {seasonStats.assists ?? 0} passes</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Coupe du monde</span><strong>{worldCupSelection ? `${worldCupCountry?.flag ?? worldCupSelection.countryFlag ?? player.countryFlag ?? ''} ${worldCupCountry?.name ?? player.countryLabel ?? 'Sélection'} · ${worldCupSelection.selectionNote ?? 'sélectionné'}` : 'Hors tournoi'}</strong></div>
+          </div>
           <div style={S.kpiGrid}>
             <DetailMetric label="Note" value={player.rating} />
             <DetailMetric label="Valeur" value={formatMoney(player.value)} />

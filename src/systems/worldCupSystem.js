@@ -95,15 +95,14 @@ export const getWorldCupFixturePreview = (player, phase, wcState = {}) => {
 export const shouldTriggerWorldCup = (season, worldCupState) => {
   if (worldCupState && worldCupState.phase !== 'done') return false; // déjà en cours
   // CdM 2026: après saison 1. CdM 2030: après saison 5. CdM 2034: saison 9...
-  const wcSeasons = new Set([1, 5, 9, 13, 17]);
-  return wcSeasons.has(season);
+  return ((season - 1) % 4) === 0;
 };
 
 /**
  * Crée un état CdM initial avec une liste de sélectionnés potentiels.
  */
 export const createWorldCupState = (season, roster) => {
-  const year = 2026 + (season - 1) * 4;
+  const year = 2026 + (season - 1);
   const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   const selectedPlayers = roster
     .filter((p) => p.rating >= 65 && !p.freeAgent && p.countryCode)
