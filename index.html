@@ -36,10 +36,60 @@
         <div>
           <div style="font-size:42px;line-height:1;margin-bottom:12px;">⚡</div>
           <div style="font-size:18px;font-weight:900;letter-spacing:.08em;margin-bottom:6px;">Agent FC</div>
-          <div style="font-size:13px;color:#64727d;line-height:1.6;">Chargement de la carrière...</div>
+          <div id="boot-fallback-text" style="font-size:13px;color:#64727d;line-height:1.6;margin-bottom:14px;">Chargement de la carrière...</div>
+          <button id="boot-hard-reset" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#172026;color:#ffffff;border:none;border-radius:8px;padding:12px 16px;font-size:12px;font-weight:900;letter-spacing:.06em;cursor:pointer;box-shadow:0 12px 26px rgba(15,23,32,.14);">
+            Réinitialiser la version locale
+          </button>
         </div>
       </div>
     </div>
+    <script>
+      window.__agentFootHardReset = async () => {
+        try {
+          localStorage.removeItem('agent_foot_save');
+          localStorage.removeItem('agent_foot_save_bak_0');
+          localStorage.removeItem('agent_foot_save_bak_1');
+          localStorage.removeItem('agent_foot_save_bak_2');
+          localStorage.removeItem('agent-fc-boot-version');
+        } catch (error) {
+          console.warn('[AgentFoot] localStorage reset skipped', error);
+        }
+        try {
+          if ('indexedDB' in window) {
+            indexedDB.deleteDatabase('agent_foot_local_db');
+          }
+        } catch (error) {
+          console.warn('[AgentFoot] indexedDB reset skipped', error);
+        }
+        try {
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((cacheName) => caches.delete(cacheName)));
+          }
+        } catch (error) {
+          console.warn('[AgentFoot] cache reset skipped', error);
+        }
+        try {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((reg) => reg.unregister()));
+          }
+        } catch (error) {
+          console.warn('[AgentFoot] service worker reset skipped', error);
+        }
+        window.location.reload();
+      };
+      const bootResetBtn = document.getElementById('boot-hard-reset');
+      if (bootResetBtn) bootResetBtn.addEventListener('click', () => window.__agentFootHardReset?.());
+      const bootFallbackText = document.getElementById('boot-fallback-text');
+      if (bootFallbackText) {
+        let dots = 0;
+        setInterval(() => {
+          dots = (dots + 1) % 4;
+          bootFallbackText.textContent = `Chargement de la carrière${'.'.repeat(dots)}`;
+        }, 900);
+      }
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
