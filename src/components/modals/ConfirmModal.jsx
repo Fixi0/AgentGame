@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { S } from '../styles';
 
@@ -14,6 +14,23 @@ export default function ConfirmModal({
   const isDanger = tone === 'danger';
   const accent = isDanger ? '#b42318' : '#00a676';
   const accentBg = isDanger ? '#fef2f2' : '#f0fdf8';
+  const confirmTriggeredRef = useRef(false);
+  const triggerConfirm = (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (confirmTriggeredRef.current) return;
+    confirmTriggeredRef.current = true;
+    onConfirm?.();
+  };
+  const triggerCancel = (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    onCancel?.();
+  };
 
   return (
     <div style={S.overlay}>
@@ -32,7 +49,8 @@ export default function ConfirmModal({
           <div style={{ display: 'grid', gap: 10, marginTop: 'auto', paddingTop: 4 }}>
             <button
               type="button"
-              onClick={onConfirm}
+              onPointerUp={triggerConfirm}
+              onClick={triggerConfirm}
               style={{
                 ...S.choiceBtn,
                 background: accent,
@@ -46,7 +64,7 @@ export default function ConfirmModal({
                 <div style={S.chDesc}>Action irréversible</div>
               </div>
             </button>
-            <button type="button" onClick={onCancel} style={{ ...S.choiceBtn, borderColor: '#d6dde3' }}>
+            <button type="button" onPointerUp={triggerCancel} onClick={triggerCancel} style={{ ...S.choiceBtn, borderColor: '#d6dde3' }}>
               <div>
                 <div style={S.chLabel}>{cancelLabel}</div>
                 <div style={S.chDesc}>Retour sans rien changer</div>
