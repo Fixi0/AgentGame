@@ -12,6 +12,20 @@ export default function SaveMenu({ hasSave, savePreview, onContinue, onNewGame, 
         <div style={S.el}>AGENT FOOT</div>
         <h1 style={S.eh}>Carrière</h1>
         <p style={S.onboardingText}>Reprends la partie en cours ou démarre une nouvelle agence.</p>
+        <div style={{
+          marginBottom: 14,
+          padding: '10px 12px',
+          background: '#f7f9fb',
+          border: '1px solid #e5eaf0',
+          borderRadius: 8,
+          color: '#3f5663',
+          fontSize: 12,
+          lineHeight: 1.45,
+          fontFamily: 'system-ui,sans-serif',
+          fontWeight: 650,
+        }}>
+          Si tu démarres une nouvelle agence, tu passeras d'abord par la création. La navbar arrive ensuite dans la carrière.
+        </div>
         {savePreview && (
           <div style={S.objCard}>
             <div style={S.secTitle}>PARTIE EN COURS</div>

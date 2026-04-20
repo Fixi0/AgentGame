@@ -271,6 +271,20 @@ export default function Onboarding({ profile, onComplete }) {
       <div style={{ ...S.onboardingCard, paddingTop: 24 }}>
         <div style={S.el}>NOUVELLE CARRIÈRE · ÉTAPE {step}/3</div>
         <ProgressBar step={step} />
+        <div style={{
+          margin: '10px 0 18px',
+          padding: '10px 12px',
+          background: '#f3fbf8',
+          border: '1px solid #cfeee3',
+          borderRadius: 8,
+          color: '#246555',
+          fontSize: 12,
+          lineHeight: 1.45,
+          fontFamily: 'system-ui,sans-serif',
+          fontWeight: 650,
+        }}>
+          La barre du bas n'apparaît qu'après la création de l'agence. Ici, tu construis d'abord ta carrière.
+        </div>
 
         {step === 1 && <Step1 draft={draft} update={update} />}
         {step === 2 && <Step2 draft={draft} update={update} />}
