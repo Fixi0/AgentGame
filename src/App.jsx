@@ -21,6 +21,7 @@ import Shop from './components/Shop';
 import SaveMenu from './components/SaveMenu';
 import Scouting from './components/Scouting';
 import Standings from './components/Standings';
+import EuropeanBracket from './components/EuropeanBracket';
 import InteractiveModal from './components/modals/InteractiveModal';
 import ClubModal from './components/modals/ClubModal';
 import MediaCrisisModal from './components/modals/MediaCrisisModal';
@@ -59,6 +60,7 @@ import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, getNego
 import { applyClubRelation, recordClubMemory } from './systems/clubSystem';
 import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
+import { isEuropeanMatchWeek, EURO_CUP_LABELS } from './systems/europeanCupSystem';
 import { createMessage, createStaffConversationMessage, getConversationParticipant, getMessageContextOutcome, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage, normalizePromises } from './systems/promiseSystem';
 import { getActiveDossierPlayerIds, getOfferAcceptanceReadiness, getPendingMessageCounts, getPlayerLifecycleState } from './systems/dossierSystem';
@@ -213,6 +215,7 @@ const moreItems = [
   { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network },
   { key: 'dossiers', label: 'Dossiers', desc: 'Messages, tensions, mémoire', icon: FileText },
   { key: 'standings', label: 'Ligues', desc: 'Classements nationaux + Europe', icon: Trophy },
+  { key: 'europe', label: 'Coupes Euro', desc: 'Bracket · Parcours KO · Stats', icon: Trophy },
   { key: 'calendar', label: 'Calendrier', desc: 'Affiches et résultats', icon: CalendarDays },
   { key: 'deadline', label: 'Deadline Day', desc: 'Appels mercato', icon: Timer },
   { key: 'scouting', label: 'Scouting', desc: 'Missions et rapports', icon: Telescope },
@@ -1222,6 +1225,11 @@ export default function FootballAgentGame() {
   const phase = getPhase(state.week);
   const calendarSnapshot = getCalendarSnapshot(state.week);
   const pendingCounts = getPendingMessageCounts(state);
+  // Badge "match européen ce soir" — vrai si au moins un joueur a un match euro cette semaine
+  const hasEuroMatchThisWeek = (state.roster ?? []).some((p) => {
+    const comp = p.europeanCompetition;
+    return comp && isEuropeanMatchWeek(phase.seasonWeek, comp);
+  });
   const agencyProfile = state.agencyProfile;
 
   if (!agencyProfile.onboarded) {
@@ -1246,6 +1254,14 @@ export default function FootballAgentGame() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            {hasEuroMatchThisWeek && (
+              <button
+                onClick={() => setView('europe')}
+                style={{ fontSize: 10, fontWeight: 800, color: '#1a1a6e', background: '#eef0ff', border: '1px solid #c5caff', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', cursor: 'pointer', animation: 'pulse 2s infinite' }}
+              >
+                ⭐ Match euro ce soir
+              </button>
+            )}
             {saveFlash && (
               <span style={{ fontSize: 10, fontWeight: 800, color: '#00a676', background: '#f0fdf8', border: '1px solid #cfeee3', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', transition: 'opacity .3s' }}>
                 💾 Sauvegardé
@@ -1319,6 +1335,7 @@ export default function FootballAgentGame() {
         {view === 'shop' && <Shop state={state} phase={phase} onBuy={handleBuyShopItem} />}
         {view === 'calendar' && <Calendar state={state} onClubDetails={showClubDetails} />}
         {view === 'standings' && <Standings state={state} onClubDetails={showClubDetails} />}
+        {view === 'europe' && <EuropeanBracket state={state} />}
         {view === 'deadline' && <DeadlineDay state={state} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={state} onStartMission={handleStartScoutingMission} />}
         {view === 'vestiaire' && <Vestiaire state={state} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} />}

@@ -5,11 +5,14 @@ export const CSS = `
 @keyframes pulseGlow{0%,100%{box-shadow:0 8px 28px rgba(0,166,118,.38)}50%{box-shadow:0 8px 38px rgba(0,166,118,.7),0 0 0 10px rgba(0,166,118,.10)}}
 @keyframes badgePop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-*{box-sizing:border-box}body{margin:0;padding:0;background:#101314}button{font-family:inherit}input,select,textarea{font-family:inherit}
+*{box-sizing:border-box}
+html{height:-webkit-fill-available}
+body{margin:0;padding:0;background:#101314;min-height:100vh;min-height:-webkit-fill-available}
+button{font-family:inherit}input,select,textarea{font-family:inherit}
 `;
 
 export const S = {
-  app: { minHeight: '100vh', background: 'linear-gradient(180deg,#f7f9fb,#eef2f5 46%,#f8fafc)', color: '#172026', fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', paddingBottom: 40 },
+  app: { minHeight: '100dvh', background: 'linear-gradient(180deg,#f7f9fb,#eef2f5 46%,#f8fafc)', color: '#172026', fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', paddingBottom: 40 },
   onboardingWrap: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
   onboardingCard: { width: '100%', maxWidth: 720, background: '#ffffff', border: '1px solid #e5eaf0', borderRadius: 8, padding: 22, boxShadow: '0 24px 70px rgba(15,23,32,.14)' },
   onboardingText: { margin: '0 0 18px', color: '#64727d', lineHeight: 1.5, fontSize: 14 },
@@ -34,7 +37,7 @@ export const S = {
   statCard: { background: '#ffffff', border: '1px solid #e5eaf0', padding: '12px 12px', borderRadius: 8, boxShadow: '0 10px 28px rgba(15,23,32,.07)' },
   statLabel: { fontSize: 9, letterSpacing: '.2em', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, fontFamily: 'system-ui,sans-serif' },
   statValue: { fontSize: 19, fontWeight: 850, color: '#172026' },
-  nav: { display: 'flex', borderTop: '1px solid #e5eaf0', background: 'rgba(255,255,255,.94)', position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, backdropFilter: 'blur(16px)', boxShadow: '0 -12px 34px rgba(15,23,32,.08)' },
+  nav: { display: 'flex', borderTop: '1px solid #e5eaf0', background: 'rgba(255,255,255,.94)', position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 10, backdropFilter: 'blur(16px)', boxShadow: '0 -12px 34px rgba(15,23,32,.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' },
   navBtn: { flex: 1, background: 'transparent', border: 'none', padding: '9px 4px 10px', fontSize: 9, letterSpacing: '.03em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'system-ui,sans-serif', fontWeight: 800, transition: 'color .2s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, minWidth: 0 },
   main: { animation: 'fadeIn .3s ease-out' },
   vp: { padding: '24px 20px 92px', maxWidth: 920, margin: '0 auto' },

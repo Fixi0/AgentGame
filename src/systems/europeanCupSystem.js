@@ -17,6 +17,23 @@ import { rand, makeId } from '../utils/helpers';
 // Pays dont les clubs accèdent à la CL (top leagues européennes + variantes de code UK)
 const TOP_LEAGUE_COUNTRIES = new Set(['FR', 'ES', 'EN', 'GB', 'DE', 'IT', 'PT', 'NL']);
 
+// ── Utilitaires de seed déterministe ──────────────────────────────────────────
+/** FNV-1a hash 32-bit */
+const hashStr = (str = '') => {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h;
+};
+/** LCG suivant : retourne un nombre entier 32 bits non signé */
+const lcgNext = (s) => (Math.imul(s, 1664525) + 1013904223) >>> 0;
+
+// ── Pool de clubs par compétition ─────────────────────────────────────────────
+const getCompetitionPool = (competition) => {
+  if (competition === 'CL') return CLUBS.filter((c) => c.tier === 1 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
+  if (competition === 'EL') return CLUBS.filter((c) => c.tier <= 2 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
+  return CLUBS.filter((c) => c.tier <= 3 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
+};
+
 const EURO_SCHEDULE = {
   CL: {
     league: new Set([3, 5, 7, 9, 11, 13, 15, 17]),
@@ -200,19 +217,71 @@ const FLAG_MAP = {
 };
 
 /**
- * Sélectionne un adversaire européen réel parmi les clubs du jeu.
- * Utilise les clubs de la même compétition pour que les noms d'adversaires
- * correspondent aux équipes visibles dans les classements.
+ * Retourne l'index de journée de ligue (0–7) pour une semaine de saison.
+ * Retourne -1 si ce n'est pas une journée de ligue.
+ */
+export const getEuropeanMatchdayIndex = (seasonWeek, competition) => {
+  const league = Array.from(EURO_SCHEDULE[competition]?.league ?? []).sort((a, b) => a - b);
+  return league.indexOf(seasonWeek);
+};
+
+/**
+ * Sélectionne un adversaire européen DÉTERMINISTE basé sur club + compétition + saison + journée.
+ * Filtre les adversaires déjà affrontés (phase de ligue).
+ */
+export const pickSeededOpponent = (clubName, competition, matchdayIdx, season, usedOpponents = []) => {
+  const pool = getCompetitionPool(competition);
+  const candidates = pool.filter((c) => c.name !== clubName && !usedOpponents.includes(c.name));
+  const source = candidates.length ? candidates : pool.filter((c) => c.name !== clubName);
+  if (!source.length) return { name: 'Club Européen', country: '🌍' };
+  const seed = hashStr(`${clubName}:${competition}:${season}:md${matchdayIdx}`);
+  const club = source[seed % source.length];
+  return { name: club.name, country: FLAG_MAP[club.countryCode] ?? '🌍' };
+};
+
+/**
+ * Génère les 16 clubs participants au bracket KO d'une compétition/saison.
+ * Les clubs agents sont toujours inclus.
+ */
+export const generateKOBracketClubs = (competition, season, agentClubNames = []) => {
+  const pool = getCompetitionPool(competition);
+  const agentSet = new Set(agentClubNames);
+  let seed = hashStr(`${competition}:${season}:bracket`);
+
+  const result = [];
+  // D'abord les clubs agents
+  for (const name of agentClubNames) {
+    const ref = pool.find((c) => c.name === name);
+    result.push({ name, country: FLAG_MAP[ref?.countryCode] ?? '🌍', isAgent: true });
+  }
+  // Remplir avec le reste du pool
+  const candidates = pool.filter((c) => !agentSet.has(c.name));
+  while (result.length < 16 && candidates.length) {
+    seed = lcgNext(seed);
+    const idx = seed % candidates.length;
+    const club = candidates.splice(idx, 1)[0];
+    result.push({ name: club.name, country: FLAG_MAP[club.countryCode] ?? '🌍', isAgent: false });
+  }
+  return result;
+};
+
+/**
+ * Initialise la structure EuroCup data pour une compétition/saison.
+ */
+export const initEuroCupCompData = (competition, season) => ({
+  competition,
+  season,
+  opponentHistory: {}, // clubName → string[] (noms des adversaires en phase de ligue)
+  koPath: {},          // clubName → { playoff|roundOf16|quarters|semis|final: {opponent, score, result, opponentCountry} }
+  bracketClubs: null,  // généré à l'entrée en KO
+});
+
+/**
+ * Sélectionne un adversaire aléatoire (fallback non déterministe pour KO).
+ * Conservé pour compatibilité interne.
  */
 const pickEuropeanOpponent = (playerClubName, competition) => {
-  let pool;
-  if (competition === 'CL') {
-    pool = CLUBS.filter((c) => c.tier === 1 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
-  } else if (competition === 'EL') {
-    pool = CLUBS.filter((c) => c.tier <= 2 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
-  } else {
-    pool = CLUBS.filter((c) => c.tier <= 3 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
-  }
+  const pool = getCompetitionPool(competition);
   const candidates = pool.filter((c) => c.name !== playerClubName);
   if (!candidates.length) return { name: 'Club Européen', country: '🌍' };
   const club = candidates[Math.floor(Math.random() * candidates.length)];

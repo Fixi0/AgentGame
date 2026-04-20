@@ -143,13 +143,13 @@ function EuropeCompetitionCard({ state, competition, season, seasonWeek, onClubD
         })}
       </div>
 
-      <div style={{ ...S.promiseRow, background: ‘#ffffff’, borderRadius: 8, padding: ‘8px 10px’, marginBottom: 10 }}>
-        <span>{currentStageKey === ‘league’ ? ‘Classement européen’ : ‘Phase éliminatoire’}</span>
-        <strong>{rows.length} club{rows.length > 1 ? ‘s’ : ‘’} engagés</strong>
+      <div style={{ ...S.promiseRow, background: '#ffffff', borderRadius: 8, padding: '8px 10px', marginBottom: 10 }}>
+        <span>{currentStageKey === 'league' ? 'Classement européen' : 'Phase éliminatoire'}</span>
+        <strong>{rows.length} club{rows.length > 1 ? 's' : ''} engagés</strong>
       </div>
 
       {rows.length ? (
-        <div style={{ display: ‘grid’, gap: 6 }}>
+        <div style={{ display: 'grid', gap: 6 }}>
           {rows.map((row, index) => {
             const goalDiff = row.goalsFor - row.goalsAgainst;
             const isMyClub = row.rosterCount > 0;
@@ -161,53 +161,53 @@ function EuropeCompetitionCard({ state, competition, season, seasonWeek, onClubD
                 key={row.club.name}
                 onClick={() => onClubDetails?.(row.club.name)}
                 style={{
-                  width: ‘100%’,
-                  textAlign: ‘left’,
-                  background: isMyClub ? ‘#f0fdf8’ : ‘#ffffff’,
-                  border: `1px solid ${isMyClub ? ‘#a7f3d0’ : ‘#e5eaf0’}`,
-                  borderLeft: `4px solid ${isMyClub ? ‘#00a676’ : cup.color}`,
+                  width: '100%',
+                  textAlign: 'left',
+                  background: isMyClub ? '#f0fdf8' : '#ffffff',
+                  border: `1px solid ${isMyClub ? '#a7f3d0' : '#e5eaf0'}`,
+                  borderLeft: `4px solid ${isMyClub ? '#00a676' : cup.color}`,
                   borderRadius: 8,
-                  padding: ‘10px 12px’,
-                  cursor: ‘pointer’,
-                  boxShadow: isMyClub ? ‘0 4px 14px rgba(0,166,118,.12)’ : ‘0 6px 18px rgba(15,23,32,.05)’,
-                  color: ‘#172026’,
+                  padding: '10px 12px',
+                  cursor: 'pointer',
+                  boxShadow: isMyClub ? '0 4px 14px rgba(0,166,118,.12)' : '0 6px 18px rgba(15,23,32,.05)',
+                  color: '#172026',
                 }}
               >
-                <div style={{ display: ‘flex’, justifyContent: ‘space-between’, gap: 10, alignItems: ‘center’ }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1.25, display: ‘flex’, alignItems: ‘center’, gap: 6 }}>
-                      <span style={{ fontSize: 11, minWidth: 20, color: ‘#64727d’, fontFamily: ‘system-ui,sans-serif’ }}>{index + 1}.</span>
+                    <div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1.25, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, minWidth: 20, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>{index + 1}.</span>
                       <span>{row.flag} {row.club.name}</span>
                       {isMyClub && (
-                        <span style={{ fontSize: 9, fontWeight: 900, background: ‘#00a676’, color: ‘#fff’, borderRadius: 4, padding: ‘1px 5px’, letterSpacing: ‘.06em’, fontFamily: ‘system-ui,sans-serif’ }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, background: '#00a676', color: '#fff', borderRadius: 4, padding: '1px 5px', letterSpacing: '.06em', fontFamily: 'system-ui,sans-serif' }}>
                           MON CLUB
                         </span>
                       )}
                     </div>
                     {row.played > 0 && (
-                      <div style={{ display: ‘flex’, gap: 5, marginTop: 5, flexWrap: ‘wrap’ }}>
-                        <span style={{ fontSize: 10, color: ‘#3f5663’, fontFamily: ‘system-ui,sans-serif’, background: ‘#f0fdf8’, border: ‘1px solid #d1fae5’, borderRadius: 4, padding: ‘1px 5px’ }}>V {row.win}</span>
-                        <span style={{ fontSize: 10, color: ‘#3f5663’, fontFamily: ‘system-ui,sans-serif’, background: ‘#f7f9fb’, border: ‘1px solid #e5eaf0’, borderRadius: 4, padding: ‘1px 5px’ }}>N {row.draw}</span>
-                        <span style={{ fontSize: 10, color: ‘#3f5663’, fontFamily: ‘system-ui,sans-serif’, background: ‘#fff5f5’, border: ‘1px solid #fecaca’, borderRadius: 4, padding: ‘1px 5px’ }}>D {row.loss}</span>
-                        <span style={{ fontSize: 10, color: ‘#64727d’, fontFamily: ‘system-ui,sans-serif’, background: ‘#f7f9fb’, border: ‘1px solid #e5eaf0’, borderRadius: 4, padding: ‘1px 5px’ }}>
+                      <div style={{ display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 10, color: '#3f5663', fontFamily: 'system-ui,sans-serif', background: '#f0fdf8', border: '1px solid #d1fae5', borderRadius: 4, padding: '1px 5px' }}>V {row.win}</span>
+                        <span style={{ fontSize: 10, color: '#3f5663', fontFamily: 'system-ui,sans-serif', background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 4, padding: '1px 5px' }}>N {row.draw}</span>
+                        <span style={{ fontSize: 10, color: '#3f5663', fontFamily: 'system-ui,sans-serif', background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 4, padding: '1px 5px' }}>D {row.loss}</span>
+                        <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 4, padding: '1px 5px' }}>
                           {goalDiff >= 0 ? `+${goalDiff}` : goalDiff}
                         </span>
                         {row.latest && (
-                          <span style={{ fontSize: 10, color: ‘#3f5663’, fontFamily: ‘system-ui,sans-serif’ }}>
-                            {latestStage} · {row.latest.score} vs {row.latest.opponent ?? ‘?’}
+                          <span style={{ fontSize: 10, color: '#3f5663', fontFamily: 'system-ui,sans-serif' }}>
+                            {latestStage} · {row.latest.score} vs {row.latest.opponent ?? '?'}
                           </span>
                         )}
                       </div>
                     )}
                     {row.played === 0 && (
-                      <div style={{ fontSize: 10, color: ‘#9aa7b2’, fontFamily: ‘system-ui,sans-serif’, marginTop: 3 }}>
+                      <div style={{ fontSize: 10, color: '#9aa7b2', fontFamily: 'system-ui,sans-serif', marginTop: 3 }}>
                         Aucun match joué pour le moment
                       </div>
                     )}
                   </div>
-                  <div style={{ textAlign: ‘right’, flexShrink: 0 }}>
-                    <div style={{ fontSize: 20, fontWeight: 950, color: row.played > 0 ? cup.color : ‘#c4cdd6’, lineHeight: 1 }}>{row.points}</div>
-                    <div style={{ fontSize: 9, color: ‘#64727d’, fontFamily: ‘system-ui,sans-serif’, letterSpacing: ‘.06em’, textTransform: ‘uppercase’, marginTop: 1 }}>MJ {row.played}</div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 20, fontWeight: 950, color: row.played > 0 ? cup.color : '#c4cdd6', lineHeight: 1 }}>{row.points}</div>
+                    <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.06em', textTransform: 'uppercase', marginTop: 1 }}>MJ {row.played}</div>
                   </div>
                 </div>
               </button>
@@ -238,7 +238,7 @@ export default function Standings({ state, onClubDetails }) {
     <div style={S.vp}>
       <div style={S.et}>
         <div style={S.el}>{viewMode === 'europe' ? 'UEFA' : 'CHAMPIONNATS'}</div>
-        <h1 style={S.eh}>{viewMode === 'europe' ? 'Coupes d’Europe' : 'Classements'}</h1>
+        <h1 style={S.eh}>{viewMode === 'europe' ? "Coupes d'Europe" : 'Classements'}</h1>
       </div>
 
       <div style={S.filterPanel}>

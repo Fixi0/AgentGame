@@ -19,7 +19,7 @@ import { createCareerGoal, createScoutReport, updateSeasonStats } from '../syste
 import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } from '../systems/promiseSystem';
 import { MATCH_INCIDENT_EVENTS, buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
-import { getClubEuropeanCompetition, getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS, normalizeEuropeanMatch } from '../systems/europeanCupSystem';
+import { getClubEuropeanCompetition, getEuropeanCompetition, isEuropeanMatchWeek, getEuropeanStage, getEuropeanMatchdayIndex, pickSeededOpponent, generateKOBracketClubs, initEuroCupCompData, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS, normalizeEuropeanMatch } from '../systems/europeanCupSystem';
 import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview, getWorldCupInterestClubs } from '../systems/worldCupSystem';
 import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSeasonalNewsItem } from '../systems/calendarEventsSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
@@ -429,6 +429,7 @@ export const createFreshState = () => ({
   seasonAwards: {},
   worldState: generateWorldState(1),
   worldCupState: null,
+  europeanCupData: {},
   contacts: createDefaultContacts(),
   seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 120 }),
   roster: [],
@@ -562,6 +563,7 @@ export const migrateState = (state) => {
     lastInteractiveEventWeek: state.lastInteractiveEventWeek ?? 0,
     legendarySeenIds: state.legendarySeenIds ?? [],
     worldCupState: state.worldCupState ?? null,
+    europeanCupData: state.europeanCupData ?? {},
     sentSeasonalMessages: state.sentSeasonalMessages ?? [],
     activePeriod: state.activePeriod ?? null,
     office: {
@@ -1719,6 +1721,11 @@ export const playWeek = (state) => {
   // ── Coupes Européennes ─────────────────────────────────────────────────────
   const euroMatchResults = [];
   let euRoster = caredRoster;
+  // Clone pour mutation dans la boucle
+  let nextEuroData = JSON.parse(JSON.stringify(state.europeanCupData ?? {}));
+  // Reset au début d'une nouvelle saison
+  if (phase.seasonWeek === 1 && state.week > 1) nextEuroData = {};
+
   if (!isWorldCupActive) {
     const euroGroups = new Map();
     for (const player of caredRoster) {
@@ -1743,6 +1750,35 @@ export const playWeek = (state) => {
       const healthyPlayers = players.filter((player) => (player.injured ?? 0) <= 0);
       if (!healthyPlayers.length) continue;
 
+      // ── Initialiser les données euro pour ce club/comp/saison ──────────
+      const compKey = `${comp}:${currentSeason}`;
+      if (!nextEuroData[compKey]) nextEuroData[compKey] = initEuroCupCompData(comp, currentSeason);
+      const compData = nextEuroData[compKey];
+      if (!compData.opponentHistory[clubName]) compData.opponentHistory[clubName] = [];
+      if (!compData.koPath[clubName]) compData.koPath[clubName] = {};
+
+      // ── Sélection de l'adversaire (déterministe + historique) ──────────
+      const stage = getEuropeanStage(phase.seasonWeek, comp);
+      const matchdayIdx = getEuropeanMatchdayIndex(phase.seasonWeek, comp);
+      const usedOpponents = compData.opponentHistory[clubName];
+      // En KO, on utilise aussi un index déterministe (pas de répétition interne à la saison)
+      const effectiveIdx = stage === 'league' ? matchdayIdx : 20 + Object.keys(compData.koPath[clubName]).length;
+      const seededOpponent = pickSeededOpponent(clubName, comp, effectiveIdx, currentSeason, stage === 'league' ? usedOpponents : []);
+
+      // Mettre à jour l'historique des adversaires (phase de ligue uniquement)
+      if (stage === 'league') compData.opponentHistory[clubName] = [...usedOpponents, seededOpponent.name];
+
+      // ── Générer le bracket KO si on entre en phase KO ─────────────────
+      if (stage !== 'league' && !compData.bracketClubs) {
+        const agentClubs = [...new Set(
+          caredRoster
+            .filter((p) => getPlayerEuropeanCompetition(p, currentSeason) === comp)
+            .map((p) => p.club)
+            .filter(Boolean),
+        )];
+        compData.bracketClubs = generateKOBracketClubs(comp, currentSeason, agentClubs);
+      }
+
       const averageRating = Math.round(healthyPlayers.reduce((sum, player) => sum + (player.rating ?? 60), 0) / healthyPlayers.length);
       const averageForm = Math.round(healthyPlayers.reduce((sum, player) => sum + (player.form ?? 60), 0) / healthyPlayers.length);
       const seedPlayer = {
@@ -1754,8 +1790,20 @@ export const playWeek = (state) => {
         clubCity,
         injured: 0,
       };
-      const clubMatchBase = simulateEuropeanMatch(seedPlayer, comp, phase.seasonWeek);
+      // Passer l'adversaire sélectionné comme contexte partagé
+      const clubMatchBase = simulateEuropeanMatch(seedPlayer, comp, phase.seasonWeek, { opponent: seededOpponent });
       if (!clubMatchBase || !clubMatchBase.matchRating) continue;
+
+      // ── Mémoriser le parcours KO ───────────────────────────────────────
+      if (stage !== 'league') {
+        compData.koPath[clubName][stage] = {
+          opponent: seededOpponent.name,
+          opponentCountry: seededOpponent.country,
+          score: clubMatchBase.score,
+          result: clubMatchBase.result,
+          week: state.week,
+        };
+      }
 
       for (const player of healthyPlayers) {
         const euroMatch = simulateEuropeanMatch(player, comp, phase.seasonWeek, clubMatchBase);
@@ -2601,6 +2649,7 @@ export const playWeek = (state) => {
     lastInteractiveEventWeek: interactiveEvent ? state.week + 1 : (state.lastInteractiveEventWeek ?? 0),
     worldState: nextWorldState,
     worldCupState: wcState,
+    europeanCupData: nextEuroData,
     sentSeasonalMessages: activePeriod
       ? [...new Set([...(state.sentSeasonalMessages ?? []), `calendar_${activePeriod.key}_${phase.season}`])]
       : (state.sentSeasonalMessages ?? []),
