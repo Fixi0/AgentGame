@@ -622,7 +622,7 @@ export const refreshMarket = (state) => {
 export const upgradeOffice = (state, type) => {
   const currentLevel = state.office[type];
   const cost = OFFICE_UPGRADE_COSTS[type]?.[currentLevel];
-  if (currentLevel >= 3 || !cost) return { state, error: 'Niveau maximum' };
+  if (!cost) return { state, error: 'Niveau maximum' };
   if (state.money < cost) return { state, error: 'Fonds insuffisants' };
 
   return {

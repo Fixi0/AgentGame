@@ -53,7 +53,7 @@ export const getAgencyProgressSnapshot = (state = {}) => {
   const relationScore = clubRelations.length ? average(clubRelations) : 50;
   const portfolioScore = clampNumber(Math.round(portfolioValue / 260000), 0, 14);
   const marketScore = clampNumber(Math.round((avgRating * 0.42) + (avgTrust * 0.28) + (utilization * 10)), 0, 20);
-  const structureScore = clampNumber(Math.round(officeLevel * 2.4 + staffLevel * 1.5 + (state.agencyLevel ?? 1) * 3), 0, 22);
+  const structureScore = clampNumber(Math.round(officeLevel * 2.2 + staffLevel * 1.35 + (state.agencyLevel ?? 1) * 3), 0, 30);
   const reputationScore = clampNumber(Math.round(rep * 0.16 + credibility * 0.1 + relationScore * 0.08), 0, 16);
   const longevityScore = clampNumber(Math.round((state.week ?? 1) / 26), 0, 10);
   const historyScore = clampNumber(Math.round((state.decisionHistory?.length ?? 0) / 4), 0, 8);

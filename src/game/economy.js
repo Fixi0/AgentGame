@@ -1,7 +1,7 @@
 export const OFFICE_UPGRADE_COSTS = {
-  scoutLevel:   [25000, 70000, 180000],
-  lawyerLevel:  [18000, 55000, 140000],
-  mediaLevel:   [22000, 65000, 160000],
+  scoutLevel:   [25000, 70000, 180000, 360000, 650000],
+  lawyerLevel:  [18000, 55000, 140000, 290000, 520000],
+  mediaLevel:   [22000, 65000, 160000, 320000, 580000],
 };
 
 // Fixed weekly agency running costs per level — creates meaningful spend pressure

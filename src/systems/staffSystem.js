@@ -4,28 +4,28 @@ export const STAFF_ROLES = {
     desc: 'Améliore la qualité du marché et accélère le déblocage Brésil/Argentine.',
     cost: 35000,
     weeklyCost: 900,
-    maxLevel: 3,
+    maxLevel: 5,
   },
   dataAnalyst: {
     label: 'Analyste data',
     desc: 'Réduit les mauvais recrutements et augmente la progression des jeunes.',
     cost: 28000,
     weeklyCost: 700,
-    maxLevel: 3,
+    maxLevel: 5,
   },
   communityManager: {
     label: 'Community manager',
     desc: 'Améliore les news positives et amortit les scandales.',
     cost: 24000,
     weeklyCost: 650,
-    maxLevel: 3,
+    maxLevel: 5,
   },
   playerCare: {
     label: 'Player care',
     desc: 'Protège le moral et la confiance lors des semaines difficiles.',
     cost: 30000,
     weeklyCost: 800,
-    maxLevel: 3,
+    maxLevel: 5,
   },
 };
 

@@ -131,8 +131,8 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
           </div>
           <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
             <div style={S.promiseRow}><span>Réputation</span><strong>{progression.metrics.reputation}/1000</strong></div>
-            <div style={S.promiseRow}><span>Structure</span><strong>{progression.metrics.officeLevel}/9</strong></div>
-            <div style={S.promiseRow}><span>Staff</span><strong>{progression.metrics.staffLevel}/12</strong></div>
+            <div style={S.promiseRow}><span>Structure</span><strong>{progression.metrics.officeLevel}/15</strong></div>
+            <div style={S.promiseRow}><span>Staff</span><strong>{progression.metrics.staffLevel}/20</strong></div>
             <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(progression.metrics.portfolioValue)}</strong></div>
             <div style={S.promiseRow}><span>Confiance clubs</span><strong>{progression.metrics.relationScore}/100</strong></div>
             <div style={S.promiseRow}><span>Occupation</span><strong>{progression.metrics.utilization}%</strong></div>
@@ -172,12 +172,12 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
                 <div style={S.offDesc}>{item.desc}</div>
               </div>
               <div style={S.offLvl}>
-                {[0, 1, 2].map((index) => (
+                {Array.from({ length: item.costs.length }).map((_, index) => (
                   <div key={index} style={{ ...S.lvlDot, background: index < item.level ? '#00a676' : '#d6dde3' }} />
                 ))}
               </div>
             </div>
-            {item.level < 3 ? (
+            {item.level < item.costs.length ? (
               <button onClick={() => onUpgrade(item.key)} style={S.upBtn}>
                 AMELIORER · {formatMoney(item.costs[item.level])}
               </button>
