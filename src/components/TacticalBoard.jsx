@@ -3,6 +3,16 @@ import { S } from './styles';
 
 const POS_COLORS = { ATT: '#e83a3a', DEF: '#2563eb', MIL: '#16a34a', GK: '#d97706' };
 
+const getInitials = (player) => {
+  const first = typeof player?.firstName === 'string' && player.firstName.trim()
+    ? player.firstName.trim()[0]
+    : 'J';
+  const last = typeof player?.lastName === 'string' && player.lastName.trim()
+    ? player.lastName.trim()[0]
+    : '';
+  return `${first}${last}`.toUpperCase();
+};
+
 function getPositionLayout(roster) {
   // Group by roleId/roleShort/position
   const placed = [];
@@ -112,7 +122,7 @@ export default function TacticalBoard({ roster, state, onSelectPlayer }) {
         {/* Players */}
         {positions.map(({ player, x, y }) => {
           const color = POS_COLORS[player.position] ?? '#64727d';
-          const initials = `${player.firstName[0]}${player.lastName[0]}`;
+          const initials = getInitials(player);
           const lastResult = player.recentResults?.[player.recentResults.length - 1] ?? null;
           const dotColor = formDotColor(lastResult);
           const isInjured = player.injured > 0;
@@ -141,7 +151,7 @@ export default function TacticalBoard({ roster, state, onSelectPlayer }) {
               )}
               {/* Player name below */}
               <text x={x} y={y + 26} textAnchor="middle" fill="rgba(255,255,255,0.9)" fontSize={7} fontWeight="700" fontFamily="system-ui,sans-serif">
-                {player.lastName.slice(0, 8)}
+                {(typeof player?.lastName === 'string' && player.lastName.trim() ? player.lastName : 'Joueur').slice(0, 8)}
               </text>
             </g>
           );

@@ -9,6 +9,16 @@ import { S } from './styles';
 
 const POS_COLORS = { ATT: '#e83a3a', DEF: '#2563eb', MIL: '#16a34a', GK: '#d97706' };
 
+const getInitials = (player) => {
+  const first = typeof player?.firstName === 'string' && player.firstName.trim()
+    ? player.firstName.trim()[0]
+    : 'J';
+  const last = typeof player?.lastName === 'string' && player.lastName.trim()
+    ? player.lastName.trim()[0]
+    : '';
+  return `${first}${last}`.toUpperCase();
+};
+
 function hashClubColor(clubName) {
   if (!clubName || clubName === 'Libre') return '#64727d';
   let h = 0;
@@ -108,7 +118,7 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
       <div style={S.pTop} onClick={onDetails} role={onDetails ? 'button' : undefined}>
         {/* Colored position avatar */}
         <div style={{ ...S.playerAvatar, background: isLegendary ? 'linear-gradient(135deg,#d4a017,#f5c842)' : posColor, color: isLegendary ? '#1a1200' : '#ffffff', border: `2px solid ${isLegendary ? '#d4a017' : posColor}` }}>
-          {isLegendary ? '👑' : `${player.firstName[0]}${player.lastName[0]}`}
+          {isLegendary ? '👑' : getInitials(player)}
         </div>
         <div style={{ ...S.badge, background: isLegendary ? 'linear-gradient(135deg,#d4a017,#b8860b)' : ratingColor }}>
           <div style={{ ...S.badgeNum, color: isLegendary ? '#1a1200' : undefined }}>{player.rating}{trendArrow}</div>
