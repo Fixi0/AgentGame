@@ -564,7 +564,7 @@ function NewspaperFront({ news, history, roster, phase, worldCupState, onNav }) 
   );
 }
 
-function EuropeanCupWidget({ roster, currentSeason }) {
+function EuropeanCupWidget({ roster, currentSeason = 1 }) {
   const euPlayers = roster
     .map((player) => ({ player, competition: getEuropeanCompetition(player, currentSeason) }))
     .filter((entry) => entry.competition)

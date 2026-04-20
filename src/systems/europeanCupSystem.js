@@ -219,8 +219,10 @@ const EURO_OPPONENTS = [
 /**
  * Simule un match européen pour un joueur.
  * Retourne un objet match result compatible avec matchSystem.
+ * Si un clubMatchContext est fourni, on réutilise l'affiche du club
+ * pour que tous les joueurs du même club partagent le même match.
  */
-export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
+export const simulateEuropeanMatch = (player, competition, seasonWeek, clubMatchContext = null) => {
   const stage = getEuropeanStage(seasonWeek, competition);
   const phase = getEuropeanPhaseLabel(seasonWeek, competition);
   const isFinal = stage === 'final';
@@ -228,24 +230,16 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
   const isQuarter = stage === 'quarters';
   const isPlayoff = stage === 'playoff';
 
-  // Qualité de l'adversaire — plus fort en phase finale
-  const opponentStrength = isFinal
-    ? rand(78, 92)
-    : isSF
-      ? rand(74, 88)
-      : isQuarter
-        ? rand(70, 84)
-        : isPlayoff
-          ? rand(64, 80)
-          : rand(55, 75);
-  const playerStrength = player.rating + (player.form - 60) / 5;
-  const homeBonus = Math.random() < 0.5 ? 0.3 : 0;
-
-  // Score brut
-  const homeGoals = Math.max(0, Math.min(4, rand(0, 2) + (playerStrength > opponentStrength ? 1 : 0)));
-  const awayGoals = Math.max(0, Math.min(4, rand(0, 2) + (opponentStrength > playerStrength ? 1 : 0)));
-  const ownGoals = homeBonus > 0 ? homeGoals : awayGoals;
-  const oppGoals = homeBonus > 0 ? awayGoals : homeGoals;
+  const sharedContext = clubMatchContext ?? {};
+  const opponent = sharedContext.opponent ?? EURO_OPPONENTS[Math.floor(Math.random() * EURO_OPPONENTS.length)];
+  const ownGoals = Number.isFinite(sharedContext.goalsFor)
+    ? sharedContext.goalsFor
+    : Math.max(0, Math.min(4, rand(0, 2)));
+  const oppGoals = Number.isFinite(sharedContext.goalsAgainst)
+    ? sharedContext.goalsAgainst
+    : Math.max(0, Math.min(4, rand(0, 2)));
+  const result = sharedContext.result ?? (ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw');
+  const homeAway = sharedContext.homeAway ?? (Math.random() < 0.5 ? 'Domicile' : 'Extérieur');
 
   // Performance individuelle (logique simplifiée vs matchSystem)
   const injured = player.injured > 0;
@@ -270,11 +264,11 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
     ? Math.min(ownGoals, rand(1, player.position === 'ATT' ? 3 : 1))
     : 0;
   const assists = ownGoals - goals > 0 && Math.random() < profile.assistChance ? 1 : 0;
-  const keyPasses = player.position === 'ATT' || player.position === 'MIL'
-    ? rand(0, Math.max(0, minutes > 70 ? 5 : 3))
-    : rand(0, 2);
-
-  const result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
+  const keyPasses = sharedContext.keyPasses ?? (
+    player.position === 'ATT' || player.position === 'MIL'
+      ? rand(0, Math.max(0, minutes > 70 ? 5 : 3))
+      : rand(0, 2)
+  );
 
   // Note individuelle
   const baseRating = 6
@@ -285,10 +279,8 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
     + rand(-6, 7) / 10;
   const matchRating = Number(Math.min(10, Math.max(4.5, baseRating)).toFixed(1));
 
-  const opponent = EURO_OPPONENTS[Math.floor(Math.random() * EURO_OPPONENTS.length)];
-
   return {
-    fixtureId: makeId('eu'),
+    fixtureId: sharedContext.fixtureId ?? makeId('eu'),
     playerId: player.id,
     playerName: `${player.firstName} ${player.lastName}`,
     club: player.club ?? 'Club',
@@ -301,7 +293,7 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
     isFinal,
     opponent: opponent.name,
     opponentCountry: opponent.country,
-    homeAway: homeBonus > 0 ? 'Domicile' : 'Extérieur',
+    homeAway,
     score: `${ownGoals}-${oppGoals}`,
     goalsFor: ownGoals,
     goalsAgainst: oppGoals,

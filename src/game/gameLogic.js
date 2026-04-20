@@ -1668,88 +1668,123 @@ export const playWeek = (state) => {
   const euroMatchResults = [];
   let euRoster = caredRoster;
   if (!isWorldCupActive) {
+    const euroGroups = new Map();
     for (const player of caredRoster) {
       const comp = getPlayerEuropeanCompetition(player, currentSeason);
       if (!comp) continue;
       if (!isEuropeanMatchWeek(phase.seasonWeek, comp)) continue;
-      const euroMatch = simulateEuropeanMatch(player, comp, phase.seasonWeek);
-      if (!euroMatch || !euroMatch.matchRating) continue;
-      euroMatchResults.push({
-        ...euroMatch,
-        playerName: euroMatch.playerName ?? `${player.firstName} ${player.lastName}`,
-        club: euroMatch.club ?? player.club ?? 'Club',
-        clubCountryCode: euroMatch.clubCountryCode ?? player.clubCountryCode ?? null,
-      });
-
-      // Appliquer les effets sur le joueur
-      const euroGoals = euroMatch.goals;
-      const euRating = euroMatch.matchRating;
-      const cup = EURO_CUP_LABELS[comp];
-      euRoster = euRoster.map((p) => p.id === player.id ? {
-        ...p,
-        moral: clamp(p.moral + (euroMatch.result === 'win' ? 3 : euroMatch.result === 'loss' ? -2 : 0) + (euroGoals ? 4 : 0)),
-        form: clamp(p.form + (euRating >= 8 ? 3 : euRating >= 7 ? 1 : euRating < 6 ? -2 : 0), 40, 99),
-        value: Math.floor(p.value * (euroGoals >= 2 ? 1.04 : euroGoals >= 1 ? 1.02 : euRating >= 8 ? 1.015 : 1.0)),
-        seasonStats: {
-          ...(p.seasonStats ?? {}),
-          goals: (p.seasonStats?.goals ?? 0) + euroGoals,
-          assists: (p.seasonStats?.assists ?? 0) + euroMatch.assists,
-          appearances: (p.seasonStats?.appearances ?? 0) + 1,
-        },
-        matchHistory: [{ week: state.week, competition: comp, ...euroMatch }, ...(p.matchHistory ?? [])].slice(0, 12),
-      } : p);
-
-      // News si performance notable
-      const newsData = getEuropeanMatchNews(player, euroMatch);
-      if (newsData) {
-        generatedNews.push(createManualNewsPost({
-          type: newsData.type,
-          player,
-          week: state.week + 1,
-          text: newsData.text,
-          reputationImpact: newsData.reputationImpact,
-          account: { name: cup?.short ?? 'UEFA', kind: 'media', icon: cup?.icon ?? '🏆', color: cup?.color ?? '#1a1a6e' },
-        }));
-        reputationChange += scaleReputationDelta(newsData.reputationImpact);
+      const key = `${player.clubCountryCode ?? ''}:${player.club ?? ''}:${comp}`;
+      if (!euroGroups.has(key)) {
+        euroGroups.set(key, {
+          comp,
+          clubName: player.club ?? 'Club',
+          clubCountryCode: player.clubCountryCode ?? null,
+          clubCity: player.clubCity ?? null,
+          players: [],
+        });
       }
+      euroGroups.get(key).players.push(player);
+    }
 
-      const euroInterestClubs = getEuropeanInterestClubs(player, euroMatch);
-      if (euroInterestClubs.length > 0) {
-        euroMatch.interestClubs = euroInterestClubs;
-        generatedNews.push(createManualNewsPost({
-          type: 'transfert',
-          player,
-          week: state.week + 1,
-          text: `${euroInterestClubs.slice(0, 3).join(', ')} gardent un oeil sur ${player.firstName} ${player.lastName} après son match européen.`,
-          reputationImpact: 1,
-          account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
-        }));
-        if (euroMatch.competition === 'CL' || euroMatch.goals >= 1 || euroMatch.matchRating >= 8.2) {
-          generatedMessages.push({
-            id: makeId('msg'),
+    for (const group of euroGroups.values()) {
+      const { comp, clubName, clubCountryCode, clubCity, players } = group;
+      const healthyPlayers = players.filter((player) => (player.injured ?? 0) <= 0);
+      if (!healthyPlayers.length) continue;
+
+      const averageRating = Math.round(healthyPlayers.reduce((sum, player) => sum + (player.rating ?? 60), 0) / healthyPlayers.length);
+      const averageForm = Math.round(healthyPlayers.reduce((sum, player) => sum + (player.form ?? 60), 0) / healthyPlayers.length);
+      const seedPlayer = {
+        ...healthyPlayers[0],
+        rating: averageRating,
+        form: averageForm,
+        club: clubName,
+        clubCountryCode,
+        clubCity,
+        injured: 0,
+      };
+      const clubMatchBase = simulateEuropeanMatch(seedPlayer, comp, phase.seasonWeek);
+      if (!clubMatchBase || !clubMatchBase.matchRating) continue;
+
+      for (const player of healthyPlayers) {
+        const euroMatch = simulateEuropeanMatch(player, comp, phase.seasonWeek, clubMatchBase);
+        if (!euroMatch || !euroMatch.matchRating) continue;
+        euroMatchResults.push({
+          ...euroMatch,
+          playerName: euroMatch.playerName ?? `${player.firstName} ${player.lastName}`,
+          club: euroMatch.club ?? player.club ?? 'Club',
+          clubCountryCode: euroMatch.clubCountryCode ?? player.clubCountryCode ?? null,
+        });
+
+        // Appliquer les effets sur le joueur
+        const euroGoals = euroMatch.goals;
+        const euRating = euroMatch.matchRating;
+        const cup = EURO_CUP_LABELS[comp];
+        euRoster = euRoster.map((p) => p.id === player.id ? {
+          ...p,
+          moral: clamp(p.moral + (euroMatch.result === 'win' ? 3 : euroMatch.result === 'loss' ? -2 : 0) + (euroGoals ? 4 : 0)),
+          form: clamp(p.form + (euRating >= 8 ? 3 : euRating >= 7 ? 1 : euRating < 6 ? -2 : 0), 40, 99),
+          value: Math.floor(p.value * (euroGoals >= 2 ? 1.04 : euroGoals >= 1 ? 1.02 : euRating >= 8 ? 1.015 : 1.0)),
+          seasonStats: {
+            ...(p.seasonStats ?? {}),
+            goals: (p.seasonStats?.goals ?? 0) + euroGoals,
+            assists: (p.seasonStats?.assists ?? 0) + euroMatch.assists,
+            appearances: (p.seasonStats?.appearances ?? 0) + 1,
+          },
+          matchHistory: [{ week: state.week, competition: comp, ...euroMatch }, ...(p.matchHistory ?? [])].slice(0, 12),
+        } : p);
+
+        // News si performance notable
+        const newsData = getEuropeanMatchNews(player, euroMatch);
+        if (newsData) {
+          generatedNews.push(createManualNewsPost({
+            type: newsData.type,
+            player,
             week: state.week + 1,
-            sortWeek: state.week + 1 + 0.012,
-            type: 'secret_offer',
-            context: `europe_interest:${euroMatch.competition}`,
-            threadKey: player.id,
-            threadLabel: `${player.firstName} ${player.lastName}`,
-            playerId: player.id,
-            playerName: `${player.firstName} ${player.lastName}`,
-            senderRole: 'player',
-            senderName: `${player.firstName} ${player.lastName}`,
-            subject: 'Des clubs européens se renseignent',
-            body: `${euroInterestClubs.slice(0, 2).join(' et ')} suivent mon dossier depuis le match. Je voulais te prévenir avant que ça s'accélère.`,
-            read: false,
-            resolved: false,
-          });
+            text: newsData.text,
+            reputationImpact: newsData.reputationImpact,
+            account: { name: cup?.short ?? 'UEFA', kind: 'media', icon: cup?.icon ?? '🏆', color: cup?.color ?? '#1a1a6e' },
+          }));
+          reputationChange += scaleReputationDelta(newsData.reputationImpact);
         }
-      }
 
-      // Event hat_trick_cl — uniquement si match CL et 3+ buts
-      if (comp === 'CL' && euroGoals >= 3) {
-        events.push({ player: `${player.firstName} ${player.lastName}`, playerId: player.id, id: 'hat_trick_cl', label: 'Triplé en Ligue des Champions', good: true, money: 20000, rep: 12, rarity: 'epic' });
-        totalIncome += Math.floor(20000 * EVENT_INCOME_MULT);
-        reputationChange += scaleReputationDelta(12);
+        const euroInterestClubs = getEuropeanInterestClubs(player, euroMatch);
+        if (euroInterestClubs.length > 0) {
+          euroMatch.interestClubs = euroInterestClubs;
+          generatedNews.push(createManualNewsPost({
+            type: 'transfert',
+            player,
+            week: state.week + 1,
+            text: `${euroInterestClubs.slice(0, 3).join(', ')} gardent un oeil sur ${player.firstName} ${player.lastName} après son match européen.`,
+            reputationImpact: 1,
+            account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
+          }));
+          if (euroMatch.competition === 'CL' || euroMatch.goals >= 1 || euroMatch.matchRating >= 8.2) {
+            generatedMessages.push({
+              id: makeId('msg'),
+              week: state.week + 1,
+              sortWeek: state.week + 1 + 0.012,
+              type: 'secret_offer',
+              context: `europe_interest:${euroMatch.competition}`,
+              threadKey: player.id,
+              threadLabel: `${player.firstName} ${player.lastName}`,
+              playerId: player.id,
+              playerName: `${player.firstName} ${player.lastName}`,
+              senderRole: 'player',
+              senderName: `${player.firstName} ${player.lastName}`,
+              subject: 'Des clubs européens se renseignent',
+              body: `${euroInterestClubs.slice(0, 2).join(' et ')} suivent mon dossier depuis le match. Je voulais te prévenir avant que ça s'accélère.`,
+              read: false,
+              resolved: false,
+            });
+          }
+        }
+
+        // Event hat_trick_cl — uniquement si match CL et 3+ buts
+        if (comp === 'CL' && euroGoals >= 3) {
+          events.push({ player: `${player.firstName} ${player.lastName}`, playerId: player.id, id: 'hat_trick_cl', label: 'Triplé en Ligue des Champions', good: true, money: 20000, rep: 12, rarity: 'epic' });
+          totalIncome += Math.floor(20000 * EVENT_INCOME_MULT);
+          reputationChange += scaleReputationDelta(12);
+        }
       }
     }
   }
