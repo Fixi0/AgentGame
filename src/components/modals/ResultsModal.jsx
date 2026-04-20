@@ -282,47 +282,27 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           )}
 
           {data.worldCupMatchResults?.length > 0 && (
-            <div style={{
-              background: 'linear-gradient(135deg,#0f172a,#1d4f7a)',
-              borderRadius: 10,
-              padding: 16,
-              marginBottom: 14,
-              boxShadow: '0 16px 34px rgba(15,23,32,.20)',
-              color: '#ffffff',
-              border: '1px solid rgba(125,211,252,.24)',
-            }}>
+            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg,#0f172a,#1d4f7a)', border: '1px solid rgba(125,211,252,.24)', boxShadow: '0 16px 34px rgba(15,23,32,.20)', color: '#ffffff' }}>
               <div style={S.secTitle}>
                 <Trophy size={14} />
                 <span style={{ color: '#7dd3fc' }}>COUPE DU MONDE</span>
               </div>
-              <div style={{ fontSize: 18, fontWeight: 950, marginBottom: 4 }}>
-              {data.worldCupActive ? `Phase ${data.worldCupPhase ?? 'en cours'}` : 'Tournoi mondial'}
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.78)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginBottom: 12 }}>
-                {data.worldCupMatchResults.length} match{data.worldCupMatchResults.length > 1 ? 's' : ''} international{data.worldCupMatchResults.length > 1 ? 'aux' : ''} suivis cette semaine.
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.78)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginBottom: 10 }}>
+                Tous les matchs de Coupe du monde de la semaine, avec une mise en avant plus forte.
               </div>
               <div style={{ display: 'grid', gap: 8 }}>
-                {data.worldCupMatchResults.slice(0, 5).map((match) => {
-                  const resultColor = match.isChampion ? '#f5c842' : match.isEliminated ? '#f87171' : match.result === 'win' ? '#7dd3fc' : '#cbd5e1';
-                  return (
-                    <div key={`${match.playerId}-${match.countryName}-${match.opponent}`} style={{ background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 8, padding: '10px 12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 4 }}>
-                    <strong style={{ color: '#ffffff', fontSize: 13 }}>{match.countryFlag} {match.playerName}</strong>
-                    <span style={{ fontSize: 10, fontWeight: 900, color: resultColor, letterSpacing: '.08em', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
-                      {match.isChampion ? 'Champion' : match.isEliminated ? 'Éliminé' : match.result}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.82)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45 }}>
-                    {match.countryName} {match.score} {match.opponent} · {match.phase} · note {match.matchRating}{match.goals ? ` · ${match.goals} but${match.goals > 1 ? 's' : ''}` : ''}{match.assists ? ` · ${match.assists} passe${match.assists > 1 ? 's' : ''}` : ''}
-                  </div>
-                  {Array.isArray(match.interestClubs) && match.interestClubs.length > 0 && (
-                    <div style={{ marginTop: 6, fontSize: 11, color: '#7dd3fc', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 }}>
-                      Clubs en alerte : {match.interestClubs.slice(0, 3).join(', ')}
-                    </div>
-                  )}
-                </div>
-              );
-                })}
+                {(data.worldCupMatchResults ?? []).filter(Boolean).map((match) => (
+                  <MatchScorecard
+                    key={`${match.playerId}-${match.countryName}-${match.opponent}-${match.phase}`}
+                    match={{
+                      ...match,
+                      competitionLabel: match.countryName ? `CdM · ${match.countryName}` : match.competitionLabel,
+                      playerName: match.playerName ?? 'Joueur',
+                      club: match.countryName ?? 'Sélection',
+                    }}
+                    highlight
+                  />
+                ))}
               </div>
             </div>
           )}
