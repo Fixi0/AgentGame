@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import React from 'react';
 import { CLUBS, getCountry } from '../../data/clubs';
-import { getClubProfile } from '../../systems/clubSystem';
+import { getClubMemorySummary, getClubProfile } from '../../systems/clubSystem';
 import { getRelevantDecisionHistory } from '../../systems/dossierSystem';
 import { getClubDossierHistorySummary, getClubRecentDossierEvents } from '../../systems/coherenceSystem';
 import { S } from '../styles';
@@ -13,6 +13,7 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
   const relation = relations?.[club.name] ?? 50;
   const profile = getClubProfile(club, relation);
   const memory = clubMemory?.[club.name] ?? { trust: 50, blocks: 0, lies: 0, promisesBroken: 0, lastWeek: 0 };
+  const memorySummary = getClubMemorySummary(clubMemory, club.name);
   const clubDecisions = getRelevantDecisionHistory(decisionHistory, { clubName: club.name }).slice(0, 6);
   const clubHistory = getClubRecentDossierEvents({ clubs: clubMemory ?? {} }, club.name, 3);
   const clubHistorySummary = getClubDossierHistorySummary({ clubs: clubMemory ?? {} }, club.name);
@@ -39,7 +40,19 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
             <div>
               <h2 style={S.mTitle}>{club.name}</h2>
               <div style={S.mPlayer}>{country.flag} {country.label} · {club.city}</div>
+              <div style={{ ...S.statusPill, marginTop: 8, display: 'inline-flex' }}>
+                {memorySummary}
+                {relation >= 65 ? ' · allié' : relation <= 35 ? ' · méfiance' : ' · relation normale'}
+              </div>
             </div>
+          </div>
+          <div style={S.objCard}>
+            <div style={S.secTitle}>RÉSUMÉ RAPIDE</div>
+            <div style={S.sumRow}><span style={S.sumK}>Tempérament</span><strong>{profile.temperament}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Confiance</span><strong>{memory.trust}/100</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Relation</span><strong>{relation}/100</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Mémoire</span><strong>{memorySummary}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Dernier signal</span><strong>{memory.lastWeek ? `S${memory.lastWeek}` : 'aucun'}</strong></div>
           </div>
           <div style={S.kpiGrid}>
             <Metric label="Budget" value={`${profile.budget}/100`} />
