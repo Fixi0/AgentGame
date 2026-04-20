@@ -269,6 +269,9 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
     ? Math.min(ownGoals, rand(1, player.position === 'ATT' ? 3 : 1))
     : 0;
   const assists = ownGoals - goals > 0 && Math.random() < profile.assistChance ? 1 : 0;
+  const keyPasses = player.position === 'ATT' || player.position === 'MIL'
+    ? rand(0, Math.max(0, minutes > 70 ? 5 : 3))
+    : rand(0, 2);
 
   const result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
 
@@ -305,6 +308,7 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
     minutes,
     goals,
     assists,
+    keyPasses,
     matchRating,
     isKnockout: stage !== 'league',
     selectionStatus: starts ? 'titulaire' : 'remplaçant',
@@ -312,6 +316,7 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
     starterChance: Number(selection.starterChance.toFixed(2)),
     selectionNote: selection.note,
     starter: starts,
+    matchReport: `Note ${matchRating}/10 · ${goals} but${goals > 1 ? 's' : ''}${assists ? ` · ${assists} passe${assists > 1 ? 's' : ''}` : ''}${keyPasses ? ` · ${keyPasses} passes clés` : ''}`,
   };
 };
 
@@ -363,5 +368,6 @@ export const normalizeEuropeanMatch = (match = {}) => {
     opponent: match.opponent ?? 'Adversaire inconnu',
     score: match.score ?? '0-0',
     matchRating: Number.isFinite(match.matchRating) ? match.matchRating : null,
+    matchReport: match.matchReport ?? `Note ${match.matchRating ?? '—'}/10 · ${match.goals ?? 0} but${(match.goals ?? 0) > 1 ? 's' : ''}${(match.assists ?? 0) ? ` · ${match.assists} passe${(match.assists ?? 0) > 1 ? 's' : ''}` : ''}${(match.keyPasses ?? 0) ? ` · ${match.keyPasses} passes clés` : ''}`,
   };
 };

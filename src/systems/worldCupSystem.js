@@ -261,6 +261,9 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
     ? Math.min(ownGoals, rand(1, player.position === 'ATT' ? 2 : 1))
     : 0;
   const assists = ownGoals - goals > 0 && Math.random() < profile.a ? 1 : 0;
+  const keyPasses = player.position === 'ATT' || player.position === 'MIL'
+    ? rand(0, Math.max(0, minutes > 70 ? 5 : 3))
+    : rand(0, 2);
   const baseRating = 6 + goals * 0.9 + assists * 0.5 + (result === 'win' ? 0.4 : result === 'loss' ? -0.3 : 0) + rand(-6, 7) / 10;
   const matchRating = Number(Math.min(10, Math.max(4.5, baseRating)).toFixed(1));
 
@@ -282,6 +285,7 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
     minutes,
     goals,
     assists,
+    keyPasses,
     matchRating,
     isEliminated,
     isChampion,
@@ -289,6 +293,7 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
     selectionScore: playerEntry.selectionScore ?? null,
     starterChance: playerEntry.starterChance ?? null,
     starter: isStarter,
+    matchReport: `Note ${matchRating}/10 · ${goals} but${goals > 1 ? 's' : ''}${assists ? ` · ${assists} passe${assists > 1 ? 's' : ''}` : ''}${keyPasses ? ` · ${keyPasses} passes clés` : ''}`,
   };
 };
 

@@ -69,6 +69,16 @@ function MatchScorecard({ match, highlight = false }) {
   if (match.saves > 0) stats.push(`🧤 ${match.saves}`);
   if (match.tackles > 0) stats.push(`⚡ ${match.tackles}`);
   if (match.keyPasses > 0) stats.push(`🎯 ${match.keyPasses}`);
+  const summaryParts = [
+    match.matchRating ? `Note ${match.matchRating}/10` : null,
+    match.minutes ? `${match.minutes} min` : null,
+    match.goals ? `${match.goals} but${match.goals > 1 ? 's' : ''}` : null,
+    match.assists ? `${match.assists} passe${match.assists > 1 ? 's' : ''}` : null,
+    match.keyPasses ? `${match.keyPasses} passes clés` : null,
+    match.saves ? `${match.saves} arrêts` : null,
+    match.tackles ? `${match.tackles} tacles` : null,
+  ].filter(Boolean);
+  const matchSummary = safeText(match.matchReport, summaryParts.join(' · ') || null);
 
   return (
     <div style={{
@@ -99,8 +109,8 @@ function MatchScorecard({ match, highlight = false }) {
           {stats.map((s, i) => <span key={i}>{s}</span>)}
         </div>
       )}
-      {match.matchReport && (
-        <div style={{ marginTop: 5, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', fontStyle: 'italic' }}>{match.matchReport}</div>
+      {matchSummary && (
+        <div style={{ marginTop: 5, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', fontStyle: match.matchReport ? 'italic' : 'normal', lineHeight: 1.4, textAlign: 'center' }}>{matchSummary}</div>
       )}
       {match.isFriendly && (
         <div style={{ marginTop: 4, fontSize: 9, color: '#b45309', fontFamily: 'system-ui,sans-serif', textAlign: 'center', background: '#fffbeb', borderRadius: 4, padding: '2px 6px', display: 'inline-block' }}>Amical</div>
