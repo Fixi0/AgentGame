@@ -3,7 +3,7 @@ import { setDatabasePlayerCatalog } from './squadDatabase';
 import { STORAGE_KEY } from '../game/gameLogic';
 
 const DB_NAME = 'agent_foot_local_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const SAVE_ID = 'active_save';
 const CATALOG_ID = 'catalog_v2';
 
@@ -43,6 +43,22 @@ const GAME_TABLES = [
   'rival_agent_relations',
   'scouting_reports',
   'promises',
+  'club_offers',
+  'fixtures',
+  'match_results',
+  'league_table_rows',
+  'club_season_history',
+  'club_memory',
+  'club_relations',
+  'dossier_memory',
+  'decision_history',
+  'contacts',
+  'agency_goals',
+  'world_states',
+  'world_cups',
+  'european_competitions',
+  'narrative_arcs',
+  'season_awards',
   'save_slots',
 ];
 
@@ -113,6 +129,22 @@ const STORE_DEFINITIONS = [
   { name: 'rival_agent_relations', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'agency_id', keyPath: 'agency_id' }] },
   { name: 'scouting_reports', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'player_id', keyPath: 'player_id' }] },
   { name: 'promises', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'player_id', keyPath: 'player_id' }] },
+  { name: 'club_offers', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'status', keyPath: 'status' }, { name: 'club_id', keyPath: 'club_id' }] },
+  { name: 'fixtures', keyPath: 'id', indexes: [{ name: 'week', keyPath: 'week' }, { name: 'club_id', keyPath: 'club_id' }, { name: 'status', keyPath: 'status' }] },
+  { name: 'match_results', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'week', keyPath: 'week' }, { name: 'competition', keyPath: 'competition' }] },
+  { name: 'league_table_rows', keyPath: 'id', indexes: [{ name: 'country_code', keyPath: 'country_code' }, { name: 'season_id', keyPath: 'season_id' }] },
+  { name: 'club_season_history', keyPath: 'id', indexes: [{ name: 'club_id', keyPath: 'club_id' }, { name: 'season_id', keyPath: 'season_id' }] },
+  { name: 'club_memory', keyPath: 'id', indexes: [{ name: 'club_id', keyPath: 'club_id' }] },
+  { name: 'club_relations', keyPath: 'id', indexes: [{ name: 'club_id', keyPath: 'club_id' }] },
+  { name: 'dossier_memory', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'week', keyPath: 'week' }] },
+  { name: 'decision_history', keyPath: 'id', indexes: [{ name: 'week', keyPath: 'week' }, { name: 'player_id', keyPath: 'player_id' }, { name: 'club_id', keyPath: 'club_id' }] },
+  { name: 'contacts', keyPath: 'id', indexes: [{ name: 'type', keyPath: 'type' }, { name: 'club_id', keyPath: 'club_id' }] },
+  { name: 'agency_goals', keyPath: 'id', indexes: [{ name: 'metric', keyPath: 'metric' }, { name: 'completed', keyPath: 'completed' }] },
+  { name: 'world_states', keyPath: 'id', indexes: [{ name: 'season_id', keyPath: 'season_id' }] },
+  { name: 'world_cups', keyPath: 'id', indexes: [{ name: 'season_id', keyPath: 'season_id' }, { name: 'phase', keyPath: 'phase' }] },
+  { name: 'european_competitions', keyPath: 'id', indexes: [{ name: 'season_id', keyPath: 'season_id' }, { name: 'competition', keyPath: 'competition' }] },
+  { name: 'narrative_arcs', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'type', keyPath: 'type' }] },
+  { name: 'season_awards', keyPath: 'id', indexes: [{ name: 'season_id', keyPath: 'season_id' }] },
   { name: 'save_slots', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'updated_at', keyPath: 'updated_at' }] },
 ];
 
@@ -177,6 +209,9 @@ const normalizeRow = (storeName, row, index = 0) => {
     row.message_id,
     row.negotiation_id,
     row.season_id,
+    row.club_id,
+    row.week,
+    row.metric,
     row.role,
     index,
   ].filter((part) => part != null && part !== '');
@@ -329,7 +364,24 @@ const seedCatalogIfNeeded = async () => {
   const existingPlayers = await idbGetAll('catalog_players');
   if (existingCatalog && existingPlayers.length) {
     await hydrateRuntimeCatalogFromDb();
-    return existingCatalog;
+    const upgradedCatalog = {
+      ...existingCatalog,
+      schemaVersion: DB_VERSION,
+      updatedAt: Date.now(),
+      tableCounts: {
+        ...(existingCatalog.tableCounts ?? {}),
+        players: existingPlayers.length,
+      },
+    };
+    await idbWrite('catalog', upgradedCatalog);
+    await idbWrite('meta', {
+      id: 'schema',
+      dbName: DB_NAME,
+      version: DB_VERSION,
+      stores: STORE_NAMES,
+      updatedAt: Date.now(),
+    });
+    return upgradedCatalog;
   }
 
   const catalog = createGameCatalog();
