@@ -97,15 +97,16 @@ function MatchScorecard({ match, highlight = false }) {
   const resultColor = match.result === 'win' ? '#16a34a' : match.result === 'loss' ? '#e83a3a' : '#2563eb';
   const competitionKey = match.competition;
   const competitionTheme = competitionKey === 'CL'
-    ? { color: '#1d4ed8', bg: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)', chipBg: '#dbeafe', chipColor: '#1d4ed8' }
+    ? { color: '#1d4ed8', bg: 'linear-gradient(135deg, #eef4ff 0%, #ffffff 55%, #f8fbff 100%)', chipBg: '#dbeafe', chipColor: '#1d4ed8' }
     : competitionKey === 'EL'
-      ? { color: '#f97316', bg: 'linear-gradient(135deg, #fff7ed 0%, #ffffff 100%)', chipBg: '#ffedd5', chipColor: '#c2410c' }
+      ? { color: '#f97316', bg: 'linear-gradient(135deg, #fff4e8 0%, #ffffff 55%, #fffaf4 100%)', chipBg: '#ffedd5', chipColor: '#c2410c' }
       : competitionKey === 'ECL'
-        ? { color: '#16a34a', bg: 'linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%)', chipBg: '#dcfce7', chipColor: '#15803d' }
+        ? { color: '#16a34a', bg: 'linear-gradient(135deg, #effdf3 0%, #ffffff 55%, #fbfffc 100%)', chipBg: '#dcfce7', chipColor: '#15803d' }
         : { color: resultColor, bg: null, chipBg: '#f0f4f7', chipColor: '#64727d' };
-  const resultBg = highlight
-    ? `linear-gradient(135deg, ${match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff'} 0%, #ffffff 100%)`
-    : competitionTheme.bg ?? (match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff');
+  const resultBg = competitionTheme.bg
+    ?? (highlight
+      ? `linear-gradient(135deg, ${match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff'} 0%, #ffffff 100%)`
+      : (match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff'));
   const resultLabel = match.result === 'win' ? 'V' : match.result === 'loss' ? 'D' : 'N';
   const competitionLabel = safeText(match.competitionLabel, safeText(EURO_CUP_LABELS[match.competition]?.name, null));
 

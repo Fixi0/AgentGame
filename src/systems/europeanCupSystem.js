@@ -63,41 +63,42 @@ const clubQualHash = (clubName = '') => {
   return (h % 100) / 100; // 0.00 → 0.99
 };
 
+const seasonHash = (clubName = '', season = 1) => clubQualHash(`${clubName}:${season}`);
+
 /**
- * Détermine la compétition européenne du club d'un joueur.
- * On privilégie une logique plus lisible et plus réaliste:
- *  - gros clubs des grandes ligues → Ligue des Champions
- *  - clubs très forts mais un cran derrière → Europa League
- *  - clubs de second plan européens → Conference League
- *  - le reste → pas d'Europe
+ * Détermine la compétition européenne d'un club pour une saison donnée.
+ * Toute l'équipe du club partage la même coupe sur la saison.
  *
  * @returns 'CL' | 'EL' | 'ECL' | null
  */
-export const getEuropeanCompetition = (player) => {
-  const tier = player.clubTier ?? 4;
-  const country = player.clubCountryCode ?? player.countryCode ?? '';
+export const getClubEuropeanCompetition = (club = {}, season = 1) => {
+  const tier = club.tier ?? 4;
+  const country = club.countryCode ?? '';
   const isTopLeague = TOP_LEAGUE_COUNTRIES.has(country);
-  const h = clubQualHash(player.club ?? '');
+  const h = seasonHash(club.name ?? '', season);
 
-  if (tier === 1 && isTopLeague) {
-    return 'CL';
-  }
-  if (tier === 2 && isTopLeague) {
-    return h < 0.78 ? 'EL' : 'ECL';
-  }
-  if (tier === 1 && !isTopLeague) {
-    return h < 0.56 ? 'EL' : 'ECL';
-  }
-  if (tier === 3 && isTopLeague) {
-    return h < 0.68 ? 'ECL' : null;
-  }
-  if (tier === 2 && !isTopLeague) {
-    return h < 0.54 ? 'ECL' : null;
-  }
-  if (tier >= 4 && isTopLeague) {
-    return h < 0.18 ? 'ECL' : null;
-  }
+  if (tier === 1 && isTopLeague) return 'CL';
+  if (tier === 2 && isTopLeague) return h < 0.62 ? 'EL' : 'ECL';
+  if (tier === 3 && isTopLeague) return h < 0.18 ? 'EL' : h < 0.86 ? 'ECL' : null;
+  if (tier === 4 && isTopLeague) return h < 0.12 ? 'ECL' : null;
+  if (tier === 1 && !isTopLeague) return h < 0.52 ? 'EL' : 'ECL';
+  if (tier === 2 && !isTopLeague) return h < 0.76 ? 'ECL' : null;
+  if (tier === 3 && !isTopLeague) return h < 0.28 ? 'ECL' : null;
   return null;
+};
+
+/**
+ * Détermine la compétition européenne d'un joueur à partir de son club.
+ * La décision est stable pour tous les joueurs du même club sur la saison.
+ */
+export const getEuropeanCompetition = (player, season = 1) => {
+  if (!player) return null;
+  const club = {
+    name: player.club ?? '',
+    tier: player.clubTier ?? 4,
+    countryCode: player.clubCountryCode ?? player.countryCode ?? '',
+  };
+  return getClubEuropeanCompetition(club, season);
 };
 
 /**
