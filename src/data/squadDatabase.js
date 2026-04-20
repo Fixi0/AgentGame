@@ -164,7 +164,7 @@ const DEFAULT_LEFT_FOOT_CHANCE = 0.22; // ~22% de gauchers dans le foot mondial
 const playerCatalogCache = new Map();
 
 export const getMarketRatingCeiling = (reputation = 12, scoutLevel = 0) => {
-  const rep = Math.max(0, reputation);
+  const rep = getMarketReputationScore(reputation);
   const base = rep < 15 ? 62 : rep < 30 ? 68 : rep < 45 ? 74 : rep < 60 ? 80 : 86;
   return clamp(base + Math.floor(scoutLevel * 0.8), 58, 92);
 };
@@ -580,15 +580,19 @@ export const createPlayerCatalog = (season = 1) => {
   return catalog;
 };
 
-const chooseCatalogPlayer = ({ catalog, position, targetRating, usedIds, usedClubsThisBatch, eligibleClubs, maxRating = 99, salt = 0 }) => {
-  const candidates = catalog.filter((player) => {
+const chooseCatalogPlayer = ({ catalog, position, targetRating, usedIds, usedClubsThisBatch, eligibleClubs, allowedCountryCodes = null, maxRating = 99, salt = 0 }) => {
+  const allowedCountrySet = allowedCountryCodes?.length ? new Set(allowedCountryCodes) : null;
+  const collectCandidates = (relaxClubUniqueness = false) => catalog.filter((player) => {
     if (usedIds.has(player.id)) return false;
-    if (usedClubsThisBatch.has(player.club)) return false;
+    if (!relaxClubUniqueness && usedClubsThisBatch.has(player.club)) return false;
     if (eligibleClubs.length && !eligibleClubs.some((club) => club.name === player.club)) return false;
+    if (allowedCountrySet?.size && !allowedCountrySet.has(player.countryCode ?? player.clubCountryCode)) return false;
     if (position && player.position !== position) return false;
     if ((player.rating ?? 0) > maxRating) return false;
     return true;
   });
+  let candidates = collectCandidates(false);
+  if (!candidates.length) candidates = collectCandidates(true);
   if (!candidates.length) return null;
 
   return [...candidates].sort((a, b) => {
@@ -607,18 +611,31 @@ export const drawMarketPlayers = ({
   season = 1,
   existingIds = [],
   positionQuota = MARKET_POSITION_QUOTA,
+  agencyCountryCode = 'FR',
+  allowedCountryCodes = null,
 }) => {
   const usedIds = new Set(existingIds);
   const usedClubsThisBatch = new Set();
   const result = [];
-  const eligibleClubs = getEligibleClubs(reputation);
+  const marketCountryCodes = allowedCountryCodes?.length
+    ? allowedCountryCodes
+    : getMarketCountryCodes({ agencyCountryCode, reputation, scoutLevel });
+  const marketCountrySet = new Set(marketCountryCodes);
+  const eligibleClubs = getEligibleClubs(reputation, { agencyCountryCode, scoutLevel, allowedCountryCodes: marketCountryCodes });
   const catalog = createPlayerCatalog(season);
-  const targetRating = clamp(54 + reputation * 0.28 + scoutLevel * 1.6, 50, 91);
+  const rep = getMarketReputationScore(reputation);
+  const targetRating = clamp(54 + rep * 0.28 + scoutLevel * 1.6, 50, 91);
   const maxRating = getMarketRatingCeiling(reputation, scoutLevel);
   const specialGabriel = catalog.find((player) => player.id === GABRIEL_FIXIO_ID);
 
   for (const position of positionQuota) {
-    if (position === specialGabriel?.position && !usedIds.has(specialGabriel.id) && !usedClubsThisBatch.has(specialGabriel.club) && (!eligibleClubs.length || eligibleClubs.some((club) => club.name === specialGabriel.club))) {
+    if (
+      position === specialGabriel?.position
+      && !usedIds.has(specialGabriel.id)
+      && !usedClubsThisBatch.has(specialGabriel.club)
+      && marketCountrySet.has(specialGabriel.countryCode ?? specialGabriel.clubCountryCode)
+      && (specialGabriel.rating ?? 0) <= maxRating
+    ) {
       result.push({ ...specialGabriel });
       usedIds.add(specialGabriel.id);
       usedClubsThisBatch.add(specialGabriel.club);
@@ -632,6 +649,7 @@ export const drawMarketPlayers = ({
       usedIds,
       usedClubsThisBatch,
       eligibleClubs,
+      allowedCountryCodes: marketCountryCodes,
       maxRating,
       salt: result.length,
     });
@@ -649,6 +667,7 @@ export const drawMarketPlayers = ({
       usedIds,
       usedClubsThisBatch,
       eligibleClubs,
+      allowedCountryCodes: marketCountryCodes,
       maxRating,
       salt: result.length + 11,
     });
@@ -667,16 +686,23 @@ export const drawMarketPlayers = ({
  */
 export const drawFreeAgents = ({
   reputation = 12,
+  scoutLevel = 0,
   season = 1,
   existingIds = [],
   positionQuota = FREE_AGENT_POSITION_QUOTA,
+  agencyCountryCode = 'FR',
+  allowedCountryCodes = null,
 }) => {
   const usedIds = new Set(existingIds);
   const result = [];
-  const eligibleClubs = getEligibleClubs(Math.max(0, reputation - 12));
+  const marketCountryCodes = allowedCountryCodes?.length
+    ? allowedCountryCodes
+    : getMarketCountryCodes({ agencyCountryCode, reputation, scoutLevel });
+  const eligibleClubs = getEligibleClubs(Math.max(0, reputation - 12), { agencyCountryCode, scoutLevel, allowedCountryCodes: marketCountryCodes });
   const catalog = createPlayerCatalog(season);
-  const targetRating = clamp(50 + reputation * 0.22, 50, 82);
-  const maxRating = Math.max(58, getMarketRatingCeiling(reputation, 0) - 4);
+  const rep = getMarketReputationScore(reputation);
+  const targetRating = clamp(50 + rep * 0.22, 50, 82);
+  const maxRating = Math.max(58, getMarketRatingCeiling(reputation, scoutLevel) - 4);
 
   for (const position of positionQuota) {
     const player = chooseCatalogPlayer({
@@ -686,6 +712,7 @@ export const drawFreeAgents = ({
       usedIds,
       usedClubsThisBatch: new Set(),
       eligibleClubs,
+      allowedCountryCodes: marketCountryCodes,
       maxRating,
       salt: result.length + 31,
     });
@@ -712,12 +739,19 @@ export const drawFreeAgents = ({
  */
 export const drawProspects = ({
   reputation = 12,
+  scoutLevel = 0,
   season = 1,
   existingIds = [],
   count = 4,
+  agencyCountryCode = 'FR',
+  allowedCountryCodes = null,
 }) => {
   const usedIds = new Set(existingIds);
-  const eligibleClubs = getEligibleClubs(Math.max(8, reputation - 8));
+  const marketCountryCodes = allowedCountryCodes?.length
+    ? allowedCountryCodes
+    : getMarketCountryCodes({ agencyCountryCode, reputation, scoutLevel });
+  const marketCountrySet = new Set(marketCountryCodes);
+  const eligibleClubs = getEligibleClubs(Math.max(8, reputation - 8), { agencyCountryCode, scoutLevel, allowedCountryCodes: marketCountryCodes });
   const catalog = createPlayerCatalog(season);
   const result = [];
   const shuffled = [...eligibleClubs].sort((a, b) => seededFloat(hashStr(a.name), 91) - seededFloat(hashStr(b.name), 91));
@@ -726,6 +760,7 @@ export const drawProspects = ({
     if (result.length >= count) break;
     const candidate = catalog
       .filter((player) => player.club === club.name && player.isProspect)
+      .filter((player) => marketCountrySet.has(player.countryCode ?? player.clubCountryCode))
       .find((player) => !usedIds.has(player.id));
     if (candidate) {
       result.push({ ...candidate });
@@ -737,15 +772,54 @@ export const drawProspects = ({
 
 // ── Helpers internes ──────────────────────────────────────────────────────────
 
-const getEligibleClubs = (reputation) => {
-  const rep = Math.max(0, reputation);
+const getMarketReputationScore = (reputation = 0) => {
+  const rep = Number.isFinite(reputation) ? reputation : 0;
+  return Math.max(0, rep > 100 ? Math.floor(rep / 10) : rep);
+};
+
+export const getMarketCountryCodes = ({
+  agencyCountryCode = 'FR',
+  reputation = 0,
+  scoutLevel = 0,
+} = {}) => {
+  const homeCountry = COUNTRIES.some((country) => country.code === agencyCountryCode)
+    ? agencyCountryCode
+    : 'FR';
+  const rep = getMarketReputationScore(reputation);
+  const reach = rep + Math.max(0, scoutLevel) * 8;
+
+  if (reach < 35) return [homeCountry];
+
+  const countryLimit = reach < 50 ? 2 : reach < 65 ? 4 : reach < 80 ? 6 : COUNTRIES.length;
+  const unlocked = COUNTRIES
+    .filter((country) => country.code !== homeCountry && reach >= country.minReputation)
+    .sort((a, b) => (a.minReputation - b.minReputation) || (b.marketWeight - a.marketWeight))
+    .slice(0, Math.max(0, countryLimit - 1))
+    .map((country) => country.code);
+
+  return [homeCountry, ...unlocked];
+};
+
+const getEligibleClubs = (reputation, {
+  agencyCountryCode = 'FR',
+  scoutLevel = 0,
+  allowedCountryCodes = null,
+} = {}) => {
+  const rep = getMarketReputationScore(reputation);
   let allowedTiers;
   if (rep >= 75)      allowedTiers = [1, 2];
   else if (rep >= 50) allowedTiers = [1, 2, 3];
   else if (rep >= 30) allowedTiers = [2, 3];
   else if (rep >= 15) allowedTiers = [3, 4];
   else                allowedTiers = [4];
-  return CLUBS.filter((c) => allowedTiers.includes(c.tier));
+  const countryCodes = allowedCountryCodes?.length
+    ? allowedCountryCodes
+    : getMarketCountryCodes({ agencyCountryCode, reputation, scoutLevel });
+  const countrySet = new Set(countryCodes);
+  const countryClubs = CLUBS.filter((club) => !countrySet.size || countrySet.has(club.countryCode));
+  const tierClubs = countryClubs.filter((club) => allowedTiers.includes(club.tier));
+  if (tierClubs.length) return tierClubs;
+  return countryClubs.length ? countryClubs : CLUBS.filter((club) => allowedTiers.includes(club.tier));
 };
 
 const drawOnePlayer = ({ position, eligibleClubs, usedIds, usedClubsThisBatch, season, scoutLevel, reputation }) => {
