@@ -121,10 +121,13 @@ function WorldCupPhotoCard({ match }) {
   );
 }
 
-function MatchScorecard({ match }) {
+function MatchScorecard({ match, highlight = false }) {
   const resultColor = match.result === 'win' ? '#16a34a' : match.result === 'loss' ? '#e83a3a' : '#2563eb';
-  const resultBg = match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff';
+  const resultBg = highlight
+    ? `linear-gradient(135deg, ${match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff'} 0%, #ffffff 100%)`
+    : match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff';
   const resultLabel = match.result === 'win' ? 'V' : match.result === 'loss' ? 'D' : 'N';
+  const competitionLabel = match.competitionLabel ?? EURO_CUP_LABELS[match.competition]?.name ?? null;
 
   const stats = [];
   if (match.goals > 0) stats.push(`⚽ ${match.goals}`);
@@ -135,11 +138,21 @@ function MatchScorecard({ match }) {
   if (match.keyPasses > 0) stats.push(`🎯 ${match.keyPasses}`);
 
   return (
-    <div style={{ ...S.scoreboard, borderLeft: `4px solid ${resultColor}`, background: resultBg }}>
+    <div style={{
+      ...S.scoreboard,
+      borderLeft: `4px solid ${highlight ? '#f5c842' : resultColor}`,
+      background: resultBg,
+      boxShadow: highlight ? '0 10px 24px rgba(245,200,66,.12)' : undefined,
+    }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 850, color: '#172026' }}>{match.playerName}</span>
           {match.roleShort && <span style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', background: '#f0f4f7', borderRadius: 4, padding: '1px 5px' }}>{match.roleShort}</span>}
+          {competitionLabel && highlight && (
+            <span style={{ fontSize: 9, color: '#9a6700', fontFamily: 'system-ui,sans-serif', background: '#fff8db', borderRadius: 4, padding: '1px 5px', fontWeight: 900, letterSpacing: '.04em' }}>
+              {competitionLabel}
+            </span>
+          )}
         </div>
         <span style={{ fontSize: 11, fontWeight: 900, color: resultColor, background: `${resultColor}22`, borderRadius: 6, padding: '2px 7px' }}>{resultLabel}</span>
       </div>
@@ -208,10 +221,6 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
   const hasWorldCup = (data.worldCupMatchResults?.length > 0) || Boolean(data.worldCupActive);
   const hasDetails = (data.events?.length > 0) || (data.matchResults?.length > 0) || (data.euroMatchResults?.length > 0) || (data.worldCupMatchResults?.length > 0) || (data.lockerRoom?.length > 0) || (data.worldSummary?.length > 0) || (data.clubOffers?.length > 0) || (data.leavingPlayers?.length > 0);
   const euroMatches = (data.euroMatchResults ?? []).filter(Boolean);
-  const topEuroMatch = euroMatches.reduce((best, match) => (
-    !best || (match.matchRating ?? 0) > (best.matchRating ?? 0) ? match : best
-  ), null);
-  const euroSummaryCount = euroMatches.length;
 
   return (
     <div style={S.overlay}>
@@ -397,26 +406,14 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                 </div>
               )}
               {data.euroMatchResults?.length > 0 && (
-                <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: '#fffaf0', border: '1px solid #fde68a' }}>
                   <div style={S.secTitle}><Trophy size={14} /><span>EUROPE</span></div>
-                  {topEuroMatch ? (
-                    <div style={{ ...S.evRow, borderLeft: `3px solid ${topEuroMatch.result === 'win' ? '#00a676' : topEuroMatch.result === 'loss' ? '#b42318' : '#2f80ed'}`, marginBottom: 4 }}>
-                      <div style={S.evPlayer}>{topEuroMatch.playerName} · {topEuroMatch.competitionLabel ?? EURO_CUP_LABELS[topEuroMatch.competition]?.name ?? topEuroMatch.competition ?? 'Europe'}</div>
-                      <div style={S.evLabel}>{topEuroMatch.opponent ?? 'Adversaire'} · {topEuroMatch.score ?? '0-0'} · note {topEuroMatch.matchRating ?? '—'}{topEuroMatch.goals ? ` · ${topEuroMatch.goals} but${topEuroMatch.goals > 1 ? 's' : ''}` : ''}{topEuroMatch.assists ? ` · ${topEuroMatch.assists} passe${topEuroMatch.assists > 1 ? 's' : ''}` : ''}</div>
-                      {Array.isArray(topEuroMatch.interestClubs) && topEuroMatch.interestClubs.length > 0 && (
-                        <div style={{ marginTop: 4, fontSize: 10, color: '#2f80ed', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 }}>
-                          Clubs en alerte : {topEuroMatch.interestClubs.slice(0, 3).join(', ')}
-                        </div>
-                      )}
-                      {euroSummaryCount > 1 && (
-                        <div style={{ marginTop: 4, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 }}>
-                          + {euroSummaryCount - 1} autre{euroSummaryCount > 2 ? 's' : ''} match{euroSummaryCount > 2 ? 's' : ''} européen{euroSummaryCount > 2 ? 's' : ''} cette semaine
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={S.emptySmall}>Aucun match européen notable cette semaine.</div>
-                  )}
+                  <div style={{ fontSize: 12, color: '#8a6f1f', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45, marginBottom: 10 }}>
+                    Tous les matchs européens de la semaine, avec une mise en avant plus forte.
+                  </div>
+                  {euroMatches.slice(0, 8).map((match) => (
+                    <MatchScorecard key={`${match.playerId}-${match.competition}-${match.opponent}-${match.phase}`} match={match} highlight />
+                  ))}
                 </div>
               )}
               {data.lockerRoom?.length > 0 && (
