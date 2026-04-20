@@ -31,6 +31,8 @@ const buildEuropeanDataFromDb = (databaseView = null) => {
       opponentHistory: row.opponent_history ?? {},
       koPath: row.ko_path ?? {},
       bracketClubs: row.bracket_clubs ?? null,
+      bracketState: row.bracket_state ?? row.raw?.bracketState ?? null,
+      winner: row.winner ?? row.raw?.winner ?? row.raw?.champion ?? null,
     },
   }), {});
 };
@@ -42,6 +44,39 @@ const SectionTitle = ({ children }) => (
     {children}
   </div>
 );
+
+function GlobalRoundLog({ compData, cupLabel }) {
+  const rounds = compData?.bracketState?.rounds ?? {};
+  const latestRounds = Object.values(rounds)
+    .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
+    .slice(0, 3);
+  if (!latestRounds.length) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <SectionTitle>Parcours complet</SectionTitle>
+      {compData.winner && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: 10, marginBottom: 8, color: '#92400e', fontSize: 12, fontWeight: 850, fontFamily: 'system-ui,sans-serif' }}>
+          🏆 Vainqueur: {compData.winner}
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 8 }}>
+        {latestRounds.map((round) => (
+          <div key={`${round.stage}:${round.week}`} style={{ background: '#ffffff', border: `1px solid ${cupLabel.color}24`, borderRadius: 8, padding: 10 }}>
+            <div style={{ fontSize: 10, letterSpacing: '.14em', color: cupLabel.color, fontWeight: 900, fontFamily: 'system-ui,sans-serif', marginBottom: 8 }}>
+              {STAGE_LABELS[round.stage] ?? round.stage} · S{round.week}
+            </div>
+            {(round.matches ?? []).slice(0, 8).map((match) => (
+              <div key={`${match.home}-${match.away}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '4px 0', borderBottom: '1px solid #f0f4f7', fontSize: 12, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>
+                <span>{match.home} - {match.away}</span>
+                <strong>{match.score}{match.aggregate ? ` agg. ${match.aggregate}` : ''}</strong>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /** Ligne de journée de phase de ligue */
 const LeagueDayRow = ({ matchday, opponent, opponentCountry, score, result, last }) => (
@@ -341,6 +376,8 @@ export default function EuropeanBracket({ state, databaseView = null }) {
               <BracketView compData={currentCompEntry.compData} cupLabel={currentCompEntry.cupLabel} />
             </div>
           )}
+
+          <GlobalRoundLog compData={currentCompEntry.compData} cupLabel={currentCompEntry.cupLabel} />
 
           {/* Vue par club */}
           {currentCompEntry.clubs.map((clubName) => (

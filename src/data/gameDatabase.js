@@ -999,6 +999,8 @@ const buildEuropeanCompetitionRows = (state = {}, season = 1) =>
     opponent_history: data?.opponentHistory ?? {},
     ko_path: data?.koPath ?? {},
     bracket_clubs: data?.bracketClubs ?? null,
+    bracket_state: data?.bracketState ?? null,
+    winner: data?.winner ?? data?.champion ?? null,
     raw: data ?? {},
   }));
 

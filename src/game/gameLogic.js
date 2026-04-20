@@ -20,7 +20,7 @@ import { createCareerGoal, createScoutReport, updateSeasonStats } from '../syste
 import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } from '../systems/promiseSystem';
 import { MATCH_INCIDENT_EVENTS, buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
-import { getClubEuropeanCompetition, getEuropeanCompetition, isEuropeanMatchWeek, getEuropeanStage, getEuropeanMatchdayIndex, pickSeededOpponent, generateKOBracketClubs, initEuroCupCompData, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS, normalizeEuropeanMatch } from '../systems/europeanCupSystem';
+import { getClubEuropeanCompetition, getEuropeanCompetition, isEuropeanMatchWeek, getEuropeanStage, getEuropeanMatchdayIndex, pickSeededOpponent, generateKOBracketClubs, initEuroCupCompData, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS, normalizeEuropeanMatch, ensureEuropeanCompetitionProgress, getEuropeanClubRoundMatch, isEuropeanClubAlive } from '../systems/europeanCupSystem';
 import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview, getWorldCupInterestClubs } from '../systems/worldCupSystem';
 import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSeasonalNewsItem } from '../systems/calendarEventsSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
@@ -1879,7 +1879,7 @@ export const playWeek = (state) => {
       // ── Initialiser les données euro pour ce club/comp/saison ──────────
       const compKey = `${comp}:${currentSeason}`;
       if (!nextEuroData[compKey]) nextEuroData[compKey] = initEuroCupCompData(comp, currentSeason);
-      const compData = nextEuroData[compKey];
+      let compData = nextEuroData[compKey];
       if (!compData.opponentHistory[clubName]) compData.opponentHistory[clubName] = [];
       if (!compData.koPath[clubName]) compData.koPath[clubName] = {};
 
@@ -1904,6 +1904,17 @@ export const playWeek = (state) => {
         )];
         compData.bracketClubs = generateKOBracketClubs(comp, currentSeason, agentClubs);
       }
+      if (stage !== 'league') {
+        const agentClubs = [...new Set(
+          caredRoster
+            .filter((p) => getPlayerEuropeanCompetition(p, currentSeason) === comp)
+            .map((p) => p.club)
+            .filter(Boolean),
+        )];
+        compData = ensureEuropeanCompetitionProgress(compData, comp, currentSeason, phase.seasonWeek, agentClubs);
+        nextEuroData[compKey] = compData;
+        if (!isEuropeanClubAlive(compData, clubName, comp, phase.seasonWeek)) continue;
+      }
 
       const averageRating = Math.round(healthyPlayers.reduce((sum, player) => sum + (player.rating ?? 60), 0) / healthyPlayers.length);
       const averageForm = Math.round(healthyPlayers.reduce((sum, player) => sum + (player.form ?? 60), 0) / healthyPlayers.length);
@@ -1917,16 +1928,18 @@ export const playWeek = (state) => {
         injured: 0,
       };
       // Passer l'adversaire sélectionné comme contexte partagé
-      const clubMatchBase = simulateEuropeanMatch(seedPlayer, comp, phase.seasonWeek, { opponent: seededOpponent });
+      const koRoundMatch = stage !== 'league' ? getEuropeanClubRoundMatch(compData, clubName, comp, phase.seasonWeek) : null;
+      const clubMatchBase = simulateEuropeanMatch(seedPlayer, comp, phase.seasonWeek, koRoundMatch ?? { opponent: seededOpponent });
       if (!clubMatchBase || !clubMatchBase.matchRating) continue;
 
       // ── Mémoriser le parcours KO ───────────────────────────────────────
       if (stage !== 'league') {
         compData.koPath[clubName][stage] = {
-          opponent: seededOpponent.name,
-          opponentCountry: seededOpponent.country,
-          score: clubMatchBase.score,
-          result: clubMatchBase.result,
+          ...(compData.koPath[clubName][stage] ?? {}),
+          opponent: koRoundMatch?.opponent?.name ?? seededOpponent.name,
+          opponentCountry: koRoundMatch?.opponent?.country ?? seededOpponent.country,
+          score: koRoundMatch?.score ?? clubMatchBase.score,
+          result: koRoundMatch?.result ?? clubMatchBase.result,
           week: state.week,
         };
       }
