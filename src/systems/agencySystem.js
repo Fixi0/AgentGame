@@ -77,7 +77,8 @@ export const getAgencyProgressSnapshot = (state = {}) => {
     progress,
     capacity,
     metrics: {
-      reputation: rep,
+      reputation: state.reputation ?? 0,
+      reputationNormalized: rep,
       credibility,
       avgTrust: Math.round(avgTrust),
       avgRating: Math.round(avgRating),
