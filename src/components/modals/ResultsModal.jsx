@@ -218,6 +218,14 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
     if (comps.includes('ECL')) return { border: '#22c55e', bg: 'linear-gradient(135deg, #f0fdf4 0%, #ffffff 45%, #fbfffc 100%)', title: '#15803d', glow: 'rgba(34,197,94,.12)' };
     return { border: '#b9d98a', bg: 'linear-gradient(135deg, #fff9ef 0%, #fff4dd 28%, #eef9ea 60%, #ffffff 100%)', title: '#5f7f33', glow: 'rgba(34,197,94,.12)' };
   })();
+  const worldCupTheme = {
+    border: '#7dd3fc',
+    bg: 'linear-gradient(135deg, #06101d 0%, #11315a 30%, #07101c 72%, #1a2f56 100%)',
+    title: '#7dd3fc',
+    glow: 'rgba(125,211,252,.18)',
+    accent: '#f5c842',
+    sub: 'rgba(255,255,255,.82)',
+  };
 
   return (
     <div style={S.overlay}>
@@ -277,12 +285,12 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           )}
 
           {data.worldCupMatchResults?.length > 0 && (
-            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: 'linear-gradient(135deg, #06101d 0%, #11315a 42%, #07101c 100%)', border: '1px solid rgba(125,211,252,.42)', boxShadow: '0 18px 38px rgba(15,23,32,.30), inset 0 1px 0 rgba(255,255,255,.08)', color: '#ffffff' }}>
+            <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: worldCupTheme.bg, border: `1px solid ${worldCupTheme.border}`, boxShadow: `0 18px 38px ${worldCupTheme.glow}, inset 0 1px 0 rgba(255,255,255,.08)`, color: '#ffffff' }}>
               <div style={S.secTitle}>
                 <Trophy size={14} />
-                <span style={{ color: '#7dd3fc' }}>COUPE DU MONDE</span>
+                <span style={{ color: worldCupTheme.title }}>COUPE DU MONDE</span>
               </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.82)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginBottom: 10 }}>
+              <div style={{ fontSize: 12, color: worldCupTheme.sub, fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginBottom: 10 }}>
                 Tous les matchs de Coupe du monde de la semaine, au format normal mais mis en avant.
               </div>
               <div style={{ display: 'grid', gap: 8 }}>
