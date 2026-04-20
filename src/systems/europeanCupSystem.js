@@ -286,6 +286,10 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek) => {
   return {
     fixtureId: makeId('eu'),
     playerId: player.id,
+    playerName: `${player.firstName} ${player.lastName}`,
+    club: player.club ?? 'Club',
+    clubCountryCode: player.clubCountryCode ?? null,
+    clubCity: player.clubCity ?? null,
     competition,
     competitionLabel: EURO_CUP_LABELS[competition]?.name ?? competition,
     phase,
@@ -350,6 +354,8 @@ export const normalizeEuropeanMatch = (match = {}) => {
   const cup = EURO_CUP_LABELS[competition];
   return {
     ...match,
+    playerName: match.playerName ?? 'Joueur',
+    club: match.club ?? 'Club',
     competition,
     competitionLabel: match.competitionLabel ?? cup?.name ?? competition,
     phase: match.phase ?? match.stage ?? 'Phase européenne',

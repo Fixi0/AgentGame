@@ -1567,7 +1567,12 @@ export const playWeek = (state) => {
       if (!isEuropeanMatchWeek(phase.seasonWeek, comp)) continue;
       const euroMatch = simulateEuropeanMatch(player, comp, phase.seasonWeek);
       if (!euroMatch || !euroMatch.matchRating) continue;
-      euroMatchResults.push(euroMatch);
+      euroMatchResults.push({
+        ...euroMatch,
+        playerName: euroMatch.playerName ?? `${player.firstName} ${player.lastName}`,
+        club: euroMatch.club ?? player.club ?? 'Club',
+        clubCountryCode: euroMatch.clubCountryCode ?? player.clubCountryCode ?? null,
+      });
 
       // Appliquer les effets sur le joueur
       const euroGoals = euroMatch.goals;
