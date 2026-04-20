@@ -56,15 +56,15 @@ export const OFFICE_UPGRADE_EFFECTS = {
 
 export const AGENCY_CAPACITY_BY_LEVEL = {
   1: 3,
-  2: 5,
-  3: 8,
-  4: 12,
-  5: 16,
-  6: 21,
-  7: 27,
-  8: 34,
-  9: 42,
-  10: 50,
+  2: 4,
+  3: 5,
+  4: 6,
+  5: 8,
+  6: 10,
+  7: 12,
+  8: 14,
+  9: 17,
+  10: 20,
 };
 
 export const AGENCY_UPGRADE_COSTS = {
