@@ -1059,7 +1059,6 @@ export default function FootballAgentGame() {
       confirmLabel: 'Réinitialiser',
       tone: 'danger',
       onConfirm: async () => {
-        await clearLocalGameProgress();
         setState(createFreshState());
         setSavePreview(null);
         setView('dashboard');
@@ -1067,6 +1066,11 @@ export default function FootballAgentGame() {
         setHasSave(false);
         setConfirmDialog(null);
         showToast('Nouvelle partie', 'success');
+        try {
+          await clearLocalGameProgress();
+        } catch {
+          // If local storage cleanup fails, the visible reset still completed.
+        }
       },
     });
   };
@@ -1091,13 +1095,18 @@ export default function FootballAgentGame() {
       confirmLabel: 'Nouvelle partie',
       tone: 'danger',
       onConfirm: async () => {
-        await clearLocalGameProgress();
         setState(createFreshState());
         setSavePreview(null);
         setView('dashboard');
         setSaveMenuOpen(false);
         setHasSave(false);
         setConfirmDialog(null);
+        showToast('Nouvelle partie', 'success');
+        try {
+          await clearLocalGameProgress();
+        } catch {
+          // Visible reset already happened; storage cleanup can fail silently.
+        }
       },
     });
   };
