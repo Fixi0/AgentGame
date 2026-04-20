@@ -18,7 +18,7 @@ import { createCareerGoal, createScoutReport, updateSeasonStats } from '../syste
 import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } from '../systems/promiseSystem';
 import { MATCH_INCIDENT_EVENTS, buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
-import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS } from '../systems/europeanCupSystem';
+import { getEuropeanCompetition, isEuropeanMatchWeek, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS, normalizeEuropeanMatch } from '../systems/europeanCupSystem';
 import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview, getWorldCupInterestClubs } from '../systems/worldCupSystem';
 import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSeasonalNewsItem } from '../systems/calendarEventsSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
@@ -506,6 +506,7 @@ export const migrateState = (state) => {
         traitRevealed: player.traitRevealed ?? false,
         lastInteractionWeek: player.lastInteractionWeek ?? 0,
         europeanCompetition: player.europeanCompetition ?? getEuropeanCompetition(player),
+        matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
       };
     }),
     market: (asArray(state.market).length ? asArray(state.market) : generateMarket(reputation, state.office?.scoutLevel ?? 0)).map((player) => {
@@ -536,6 +537,7 @@ export const migrateState = (state) => {
         timeline: player.timeline ?? [],
         personality,
         trust: player.trust ?? getInitialTrust(personality),
+        matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
       };
     }),
   };

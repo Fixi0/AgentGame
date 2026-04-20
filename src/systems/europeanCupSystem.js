@@ -353,3 +353,18 @@ export const getEuropeanMatchNews = (player, euroMatch) => {
     valueImpact: euroMatch.goals >= 1 ? (euroMatch.competition === 'CL' ? 1.04 : 1.02) : 1.0,
   };
 };
+
+export const normalizeEuropeanMatch = (match = {}) => {
+  const competition = match.competition ?? 'EL';
+  const cup = EURO_CUP_LABELS[competition];
+  return {
+    ...match,
+    competition,
+    competitionLabel: match.competitionLabel ?? cup?.name ?? competition,
+    phase: match.phase ?? match.stage ?? 'Phase européenne',
+    stage: match.stage ?? 'league',
+    opponent: match.opponent ?? 'Adversaire inconnu',
+    score: match.score ?? '0-0',
+    matchRating: Number.isFinite(match.matchRating) ? match.matchRating : null,
+  };
+};

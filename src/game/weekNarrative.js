@@ -1,4 +1,5 @@
 import { CLUBS } from '../data/clubs';
+import { EURO_CUP_LABELS } from '../systems/europeanCupSystem';
 import { createManualNewsPost } from '../systems/newsSystem';
 import { getCalendarSnapshot } from '../systems/seasonSystem';
 import { pick, rand } from '../utils/helpers';
@@ -249,9 +250,9 @@ export const buildWeeklyTimeline = ({
       tone: topEuroMatch.result === 'win' ? 'good' : topEuroMatch.result === 'loss' ? 'danger' : 'warn',
       major: true,
       kind: 'euroResult',
-      title: `${topEuroMatch.competitionLabel ?? 'Europe'} · ${topEuroMatch.playerName}`,
-      text: `Match européen: ${topEuroMatch.club} ${topEuroMatch.score} ${topEuroMatch.opponent} · note ${topEuroMatch.matchRating}.`,
-      chips: [topEuroMatch.phase ?? 'Europe', `${topEuroMatch.minutes} min`, topEuroMatch.result === 'win' ? 'Victoire' : topEuroMatch.result === 'loss' ? 'Défaite' : 'Nul'],
+      title: `${topEuroMatch.competitionLabel ?? EURO_CUP_LABELS[topEuroMatch.competition]?.name ?? topEuroMatch.competition ?? 'Europe'} · ${topEuroMatch.playerName ?? 'Joueur'}`,
+      text: `Match européen: ${topEuroMatch.club ?? 'Club'} ${topEuroMatch.score ?? '0-0'} ${topEuroMatch.opponent ?? 'Adversaire'} · note ${topEuroMatch.matchRating ?? '—'}.`,
+      chips: [topEuroMatch.phase ?? 'Europe', `${topEuroMatch.minutes ?? 0} min`, topEuroMatch.result === 'win' ? 'Victoire' : topEuroMatch.result === 'loss' ? 'Défaite' : 'Nul'],
     } : null,
     {
       day: 'Jeudi',

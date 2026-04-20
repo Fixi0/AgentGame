@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Activity, AlertCircle, ChevronDown, ChevronRight, ChevronUp, LogOut, Trophy, Users, X } from 'lucide-react';
 import { formatMoney } from '../../utils/format';
+import { EURO_CUP_LABELS } from '../../systems/europeanCupSystem';
 import { S } from '../styles';
 
 function getBigHeadline(data) {
@@ -30,7 +31,8 @@ function getBigHeadline(data) {
     !best || (m.goals ?? 0) > (best.goals ?? 0) ? m : best
   ), null);
   if (topEuroScorer && (topEuroScorer.goals ?? 0) >= 1) {
-    return { emoji: '🏆', title: `But européen — ${topEuroScorer.playerName}`, sub: `${topEuroScorer.competitionLabel} · ${topEuroScorer.opponent} ${topEuroScorer.score}` };
+    const cup = EURO_CUP_LABELS[topEuroScorer.competition] ?? {};
+    return { emoji: '🏆', title: `But européen — ${topEuroScorer.playerName}`, sub: `${topEuroScorer.competitionLabel ?? cup.name ?? topEuroScorer.competition ?? 'Europe'} · ${topEuroScorer.opponent ?? 'Adversaire'} ${topEuroScorer.score ?? ''}` };
   }
   if (data.seasonRecap) {
     return { emoji: '🗓️', title: `Saison ${data.seasonRecap.season} terminée`, sub: `${data.seasonRecap.transfers} transferts · ${formatMoney(data.seasonRecap.earned)} gagnés` };
@@ -394,8 +396,8 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
                   <div style={S.secTitle}><Trophy size={14} /><span>EUROPE</span></div>
                   {data.euroMatchResults.slice(0, 5).map((match) => (
                     <div key={`${match.playerId}-${match.competition}-${match.opponent}`} style={{ ...S.evRow, borderLeft: `3px solid ${match.result === 'win' ? '#00a676' : match.result === 'loss' ? '#b42318' : '#2f80ed'}`, marginBottom: 4 }}>
-                      <div style={S.evPlayer}>{match.playerName} · {match.competitionLabel}</div>
-                      <div style={S.evLabel}>{match.opponent} · {match.score} · note {match.matchRating}{match.goals ? ` · ${match.goals} but${match.goals > 1 ? 's' : ''}` : ''}{match.assists ? ` · ${match.assists} passe${match.assists > 1 ? 's' : ''}` : ''}</div>
+                      <div style={S.evPlayer}>{match.playerName} · {match.competitionLabel ?? EURO_CUP_LABELS[match.competition]?.name ?? match.competition ?? 'Europe'}</div>
+                      <div style={S.evLabel}>{match.opponent ?? 'Adversaire'} · {match.score ?? '0-0'} · note {match.matchRating ?? '—'}{match.goals ? ` · ${match.goals} but${match.goals > 1 ? 's' : ''}` : ''}{match.assists ? ` · ${match.assists} passe${match.assists > 1 ? 's' : ''}` : ''}</div>
                       {Array.isArray(match.interestClubs) && match.interestClubs.length > 0 && (
                         <div style={{ marginTop: 4, fontSize: 10, color: '#2f80ed', fontFamily: 'system-ui,sans-serif', lineHeight: 1.4 }}>
                           Clubs en alerte : {match.interestClubs.slice(0, 3).join(', ')}
