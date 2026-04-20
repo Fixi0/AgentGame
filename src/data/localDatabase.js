@@ -3,7 +3,7 @@ import { setDatabasePlayerCatalog } from './squadDatabase';
 import { STORAGE_KEY } from '../game/gameLogic';
 
 const DB_NAME = 'agent_foot_local_db';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const SAVE_ID = 'active_save';
 const CATALOG_ID = 'catalog_v2';
 // Bumper cette valeur à chaque modification de la base de données de joueurs
@@ -50,6 +50,7 @@ const GAME_TABLES = [
   'market_snapshots',
   'fixtures',
   'match_results',
+  'league_seasons',
   'league_table_rows',
   'club_season_history',
   'club_memory',
@@ -143,6 +144,7 @@ const STORE_DEFINITIONS = [
   ] },
   { name: 'fixtures', keyPath: 'id', indexes: [{ name: 'week', keyPath: 'week' }, { name: 'club_id', keyPath: 'club_id' }, { name: 'status', keyPath: 'status' }] },
   { name: 'match_results', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'week', keyPath: 'week' }, { name: 'competition', keyPath: 'competition' }] },
+  { name: 'league_seasons', keyPath: 'id', indexes: [{ name: 'season_id', keyPath: 'season_id' }, { name: 'country_code', keyPath: 'country_code' }] },
   { name: 'league_table_rows', keyPath: 'id', indexes: [{ name: 'country_code', keyPath: 'country_code' }, { name: 'season_id', keyPath: 'season_id' }] },
   { name: 'club_season_history', keyPath: 'id', indexes: [{ name: 'club_id', keyPath: 'club_id' }, { name: 'season_id', keyPath: 'season_id' }] },
   { name: 'club_memory', keyPath: 'id', indexes: [{ name: 'club_id', keyPath: 'club_id' }] },
@@ -251,6 +253,8 @@ const stableRowId = (storeName, row) => {
         : null;
     case 'league_table_rows':
       return row.club_id && row.season_id ? `table_${row.season_id}_${row.club_id}` : null;
+    case 'league_seasons':
+      return row.season_id && row.country_code ? `league_season_${row.season_id}_${row.country_code}` : null;
     case 'club_season_history':
       return row.club_id && row.season_id ? `club_history_${row.season_id}_${row.club_id}` : null;
     case 'club_memory':
@@ -592,6 +596,10 @@ const hydrateStateFromTables = (fallbackState = {}, tables = {}) => {
       ? rowsToRawList((tables.fixtures ?? []).filter((row) => row.source === 'lastFixtures'), 'raw')
       : fallbackState.lastFixtures ?? [],
     leagueTables: rebuildLeagueTables(tables.league_table_rows ?? [], fallbackState.leagueTables ?? {}),
+    leagueSeasonData: (tables.league_seasons ?? []).reduce((data, row) => ({
+      ...data,
+      [row.country_code]: row.raw_league ?? row,
+    }), fallbackState.leagueSeasonData ?? {}),
     clubSeasonHistory: rebuildClubMap(tables.club_season_history ?? [], 'raw_history', fallbackState.clubSeasonHistory ?? {}),
     clubMemory: rebuildClubMap(tables.club_memory ?? [], 'raw', fallbackState.clubMemory ?? {}),
     clubRelations: rebuildClubMap(tables.club_relations ?? [], 'raw_score', fallbackState.clubRelations ?? {}),
@@ -770,6 +778,7 @@ export const getLocalGameDatabaseView = async () => {
     eventInstances: tables.event_instances ?? [],
     fixtures: tables.fixtures ?? [],
     matchResults: tables.match_results ?? [],
+    leagueSeasons: tables.league_seasons ?? [],
     leagueTableRows: tables.league_table_rows ?? [],
     clubSeasonHistory: tables.club_season_history ?? [],
     europeanCompetitions: tables.european_competitions ?? [],

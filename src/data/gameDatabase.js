@@ -824,8 +824,40 @@ const buildLeagueTableRows = (state = {}, season = 1) =>
         goal_difference: (row.goalsFor ?? 0) - (row.goalsAgainst ?? 0),
         points: row.points ?? 0,
     form: safeArray(row.form),
-    raw_row: row,
+        raw_row: row,
       })));
+
+const buildLeagueSeasonRows = (state = {}, season = 1, week = 1) => {
+  const fixtureRows = buildFixtureRows(state, season, week)
+    .filter((fixture) => fixture.competition === 'league' && !fixture.is_friendly);
+  return Object.entries(state.leagueTables ?? {}).map(([countryCode, table]) => {
+    const countryFixtures = fixtureRows.filter((fixture) => fixture.country_code === countryCode);
+    const sortedTable = Object.values(table ?? {}).sort((a, b) =>
+      (b.points ?? 0) - (a.points ?? 0)
+      || ((b.goalsFor ?? 0) - (b.goalsAgainst ?? 0)) - ((a.goalsFor ?? 0) - (a.goalsAgainst ?? 0))
+      || (b.goalsFor ?? 0) - (a.goalsFor ?? 0)
+      || String(a.club ?? '').localeCompare(String(b.club ?? '')),
+    );
+    return {
+      id: `league_season_${season}_${countryCode}`,
+      season_id: getSeasonId(season),
+      country_code: countryCode,
+      current_week: week,
+      clubs_count: Object.keys(table ?? {}).length,
+      played_matches: sortedTable.reduce((sum, row) => sum + (row.played ?? 0), 0) / 2,
+      latest_fixtures: countryFixtures,
+      table_snapshot: sortedTable,
+      leader: sortedTable[0]?.club ?? null,
+      raw_league: {
+        season,
+        countryCode,
+        currentWeek: week,
+        table,
+        latestFixtures: countryFixtures,
+      },
+    };
+  });
+};
 
 const buildClubSeasonHistoryRows = (state = {}, season = 1) =>
   Object.entries(state.clubSeasonHistory ?? {}).map(([clubName, history]) => ({
@@ -1211,6 +1243,7 @@ export const createGameDatabaseSnapshot = (state = {}) => {
     market_snapshots: marketSnapshots,
     fixtures,
     match_results: matchResults,
+    league_seasons: buildLeagueSeasonRows(state, season, week),
     league_table_rows: buildLeagueTableRows(state, season),
     club_season_history: buildClubSeasonHistoryRows(state, season),
     club_memory: buildClubMemoryRows(state),

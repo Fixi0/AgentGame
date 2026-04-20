@@ -1,5 +1,5 @@
 import { CLUBS } from '../data/clubs';
-import { makeId, rand } from '../utils/helpers';
+import { rand } from '../utils/helpers';
 
 const clubKey = (club) => `${club.countryCode}:${club.name}`;
 
@@ -76,35 +76,40 @@ const getPlayerClub = (player) => ({
 // Tier base scores — wider gap so tier-1 clubs dominate tier-3/4 clubs realistically.
 const TIER_STRENGTH = { 1: 7.5, 2: 5.0, 3: 3.0, 4: 1.5 };
 
-const getClubStrength = (club, players = []) => {
+const getClubStrength = (club, players = [], random = Math.random) => {
   // Squad boost uses known agents' players; divided by 22 to keep scale manageable.
   const squadBoost = players.length
     ? players.reduce((sum, p) => sum + p.rating + p.form / 5, 0) / players.length / 22
     : 0;
   const base = TIER_STRENGTH[club.tier] ?? 1.5;
-  return Math.max(1, base + squadBoost + rand(-6, 6) / 10);
+  return Math.max(1, base + squadBoost + (Math.floor(random() * 13) - 6) / 10);
 };
 
-const getTeamGoals = (ownStrength, rivalStrength, homeBonus) => {
-  const base = rand(0, 2);
+const getTeamGoals = (ownStrength, rivalStrength, homeBonus, random = Math.random) => {
+  const base = Math.floor(random() * 3);
   const strengthEdge = ownStrength - rivalStrength + homeBonus;
-  const extra = (Math.random() < 0.18 + Math.max(0, strengthEdge) * 0.08 ? 1 : 0)
-    + (Math.random() < 0.05 + Math.max(0, strengthEdge) * 0.03 ? 1 : 0);
+  const extra = (random() < 0.18 + Math.max(0, strengthEdge) * 0.08 ? 1 : 0)
+    + (random() < 0.05 + Math.max(0, strengthEdge) * 0.03 ? 1 : 0);
   return Math.max(0, Math.min(5, base + extra));
 };
 
-const createFixture = ({ homeClub, awayClub, playersByClub, isFriendly = false }) => {
+const createFixture = ({ homeClub, awayClub, playersByClub, isFriendly = false, week = 1, season = 1, seasonWeek = 1 }) => {
+  const seed = hashString(`${season}:${seasonWeek}:${homeClub.countryCode}:${homeClub.name}:${awayClub.name}`);
+  const random = createSeededRandom(seed);
   const homePlayers = playersByClub.get(clubKey(homeClub)) ?? [];
   const awayPlayers = playersByClub.get(clubKey(awayClub)) ?? [];
-  const homeStrength = getClubStrength(homeClub, homePlayers);
-  const awayStrength = getClubStrength(awayClub, awayPlayers);
+  const homeStrength = getClubStrength(homeClub, homePlayers, random);
+  const awayStrength = getClubStrength(awayClub, awayPlayers, random);
   // Friendlies: smaller gap, teams rotate squads → more "random" scorelines
-  const friendlyNoise = isFriendly ? rand(-15, 15) / 10 : 0;
-  const homeGoals = getTeamGoals(homeStrength + friendlyNoise, awayStrength, 0.25);
-  const awayGoals = getTeamGoals(awayStrength + friendlyNoise, homeStrength, 0);
+  const friendlyNoise = isFriendly ? (Math.floor(random() * 31) - 15) / 10 : 0;
+  const homeGoals = getTeamGoals(homeStrength + friendlyNoise, awayStrength, 0.25, random);
+  const awayGoals = getTeamGoals(awayStrength + friendlyNoise, homeStrength, 0, random);
 
   return {
-    fixtureId: makeId('fx'),
+    fixtureId: `fx_${season}_${seasonWeek}_${homeClub.countryCode}_${hashString(`${homeClub.name}:${awayClub.name}`)}`,
+    week,
+    season,
+    seasonWeek,
     homeClub,
     awayClub,
     countryCode: homeClub.countryCode,
@@ -376,7 +381,7 @@ export const buildWeeklyFixtures = (roster = [], week = 1) => {
     const round = rounds[seasonWeek - 1];
     if (!round?.length) return;
     round.forEach(({ homeClub, awayClub }) => {
-      fixtures.push(createFixture({ homeClub, awayClub, playersByClub, isFriendly: isFriendlyWeek }));
+      fixtures.push(createFixture({ homeClub, awayClub, playersByClub, isFriendly: isFriendlyWeek, week, season, seasonWeek }));
     });
   });
 
@@ -384,7 +389,7 @@ export const buildWeeklyFixtures = (roster = [], week = 1) => {
 };
 
 export const simulateWeeklyClubResults = (roster, week = 1, fixtures = buildWeeklyFixtures(roster, week)) => {
-  if (!roster.length) return { fixtures: [], matchResults: [] };
+  if (!roster.length) return { fixtures, matchResults: [] };
   const budget = fixtures.reduce((map, fixture) => {
     map.set(clubKey(fixture.homeClub), { goals: fixture.homeGoals, assists: fixture.homeGoals });
     map.set(clubKey(fixture.awayClub), { goals: fixture.awayGoals, assists: fixture.awayGoals });

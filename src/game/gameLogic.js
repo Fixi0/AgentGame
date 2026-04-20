@@ -434,6 +434,7 @@ export const createFreshState = () => ({
   market: generateMarket(20, 0, 5, [], 1, DEFAULT_AGENCY_PROFILE.countryCode),
   freeAgents: generateFreeAgents(20, 4, [], 1, DEFAULT_AGENCY_PROFILE.countryCode, 0),
   leagueTables: createInitialLeagueTables(),
+  leagueSeasonData: {},
   leagueReputation: createDefaultLeagueReputation(DEFAULT_AGENCY_PROFILE.countryCode),
   clubRelations: createDefaultClubRelations(),
   clubMemory: createDefaultClubMemory(),
@@ -602,6 +603,7 @@ export const migrateState = (state) => {
     seasonAwards: state.seasonAwards ?? {},
     worldState: state.worldState ?? generateWorldState(1),
     leagueTables: mergeWithInitialLeagueTables(state.leagueTables),
+    leagueSeasonData: state.leagueSeasonData ?? {},
     leagueReputation: state.leagueReputation ?? createDefaultLeagueReputation(agencyCountryCode),
     clubRelations: state.clubRelations ?? createDefaultClubRelations(),
     clubMemory: state.clubMemory ?? createDefaultClubMemory(),
@@ -2798,6 +2800,20 @@ export const playWeek = (state) => {
     ...pendingChains.filter((c) => !processedChainIds.has(c.id) && c.triggerWeek > state.week),
     ...newChainedEvents,
   ].slice(0, 50);
+  const nextLeagueTables = isNewSeasonStart
+    ? createInitialLeagueTables()
+    : updateLeagueTables(state.leagueTables ?? createInitialLeagueTables(), competitiveFixtures);
+  const nextLeagueSeasonData = Object.entries(nextLeagueTables).reduce((data, [countryCode, table]) => ({
+    ...data,
+    [countryCode]: {
+      season: nextPhase.season,
+      countryCode,
+      currentWeek: state.week + 1,
+      table,
+      latestFixtures: competitiveFixtures.filter((fixture) => fixture.countryCode === countryCode),
+      leader: Object.values(table ?? {}).sort((a, b) => (b.points ?? 0) - (a.points ?? 0))[0]?.club ?? null,
+    },
+  }), {});
 
   const nextState = {
     ...state,
@@ -2831,9 +2847,8 @@ export const playWeek = (state) => {
     market: [...completedScouting, ...(Array.isArray(state.market) ? state.market : [])].slice(0, 12),
     lastFixtures: weeklyFixtures,
     nextFixtures,
-    leagueTables: isNewSeasonStart
-      ? createInitialLeagueTables()
-      : updateLeagueTables(state.leagueTables ?? createInitialLeagueTables(), competitiveFixtures),
+    leagueTables: nextLeagueTables,
+    leagueSeasonData: nextLeagueSeasonData,
     competitorThreats: competitorThreat ? [competitorThreat, ...(state.competitorThreats ?? [])].slice(0, 12) : state.competitorThreats ?? [],
     scoutingMissions,
     objectives,
