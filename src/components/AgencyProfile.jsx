@@ -38,6 +38,12 @@ export default function AgencyProfile({ state }) {
         <div style={S.sumRow}><span style={S.sumK}>Score</span><strong>{progression.score}/100</strong></div>
         <div style={S.progBar}><div style={{ ...S.progFill, width: `${progression.progress}%` }} /></div>
         <div style={S.objReward}>{progression.nextStage ? `Vers ${progression.nextStage}` : 'Sommet atteint'}</div>
+        <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
+          <div style={S.promiseRow}><span>Réputation</span><strong>{progression.metrics.reputation}/1000</strong></div>
+          <div style={S.promiseRow}><span>Crédibilité</span><strong>{progression.metrics.credibility}/100</strong></div>
+          <div style={S.promiseRow}><span>Confiance moyenne</span><strong>{progression.metrics.avgTrust}/100</strong></div>
+          <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(portfolioValue)}</strong></div>
+        </div>
       </div>
       <div style={S.segmentGrid}>
         {Object.entries(state.segmentReputation ?? {}).map(([key, value]) => (

@@ -133,6 +133,8 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             <div style={S.promiseRow}><span>Structure</span><strong>{progression.metrics.officeLevel}/9</strong></div>
             <div style={S.promiseRow}><span>Staff</span><strong>{progression.metrics.staffLevel}/12</strong></div>
             <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(progression.metrics.portfolioValue)}</strong></div>
+            <div style={S.promiseRow}><span>Confiance clubs</span><strong>{progression.metrics.relationScore}/100</strong></div>
+            <div style={S.promiseRow}><span>Occupation</span><strong>{progression.metrics.utilization}%</strong></div>
           </div>
         </div>
         <div style={S.offCard}>

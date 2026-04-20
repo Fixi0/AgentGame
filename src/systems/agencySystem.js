@@ -20,11 +20,13 @@ export const getAgencyCapacity = (agencyLevel = 1) => AGENCY_CAPACITY_BY_LEVEL[a
 export const getAgencyUpgradeCost = (agencyLevel = 1) => AGENCY_UPGRADE_COSTS[agencyLevel] ?? null;
 
 const AGENCY_STAGES = [
-  { label: 'Atelier', min: 0, max: 24, hint: 'Tu poses les bases de l’agence.' },
-  { label: 'Agence locale', min: 25, max: 44, hint: 'Tu commences à peser dans ton marché.' },
-  { label: 'Agence reconnue', min: 45, max: 64, hint: 'Les clubs te prennent au sérieux.' },
-  { label: 'Référence européenne', min: 65, max: 84, hint: 'Tes dossiers peuvent faire basculer le marché.' },
-  { label: 'Puissance mondiale', min: 85, max: 100, hint: 'L’agence dicte désormais le tempo.' },
+  { label: 'Atelier', min: 0, max: 16, hint: 'Tu poses les bases de l’agence.' },
+  { label: 'Petit réseau', min: 17, max: 31, hint: 'Tu commences à ouvrir quelques portes.' },
+  { label: 'Agence locale', min: 32, max: 46, hint: 'Tu pèses dans ton marché.' },
+  { label: 'Agence reconnue', min: 47, max: 61, hint: 'Les clubs te prennent au sérieux.' },
+  { label: 'Référence régionale', min: 62, max: 75, hint: 'Tes dossiers ont de l’impact.' },
+  { label: 'Référence européenne', min: 76, max: 87, hint: 'Tes dossiers peuvent faire basculer le marché.' },
+  { label: 'Puissance mondiale', min: 88, max: 100, hint: 'L’agence dicte désormais le tempo.' },
 ];
 
 const average = (values = []) => {
@@ -49,11 +51,13 @@ export const getAgencyProgressSnapshot = (state = {}) => {
   const capacity = getAgencyCapacity(state.agencyLevel ?? 1);
   const utilization = capacity > 0 ? roster.length / capacity : 0;
   const relationScore = clubRelations.length ? average(clubRelations) : 50;
-  const portfolioScore = clampNumber(Math.round(portfolioValue / 180000), 0, 18);
-  const marketScore = clampNumber(Math.round((avgRating * 0.6) + (avgTrust * 0.35) + (utilization * 18)), 0, 28);
-  const structureScore = clampNumber(Math.round(officeLevel * 3.4 + staffLevel * 2.2 + (state.agencyLevel ?? 1) * 4), 0, 28);
-  const reputationScore = clampNumber(Math.round(rep * 0.22 + credibility * 0.15 + relationScore * 0.12), 0, 26);
-  const score = clampNumber(Math.round(reputationScore + structureScore + marketScore + portfolioScore), 0, 100);
+  const portfolioScore = clampNumber(Math.round(portfolioValue / 260000), 0, 14);
+  const marketScore = clampNumber(Math.round((avgRating * 0.42) + (avgTrust * 0.28) + (utilization * 10)), 0, 20);
+  const structureScore = clampNumber(Math.round(officeLevel * 2.4 + staffLevel * 1.5 + (state.agencyLevel ?? 1) * 3), 0, 22);
+  const reputationScore = clampNumber(Math.round(rep * 0.16 + credibility * 0.1 + relationScore * 0.08), 0, 16);
+  const longevityScore = clampNumber(Math.round((state.week ?? 1) / 26), 0, 10);
+  const historyScore = clampNumber(Math.round((state.decisionHistory?.length ?? 0) / 4), 0, 8);
+  const score = clampNumber(Math.round(reputationScore + structureScore + marketScore + portfolioScore + longevityScore + historyScore), 0, 100);
 
   const stageIndex = AGENCY_STAGES.findIndex((stage) => score >= stage.min && score <= stage.max) >= 0
     ? AGENCY_STAGES.findIndex((stage) => score >= stage.min && score <= stage.max)
