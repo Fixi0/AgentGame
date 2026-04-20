@@ -1349,6 +1349,7 @@ const createChoiceTransferOffer = (state, player, event, choice) => {
 export const playWeek = (state) => {
   const office = state.office ?? { scoutLevel: 0, lawyerLevel: 0, mediaLevel: 0 };
   const phase = getPhase(state.week);
+  const isNewSeasonStart = getSeasonContext(state.week + 1).seasonWeek === 1 && state.week > 1;
   const currentSeason = phase.season;
   const pendingWorldCupTrigger = phase.seasonWeek === 38 && shouldTriggerWorldCup(phase.season, state.worldCupState);
   const isWorldCupActive = Boolean((state.worldCupState && state.worldCupState.phase !== 'done') || pendingWorldCupTrigger);
@@ -2235,7 +2236,7 @@ export const playWeek = (state) => {
 
   const annualCalendar = resolveAnnualCalendarEventsFromNarrative({
     roster: finalRoster,
-    leagueTables: state.leagueTables ?? createInitialLeagueTables(),
+    leagueTables: isNewSeasonStart ? createInitialLeagueTables() : (state.leagueTables ?? createInitialLeagueTables()),
     phase: nextPhase,
     seasonAwards: state.seasonAwards,
     week: state.week + 1,
@@ -2490,7 +2491,9 @@ export const playWeek = (state) => {
     market: [...completedScouting, ...(Array.isArray(state.market) ? state.market : [])].slice(0, 12),
     lastFixtures: weeklyFixtures,
     nextFixtures,
-    leagueTables: updateLeagueTables(state.leagueTables ?? createInitialLeagueTables(), competitiveFixtures),
+    leagueTables: isNewSeasonStart
+      ? createInitialLeagueTables()
+      : updateLeagueTables(state.leagueTables ?? createInitialLeagueTables(), competitiveFixtures),
     competitorThreats: competitorThreat ? [competitorThreat, ...(state.competitorThreats ?? [])].slice(0, 12) : state.competitorThreats ?? [],
     scoutingMissions,
     objectives,
