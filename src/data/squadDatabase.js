@@ -17,6 +17,7 @@
 
 import { CLUBS, COUNTRIES } from './clubs';
 import { COUNTRY_NAME_POOLS, PERSONALITIES, POSITION_ROLES } from './players';
+import { clamp } from '../utils/helpers';
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 
