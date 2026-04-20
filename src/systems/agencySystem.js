@@ -15,6 +15,19 @@ const AGENCY_STAGES = [
   { label: 'Puissance mondiale', min: 88, max: 100, hint: 'L’agence dicte désormais le tempo.', reward: 'Accès aux meilleurs dossiers' },
 ];
 
+const AGENCY_LEVEL_REWARDS = [
+  'Base de départ',
+  'Premier palier de capacité',
+  'Réseau plus large',
+  'Agencement plus crédible',
+  'Dossiers chauds plus fréquents',
+  'Déblocage de marché élargi',
+  'Crédibilité élevée',
+  'Entrées plus fortes',
+  'Réseau premium',
+  'Puissance totale',
+];
+
 const average = (values = []) => {
   if (!values.length) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -37,24 +50,24 @@ export const getAgencyProgressSnapshot = (state = {}) => {
   const capacity = getAgencyCapacity(state.agencyLevel ?? 1);
   const utilization = capacity > 0 ? roster.length / capacity : 0;
   const relationScore = clubRelations.length ? average(clubRelations) : 50;
-  const reputationScore = clampNumber(Math.round(rep / 50), 0, 20);
-  const credibilityScore = clampNumber(Math.round(credibility / 10), 0, 10);
-  const trustScore = clampNumber(Math.round(avgTrust / 10), 0, 10);
-  const ratingScore = clampNumber(Math.round(avgRating / 10), 0, 10);
-  const structureScore = clampNumber(Math.round((officeLevel / 30) * 20), 0, 20);
-  const staffScore = clampNumber(Math.round((staffLevel / 40) * 15), 0, 15);
-  const agencyScore = clampNumber(Math.round((((state.agencyLevel ?? 1) - 1) / 9) * 10), 0, 10);
-  const relationRatingScore = clampNumber(Math.round(relationScore / 20), 0, 5);
-  const score = clampNumber(Math.round(
-    reputationScore
-    + credibilityScore
-    + trustScore
-    + ratingScore
-    + structureScore
-    + staffScore
-    + agencyScore
-    + relationRatingScore
-  ), 0, 100);
+  const normalizedReputation = clampNumber(rep / 1000, 0, 1);
+  const normalizedCredibility = clampNumber(credibility / 100, 0, 1);
+  const normalizedTrust = clampNumber(avgTrust / 100, 0, 1);
+  const normalizedRating = clampNumber(avgRating / 100, 0, 1);
+  const normalizedStructure = clampNumber(officeLevel / 30, 0, 1);
+  const normalizedStaff = clampNumber(staffLevel / 40, 0, 1);
+  const normalizedAgency = clampNumber(((state.agencyLevel ?? 1) - 1) / 9, 0, 1);
+  const normalizedRelations = clampNumber(relationScore / 100, 0, 1);
+  const score = clampNumber(Math.round(100 * (
+    normalizedReputation * 0.2
+    + normalizedCredibility * 0.1
+    + normalizedTrust * 0.1
+    + normalizedRating * 0.1
+    + normalizedStructure * 0.18
+    + normalizedStaff * 0.17
+    + normalizedAgency * 0.1
+    + normalizedRelations * 0.05
+  )), 0, 100);
 
   const stageIndex = AGENCY_STAGES.findIndex((stage) => score >= stage.min && score <= stage.max) >= 0
     ? AGENCY_STAGES.findIndex((stage) => score >= stage.min && score <= stage.max)
@@ -85,6 +98,7 @@ export const getAgencyProgressSnapshot = (state = {}) => {
       portfolioValue,
       relationScore: Math.round(relationScore),
       utilization: Math.round(utilization * 100),
+      agencyCompletion: Math.round(normalizedAgency * 100),
     },
     rewards: AGENCY_STAGES.map((stage) => ({
       label: stage.label,
@@ -92,6 +106,11 @@ export const getAgencyProgressSnapshot = (state = {}) => {
       max: stage.max,
       reward: stage.reward,
       reached: score >= stage.min,
+    })),
+    levelRewards: AGENCY_LEVEL_REWARDS.map((reward, index) => ({
+      level: index + 1,
+      reward,
+      reached: (state.agencyLevel ?? 1) >= index + 1,
     })),
   };
 };

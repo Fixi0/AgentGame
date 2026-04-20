@@ -44,7 +44,17 @@ export default function AgencyProfile({ state }) {
           <div style={S.promiseRow}><span>Crédibilité</span><strong>{progression.metrics.credibility}/100</strong></div>
           <div style={S.promiseRow}><span>Confiance moyenne</span><strong>{progression.metrics.avgTrust}/100</strong></div>
           <div style={S.promiseRow}><span>Agence</span><strong>{progression.metrics.agencyLevel}/10</strong></div>
+          <div style={S.promiseRow}><span>Complétion agence</span><strong>{progression.metrics.agencyCompletion}/100</strong></div>
           <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(portfolioValue)}</strong></div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>NIVEAUX D'AGENCE</div>
+          {progression.levelRewards.map((level) => (
+            <div key={level.level} style={{ ...S.promiseRow, opacity: level.reached ? 1 : 0.5 }}>
+              <span>Niveau {level.level}</span>
+              <strong>{level.reward}</strong>
+            </div>
+          ))}
         </div>
         <div style={{ marginTop: 12 }}>
           <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>PALIERS</div>

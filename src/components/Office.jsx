@@ -137,9 +137,19 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             <div style={S.promiseRow}><span>Structure</span><strong>{progression.metrics.officeLevel}/30</strong></div>
             <div style={S.promiseRow}><span>Staff</span><strong>{progression.metrics.staffLevel}/40</strong></div>
             <div style={S.promiseRow}><span>Agence</span><strong>{progression.metrics.agencyLevel}/10</strong></div>
+            <div style={S.promiseRow}><span>Complétion agence</span><strong>{progression.metrics.agencyCompletion}/100</strong></div>
             <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(progression.metrics.portfolioValue)}</strong></div>
             <div style={S.promiseRow}><span>Confiance clubs</span><strong>{progression.metrics.relationScore}/100</strong></div>
             <div style={S.promiseRow}><span>Occupation</span><strong>{progression.metrics.utilization}%</strong></div>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>NIVEAUX D'AGENCE</div>
+            {progression.levelRewards.map((level) => (
+              <div key={level.level} style={{ ...S.promiseRow, opacity: level.reached ? 1 : 0.5 }}>
+                <span>Niveau {level.level}</span>
+                <strong>{level.reward}</strong>
+              </div>
+            ))}
           </div>
           <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>PALIERS</div>
