@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Play, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
@@ -244,6 +244,7 @@ export default function FootballAgentGame() {
   const [saveFlash, setSaveFlash] = useState(false);
   const [lastWeekError, setLastWeekError] = useState(null);
   const [forceOnboarding, setForceOnboarding] = useState(false);
+  const startupActionLockRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -251,6 +252,7 @@ export default function FootballAgentGame() {
       loadLocalGameProgress()
         .then((saved) => {
           if (cancelled) return;
+          if (startupActionLockRef.current) return;
           setHasSave(Boolean(saved?.state));
           if (saved?.state) {
             const parsed = migrateState(saved.state);
@@ -272,6 +274,7 @@ export default function FootballAgentGame() {
         })
         .catch(() => {
           if (cancelled) return;
+          if (startupActionLockRef.current) return;
           setState(null);
           setSavePreview(null);
           setSaveMenuOpen(true);
@@ -1078,7 +1081,9 @@ export default function FootballAgentGame() {
   };
 
   const launchNewGame = async (clearExistingSave = false) => {
+    startupActionLockRef.current = true;
     const freshState = createFreshState();
+    setLoaded(true);
     setConfirmDialog(null);
     setHasSave(false);
     setSavePreview(null);
