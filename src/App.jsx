@@ -1076,7 +1076,6 @@ export default function FootballAgentGame() {
   };
 
   const handleHardResetGame = async () => {
-    await clearLocalGameProgress();
     setState(createFreshState());
     setSavePreview(null);
     setHasSave(false);
@@ -1084,6 +1083,11 @@ export default function FootballAgentGame() {
     setSaveMenuOpen(true);
     setView('dashboard');
     showToast('Sauvegarde effacée', 'success');
+    try {
+      await clearLocalGameProgress();
+    } catch {
+      // Keep UI responsive even if local DB cleanup is blocked.
+    }
   };
 
   const handleNewGame = () => {
