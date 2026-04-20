@@ -424,7 +424,7 @@ export const createFreshState = () => ({
   contacts: createDefaultContacts(),
   seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 20 }),
   roster: [],
-  market: generateMarket(20, 0, 6, [], 1),
+  market: generateMarket(20, 0, 5, [], 1),
   freeAgents: generateFreeAgents(20, 4, [], 1),
   leagueTables: createInitialLeagueTables(),
   leagueReputation: createDefaultLeagueReputation(DEFAULT_AGENCY_PROFILE.countryCode),
@@ -506,6 +506,18 @@ export const migrateState = (state) => {
     if (current < estimated * 0.5 || current > estimated * 2.5) return estimated;
     return current;
   };
+  const normalizeMarketShelf = (list, count = 5) => {
+    const current = asArray(list);
+    const targetCount = Math.max(count, current.length);
+    const existingIds = new Set([
+      ...asArray(state.roster).map((player) => player?.id).filter(Boolean),
+      ...asArray(state.freeAgents).map((player) => player?.id).filter(Boolean),
+      ...current.map((player) => player?.id).filter(Boolean),
+    ]);
+    if (current.length >= count) return current;
+    const filler = generateMarket(reputation, state.office?.scoutLevel ?? 0, targetCount - current.length, [...existingIds], currentSeason);
+    return [...current, ...filler].slice(0, count);
+  };
 
   return {
     ...state,
@@ -575,7 +587,40 @@ export const migrateState = (state) => {
     socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
     dossierMemory: state.dossierMemory ?? createDefaultDossierMemory(),
     pendingChainedEvents: asArray(state.pendingChainedEvents),
-    market: asArray(state.market),
+    market: normalizeMarketShelf(state.market, 5).map((player) => {
+      const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
+      const personality = player.personality ?? pick(PERSONALITIES);
+      const club = normalizeClubForPlayer(player, country.code);
+      const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
+
+      return {
+        ...player,
+        ...coreProfile,
+        ...ensureDeepPlayerProfile(player, country.code, club),
+        ...normalizeRoleProfile(player),
+        club: club.name,
+        clubTier: player.clubTier ?? club.tier,
+        clubCountryCode: club.countryCode,
+        clubCity: club.city,
+        countryCode: player.countryCode ?? country.code,
+        countryLabel: player.countryLabel ?? country.label,
+        countryFlag: player.countryFlag ?? country.flag,
+        value: normalizeTransferValue(player, club),
+        weeklySalary: player.weeklySalary < 1000 ? player.weeklySalary * 20 : player.weeklySalary,
+        signingCost: player.signingCost < 1000 ? player.signingCost * 10 : player.signingCost,
+        fatigue: player.fatigue ?? rand(12, 36),
+        brandValue: player.brandValue ?? rand(8, 35),
+        seasonStats: player.seasonStats ?? { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
+        careerGoal: player.careerGoal ?? createCareerGoal(player),
+        scoutReport: (state.staff?.scoutAfrica ?? 0) > 0 ? player.scoutReport ?? createScoutReport(player, state.office?.scoutLevel ?? 0) : null,
+        agentContract: player.agentContract ?? createAgentContract(player),
+        timeline: player.timeline ?? [],
+        personality,
+        trust: player.trust ?? getInitialTrust(personality),
+        matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
+        europeanCompetition: getPlayerEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
+      };
+    }),
     freeAgents: asArray(state.freeAgents).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
@@ -649,7 +694,7 @@ export const migrateState = (state) => {
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
       };
     }),
-    market: (asArray(state.market).length ? asArray(state.market) : generateMarket(reputation, state.office?.scoutLevel ?? 0, 6, [], currentSeason)).map((player) => {
+    market: normalizeMarketShelf(state.market, 5).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
@@ -746,7 +791,7 @@ export const refreshMarket = (state) => {
   let newMarket = generateMarket(
     state.reputation + staffBonus * 3 + specializationBonus,
     scoutLevel,
-    6,
+    5,
     rosterIds,
     currentSeason,
   ).map((player) => ({

@@ -208,7 +208,7 @@ const seededFloat = (seed, n = 0) => {
   let s = ((seed >>> 0) + Math.imul(n + 1, 2654435761)) >>> 0;
   s = Math.imul(s ^ (s >>> 16), 0x45d9f3b) >>> 0;
   s = Math.imul(s ^ (s >>> 16), 0x45d9f3b) >>> 0;
-  return (s ^ (s >>> 16)) >>> 0 / 0x100000000;
+  return ((s ^ (s >>> 16)) >>> 0) / 0x100000000;
 };
 
 const sInt   = (seed, n, min, max) => Math.floor(seededFloat(seed, n) * (max - min + 1)) + min;
