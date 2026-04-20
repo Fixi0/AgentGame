@@ -20,13 +20,13 @@ export const getAgencyCapacity = (agencyLevel = 1) => AGENCY_CAPACITY_BY_LEVEL[a
 export const getAgencyUpgradeCost = (agencyLevel = 1) => AGENCY_UPGRADE_COSTS[agencyLevel] ?? null;
 
 const AGENCY_STAGES = [
-  { label: 'Atelier', min: 0, max: 16, hint: 'Tu poses les bases de l’agence.' },
-  { label: 'Petit réseau', min: 17, max: 31, hint: 'Tu commences à ouvrir quelques portes.' },
-  { label: 'Agence locale', min: 32, max: 46, hint: 'Tu pèses dans ton marché.' },
-  { label: 'Agence reconnue', min: 47, max: 61, hint: 'Les clubs te prennent au sérieux.' },
-  { label: 'Référence régionale', min: 62, max: 75, hint: 'Tes dossiers ont de l’impact.' },
-  { label: 'Référence européenne', min: 76, max: 87, hint: 'Tes dossiers peuvent faire basculer le marché.' },
-  { label: 'Puissance mondiale', min: 88, max: 100, hint: 'L’agence dicte désormais le tempo.' },
+  { label: 'Atelier', min: 0, max: 16, hint: 'Tu poses les bases de l’agence.', reward: 'Départ modeste, peu de marge' },
+  { label: 'Petit réseau', min: 17, max: 31, hint: 'Tu commences à ouvrir quelques portes.', reward: '+1 relation club par mois' },
+  { label: 'Agence locale', min: 32, max: 46, hint: 'Tu pèses dans ton marché.', reward: '+1 dossier chaud possible' },
+  { label: 'Agence reconnue', min: 47, max: 61, hint: 'Les clubs te prennent au sérieux.', reward: '+1 scout temporaire sur une mission' },
+  { label: 'Référence régionale', min: 62, max: 75, hint: 'Tes dossiers ont de l’impact.', reward: '+1 offre crédible de plus' },
+  { label: 'Référence européenne', min: 76, max: 87, hint: 'Tes dossiers peuvent faire basculer le marché.', reward: 'Meilleures entrées en Europe' },
+  { label: 'Puissance mondiale', min: 88, max: 100, hint: 'L’agence dicte désormais le tempo.', reward: 'Accès aux meilleurs dossiers' },
 ];
 
 const average = (values = []) => {
@@ -72,6 +72,7 @@ export const getAgencyProgressSnapshot = (state = {}) => {
     score,
     stage: currentStage.label,
     stageHint: currentStage.hint,
+    stageReward: currentStage.reward,
     nextStage: nextStage === currentStage ? null : nextStage.label,
     progress,
     capacity,
@@ -86,6 +87,13 @@ export const getAgencyProgressSnapshot = (state = {}) => {
       relationScore: Math.round(relationScore),
       utilization: Math.round(utilization * 100),
     },
+    rewards: AGENCY_STAGES.map((stage) => ({
+      label: stage.label,
+      min: stage.min,
+      max: stage.max,
+      reward: stage.reward,
+      reached: score >= stage.min,
+    })),
   };
 };
 

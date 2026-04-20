@@ -35,6 +35,7 @@ export default function AgencyProfile({ state }) {
         <div style={S.secTitle}>PROGRESSION AGENCE</div>
         <div style={S.sumRow}><span style={S.sumK}>Palier</span><strong>{progression.stage}</strong></div>
         <div style={S.sumRow}><span style={S.sumK}>Lecture</span><strong>{progression.stageHint}</strong></div>
+        <div style={S.sumRow}><span style={S.sumK}>Récompense</span><strong>{progression.stageReward}</strong></div>
         <div style={S.sumRow}><span style={S.sumK}>Score</span><strong>{progression.score}/100</strong></div>
         <div style={S.progBar}><div style={{ ...S.progFill, width: `${progression.progress}%` }} /></div>
         <div style={S.objReward}>{progression.nextStage ? `Vers ${progression.nextStage}` : 'Sommet atteint'}</div>
@@ -43,6 +44,15 @@ export default function AgencyProfile({ state }) {
           <div style={S.promiseRow}><span>Crédibilité</span><strong>{progression.metrics.credibility}/100</strong></div>
           <div style={S.promiseRow}><span>Confiance moyenne</span><strong>{progression.metrics.avgTrust}/100</strong></div>
           <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(portfolioValue)}</strong></div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>PALIERS</div>
+          {progression.rewards.map((stage) => (
+            <div key={stage.label} style={{ ...S.promiseRow, opacity: stage.reached ? 1 : 0.5 }}>
+              <span>{stage.label}</span>
+              <strong>{stage.reward}</strong>
+            </div>
+          ))}
         </div>
       </div>
       <div style={S.segmentGrid}>

@@ -124,6 +124,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             </div>
           </div>
           <div style={S.sumRow}><span style={S.sumK}>Score</span><strong>{progression.score}/100</strong></div>
+          <div style={S.sumRow}><span style={S.sumK}>Récompense</span><strong>{progression.stageReward}</strong></div>
           <div style={S.progBar}><div style={{ ...S.progFill, width: `${progression.progress}%` }} /></div>
           <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 8, lineHeight: 1.45 }}>
             {progression.nextStage ? `Prochain palier: ${progression.nextStage}` : 'Tu as atteint le palier le plus haut.'}
@@ -135,6 +136,15 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(progression.metrics.portfolioValue)}</strong></div>
             <div style={S.promiseRow}><span>Confiance clubs</span><strong>{progression.metrics.relationScore}/100</strong></div>
             <div style={S.promiseRow}><span>Occupation</span><strong>{progression.metrics.utilization}%</strong></div>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>PALIERS</div>
+            {progression.rewards.map((stage) => (
+              <div key={stage.label} style={{ ...S.promiseRow, opacity: stage.reached ? 1 : 0.5 }}>
+                <span>{stage.label}</span>
+                <strong>{stage.reward}</strong>
+              </div>
+            ))}
           </div>
         </div>
         <div style={S.offCard}>
