@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Agent FC">
+  <rect width="256" height="256" rx="56" fill="#08161a"/>
+  <path d="M78 184V72h42c28 0 48 16 48 41 0 18-10 31-26 37l32 34h-37l-28-30h-13v30H78zm37-58h10c13 0 23-6 23-19s-10-19-23-19h-10v38z" fill="#00a676"/>
+  <circle cx="52" cy="52" r="18" fill="#d4a574"/>
+</svg>

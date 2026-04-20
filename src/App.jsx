@@ -49,12 +49,16 @@ import {
   refreshMarket,
   rejectClubOffer,
   startScoutingMission,
-  STORAGE_KEY,
   upgradeAgency,
   upgradeOffice,
   upgradeStaff,
   updateAgencyProfile,
 } from './game/gameLogic';
+import {
+  clearLocalGameProgress,
+  loadLocalGameProgress,
+  saveLocalGameProgress,
+} from './data/localDatabase';
 import { getAgencyCapacity } from './systems/agencySystem';
 import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, getNegotiationContextModifier } from './systems/agencyReputationSystem';
 import { applyClubRelation, recordClubMemory } from './systems/clubSystem';
@@ -226,7 +230,7 @@ const moreItems = [
 
 
 export default function FootballAgentGame() {
-  const [loaded, setLoaded] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [state, setState] = useState(null);
   const [view, setView] = useState('dashboard');
   const [modal, setModal] = useState(null);
@@ -241,56 +245,74 @@ export default function FootballAgentGame() {
   const [lastWeekError, setLastWeekError] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      setHasSave(Boolean(saved));
-      if (saved) {
-        const parsed = migrateState(JSON.parse(saved));
-        setState(parsed);
-        setSavePreview({
-          agencyName: parsed.agencyProfile?.name ?? 'Agent FC',
-          ownerName: parsed.agencyProfile?.ownerName ?? '',
-          season: getPhase(parsed.week).season,
-          seasonWeek: getPhase(parsed.week).seasonWeek,
-          rosterCount: parsed.roster?.length ?? 0,
-          reputation: parsed.reputation ?? 0,
-          money: parsed.money ?? 0,
+      loadLocalGameProgress()
+        .then((saved) => {
+          if (cancelled) return;
+          setHasSave(Boolean(saved?.state));
+          if (saved?.state) {
+            const parsed = migrateState(saved.state);
+            setState(parsed);
+            setSavePreview({
+              agencyName: parsed.agencyProfile?.name ?? saved.preview?.agencyName ?? 'Agent FC',
+              ownerName: parsed.agencyProfile?.ownerName ?? saved.preview?.ownerName ?? '',
+              season: getPhase(parsed.week).season,
+              seasonWeek: getPhase(parsed.week).seasonWeek,
+              rosterCount: parsed.roster?.length ?? saved.preview?.rosterCount ?? 0,
+              reputation: parsed.reputation ?? saved.preview?.reputation ?? 0,
+              money: parsed.money ?? saved.preview?.money ?? 0,
+            });
+          } else {
+            setState(null);
+            setSavePreview(null);
+          }
+          setSaveMenuOpen(true);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setState(null);
+          setSavePreview(null);
+          setSaveMenuOpen(true);
+        })
+        .finally(() => {
+          if (!cancelled) setLoaded(true);
         });
-        setSaveMenuOpen(true);
-      } else {
+    } catch {
+      if (!cancelled) {
         setState(null);
         setSavePreview(null);
         setSaveMenuOpen(true);
+        setLoaded(true);
       }
-    } catch {
-      setState(null);
-      setSavePreview(null);
-      setSaveMenuOpen(true);
-    } finally {
-      setLoaded(true);
     }
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!loaded || !state) return;
-    const serialized = JSON.stringify(state);
-    localStorage.setItem(STORAGE_KEY, serialized);
-    setSavePreview({
-      agencyName: state.agencyProfile?.name ?? 'Agent FC',
-      ownerName: state.agencyProfile?.ownerName ?? '',
-      season: getPhase(state.week).season,
-      seasonWeek: getPhase(state.week).seasonWeek,
-      rosterCount: state.roster?.length ?? 0,
-      reputation: state.reputation ?? 0,
-      money: state.money ?? 0,
-    });
-    // Rotate 3 backup slots keyed by week mod 3
-    const slot = (state.week ?? 0) % 3;
-    localStorage.setItem(`${STORAGE_KEY}_bak_${slot}`, serialized);
-    // Brief save flash indicator
-    setSaveFlash(true);
-    const t = setTimeout(() => setSaveFlash(false), 1200);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    saveLocalGameProgress(state).then((record) => {
+      if (cancelled) return;
+      setSavePreview(record?.preview ?? {
+        agencyName: state.agencyProfile?.name ?? 'Agent FC',
+        ownerName: state.agencyProfile?.ownerName ?? '',
+        season: getPhase(state.week).season,
+        seasonWeek: getPhase(state.week).seasonWeek,
+        rosterCount: state.roster?.length ?? 0,
+        reputation: state.reputation ?? 0,
+        money: state.money ?? 0,
+      });
+      setHasSave(true);
+      setSaveFlash(true);
+      const t = setTimeout(() => setSaveFlash(false), 1200);
+      return () => clearTimeout(t);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [state, loaded]);
 
   const showToast = (message, type = 'info') => {
@@ -1030,12 +1052,13 @@ export default function FootballAgentGame() {
       body: 'Cette action remet l’agence à zéro et efface la sauvegarde locale. Tu repars au départ de carrière.',
       confirmLabel: 'Réinitialiser',
       tone: 'danger',
-      onConfirm: () => {
-        localStorage.removeItem(STORAGE_KEY);
+      onConfirm: async () => {
+        await clearLocalGameProgress();
         setState(createFreshState());
         setSavePreview(null);
         setView('dashboard');
         setSaveMenuOpen(false);
+        setHasSave(false);
         setConfirmDialog(null);
         showToast('Nouvelle partie', 'success');
       },
@@ -1050,8 +1073,8 @@ export default function FootballAgentGame() {
         : 'Tu démarres une nouvelle partie et tu repars de zéro.',
       confirmLabel: 'Nouvelle partie',
       tone: 'danger',
-      onConfirm: () => {
-        localStorage.removeItem(STORAGE_KEY);
+      onConfirm: async () => {
+        await clearLocalGameProgress();
         setState(createFreshState());
         setSavePreview(null);
         setView('dashboard');
@@ -1204,7 +1227,7 @@ export default function FootballAgentGame() {
     showToast('Appel joueur ajouté aux messages', 'success');
   };
 
-  if (!loaded || (!state && !saveMenuOpen)) {
+  if (!loaded && !saveMenuOpen) {
     return (
       <div style={S.loadScreen}>
         <div style={S.loadText}>CHARGEMENT</div>
