@@ -699,6 +699,7 @@ export default function FootballAgentGame() {
     const isStaffThread = currentMessage && ['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(currentMessage.type);
     const staffReply = isStaffThread && currentMessage ? (() => {
       const player = state.roster.find((item) => item.id === currentMessage.playerId);
+      if (!player) return null; // joueur absent du roster — pas de réponse narrative
       const staffName = currentMessage.threadLabel ?? (String(currentMessage.context ?? '').includes('coach')
         ? `Coach de ${player?.club ?? 'son club'}`
         : `DS de ${player?.club ?? 'son club'}`);

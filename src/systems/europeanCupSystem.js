@@ -192,29 +192,32 @@ export const getEuropeanInterestClubs = (player, euroMatch) => {
   return clubs.slice(0, limit).map((club) => club.name);
 };
 
-/** Génère un adversaire fictif (club européen) pour le match */
-const EURO_OPPONENTS = [
-  { name: 'Bayern München', country: '🇩🇪' },
-  { name: 'Real Madrid', country: '🇪🇸' },
-  { name: 'Manchester City', country: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { name: 'Paris SG', country: '🇫🇷' },
-  { name: 'Inter Milan', country: '🇮🇹' },
-  { name: 'Porto', country: '🇵🇹' },
-  { name: 'Ajax Amsterdam', country: '🇳🇱' },
-  { name: 'Atletico Madrid', country: '🇪🇸' },
-  { name: 'Chelsea FC', country: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { name: 'Juventus', country: '🇮🇹' },
-  { name: 'Benfica', country: '🇵🇹' },
-  { name: 'Dortmund', country: '🇩🇪' },
-  { name: 'Marseille', country: '🇫🇷' },
-  { name: 'Séville FC', country: '🇪🇸' },
-  { name: 'AS Rome', country: '🇮🇹' },
-  { name: 'Feyenoord', country: '🇳🇱' },
-  { name: 'Galatasaray', country: '🇹🇷' },
-  { name: 'Celtic FC', country: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
-  { name: 'Shakhtar Donetsk', country: '🇺🇦' },
-  { name: 'RB Leipzig', country: '🇩🇪' },
-];
+/** Mapping code pays → drapeau */
+const FLAG_MAP = {
+  FR: '🇫🇷', ES: '🇪🇸', GB: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', EN: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+  DE: '🇩🇪', IT: '🇮🇹', NL: '🇳🇱', PT: '🇵🇹',
+  BR: '🇧🇷', AR: '🇦🇷', TR: '🇹🇷', UA: '🇺🇦',
+};
+
+/**
+ * Sélectionne un adversaire européen réel parmi les clubs du jeu.
+ * Utilise les clubs de la même compétition pour que les noms d'adversaires
+ * correspondent aux équipes visibles dans les classements.
+ */
+const pickEuropeanOpponent = (playerClubName, competition) => {
+  let pool;
+  if (competition === 'CL') {
+    pool = CLUBS.filter((c) => c.tier === 1 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
+  } else if (competition === 'EL') {
+    pool = CLUBS.filter((c) => c.tier <= 2 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
+  } else {
+    pool = CLUBS.filter((c) => c.tier <= 3 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
+  }
+  const candidates = pool.filter((c) => c.name !== playerClubName);
+  if (!candidates.length) return { name: 'Club Européen', country: '🌍' };
+  const club = candidates[Math.floor(Math.random() * candidates.length)];
+  return { name: club.name, country: FLAG_MAP[club.countryCode] ?? '🌍' };
+};
 
 /**
  * Simule un match européen pour un joueur.
@@ -231,7 +234,11 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek, clubMatch
   const isPlayoff = stage === 'playoff';
 
   const sharedContext = clubMatchContext ?? {};
-  const opponent = sharedContext.opponent ?? EURO_OPPONENTS[Math.floor(Math.random() * EURO_OPPONENTS.length)];
+  // Normalise l'adversaire : peut être une string (contexte partagé) ou un objet {name, country}
+  const rawOpponent = sharedContext.opponent ?? pickEuropeanOpponent(player.club, competition);
+  const opponent = typeof rawOpponent === 'string'
+    ? { name: rawOpponent, country: sharedContext.opponentCountry ?? null }
+    : rawOpponent;
   const ownGoals = Number.isFinite(sharedContext.goalsFor)
     ? sharedContext.goalsFor
     : Math.max(0, Math.min(4, rand(0, 2)));

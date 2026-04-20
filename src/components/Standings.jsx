@@ -58,9 +58,11 @@ const buildEuropeRows = (state, competition, season) => {
         return acc;
       }, { played: 0, win: 0, draw: 0, loss: 0, goalsFor: 0, goalsAgainst: 0, points: 0 });
       const rosterCount = roster.filter((player) => player.club === club.name).length;
-      const latest = matches[0] ?? null;
+      const latest = matches[matches.length - 1] ?? null;
+      const flag = COUNTRIES.find((c) => c.code === club.countryCode)?.flag ?? '🌍';
       return {
         club,
+        flag,
         history,
         matches,
         latest,
@@ -68,7 +70,7 @@ const buildEuropeRows = (state, competition, season) => {
         ...stats,
       };
     })
-    .filter((row) => row.played > 0 || row.rosterCount > 0)
+    // Affiche TOUS les clubs de la compétition — pas seulement ceux avec des joueurs suivis
     .sort((a, b) =>
       b.points - a.points
       || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst)
@@ -100,7 +102,7 @@ function EuropeCompetitionCard({ state, competition, season, seasonWeek, onClubD
         <span>{cup.icon} {cup.name}</span>
       </div>
       <div style={{ fontSize: 12, color: '#3f5663', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45, marginBottom: 10 }}>
-        Les clubs suivis dans ta partie restent sur le même parcours européen sur la saison.
+        Tous les clubs engagés cette saison. Tes clubs sont mis en évidence en vert.
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
@@ -141,77 +143,79 @@ function EuropeCompetitionCard({ state, competition, season, seasonWeek, onClubD
         })}
       </div>
 
-      <div style={{ ...S.promiseRow, background: '#ffffff', borderRadius: 8, padding: '8px 10px', marginBottom: 10 }}>
-        <span>{currentStageKey === 'league' ? 'Classement européen' : 'Phase éliminatoire'}</span>
-        <strong>{rows.length} club{rows.length > 1 ? 's' : ''} suivis</strong>
+      <div style={{ ...S.promiseRow, background: ‘#ffffff’, borderRadius: 8, padding: ‘8px 10px’, marginBottom: 10 }}>
+        <span>{currentStageKey === ‘league’ ? ‘Classement européen’ : ‘Phase éliminatoire’}</span>
+        <strong>{rows.length} club{rows.length > 1 ? ‘s’ : ‘’} engagés</strong>
       </div>
 
       {rows.length ? (
-        <div style={{ display: 'grid', gap: 8 }}>
+        <div style={{ display: ‘grid’, gap: 6 }}>
           {rows.map((row, index) => {
             const goalDiff = row.goalsFor - row.goalsAgainst;
+            const isMyClub = row.rosterCount > 0;
             const latestStage = row.latest?.stage
               ? EURO_STAGE_TRACKER.find((stage) => stage.key === row.latest.stage)?.label
               : row.latest?.phase ?? currentStageLabel;
-            const latestSummary = row.history?.summary?.[0];
             return (
               <button
                 key={row.club.name}
                 onClick={() => onClubDetails?.(row.club.name)}
                 style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  background: '#ffffff',
-                  border: '1px solid #e5eaf0',
-                  borderLeft: `4px solid ${cup.color}`,
+                  width: ‘100%’,
+                  textAlign: ‘left’,
+                  background: isMyClub ? ‘#f0fdf8’ : ‘#ffffff’,
+                  border: `1px solid ${isMyClub ? ‘#a7f3d0’ : ‘#e5eaf0’}`,
+                  borderLeft: `4px solid ${isMyClub ? ‘#00a676’ : cup.color}`,
                   borderRadius: 8,
-                  padding: '12px 12px 10px',
-                  cursor: 'pointer',
-                  boxShadow: '0 10px 24px rgba(15,23,32,.06)',
-                  color: '#172026',
+                  padding: ‘10px 12px’,
+                  cursor: ‘pointer’,
+                  boxShadow: isMyClub ? ‘0 4px 14px rgba(0,166,118,.12)’ : ‘0 6px 18px rgba(15,23,32,.05)’,
+                  color: ‘#172026’,
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1.25 }}>
-                      {index + 1}. {row.club.name}
+                <div style={{ display: ‘flex’, justifyContent: ‘space-between’, gap: 10, alignItems: ‘center’ }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1.25, display: ‘flex’, alignItems: ‘center’, gap: 6 }}>
+                      <span style={{ fontSize: 11, minWidth: 20, color: ‘#64727d’, fontFamily: ‘system-ui,sans-serif’ }}>{index + 1}.</span>
+                      <span>{row.flag} {row.club.name}</span>
+                      {isMyClub && (
+                        <span style={{ fontSize: 9, fontWeight: 900, background: ‘#00a676’, color: ‘#fff’, borderRadius: 4, padding: ‘1px 5px’, letterSpacing: ‘.06em’, fontFamily: ‘system-ui,sans-serif’ }}>
+                          MON CLUB
+                        </span>
+                      )}
                     </div>
-                    <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 3 }}>
-                      {row.rosterCount > 0
-                        ? `${row.rosterCount} joueur${row.rosterCount > 1 ? 's' : ''} suivis`
-                        : 'Aucun joueur de ton effectif dans ce club'}
-                    </div>
+                    {row.played > 0 && (
+                      <div style={{ display: ‘flex’, gap: 5, marginTop: 5, flexWrap: ‘wrap’ }}>
+                        <span style={{ fontSize: 10, color: ‘#3f5663’, fontFamily: ‘system-ui,sans-serif’, background: ‘#f0fdf8’, border: ‘1px solid #d1fae5’, borderRadius: 4, padding: ‘1px 5px’ }}>V {row.win}</span>
+                        <span style={{ fontSize: 10, color: ‘#3f5663’, fontFamily: ‘system-ui,sans-serif’, background: ‘#f7f9fb’, border: ‘1px solid #e5eaf0’, borderRadius: 4, padding: ‘1px 5px’ }}>N {row.draw}</span>
+                        <span style={{ fontSize: 10, color: ‘#3f5663’, fontFamily: ‘system-ui,sans-serif’, background: ‘#fff5f5’, border: ‘1px solid #fecaca’, borderRadius: 4, padding: ‘1px 5px’ }}>D {row.loss}</span>
+                        <span style={{ fontSize: 10, color: ‘#64727d’, fontFamily: ‘system-ui,sans-serif’, background: ‘#f7f9fb’, border: ‘1px solid #e5eaf0’, borderRadius: 4, padding: ‘1px 5px’ }}>
+                          {goalDiff >= 0 ? `+${goalDiff}` : goalDiff}
+                        </span>
+                        {row.latest && (
+                          <span style={{ fontSize: 10, color: ‘#3f5663’, fontFamily: ‘system-ui,sans-serif’ }}>
+                            {latestStage} · {row.latest.score} vs {row.latest.opponent ?? ‘?’}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {row.played === 0 && (
+                      <div style={{ fontSize: 10, color: ‘#9aa7b2’, fontFamily: ‘system-ui,sans-serif’, marginTop: 3 }}>
+                        Aucun match joué pour le moment
+                      </div>
+                    )}
                   </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 18, fontWeight: 950, color: cup.color, lineHeight: 1 }}>{row.points} pts</div>
-                    <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 2 }}>MJ {row.played}</div>
+                  <div style={{ textAlign: ‘right’, flexShrink: 0 }}>
+                    <div style={{ fontSize: 20, fontWeight: 950, color: row.played > 0 ? cup.color : ‘#c4cdd6’, lineHeight: 1 }}>{row.points}</div>
+                    <div style={{ fontSize: 9, color: ‘#64727d’, fontFamily: ‘system-ui,sans-serif’, letterSpacing: ‘.06em’, textTransform: ‘uppercase’, marginTop: 1 }}>MJ {row.played}</div>
                   </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                  <span style={{ ...S.preAccordBadge, background: '#f7f9fb', color: '#3f5663' }}>V {row.win}</span>
-                  <span style={{ ...S.preAccordBadge, background: '#f7f9fb', color: '#3f5663' }}>N {row.draw}</span>
-                  <span style={{ ...S.preAccordBadge, background: '#f7f9fb', color: '#3f5663' }}>D {row.loss}</span>
-                  <span style={{ ...S.preAccordBadge, background: '#f7f9fb', color: '#3f5663' }}>
-                    Diff {goalDiff >= 0 ? `+${goalDiff}` : goalDiff}
-                  </span>
-                </div>
-
-                <div style={{ fontSize: 11, color: '#3f5663', fontFamily: 'system-ui,sans-serif', marginTop: 8, lineHeight: 1.45 }}>
-                  {row.latest
-                    ? `${latestStage} · ${row.latest.score} vs ${row.latest.opponent}`
-                    : 'Aucun match européen joué pour le moment'}
-                </div>
-                <div style={{ fontSize: 10, color: '#8b949e', fontFamily: 'system-ui,sans-serif', marginTop: 4, lineHeight: 1.4 }}>
-                  {row.latest?.phase ?? row.latest?.competitionLabel ?? cup.name}
-                  {latestSummary ? ` · ${latestSummary}` : ' · En attente des prochains tours'}
                 </div>
               </button>
             );
           })}
         </div>
       ) : (
-        <div style={S.emptySmall}>Aucun club suivi n’est engagé dans cette coupe pour cette saison.</div>
+        <div style={S.emptySmall}>Aucun club engagé dans cette compétition pour cette saison.</div>
       )}
     </div>
   );

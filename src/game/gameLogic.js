@@ -1,5 +1,6 @@
 import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
 import { COUNTRY_NAME_POOLS, FIRST_NAMES, HIDDEN_TRAITS, LAST_NAMES, LEGENDARY_PLAYERS, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
+import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA } from '../data/squadDatabase';
 import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
 import { getAgencyCapacity, getAgencyUpgradeCost } from '../systems/agencySystem';
@@ -367,26 +368,28 @@ export const generatePlayer = (reputation, scoutLevel = 0, young = false, forced
   };
 };
 
-export const generateMarket = (reputation, scoutLevel, size = 6) =>
-  Array.from({ length: size }, () => {
-    const player = generatePlayer(reputation, scoutLevel);
-    return { ...player, careerGoal: createCareerGoal(player), scoutReport: scoutLevel > 0 ? createScoutReport(player, scoutLevel) : null };
-  });
+export const generateMarket = (reputation, scoutLevel = 0, size = 6, existingIds = [], season = 1) => {
+  // Quota de postes pour un marché équilibré (ajusté si size != 6)
+  let quota = [...MARKET_POSITION_QUOTA];
+  if (size !== 6) {
+    // Remplit jusqu'à `size` en bouclant sur le quota de base
+    quota = Array.from({ length: size }, (_, i) => MARKET_POSITION_QUOTA[i % MARKET_POSITION_QUOTA.length]);
+  }
+  const players = drawMarketPlayers({ reputation, scoutLevel, season, existingIds, positionQuota: quota });
+  return players.map((player) => ({
+    ...player,
+    careerGoal: createCareerGoal(player),
+    scoutReport: scoutLevel > 0 ? createScoutReport(player, scoutLevel) : null,
+  }));
+};
 
-export const generateFreeAgents = (reputation, size = 4) =>
-  Array.from({ length: size }, () => {
-    const player = generatePlayer(reputation - 4, 0);
-    return {
-      ...player,
-      club: 'Libre',
-      clubTier: 4,
-      clubCountryCode: player.countryCode,
-      clubCity: '-',
-      signingCost: Math.floor(player.weeklySalary * 1.8),
-      contractWeeksLeft: 0,
-      freeAgent: true,
-    };
-  });
+export const generateFreeAgents = (reputation, size = 4, existingIds = [], season = 1) => {
+  let quota = [...FREE_AGENT_POSITION_QUOTA];
+  if (size !== 4) {
+    quota = Array.from({ length: size }, (_, i) => FREE_AGENT_POSITION_QUOTA[i % FREE_AGENT_POSITION_QUOTA.length]);
+  }
+  return drawFreeAgentsFromSquads({ reputation, season, existingIds, positionQuota: quota });
+};
 
 export const getPhase = (week) => {
   return getSeasonContext(week);
@@ -429,8 +432,8 @@ export const createFreshState = () => ({
   contacts: createDefaultContacts(),
   seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 120 }),
   roster: [],
-  market: generateMarket(120, 0),
-  freeAgents: generateFreeAgents(120),
+  market: generateMarket(12, 0, 6, [], 1),
+  freeAgents: generateFreeAgents(12, 4, [], 1),
   leagueTables: createInitialLeagueTables(),
   leagueReputation: createDefaultLeagueReputation(DEFAULT_AGENCY_PROFILE.countryCode),
   clubRelations: createDefaultClubRelations(),
@@ -536,7 +539,7 @@ export const migrateState = (state) => {
     pendingChainedEvents: state.pendingChainedEvents ?? [],
     seasonAwards: state.seasonAwards ?? {},
     worldState: state.worldState ?? generateWorldState(1),
-    freeAgents: state.freeAgents ?? generateFreeAgents(reputation),
+    freeAgents: state.freeAgents ?? generateFreeAgents(reputation, 4, [], currentSeason),
     leagueTables: mergeWithInitialLeagueTables(state.leagueTables),
     leagueReputation: state.leagueReputation ?? createDefaultLeagueReputation(state.agencyProfile?.countryCode ?? 'FR'),
     clubRelations: state.clubRelations ?? createDefaultClubRelations(),
@@ -649,7 +652,7 @@ export const migrateState = (state) => {
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
       };
     }),
-    market: (asArray(state.market).length ? asArray(state.market) : generateMarket(reputation, state.office?.scoutLevel ?? 0)).map((player) => {
+    market: (asArray(state.market).length ? asArray(state.market) : generateMarket(reputation, state.office?.scoutLevel ?? 0, 6, [], currentSeason)).map((player) => {
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
@@ -738,7 +741,16 @@ export const refreshMarket = (state) => {
   const specializationBonus = SPECIALIZATION_EFFECTS[state.agencyProfile?.style ?? 'equilibre']?.marketBonus ?? 0;
   const staffBonus = getStaffEffect(state.staff, 'scoutAfrica');
   const scoutLevel = state.office.scoutLevel + staffBonus;
-  let newMarket = generateMarket(state.reputation + staffBonus * 3 + specializationBonus, scoutLevel).map((player) => ({
+  // Exclure les IDs déjà dans le roster pour éviter les doublons
+  const rosterIds = (state.roster ?? []).map((p) => p.id);
+  const currentSeason = Math.floor(((state.week ?? 1) - 1) / 38) + 1;
+  let newMarket = generateMarket(
+    state.reputation + staffBonus * 3 + specializationBonus,
+    scoutLevel,
+    6,
+    rosterIds,
+    currentSeason,
+  ).map((player) => ({
     ...player,
     scoutReport: scoutLevel > 0 ? createScoutReport(player, scoutLevel) : null,
   }));
