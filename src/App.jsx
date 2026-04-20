@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Play, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
@@ -228,6 +228,83 @@ const moreItems = [
   { key: 'office', label: 'Agence', desc: 'Staff et identité', icon: Briefcase },
   { key: 'profile', label: 'Profil', desc: "Bilan de l'agence", icon: UserCircle },
 ];
+
+const playerFromDatabaseRow = (row = {}) => {
+  if (row.raw_player) {
+    return {
+      ...row.raw_player,
+      databaseRowId: row.id,
+      databaseSource: row.source ?? row.market_status,
+    };
+  }
+  return {
+    id: row.id,
+    firstName: row.first_name ?? '',
+    lastName: row.last_name ?? '',
+    countryCode: row.country_code,
+    countryLabel: row.nationality,
+    countryFlag: row.country_flag,
+    position: row.main_position,
+    roleId: row.role_id,
+    secondaryPosition: row.secondary_position,
+    club: row.club_name,
+    clubTier: row.club_tier,
+    clubCountryCode: row.club_country_code,
+    clubCity: row.club_city,
+    clubRole: row.club_role,
+    europeanCompetition: row.european_competition,
+    rating: row.note_current,
+    potential: row.potential,
+    value: row.market_value,
+    weeklySalary: row.salary_weekly,
+    moral: row.moral,
+    trust: row.trust_in_agent,
+    loyalty: row.loyalty,
+    form: row.form,
+    discipline: row.discipline,
+    injured: row.injury_current,
+    freeAgent: row.market_status === 'free_agent',
+    careerStatus: row.career_status,
+    seasonStats: row.season_stats ?? {},
+    matchHistory: row.match_history ?? [],
+    timeline: row.timeline ?? [],
+    careerGoal: row.career_goal,
+    scoutReport: row.scout_report,
+    agentContract: row.agent_contract,
+    contractWeeksLeft: row.contract_weeks_left,
+    contractStartWeek: row.contract_start_week,
+    signingCost: row.signing_bonus,
+    dreamClub: row.dream_club,
+    pressureTolerance: row.pressure_tolerance,
+    developmentCurve: row.development_curve,
+    developmentBoost: row.development_boost,
+    hiddenTrait: row.hidden_trait,
+    traitRevealed: row.trait_revealed,
+    signaturePlayer: row.signature_player,
+    hiddenPotential: row.hidden_potential,
+    databaseRowId: row.id,
+    databaseSource: row.source ?? row.market_status,
+  };
+};
+
+const messageFromDatabaseRow = (row = {}) => {
+  if (row.raw_message) return { ...row.raw_message, databaseRowId: row.id };
+  return {
+    id: row.id,
+    source: row.source,
+    type: row.category,
+    priority: row.urgency,
+    subject: row.subject,
+    body: row.content,
+    playerId: row.player_id,
+    senderRole: row.sender_type,
+    senderId: row.sender_id,
+    requiresResponse: row.requires_response,
+    read: row.read,
+    resolved: row.status === 'resolved',
+    archived: row.archived,
+  };
+};
 
 
 export default function FootballAgentGame() {
@@ -494,13 +571,15 @@ export default function FootballAgentGame() {
   const handleRecruitPlayer = (player, pitchId) => {
     const result = recruitPlayer(state, player.id, pitchId);
     if (result.error) {
+      if (result.state) setState(result.state);
       showToast(result.error, 'error');
-      return;
+      return { error: result.error };
     }
     setState(result.state);
     setModal(null);
     const pitchLabel = result.preview?.pitch?.label ?? 'Projet';
     showToast(`${player.firstName} ${player.lastName} recruté via ${pitchLabel}`, 'success');
+    return { ok: true };
   };
 
   const handleRejectOffer = (offerId) => {
@@ -1269,6 +1348,34 @@ export default function FootballAgentGame() {
     showToast('Appel joueur ajouté aux messages', 'success');
   };
 
+  const databaseState = useMemo(() => {
+    if (!state || !databaseView?.players?.length) return state;
+    const dbRoster = databaseView.players
+      .filter((row) => row.market_status === 'roster' || row.source === 'roster')
+      .map(playerFromDatabaseRow);
+    const dbMarket = databaseView.players
+      .filter((row) => row.market_status === 'market' || row.source === 'market')
+      .map(playerFromDatabaseRow);
+    const dbFreeAgents = databaseView.players
+      .filter((row) => row.market_status === 'free_agent' || row.source === 'freeAgent')
+      .map((row) => ({ ...playerFromDatabaseRow(row), freeAgent: true }));
+    const dbMessages = (databaseView.messages ?? [])
+      .filter((row) => row.source !== 'queue')
+      .map(messageFromDatabaseRow);
+    const dbMessageQueue = (databaseView.messages ?? [])
+      .filter((row) => row.source === 'queue')
+      .map(messageFromDatabaseRow);
+    return {
+      ...state,
+      roster: dbRoster.length ? dbRoster : state.roster,
+      market: dbMarket.length ? dbMarket : state.market,
+      freeAgents: dbFreeAgents.length ? dbFreeAgents : state.freeAgents,
+      messages: dbMessages.length ? dbMessages : state.messages,
+      messageQueue: dbMessageQueue.length ? dbMessageQueue : state.messageQueue,
+      databaseBacked: true,
+    };
+  }, [state, databaseView]);
+
   if (!loaded && !saveMenuOpen) {
     return (
       <div style={S.loadScreen}>
@@ -1308,9 +1415,9 @@ export default function FootballAgentGame() {
 
   const phase = getPhase(state.week);
   const calendarSnapshot = getCalendarSnapshot(state.week);
-  const pendingCounts = getPendingMessageCounts(state);
+  const pendingCounts = getPendingMessageCounts(databaseState ?? state);
   // Badge "match européen ce soir" — vrai si au moins un joueur a un match euro cette semaine
-  const hasEuroMatchThisWeek = (state.roster ?? []).some((p) => {
+  const hasEuroMatchThisWeek = (databaseState.roster ?? []).some((p) => {
     const comp = p.europeanCompetition;
     return comp && isEuropeanMatchWeek(phase.seasonWeek, comp);
   });
@@ -1373,9 +1480,9 @@ export default function FootballAgentGame() {
         </div>
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {[
-            { icon: <DollarSign size={12} />, label: 'Capital', value: formatMoney(state.money), accent: '#00a676' },
-            { icon: <Star size={12} />, label: 'Rép.', value: `${state.reputation}`, accent: '#2f80ed' },
-            { icon: <Users size={12} />, label: 'Joueurs', value: `${state.roster.length}/${getAgencyCapacity(state.agencyLevel)}`, accent: '#3f5663' },
+            { icon: <DollarSign size={12} />, label: 'Capital', value: formatMoney(databaseState.money), accent: '#00a676' },
+            { icon: <Star size={12} />, label: 'Rép.', value: `${databaseState.reputation}`, accent: '#2f80ed' },
+            { icon: <Users size={12} />, label: 'Joueurs', value: `${databaseState.roster.length}/${getAgencyCapacity(databaseState.agencyLevel)}`, accent: '#3f5663' },
             { icon: <Trophy size={12} />, label: 'Msg', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#b42318' : '#64727d' },
           ].map((chip) => (
             <div key={chip.label} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '6px 10px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -1389,22 +1496,22 @@ export default function FootballAgentGame() {
         </div>
       </header>
       <main style={S.main}>
-        {view === 'dashboard' && <Dashboard state={state} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} />}
-        {view === 'market' && <Market state={state} market={state.market} freeAgents={state.freeAgents} money={state.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
-        {view === 'roster' && <Roster state={state} roster={state.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
-        {view === 'messages' && <Messages messages={state.messages} messageQueue={state.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
+        {view === 'dashboard' && <Dashboard state={databaseState} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} />}
+        {view === 'market' && <Market state={databaseState} market={databaseState.market} freeAgents={databaseState.freeAgents} money={databaseState.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
+        {view === 'roster' && <Roster state={databaseState} roster={databaseState.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
+        {view === 'messages' && <Messages messages={databaseState.messages} messageQueue={databaseState.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
-        {view === 'shop' && <Shop state={state} phase={phase} onBuy={handleBuyShopItem} />}
-        {view === 'calendar' && <Calendar state={state} databaseView={databaseView} onClubDetails={showClubDetails} />}
-        {view === 'standings' && <Standings state={state} databaseView={databaseView} onClubDetails={showClubDetails} />}
-        {view === 'europe' && <EuropeanBracket state={state} databaseView={databaseView} />}
-        {view === 'deadline' && <DeadlineDay state={state} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
-        {view === 'scouting' && <Scouting state={state} onStartMission={handleStartScoutingMission} />}
-        {view === 'vestiaire' && <Vestiaire state={state} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} />}
-        {view === 'dossiers' && <Dossiers state={state} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} onNav={setView} />}
+        {view === 'shop' && <Shop state={databaseState} phase={phase} onBuy={handleBuyShopItem} />}
+        {view === 'calendar' && <Calendar state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
+        {view === 'standings' && <Standings state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
+        {view === 'europe' && <EuropeanBracket state={databaseState} databaseView={databaseView} />}
+        {view === 'deadline' && <DeadlineDay state={databaseState} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
+        {view === 'scouting' && <Scouting state={databaseState} onStartMission={handleStartScoutingMission} />}
+        {view === 'vestiaire' && <Vestiaire state={databaseState} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} />}
+        {view === 'dossiers' && <Dossiers state={databaseState} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} onNav={setView} />}
         {view === 'office' && (
           <Office
-            state={state}
+            state={databaseState}
             onUpgrade={handleUpgradeOffice}
             onUpgradeAgency={handleUpgradeAgency}
             onUpgradeStaff={handleUpgradeStaff}
@@ -1412,10 +1519,10 @@ export default function FootballAgentGame() {
             onStartScoutingMission={handleStartScoutingMission}
           />
         )}
-        {view === 'profile' && <AgencyProfile state={state} />}
+        {view === 'profile' && <AgencyProfile state={databaseState} />}
         {/* news/media views removed — content accessible via Dossiers */}
-        {view === 'contracts' && <ContractDashboard state={state} onNego={(player, type) => startNegotiation(player, type ?? 'extend')} onOpenPlayer={showPlayerDetails} />}
-        {view === 'contacts' && <Contacts state={state} onCall={handleCallContact} />}
+        {view === 'contracts' && <ContractDashboard state={databaseState} onNego={(player, type) => startNegotiation(player, type ?? 'extend')} onOpenPlayer={showPlayerDetails} />}
+        {view === 'contacts' && <Contacts state={databaseState} onCall={handleCallContact} />}
       </main>
       </div>{/* end scrollArea */}
       <nav style={S.nav}>
@@ -1461,7 +1568,7 @@ export default function FootballAgentGame() {
       {modal?.type === 'shortlist' && (
         <ShortlistModal
           player={modal.data.player}
-          state={state}
+          state={databaseState}
           currentWeek={state.week}
           onClose={() => setModal(null)}
           onConfirm={(selectedClubs) => handleShortlistConfirm(modal.data.message, modal.data.player, modal.data.responseType, selectedClubs)}
@@ -1469,8 +1576,8 @@ export default function FootballAgentGame() {
       )}
       {modal?.type === 'recruit_player' && (
         <RecruitmentModal
-          state={state}
-          player={state.market.find((player) => player.id === modal.data.player.id) ?? state.freeAgents.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
+          state={databaseState}
+          player={databaseState.market.find((player) => player.id === modal.data.player.id) ?? databaseState.freeAgents.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
           onClose={() => setModal(null)}
           onConfirm={(pitchId) => handleRecruitPlayer(modal.data.player, pitchId)}
         />
@@ -1479,7 +1586,7 @@ export default function FootballAgentGame() {
         <OfferContractModal
           key={`contract-flow-${modal.data.player.id}-${modal.data.contractType}`}
           offer={modal.data.offer}
-          player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
+          player={databaseState.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
           readiness={modal.data.readiness}
           mode={modal.data.contractType}
           onClose={() => setModal(null)}
@@ -1490,7 +1597,7 @@ export default function FootballAgentGame() {
       {modal?.type === 'nego_offer' && (
         <OfferContractModal
           offer={modal.data.offer}
-          player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
+          player={databaseState.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
           readiness={getOfferAcceptanceReadiness(state, modal.data.offer)}
           onClose={() => setModal(null)}
           onSign={(outcome) => handleFinishOfferNegotiation(modal.data.offer, outcome)}
@@ -1511,7 +1618,7 @@ export default function FootballAgentGame() {
       {modal?.type === 'offer_contract' && (
         <OfferContractModal
           offer={modal.data.offer}
-          player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
+          player={databaseState.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
           readiness={modal.data.readiness ?? getOfferAcceptanceReadiness(state, modal.data.offer)}
           mode="offer"
           onClose={() => setModal(null)}
@@ -1521,9 +1628,9 @@ export default function FootballAgentGame() {
       )}
         {modal?.type === 'player_detail' && (
           <PlayerDetailModal
-            player={state.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
-            messages={state.messages}
-            messageQueue={state.messageQueue ?? []}
+            player={databaseState.roster.find((player) => player.id === modal.data.player.id) ?? modal.data.player}
+            messages={databaseState.messages}
+            messageQueue={databaseState.messageQueue ?? []}
             promises={state.promises}
             clubRelations={state.clubRelations}
             clubMemory={state.clubMemory}
@@ -1549,7 +1656,7 @@ export default function FootballAgentGame() {
       {modal?.type === 'offer_compare' && (
         <OfferCompareModal
           offers={modal.data.offers}
-          players={state.roster}
+          players={databaseState.roster}
           onAccept={(offer) => { setModal(null); handleAcceptOffer(offer.id); }}
           onReject={(offer) => { commitResult(rejectClubOffer(state, offer.id), 'Offre refusée'); }}
           onClose={() => setModal(null)}

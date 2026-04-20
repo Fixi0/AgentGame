@@ -13,9 +13,27 @@ const gaugeColor = (score, threshold) => {
 
 export default function RecruitmentModal({ state, player, onConfirm, onClose }) {
   const [pitchId, setPitchId] = useState('sportif');
+  const [feedback, setFeedback] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const preview = useMemo(() => getRecruitmentPreview(state, player, pitchId), [state, player, pitchId]);
   const selectedPitch = preview?.pitch ?? RECRUITMENT_PITCHES[0];
   const statusColor = gaugeColor(preview?.fit ?? 0, preview?.threshold ?? 60);
+  const submit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setFeedback(null);
+    try {
+      const result = await onConfirm?.(pitchId);
+      if (result?.error) {
+        setFeedback({
+          message: result.error,
+          detail: result.detail ?? 'Change d\'angle, améliore le réseau ou attends quelques semaines avant de retenter.',
+        });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div style={S.overlay}>
@@ -106,9 +124,26 @@ export default function RecruitmentModal({ state, player, onConfirm, onClose }) 
             {preview.memoryPenalty > 0 && <div style={{ fontSize: 11, color: '#b42318', fontFamily: 'system-ui,sans-serif', marginTop: 8 }}>Ancien refus du joueur: -{preview.memoryPenalty}</div>}
           </div>
 
-          <button onClick={() => onConfirm(pitchId)} style={S.primaryBtn}>
+          {feedback && (
+            <div style={{
+              background: '#fef2f2',
+              border: '1px solid #f3c7c2',
+              borderRadius: 8,
+              padding: 12,
+              color: '#8a1f16',
+              fontFamily: 'system-ui,sans-serif',
+              fontSize: 12,
+              lineHeight: 1.45,
+              fontWeight: 750,
+            }}>
+              <div style={{ fontWeight: 900, marginBottom: 4 }}>{feedback.message}</div>
+              <div>{feedback.detail}</div>
+            </div>
+          )}
+
+          <button onClick={submit} disabled={submitting} style={{ ...S.primaryBtn, opacity: submitting ? 0.7 : 1 }}>
             <Sparkles size={16} />
-            RECRUTER VIA {selectedPitch.label.toUpperCase()}
+            {submitting ? 'DISCUSSION...' : `RECRUTER VIA ${selectedPitch.label.toUpperCase()}`}
           </button>
           <button onClick={onClose} style={S.secBtn}>ANNULER</button>
         </div>

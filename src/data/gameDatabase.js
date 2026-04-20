@@ -312,6 +312,7 @@ const buildPlayerRow = (player, agencyId, source, season, week) => {
     no_cut_clause: Boolean(player.noCutClause ?? player.contractClauses?.noCutClause),
     role_protection: Boolean(player.roleProtection ?? player.contractClauses?.coachRoleProtection),
     timeline: safeArray(player.timeline),
+    raw_player: player,
     date_created: player.createdAt ?? makeGameStamp(season, week),
     date_updated: makeGameStamp(season, week),
   };
@@ -458,6 +459,7 @@ const normalizeMessageForTable = (message = {}, season = 1, week = 1, source = '
   status: source === 'queue' ? 'queued' : message.resolved ? 'resolved' : message.read ? 'read' : 'new',
   read: Boolean(message.read),
   archived: Boolean(message.archived),
+  raw_message: message,
   date_created: message.week ? makeGameStamp(getSeasonNumberFromWeek(message.week), getSeasonWeekFromWeek(message.week)) : makeGameStamp(season, week),
   date_read: message.read ? makeGameStamp(season, week) : null,
 });

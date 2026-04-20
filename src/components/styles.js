@@ -305,7 +305,7 @@ export const S = {
   nsPrice: { fontSize: 20, color: '#172026', fontWeight: 900 },
   logBox: { background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: 10, marginBottom: 14, minHeight: 60 },
   logRow: { fontSize: 11, fontFamily: 'system-ui,sans-serif', padding: '2px 0' },
-  toast: { position: 'fixed', bottom: 82, left: 20, right: 20, padding: '12px 16px', borderRadius: 8, color: '#ffffff', border: '1px solid', textAlign: 'center', fontSize: 13, fontFamily: 'system-ui,sans-serif', fontWeight: 800, animation: 'slideUp .2s ease-out', zIndex: 200, boxShadow: '0 18px 38px rgba(15,23,32,.18)' },
+  toast: { position: 'fixed', bottom: 82, left: 20, right: 20, padding: '12px 16px', borderRadius: 8, color: '#ffffff', border: '1px solid', textAlign: 'center', fontSize: 13, fontFamily: 'system-ui,sans-serif', fontWeight: 800, animation: 'slideUp .2s ease-out', zIndex: 2000, boxShadow: '0 18px 38px rgba(15,23,32,.18)' },
   navBadge: { marginLeft: 4, minWidth: 16, height: 16, borderRadius: 8, background: '#b42318', color: '#ffffff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900 },
   // ── Objectives widget ──────────────────────────────────────────────────
   objWidget: { background: '#ffffff', border: '1px solid #e5eaf0', borderRadius: 10, padding: '14px 16px', marginBottom: 14, boxShadow: '0 4px 14px rgba(15,23,32,.05)' },
