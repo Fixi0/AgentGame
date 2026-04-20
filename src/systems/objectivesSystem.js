@@ -56,8 +56,9 @@ function buildObjective(type, season, expiresWeek, rep) {
   }
 }
 
-export function generateSeasonObjectives(state) {
-  const season = Math.ceil(state.week / 38);
+export function generateSeasonObjectives(state = {}) {
+  const week = state.week ?? 1;
+  const season = Math.ceil(week / 38);
   const expiresWeek = season * 38;
   const rep = state.reputation ?? 300;
 
