@@ -292,6 +292,12 @@ export default function FootballAgentGame() {
   }, []);
 
   useEffect(() => {
+    if (loaded && !state && !saveMenuOpen) {
+      setSaveMenuOpen(true);
+    }
+  }, [loaded, state, saveMenuOpen]);
+
+  useEffect(() => {
     if (!loaded || !state) return;
     let cancelled = false;
     saveLocalGameProgress(state).then((record) => {
