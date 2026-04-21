@@ -94,8 +94,8 @@ const getTransferReadiness = (state, player, phase) => {
   }
 
   const chance = 0.18
-    + (player.rating >= 76 ? 0.12 : player.rating < 64 ? -0.12 : 0)
-    + (player.potential >= 84 ? 0.08 : 0)
+    + (player.rating >= 152 ? 0.12 : player.rating < 128 ? -0.12 : 0)
+    + (player.potential >= 168 ? 0.08 : 0)
     + (player.contractWeeksLeft <= 20 ? 0.1 : 0)
     + (['ambitieux', 'mercenaire'].includes(player.personality) ? 0.08 : 0)
     + ((player.hiddenAmbition ?? 50) > 70 ? 0.08 : 0)
@@ -113,7 +113,7 @@ const getExtensionReadiness = (state, player) => {
   if (['predeal', 'transferred'].includes(lifecycle.key) || getActiveDossierPlayerIds(state).has(player.id)) {
     return { ok: false, message: 'Ce joueur a déjà un dossier actif. Termine le pré-accord ou le transfert en cours avant de prolonger.' };
   }
-  const clubOpen = player.contractWeeksLeft <= 26 || player.rating >= 74 || (player.trust ?? 50) >= 62;
+  const clubOpen = player.contractWeeksLeft <= 26 || player.rating >= 148 || (player.trust ?? 50) >= 62;
   const playerOpen = (player.trust ?? 50) >= 45 && player.moral >= 42;
   if (!clubOpen && !playerOpen) return { ok: false, message: "Ni le club ni le joueur ne veulent prolonger maintenant." };
   if (!clubOpen) return { ok: false, message: "Le club ne veut pas ouvrir de prolongation pour l'instant." };
@@ -124,11 +124,11 @@ const getExtensionReadiness = (state, player) => {
 };
 
 const getTransferSuitor = (player) => {
-  const allowedTiers = player.rating >= 84 || player.potential >= 90
+  const allowedTiers = player.rating >= 168 || player.potential >= 180
     ? [1, 2]
-    : player.rating >= 77 || player.potential >= 85
+    : player.rating >= 154 || player.potential >= 170
       ? [2, 3]
-      : player.rating >= 68 || player.potential >= 79
+      : player.rating >= 136 || player.potential >= 158
         ? [3, 4]
         : [4];
   const pool = CLUBS.filter((club) => {
@@ -1180,7 +1180,7 @@ export default function FootballAgentGame() {
       showToast(proposal.error, 'error');
       return;
     }
-    const expectedTier = player.rating >= 84 ? 1 : player.rating >= 77 ? 2 : player.rating >= 68 ? 3 : 4;
+    const expectedTier = player.rating >= 168 ? 1 : player.rating >= 154 ? 2 : player.rating >= 136 ? 3 : 4;
     const bestTier = Math.min(...selectedClubs.map((club) => club.tier));
     const cityMatch = selectedClubs.some((club) =>
       (player.preferredCountries ?? []).includes(club.countryCode)

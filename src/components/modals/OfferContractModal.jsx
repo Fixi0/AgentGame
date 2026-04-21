@@ -19,7 +19,7 @@ const roleRank = (role) => Math.max(0, ROLE_OPTIONS.indexOf(role));
 const getBaseTerms = (offer, player) => ({
   price: offer.price,
   salMult: offer.salMult ?? 1.2,
-  role: player.clubRole ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation'),
+  role: player.clubRole ?? (player.rating >= 164 ? 'Titulaire' : 'Rotation'),
   contractYears: clampNumber(player.age <= 22 ? 4 : player.age >= 31 ? 2 : 3, 1, 5),
   signingBonus: sanitizeMoney((player.weeklySalary ?? 10000) * 8, 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * SIGNING_BONUS_MAX_MULTIPLIER))),
   releaseClause: sanitizeMoney(

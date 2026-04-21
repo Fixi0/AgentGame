@@ -166,7 +166,7 @@ const isMessageCoherentForPlayer = (message, player, state = {}) => {
   }
   if (message.type === 'injury_worry') return (player.injured ?? 0) > 0 || context.includes('injury');
   if (message.type === 'form_slump') return (player.form ?? 60) < 55 || (recentAverage != null && recentAverage < 6);
-  if (message.type === 'raise_request') return (player.rating ?? 0) >= 75 && ((stats.goals ?? 0) + (stats.assists ?? 0) >= 6 || (stats.averageRating ?? 0) >= 7.1);
+  if (message.type === 'raise_request') return (player.rating ?? 0) >= 150 && ((stats.goals ?? 0) + (stats.assists ?? 0) >= 6 || (stats.averageRating ?? 0) >= 7.1);
   if (message.type === 'transfer_request') {
     if (['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation', 'staff_promise_failed'].includes(context)) return true;
     if (weeksInAgency < 8) return false;
@@ -333,20 +333,20 @@ const getClubForPlayerLevel = (countryCode, rating, potential) => {
 };
 
 const estimateTransferValue = ({
-  rating = 65,
+  rating = 130,
   potential = rating,
   age = 24,
   form = 70,
   clubTier = 3,
   brandValue = 20,
 }) => {
-  const safeRating = clamp(Number.isFinite(rating) ? rating : 65, 50, 99);
-  const safePotential = clamp(Number.isFinite(potential) ? potential : safeRating, safeRating, 99);
+  const safeRating = clamp(Number.isFinite(rating) ? rating : 130, 100, 198);
+  const safePotential = clamp(Number.isFinite(potential) ? potential : safeRating, safeRating, 200);
   const safeAge = clamp(Number.isFinite(age) ? age : 24, 16, 38);
   const safeForm = clamp(Number.isFinite(form) ? form : 70, 30, 95);
   const safeBrandValue = clamp(Number.isFinite(brandValue) ? brandValue : 20, 0, 100);
 
-  const ratingFactor = Math.exp((safeRating - 65) / 9.2);
+  const ratingFactor = Math.exp((safeRating - 130) / 18.4);
   const ageFactor = safeAge <= 18
     ? 1.18 + (18 - safeAge) * 0.04
     : safeAge <= 21
@@ -376,26 +376,26 @@ const estimateTransferValue = ({
 const generateRealisticRating = (reputation, scoutLevel, young) => {
   const repTier = normalizeAgencyReputation(reputation);
   // Base range tightened — young players are raw prospects, not stars
-  const base = young ? rand(52, 63) : rand(55, 68);
-  const repBoost = Math.floor(Math.min(40, repTier) / 9);
-  const scoutBoost = Math.floor(scoutLevel * 1.0);
-  let rating = base + repBoost + scoutBoost + rand(-2, 3);
+  const base = young ? rand(104, 126) : rand(110, 136);
+  const repBoost = Math.floor(Math.min(40, repTier) / 9) * 2;
+  const scoutBoost = Math.floor(scoutLevel * 2.0);
+  let rating = base + repBoost + scoutBoost + rand(-4, 6);
 
   // Elite rolls are strictly gated behind reputation thresholds.
-  // At rep 12 (game start) NO 80+ players ever appear.
-  // 76-79: unlocks at rep 32  (~early season 2)
-  // 80-85: unlocks at rep 50  (~mid game, 1-2 seasons in)
-  // 86-91: unlocks at rep 75  (~late game, 3+ seasons)
+  // At game start, no 160+ players appear.
+  // 152-158: unlocks at rep 32  (~early season 2)
+  // 160-170: unlocks at rep 50  (~mid game, 1-2 seasons in)
+  // 172-182: unlocks at rep 75  (~late game, 3+ seasons)
   const eliteRoll = Math.random();
   if (repTier >= 75 && eliteRoll < 0.018 + (repTier - 75) / 1500 + scoutLevel / 900) {
-    rating = rand(86, 91);
+    rating = rand(172, 182);
   } else if (repTier >= 50 && eliteRoll < 0.026 + (repTier - 50) / 2000 + scoutLevel / 700) {
-    rating = rand(80, 85);
+    rating = rand(160, 170);
   } else if (repTier >= 32 && eliteRoll < 0.038 + (repTier - 32) / 2500) {
-    rating = rand(76, 79);
+    rating = rand(152, 158);
   }
 
-  return clamp(rating, 50, 93);
+  return clamp(rating, 100, 186);
 };
 
 const LEGACY_CLUB_ALIASES = {
@@ -1388,7 +1388,7 @@ export const createPlayerMarketAction = (state, playerId, action) => {
   const country = getCountry(club.countryCode);
   const trustCost = action === 'transfer_list' ? -3 : action === 'loan' ? -1 : 1;
   const credibilityDelta = action === 'propose' ? 1 : action === 'transfer_list' ? -1 : 0;
-  const levelPenalty = player.rating < 64 ? -0.16 : player.rating < 70 ? -0.08 : 0;
+  const levelPenalty = player.rating < 128 ? -0.16 : player.rating < 140 ? -0.08 : 0;
   const nextWindow = !phase.mercato
     ? (phase.seasonWeek <= 18
       ? { window: 'hiver', effectiveWeek: state.week + (19 - phase.seasonWeek) }

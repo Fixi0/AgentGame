@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Award, TrendingUp, Users, Star } from 'lucide-react';
 import { formatMoney } from '../../utils/format';
+import { getPlayerStarsText } from '../../utils/playerStars';
 import { S } from '../styles';
 
 const DECISIONS = [
@@ -243,7 +244,7 @@ export default function RetirementModal({ player, week, onDecide, onClose }) {
             <StatBadge label="MATCHS" value={matches} color="#172026" />
             <StatBadge label="BUTS" value={goals} color="#00a676" />
             <StatBadge label="PASSES D." value={assists} color="#2563eb" />
-            <StatBadge label="NOTE" value={rating} color={rating >= 80 ? '#00a676' : rating >= 70 ? '#b45309' : '#dc2626'} />
+            <StatBadge label="NIVEAU" value={getPlayerStarsText(rating)} color={rating >= 176 ? '#00a676' : rating >= 146 ? '#b45309' : '#dc2626'} />
           </div>
 
           {/* Salary info if available */}

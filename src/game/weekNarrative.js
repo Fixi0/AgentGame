@@ -125,7 +125,7 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
         type: 'media',
         player: null,
         week,
-        text: "Le Ballon d'Or est attribué hors de l'agence. Les standards mondiaux restent très élevés (minimum note 85+, moyenne 8.2+).",
+        text: "Le Ballon d'Or est attribué hors de l'agence. Les standards mondiaux restent très élevés: niveau élite, grosse moyenne et impact décisif toute la saison.",
         reputationImpact: 0,
         account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
       }));

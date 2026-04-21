@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { CheckCircle, Target, X } from 'lucide-react';
 import { CLUBS, getCountry } from '../../data/clubs';
+import { getPlayerLevelText } from '../../utils/playerStars';
 import { S } from '../styles';
 
 const getEligibleBuyerTiers = (player) => {
-  if (player.rating >= 84) return [1, 2];
-  if (player.rating >= 77) return [2, 3];
-  if (player.rating >= 68) return [3, 4];
+  if (player.rating >= 168) return [1, 2];
+  if (player.rating >= 154) return [2, 3];
+  if (player.rating >= 136) return [3, 4];
   return [4];
 };
 
@@ -85,7 +86,7 @@ export default function ShortlistModal({ player, state, currentWeek = 1, onConfi
         </div>
         <div style={S.mBody}>
           <h2 style={S.mTitle}>{player.firstName} {player.lastName}</h2>
-          <div style={S.mPlayer}>{player.clubCountry} {player.club} · {player.rating}/100</div>
+          <div style={S.mPlayer}>{player.clubCountry} {player.club} · {getPlayerLevelText(player.rating)}</div>
           <p style={S.mText}>Choisis 1 ou 2 clubs à cibler. La shortlist change selon le moment, le projet et les contacts du dossier.</p>
 
           <div style={S.swipeHint}>

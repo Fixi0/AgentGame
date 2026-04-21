@@ -1,4 +1,5 @@
 import { makeId, pick, rand } from '../utils/helpers';
+import { getPlayerLevelText } from '../utils/playerStars';
 import { normalizeAgencyReputation } from './reputationSystem';
 
 const COOLDOWN_WEEKS = 2;
@@ -82,8 +83,8 @@ function applyContactResult(state, contact) {
         id: makeId('p'),
         firstName: pick(['Amadou', 'Kofi', 'Ibrahim', 'Seydou', 'Cheikh']),
         lastName: pick(['Diallo', 'Traoré', 'Cissé', 'Koné', 'Touré']),
-        rating: rand(62, 74),
-        potential: rand(75, 88),
+        rating: rand(124, 148),
+        potential: rand(150, 176),
         age: rand(17, 22),
         value: rand(200000, 900000),
         moral: rand(60, 80),
@@ -94,7 +95,7 @@ function applyContactResult(state, contact) {
         form: rand(55, 75),
         source: 'scout_contact',
       };
-      result.message = `${contact.name} t'envoie le profil de ${hiddenPlayer.firstName} ${hiddenPlayer.lastName} (${hiddenPlayer.age} ans, note ${hiddenPlayer.rating}).`;
+      result.message = `${contact.name} t'envoie le profil de ${hiddenPlayer.firstName} ${hiddenPlayer.lastName} (${hiddenPlayer.age} ans, ${getPlayerLevelText(hiddenPlayer.rating)}).`;
       result.stateDelta = { scoutedPlayers: [...(state.scoutedPlayers ?? []), hiddenPlayer] };
       break;
     }

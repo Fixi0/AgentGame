@@ -3,7 +3,7 @@ import { getPlayerProfileSummary } from './playerProfileSystem';
 
 const CAREER_GOALS = [
   { id: 'starter', label: 'Devenir titulaire indiscutable', metric: 'appearances', target: 24, rewardTrust: 6 },
-  { id: 'europe', label: 'Jouer une compétition européenne', metric: 'rating', target: 78, rewardTrust: 5 },
+  { id: 'europe', label: 'Jouer une compétition européenne', metric: 'rating', target: 156, rewardTrust: 5 },
   { id: 'national', label: 'Gagner une place en sélection', metric: 'form', target: 82, rewardTrust: 7 },
   { id: 'salary', label: 'Obtenir un meilleur salaire', metric: 'salary', targetMultiplier: 1.25, rewardTrust: 4 },
   { id: 'numbers', label: 'Faire une grosse saison statistique', metric: 'contributions', target: 14, rewardTrust: 6 },
@@ -23,7 +23,7 @@ export const createScoutReport = (player, scoutLevel = 0) => {
   const profile = getPlayerProfileSummary(player);
   return {
     potentialMin: Math.max(player.rating, player.potential - rand(2, uncertainty)),
-    potentialMax: Math.min(99, player.potential + rand(1, uncertainty)),
+    potentialMax: Math.min(200, player.potential + rand(1, uncertainty)),
     confidence: Math.min(95, 45 + scoutLevel * 14 + (player.age < 21 ? 8 : 0)),
     profile,
     strengths: profile.strengths,

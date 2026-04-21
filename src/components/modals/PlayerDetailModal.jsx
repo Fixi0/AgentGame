@@ -9,6 +9,7 @@ import { getPlayerDossierStatus, getRelevantDecisionHistory as getDecisionHistor
 import { NATIONAL_TEAMS } from '../../systems/worldCupSystem';
 import { getPlayerProfileSummary } from '../../systems/playerProfileSystem';
 import { formatMoney } from '../../utils/format';
+import { getPlayerLevelLabel, getPlayerStarsText } from '../../utils/playerStars';
 import { S } from '../styles';
 import PlayerAttributesPanel from '../PlayerAttributesPanel';
 import { assignIntelligentClubRole } from '../../data/localDatabase';
@@ -131,10 +132,10 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
           {tab === 'overview' && (
             <>
               <div style={S.kpiGrid}>
-                <DetailMetric label="Note" value={player.rating} />
+                <DetailMetric label="Niveau" value={getPlayerStarsText(playerWithRole.rating)} />
                 <DetailMetric label="Âge" value={`${player.age}a`} />
                 <DetailMetric label="Position" value={player.position} />
-                <DetailMetric label="Pays" value={player.countryLabel} />
+                <DetailMetric label="Profil" value={getPlayerLevelLabel(playerWithRole.rating)} />
               </div>
 
               <div style={S.objCard}>
@@ -311,5 +312,4 @@ function Meter({ label, value, inverted = false }) {
     </div>
   );
 }
-
 

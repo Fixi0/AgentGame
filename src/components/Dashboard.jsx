@@ -11,6 +11,7 @@ import { EURO_CUP_LABELS, getEuropeanCompetition } from '../systems/europeanCupS
 import { WC_PHASES, NATIONAL_TEAMS } from '../systems/worldCupSystem';
 import { COUNTRIES } from '../data/clubs';
 import { formatMoney } from '../utils/format';
+import { getPlayerLevelText } from '../utils/playerStars';
 import { S } from './styles';
 
 // ── Agency Health Score ────────────────────────────────────────────────────
@@ -408,7 +409,7 @@ function getHeadlineFromNews(news, history, roster) {
     if (bestPlayer) return {
       icon: '⭐',
       title: `${bestPlayer.firstName} ${bestPlayer.lastName} — La priorité de l'agence`,
-      sub: `Note ${bestPlayer.rating} · ${bestPlayer.roleLabel ?? bestPlayer.position} · ${bestPlayer.club ?? 'Libre'}`,
+      sub: `${getPlayerLevelText(bestPlayer.rating)} · ${bestPlayer.roleLabel ?? bestPlayer.position} · ${bestPlayer.club ?? 'Libre'}`,
       week: null,
       source: 'Agence',
     };
@@ -882,7 +883,7 @@ function WorldCupSpotlight({ worldCupState }) {
                     {p.countryFlag ?? '🌍'} {p.playerName}
                   </div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,.72)', fontFamily: 'system-ui,sans-serif' }}>
-                    {p.rating}/100 · {p.goals ?? 0}⚽ {p.assists ?? 0}🅰️
+                    {getPlayerLevelText(p.rating)} · {p.goals ?? 0}⚽ {p.assists ?? 0}🅰️
                   </div>
                 </div>
                 <div style={{

@@ -2,6 +2,7 @@ import { Sparkles, Target, X } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { getRecruitmentPreview, RECRUITMENT_PITCHES } from '../../systems/recruitmentSystem';
 import { formatMoney } from '../../utils/format';
+import { getPlayerLevelText } from '../../utils/playerStars';
 import { S } from '../styles';
 
 const gaugeColor = (score, threshold) => {
@@ -45,7 +46,7 @@ export default function RecruitmentModal({ state, player, onConfirm, onClose }) 
         </div>
         <div style={S.mBody}>
           <h2 style={S.mTitle}>{player.firstName} {player.lastName}</h2>
-          <div style={S.mPlayer}>{player.position} · {player.countryFlag} {player.countryLabel} · {player.rating}/100</div>
+          <div style={S.mPlayer}>{player.position} · {player.countryFlag} {player.countryLabel} · {getPlayerLevelText(player.rating)}</div>
           <p style={S.mText}>Avant de signer, on construit un vrai dossier de recrutement. On regarde ses objectifs, ses freins et le pitch le plus crédible pour le convaincre.</p>
 
           <div style={S.objCard}>

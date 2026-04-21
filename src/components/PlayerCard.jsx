@@ -5,6 +5,7 @@ import { getPlayerDossierStatus } from '../systems/dossierSystem';
 import { getDossierHistorySummary, getRecentDossierEvents } from '../systems/coherenceSystem';
 import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
 import { formatMoney } from '../utils/format';
+import { getPlayerStarCount } from '../utils/playerStars';
 import { S } from './styles';
 
 const POS_COLORS = { ATT: '#e83a3a', DEF: '#2563eb', MIL: '#16a34a', GK: '#d97706' };
@@ -34,6 +35,15 @@ function getNotoriety(rating) {
   if (rating >= 146) return { label: 'Confirmé', bg: '#16a34a', color: '#ffffff' };
   if (rating >= 130) return { label: 'Promesse', bg: '#64727d', color: '#ffffff' };
   return { label: 'Inconnu', bg: '#e5eaf0', color: '#64727d' };
+}
+
+function StarsDisplay({ rating, isLegendary }) {
+  const stars = getPlayerStarCount(rating);
+  return (
+    <div style={{ fontSize: 14, letterSpacing: 1, fontWeight: 900 }}>
+      {'★'.repeat(stars)}{'☆'.repeat(5 - stars)}
+    </div>
+  );
 }
 
 function FormDots({ results }) {
@@ -67,9 +77,6 @@ function MoraleBar({ label, value }) {
 }
 
 export default function PlayerCard({ player, state, mode, money, onSign, onRelease, onNego, onDetails }) {
-  if (player.clubTier === 1) {
-    console.log(`[CARD] ${player.firstName} ${player.lastName}: rating=${player.rating}, potential=${player.potential}, displayed=${player.rating}`);
-  }
   const currentSeason = Math.floor(((state?.week ?? 1) - 1) / 38) + 1;
   const ratingColor = player.rating >= 170 ? '#00a676' : player.rating >= 150 ? '#2f80ed' : '#9aa7b2';
   const canSign = mode === 'sign' ? money >= player.signingCost : true;
@@ -124,7 +131,10 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
           {isLegendary ? '👑' : getInitials(player)}
         </div>
         <div style={{ ...S.badge, background: isLegendary ? 'linear-gradient(135deg,#d4a017,#b8860b)' : ratingColor }}>
-          <div style={{ ...S.badgeNum, color: isLegendary ? '#1a1200' : undefined }}>{player.rating}{trendArrow}</div>
+          <div style={{ ...S.badgeNum, color: isLegendary ? '#1a1200' : undefined, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <StarsDisplay rating={player.rating} isLegendary={isLegendary} />
+            {trendArrow}
+          </div>
           <div style={{ ...S.badgePos, color: isLegendary ? '#1a1200' : undefined }}>{player.position}</div>
         </div>
         <div style={S.pInfo}>
@@ -167,10 +177,10 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
             <div style={S.progBar}><div style={{ ...S.progFill, width: `${player.form}%`, background: '#7aa7b8' }} /></div>
             <strong>{player.form}</strong>
           </div>
-          {/* Last match rating */}
+          {/* Last match form */}
           {player.matchHistory?.[0]?.matchRating && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.08em', color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>DERNIÈRE NOTE</span>
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.08em', color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>DERNIER MATCH</span>
               <span style={{
                 fontSize: 11,
                 fontWeight: 900,

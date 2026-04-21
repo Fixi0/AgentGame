@@ -65,14 +65,14 @@ export const ATTRIBUTE_KEYS_BY_CATEGORY = {
 export const generatePlayerAttributes = (player, roleObj) => {
   if (!player || !roleObj) return getDefaultAttributes(player?.position);
 
-  const baseRating = player.rating ?? 65;
-  const potential = player.potential ?? 80;
+  const baseRating = player.rating ?? 130;
+  const potential = player.potential ?? 150;
   const position = player.position ?? 'MIL';
   const roleId = roleObj?.id ?? 'generic';
 
-  // Base attribute scaling (0-20) from rating (0-99)
-  const ratingScale = baseRating / 99;
-  const potentialScale = potential / 99;
+  // Base attribute scaling (0-20) from internal rating (0-200).
+  const ratingScale = Math.max(0, Math.min(1, baseRating / 200));
+  const potentialScale = Math.max(0, Math.min(1, potential / 200));
 
   // Position and role-specific attribute profiles
   const attributeProfile = getAttributeProfileForRole(position, roleId);
@@ -197,7 +197,7 @@ const getAttributeProfileForRole = (position, roleId) => {
 // ── Rating Calculation from Attributes ───────────────────────────────────────────
 
 /**
- * Calculate overall rating (0-99) from 17 attributes
+ * Calculate overall rating (0-200) from 17 attributes
  * Uses weighted average of categories:
  * - Technical: 35%
  * - Mental: 40%
@@ -231,12 +231,12 @@ export const calculateRatingFromAttributes = (attributes = {}) => {
 
   Object.entries(weights).forEach(([category, weight]) => {
     if (categoryAverages[category] != null) {
-      total += (categoryAverages[category] / 20) * 99 * weight;
+      total += (categoryAverages[category] / 20) * 200 * weight;
       weightSum += weight;
     }
   });
 
-  return Math.round(total / weightSum) || 50;
+  return Math.round(total / weightSum) || 100;
 };
 
 // ── Attribute Development ────────────────────────────────────────────────────────

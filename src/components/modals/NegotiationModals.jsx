@@ -14,9 +14,9 @@ const MAX_BONUS_PACKAGE_MULTIPLIER = 24;
 const clampNumber = (value, min, max) => Math.max(min, Math.min(max, Number(value)));
 
 const getEligibleBuyerTiers = (player) => {
-  if (player.rating >= 84 || player.potential >= 90) return [1, 2];
-  if (player.rating >= 77 || player.potential >= 85) return [2, 3];
-  if (player.rating >= 68 || player.potential >= 79) return [3, 4];
+  if (player.rating >= 168 || player.potential >= 180) return [1, 2];
+  if (player.rating >= 154 || player.potential >= 170) return [2, 3];
+  if (player.rating >= 136 || player.potential >= 158) return [3, 4];
   return [4];
 };
 
@@ -25,7 +25,7 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
   const [interest, setInterest] = useState(() => 50 + rand(-15, 15) + getNegotiationModifier(player));
   const [offer, setOffer] = useState(() => initialOffer ?? Math.floor(player.value * 0.7));
   const [salaryMultiplier, setSalaryMultiplier] = useState(() => clampNumber(initialSalaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER));
-  const [role, setRole] = useState(() => (player.rating >= 84 ? 'Star' : player.rating >= 74 ? 'Titulaire' : 'Rotation'));
+  const [role, setRole] = useState(() => (player.rating >= 168 ? 'Star' : player.rating >= 148 ? 'Titulaire' : 'Rotation'));
   const [contractYears, setContractYears] = useState(() => (player.age <= 21 ? 4 : player.age >= 31 ? 2 : 3));
   const [signingBonus, setSigningBonus] = useState(() => clampNumber(Math.max(5000, Math.floor(player.weeklySalary * 8)), 3000, Math.max(3000, Math.floor((player.weeklySalary ?? 10000) * MAX_SIGNING_BONUS_MULTIPLIER))));
   const [releaseClause, setReleaseClause] = useState(() => clampNumber(Math.floor(player.value * 1.8), 50000, Math.max(50000, Math.floor((player.value ?? 1000000) * MAX_RELEASE_CLAUSE_MULTIPLIER))));
@@ -214,7 +214,7 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
   const [turn, setTurn] = useState(1);
   const [open, setOpen] = useState(() => 55 + rand(-10, 15) + getNegotiationModifier(player));
   const [salaryMultiplier, setSalaryMultiplier] = useState(1);
-  const [role, setRole] = useState(() => player.clubRole ?? (player.rating >= 84 ? 'Star' : player.rating >= 74 ? 'Titulaire' : 'Rotation'));
+  const [role, setRole] = useState(() => player.clubRole ?? (player.rating >= 168 ? 'Star' : player.rating >= 148 ? 'Titulaire' : 'Rotation'));
   // Default duration: age-based (not leftover weeks, which gives absurd 0-1 year defaults)
   const [contractYears, setContractYears] = useState(() => player.age >= 33 ? 2 : player.age >= 29 ? 3 : 4);
   const [signingBonus, setSigningBonus] = useState(() => Math.max(3000, Math.floor(player.weeklySalary * 7)));
