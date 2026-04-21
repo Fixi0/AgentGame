@@ -695,7 +695,20 @@ export const createPlayerCatalog = (season = 1) => {
       ...getClubSquad(club, season),
       ...getClubYouthPlayers(club, season),
     ]);
+
+  // DEBUG: Check ratings before limiting
+  const tier1players = rawCatalog.filter(p => p.clubTier === 1).slice(0, 3);
+  if (tier1players.length > 0) {
+    console.log('[CATALOG] Raw Tier1 players:', tier1players.map(p => `${p.firstName}=${p.rating}`));
+  }
+
   const catalog = limitEliteRatings(rawCatalog);
+
+  // DEBUG: Check after limiting
+  const tier1after = catalog.filter(p => p.clubTier === 1).slice(0, 3);
+  if (tier1after.length > 0) {
+    console.log('[CATALOG] After limit Tier1:', tier1after.map(p => `${p.firstName}=${p.rating}`));
+  }
 
   playerCatalogCache.set(cacheKey, catalog);
   return catalog;
