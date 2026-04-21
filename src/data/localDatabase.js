@@ -491,7 +491,7 @@ const buildSnapshotTables = (snapshot = {}) =>
     return tables;
   }, {});
 
-const assignIntelligentClubRole = (player) => {
+export const assignIntelligentClubRole = (player) => {
   const rating = player.note_current ?? player.rating ?? 65;
   const potential = player.potential ?? rating;
   const clubTier = player.club_tier ?? 1;
