@@ -151,53 +151,49 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
         }
 
         .category-attributes {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-          gap: 12px;
-        }
-
-        @media (max-width: 768px) {
-          .category-attributes {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-          }
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: flex-start;
         }
 
         .attribute-grid-item {
           background: white;
-          border-radius: 8px;
-          padding: 10px;
+          border-radius: 6px;
+          padding: 8px 10px;
           border: 1px solid #e2e8ef;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 6px;
+          min-width: 70px;
         }
 
         .attribute-grid-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          gap: 6px;
+          gap: 4px;
         }
 
         .attribute-grid-name {
-          font-size: 12px;
+          font-size: 10px;
           font-weight: 600;
           color: #64727d;
           text-transform: uppercase;
-          letter-spacing: 0.03em;
+          letter-spacing: 0.02em;
         }
 
         .attribute-grid-value {
-          font-size: 14px;
+          font-size: 12px;
           font-weight: 700;
           color: #00a676;
         }
 
         .attribute-grid-bar {
-          height: 16px;
+          height: 12px;
           background: #d5dce0;
-          border-radius: 4px;
+          border-radius: 3px;
           position: relative;
           overflow: hidden;
         }
@@ -221,10 +217,11 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
         }
 
         .attribute-grid-footer {
-          font-size: 11px;
+          font-size: 9px;
           font-weight: 500;
           color: #8c96a3;
           text-align: center;
+          line-height: 1.2;
         }
 
         .attributes-compact {
