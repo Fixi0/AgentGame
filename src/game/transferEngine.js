@@ -11,7 +11,7 @@ export const buildTransferAgreement = (player, offer, negotiatedOutcome = null) 
   const finalSalaryMultiplier = clamp(negotiatedOutcome?.salMult ?? offer.salMult, 0.9, 3);
   const signingBonus = clamp(negotiatedOutcome?.signingBonus ?? Math.floor(player.weeklySalary * 8), 3000, maxSigningBonus);
   const contractWeeks = clamp(negotiatedOutcome?.contractWeeks ?? 150, 52, 260);
-  const clubRole = negotiatedOutcome?.role ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
+  const clubRole = negotiatedOutcome?.role ?? (player.rating >= 164 ? 'Titulaire' : 'Rotation');
   const releaseClause = clamp(negotiatedOutcome?.releaseClause ?? Math.floor(player.value * 1.8), minReleaseClause, maxReleaseClause);
   const sellOnPercent = clamp(negotiatedOutcome?.sellOnPercent ?? 5, 0, 20);
   const clubBonusesTotal = clamp(negotiatedOutcome?.clubBonuses?.total ?? Math.floor(player.weeklySalary * 8), 5000, maxClubBonus);

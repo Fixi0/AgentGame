@@ -127,8 +127,8 @@ export const addDecisionHistory = (history, decision) => [
 
 export const getPlayerSegment = (player) => {
   if (player.freeAgent || player.club === 'Libre') return 'libres';
-  if (player.age <= 21 || player.potential >= 84) return 'jeunes';
-  if (player.rating >= 82 || (player.brandValue ?? 0) >= 60) return 'stars';
+  if (player.age <= 21 || player.potential >= 168) return 'jeunes';
+  if (player.rating >= 164 || (player.brandValue ?? 0) >= 60) return 'stars';
   if (player.moral < 45 || (player.trust ?? 50) < 45 || player.injured > 0) return 'crise';
   return 'jeunes';
 };

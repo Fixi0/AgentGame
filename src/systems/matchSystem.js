@@ -287,16 +287,16 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
   const cleanSheetBonus = opponentGoals === 0 && ['DEF', 'GK'].includes(player.position) ? 0.5 : 0;
   const attributeSaveBonus = getAttributeSaveBonus(player);
   const goalkeeperSaveBonus = player.position === 'GK' ? 0.15 + Math.max(0, opponentGoals === 0 ? 0.35 : 0) + attributeSaveBonus * 0.1 : 0;
-  const saves = player.position === 'GK' ? Math.max(0, seededInt(random, 1, 7) + opponentGoals - (teamResult === 'loss' ? 1 : 0) + Math.floor(Math.max(0, player.rating - 75) / 12)) + Math.max(0, Math.floor(attributeSaveBonus)) : 0;
+  const saves = player.position === 'GK' ? Math.max(0, seededInt(random, 1, 7) + opponentGoals - (teamResult === 'loss' ? 1 : 0) + Math.floor(Math.max(0, player.rating - 150) / 24)) + Math.max(0, Math.floor(attributeSaveBonus)) : 0;
   // Enhance tackles with defense attribute if available
   const defenseAttrBonus = player.attributes?.defense ? Math.floor(attrValue(player, 'defense') / 10 - 1) : 0;
   const tackles = player.position === 'DEF' ? seededInt(random, 2, 8) + defenseAttrBonus : HIGH_TACKLE_ROLES.has(player.roleId) ? seededInt(random, 2, 6) + Math.floor(defenseAttrBonus / 2) : seededInt(random, 0, 3);
   // Enhance key passes with passing attribute if available
   const passingAttrBonus = player.attributes?.passing ? Math.floor(attrValue(player, 'passing') / 10 - 1) : 0;
-  const keyPasses = KEY_PASS_ROLES.has(player.roleId) ? seededInt(random, 1, 5) + (player.rating >= 84 ? 1 : 0) + passingAttrBonus : seededInt(random, 0, 2) + Math.floor(passingAttrBonus / 2);
+  const keyPasses = KEY_PASS_ROLES.has(player.roleId) ? seededInt(random, 1, 5) + (player.rating >= 168 ? 1 : 0) + passingAttrBonus : seededInt(random, 0, 2) + Math.floor(passingAttrBonus / 2);
   const xg = Number(Math.max(0, scoringProfile.xgBase + goals * 0.22 + seededInt(random, -8, 16) / 100).toFixed(2));
   const passBonus = ['playmaker', 'libero'].includes(player.roleId) ? 5 : ['attacking_mid', 'central_mid', 'box_to_box'].includes(player.roleId) ? 2 : 0;
-  const passAccuracy = Math.max(58, Math.min(96, seededInt(random, 70, 90) + Math.floor((player.rating - 70) / 3) + passBonus + Math.round(attrDelta(player, 'passing') * 7)));
+  const passAccuracy = Math.max(58, Math.min(96, seededInt(random, 70, 90) + Math.floor((player.rating - 140) / 6) + passBonus + Math.round(attrDelta(player, 'passing') * 7)));
   const incidents = [];
   if (player.position === 'GK' && opponentGoals === 0) incidents.push('clean_sheet');
   if (player.position === 'GK' && random() < 0.04 + opponentGoals * 0.03 - qualityBonus / 3) incidents.push('distribution_error');

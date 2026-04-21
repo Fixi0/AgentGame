@@ -320,9 +320,9 @@ const getClubForCountry = (countryCode) => {
 };
 
 const getClubTierForRating = (rating, potential) => {
-  if (rating >= 84 || potential >= 90) return [1, 2];
-  if (rating >= 76 || potential >= 84) return [2, 3];
-  if (rating >= 66 || potential >= 78) return [3, 4];
+  if (rating >= 168 || potential >= 180) return [1, 2];
+  if (rating >= 152 || potential >= 168) return [2, 3];
+  if (rating >= 132 || potential >= 156) return [3, 4];
   return [4];
 };
 
@@ -507,7 +507,7 @@ const createDeepPlayerProfile = (player, countryCode, club) => {
   const ambitionBase = player.personality === 'ambitieux' ? 70 : player.personality === 'mercenaire' ? 62 : rand(28, 68);
   const loyaltyBase = player.personality === 'loyal' ? 78 : player.personality === 'mercenaire' ? 25 : rand(30, 72);
   const pressureBase = player.personality === 'leader' || player.personality === 'professionnel' ? rand(62, 88) : rand(30, 74);
-  const benchFear = player.age <= 22 ? rand(58, 88) : player.rating >= 82 ? rand(45, 72) : rand(22, 65);
+  const benchFear = player.age <= 22 ? rand(58, 88) : player.rating >= 164 ? rand(45, 72) : rand(22, 65);
   const familyInfluence = rand(15, 85);
   const possibleCities = [...new Set(CLUBS.filter((item) => item.countryCode === countryCode).map((item) => item.city))];
 
@@ -3248,7 +3248,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
     const maxClubBonus = Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * 24));
     const signingBonus = clamp(outcome.signingBonus ?? Math.floor(player.weeklySalary * 8), 3000, maxSigningBonus);
     const contractWeeks = clamp(outcome.contractWeeks ?? 150, 52, 260);
-    const clubRole = outcome.role ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
+    const clubRole = outcome.role ?? (player.rating >= 164 ? 'Titulaire' : 'Rotation');
     const clubBonusesTotal = clamp(outcome.clubBonuses?.total ?? Math.floor(player.weeklySalary * 8), 5000, maxClubBonus);
     const clubBonuses = {
       total: clubBonusesTotal,
@@ -3336,7 +3336,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
     const maxReleaseClause = Math.max(50000, Math.floor((player.value ?? 1000000) * 4.5));
     const minReleaseClause = Math.max(50000, Math.floor((player.value ?? 1000000) * 0.8));
     const maxClubBonus = Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * 24));
-    const clubRole = outcome.role ?? player.clubRole ?? (player.rating >= 82 ? 'Titulaire' : 'Rotation');
+    const clubRole = outcome.role ?? player.clubRole ?? (player.rating >= 164 ? 'Titulaire' : 'Rotation');
     const signingBonus = clamp(outcome.signingBonus ?? Math.floor(player.weeklySalary * 10), 3000, maxSigningBonus);
     const clubBonusesTotal = clamp(outcome.clubBonuses?.total ?? Math.floor(player.weeklySalary * 8), 5000, maxClubBonus);
     const clubBonuses = {

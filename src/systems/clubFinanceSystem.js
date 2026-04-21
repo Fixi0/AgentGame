@@ -176,8 +176,8 @@ export const generateRealisticSalaryOffer = (club, player, squad = []) => {
   return {
     baseWeeklySalary: Math.round(offeredWeeklySalary),
     annualSalary: Math.round(offeredWeeklySalary * 38),
-    bonusPerGoal: Math.max(0, Math.round((player.rating >= 80 ? 5000 : 2000) * (clubTier / 2))),
-    bonusPerAppearance: Math.max(0, Math.round((player.rating >= 80 ? 2000 : 1000) * (clubTier / 2))),
+    bonusPerGoal: Math.max(0, Math.round((player.rating >= 160 ? 5000 : 2000) * (clubTier / 2))),
+    bonusPerAppearance: Math.max(0, Math.round((player.rating >= 160 ? 2000 : 1000) * (clubTier / 2))),
     signingBonus: Math.round((offeredWeeklySalary * 38 * (clubTier <= 2 ? 0.5 : 0.25))),
   };
 };

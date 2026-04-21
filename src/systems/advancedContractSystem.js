@@ -250,12 +250,12 @@ export const createComprehensiveContract = (player, club, baseContract, selected
   if (selectedClauses.includes('PLAYING_TIME')) {
     contract.clauses.playingTimeGuarantee = {
       type: CLAUSE_TYPES.PLAYING_TIME,
-      minimumAppearances: player.rating >= 80 ? 28 : 20,
+      minimumAppearances: player.rating >= 160 ? 28 : 20,
     };
   }
 
   if (selectedClauses.includes('INJURY_PROTECTION')) {
-    contract.clauses.injuryProtection = createInjuryProtection(baseContract.weeklySalary, player.rating >= 80 ? 'premium' : 'standard');
+    contract.clauses.injuryProtection = createInjuryProtection(baseContract.weeklySalary, player.rating >= 160 ? 'premium' : 'standard');
   }
 
   if (selectedClauses.includes('IMAGE_RIGHTS')) {

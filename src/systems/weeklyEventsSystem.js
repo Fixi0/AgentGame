@@ -10,38 +10,38 @@ import { clamp, makeId } from '../utils/helpers';
 
 const COHERENCE_THRESHOLDS = {
   ballonDor: {
-    minRating: 85, // MUST be 85+ to win Ballon d'Or
+    minRating: 170, // MUST be 170+ (equiv. 85 on old scale) to win Ballon d'Or
     minSeasonAvg: 8.2, // Season average must be 8.2+
     minAppearances: 25, // At least 25 appearances
     scoreNeeded: 300, // Total coherence score
   },
   mvpWeek: {
-    minRating: 72, // MVP is for good players
+    minRating: 144, // MVP is for good players (equiv. 72 on old scale)
     minMatchRating: 7.8, // Match rating 7.8+
   },
   topGoalscorer: {
     minGoals: 15, // At least 15 goals for season
-    minRating: 75,
+    minRating: 150, // equiv. 75 on old scale
   },
   mostAssists: {
     minAssists: 10,
-    minRating: 73,
+    minRating: 146, // equiv. 73 on old scale
   },
   bestDefender: {
     minDefense: 16, // Defense stat 16+
-    minRating: 75,
+    minRating: 150, // equiv. 75 on old scale
     minAppearances: 20,
   },
   bestGoalkeeper: {
-    minRating: 76,
+    minRating: 152, // equiv. 76 on old scale
     minHandling: 17,
     minDistribution: 15,
     minCleanSheets: 8,
   },
   risingStar: {
     maxAge: 23,
-    minRating: 78,
-    minPotential: 87,
+    minRating: 156, // equiv. 78 on old scale
+    minPotential: 174, // equiv. 87 on old scale
   },
   comeback: {
     minPreviousInjury: 4, // Was out 4+ weeks
@@ -161,7 +161,7 @@ export const generateWeeklyEvents = (player = {}, weekStats = {}) => {
   }
 
   // Good assist week
-  if (assists >= 2 && rating >= 73) {
+  if (assists >= 2 && rating >= 146) {
     events.push({
       type: 'assist_week',
       title: `Passeur généreuse`,
@@ -356,19 +356,19 @@ export const isEventCoherent = (event, player, context = {}) => {
 
   switch (event.type) {
     case 'ballon_dor':
-      return rating >= 85 && seasonAvg >= 8.2;
+      return rating >= 170 && seasonAvg >= 8.2;
     case 'mvp_week':
-      return rating >= 72 && (event.matchRating ?? 0) >= 7.8;
+      return rating >= 144 && (event.matchRating ?? 0) >= 7.8;
     case 'hatrick':
-      return rating >= 70 && (event.goals ?? 0) >= 3;
+      return rating >= 140 && (event.goals ?? 0) >= 3;
     case 'top_goalscorer':
-      return rating >= 75 && (event.goals ?? 0) >= 15;
+      return rating >= 150 && (event.goals ?? 0) >= 15;
     case 'best_defender':
-      return rating >= 75 && (player?.attributes?.defense?.current ?? 0) >= 16;
+      return rating >= 150 && (player?.attributes?.defense?.current ?? 0) >= 16;
     case 'best_goalkeeper':
-      return player?.position === 'GK' && rating >= 76;
+      return player?.position === 'GK' && rating >= 152;
     case 'rising_star':
-      return player?.age <= 23 && rating >= 78 && (player?.potential ?? 0) >= 87;
+      return player?.age <= 23 && rating >= 156 && (player?.potential ?? 0) >= 174;
     default:
       return true;
   }

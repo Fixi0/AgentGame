@@ -25,16 +25,16 @@ export const getCalendarSnapshot = (week) => {
 };
 
 const getEligibleBuyerTiers = (player) => {
-  if (player.rating >= 84 || player.potential >= 90) return [1, 2];
-  if (player.rating >= 77 || player.potential >= 85) return [2, 3];
-  if (player.rating >= 68 || player.potential >= 79) return [3, 4];
+  if (player.rating >= 168 || player.potential >= 180) return [1, 2];
+  if (player.rating >= 154 || player.potential >= 170) return [2, 3];
+  if (player.rating >= 136 || player.potential >= 158) return [3, 4];
   return [4];
 };
 
 const isTransferCandidate = (player) => {
-  if (player.rating >= 68 || player.potential >= 80) return true;
-  if (player.contractWeeksLeft <= 20 && player.rating >= 62) return true;
-  if ((player.freeAgent || player.club === 'Libre') && player.rating >= 58) return true;
+  if (player.rating >= 136 || player.potential >= 160) return true;
+  if (player.contractWeeksLeft <= 20 && player.rating >= 124) return true;
+  if ((player.freeAgent || player.club === 'Libre') && player.rating >= 116) return true;
   return false;
 };
 
@@ -195,7 +195,7 @@ export const generateSurpriseOffer = ({ roster, week, reputation, worldState = n
   const candidates = roster.filter(
     (p) => (!cooldowns[p.id] || cooldowns[p.id] <= week)
       && !lockedPlayerIds.includes(p.id)
-      && ((p.form >= 82 && p.rating >= 74) || (p.contractWeeksLeft <= 6 && p.contractWeeksLeft > 0 && p.rating >= 66)),
+      && ((p.form >= 82 && p.rating >= 148) || (p.contractWeeksLeft <= 6 && p.contractWeeksLeft > 0 && p.rating >= 132)),
   );
   if (!candidates.length) return null;
 

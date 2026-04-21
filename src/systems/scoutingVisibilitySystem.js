@@ -44,8 +44,8 @@ export const getBaseVisibility = (player, state = {}) => {
   if (player.clubTier === 2) visibility = Math.max(visibility, VISIBILITY_LEVELS.RUMOR);
 
   // High rating = more visible (famous players)
-  if (player.rating >= 85) visibility = Math.max(visibility, VISIBILITY_LEVELS.SCOUTED);
-  if (player.rating >= 80) visibility = Math.max(visibility, VISIBILITY_LEVELS.RUMOR);
+  if (player.rating >= 170) visibility = Math.max(visibility, VISIBILITY_LEVELS.SCOUTED);
+  if (player.rating >= 160) visibility = Math.max(visibility, VISIBILITY_LEVELS.RUMOR);
 
   // Agent reputation gives visibility
   const reputation = state.reputation ?? 0;
@@ -203,14 +203,14 @@ export const revealPlayerPotential = (player) => {
     .filter((a) => a?.current)
     .reduce((sum, a) => sum + a.current, 0) / 17;
 
-  const basePotential = Math.min(100, attributeAverage * 5 + player.rating * 0.3 + rand(-5, 12));
+  const basePotential = Math.min(200, attributeAverage * 5 + player.rating * 0.3 + rand(-5, 12));
 
   // Potential can be SURPRISING:
-  // - Young prospect (18-23) might have 85+ potential hidden
-  // - Older player (30+) might peak at 72 even if rating 75
+  // - Young prospect (18-23) might have 170+ potential hidden
+  // - Older player (30+) might peak at 144 even if rating 150
   const ageModifier = player.age <= 23 ? rand(2, 8) : player.age >= 30 ? rand(-8, -2) : rand(-3, 5);
 
-  const revealedPotential = clamp(basePotential + ageModifier, player.rating, 100);
+  const revealedPotential = clamp(basePotential + ageModifier, player.rating, 200);
 
   return {
     ...player,

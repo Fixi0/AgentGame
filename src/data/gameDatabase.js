@@ -1271,8 +1271,8 @@ const createCatalogPlayerRows = () =>
       profile_injury_risk: playerProfile.injuryRisk,
       catalogSeason: player.catalogSeason ?? 1,
       catalogBaseAge: player.catalogBaseAge ?? player.age ?? 24,
-      catalogBaseRating: player.catalogBaseRating ?? player.rating ?? 60,
-      catalogBasePotential: player.catalogBasePotential ?? player.potential ?? player.rating ?? 60,
+      catalogBaseRating: player.catalogBaseRating ?? player.rating ?? 120,
+      catalogBasePotential: player.catalogBasePotential ?? player.potential ?? player.rating ?? 120,
       databaseSource: player.databaseSource ?? 'seed',
     };
   });

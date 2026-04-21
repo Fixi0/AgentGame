@@ -33,7 +33,7 @@ export const RECRUITMENT_PITCHES = [
 ];
 
 const getThreshold = (player, state) => {
-  const base = player.rating >= 80 ? 74 : player.rating >= 70 ? 66 : 58;
+  const base = player.rating >= 160 ? 74 : player.rating >= 140 ? 66 : 58;
   const difficultyPenalty = state.difficulty === 'hardcore' ? 7 : state.difficulty === 'facile' ? -6 : 0;
   return base + difficultyPenalty;
 };

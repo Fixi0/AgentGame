@@ -46,8 +46,8 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     ?? POSITION_ROLES.MIL?.[0]
     ?? POSITION_ROLES.ATT?.[0];
   const baseAge = 20;
-  const baseRating = 65;
-  const potential = 99;
+  const baseRating = 130; // Converted from 65 on 1-200 scale
+  const potential = 198; // Converted from 99 on 1-200 scale
   const rating = evolveRating(baseRating, baseAge, potential, season);
   const age = baseAge + (season - 1);
   const countryData = COUNTRIES.find((c) => c.code === 'FR') ?? COUNTRIES[0];
@@ -124,12 +124,12 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
   };
 };
 
-// Plages de ratings selon le tier du club
+// Plages de ratings selon le tier du club (1-200 scale)
 const TIER_RATING = {
-  1: { starterMin: 79, starterMax: 91, benchMin: 71, benchMax: 81 },
-  2: { starterMin: 72, starterMax: 83, benchMin: 65, benchMax: 74 },
-  3: { starterMin: 64, starterMax: 76, benchMin: 58, benchMax: 68 },
-  4: { starterMin: 55, starterMax: 68, benchMin: 50, benchMax: 62 },
+  1: { starterMin: 158, starterMax: 182, benchMin: 142, benchMax: 162 },
+  2: { starterMin: 144, starterMax: 166, benchMin: 130, benchMax: 148 },
+  3: { starterMin: 128, starterMax: 152, benchMin: 116, benchMax: 136 },
+  4: { starterMin: 110, starterMax: 136, benchMin: 100, benchMax: 124 },
 };
 
 // ── Physique & Style de jeu ─────────────────────────────────────────────────
@@ -171,8 +171,8 @@ let databasePlayerCatalog = null;
 
 export const getMarketRatingCeiling = (reputation = 12, scoutLevel = 0) => {
   const rep = getMarketReputationScore(reputation);
-  const base = rep < 15 ? 62 : rep < 30 ? 68 : rep < 45 ? 74 : rep < 60 ? 80 : 86;
-  return clamp(base + Math.floor(scoutLevel * 0.8), 58, 92);
+  const base = rep < 15 ? 124 : rep < 30 ? 136 : rep < 45 ? 148 : rep < 60 ? 160 : 172;
+  return clamp(base + Math.floor(scoutLevel * 1.6), 116, 184);
 };
 
 // ── Quota de postes pour le marché ─────────────────────────────────────────
@@ -232,10 +232,10 @@ const sBool  = (seed, n, prob) => seededFloat(seed, n) < prob;
 // ── Valeur marchande ──────────────────────────────────────────────────────────
 
 const estimateValue = (rating, potential, age, tier) => {
-  const r = Math.min(99, Math.max(50, rating));
-  const ratingFactor = Math.exp((r - 65) / 9.2);
+  const r = Math.min(198, Math.max(100, rating)); // 1-200 scale
+  const ratingFactor = Math.exp((r - 130) / 18.4); // Adjusted for 1-200 scale
   const ageFactor = age <= 20 ? 1.15 : age <= 24 ? 1.05 : age <= 27 ? 0.94 : age <= 30 ? 0.80 : 0.58;
-  const potFactor  = 1 + Math.min(0.2, Math.max(0, (potential - rating) / 18));
+  const potFactor  = 1 + Math.min(0.2, Math.max(0, (potential - rating) / 36)); // Doubled for 1-200 scale
   const tierFactor = tier === 1 ? 1.08 : tier === 2 ? 1.03 : tier === 3 ? 0.97 : 0.88;
   const raw = 3_850_000 * ratingFactor * ageFactor * potFactor * tierFactor;
   return Math.round(Math.min(280_000_000, Math.max(250_000, raw)) / 1000) * 1000;
@@ -244,7 +244,7 @@ const estimateValue = (rating, potential, age, tier) => {
 const limitEliteRatings = (catalog = [], maxElite = 3) => {
   const eliteIds = new Set(
     [...catalog]
-      .filter((player) => (player.rating ?? 0) > 90)
+      .filter((player) => (player.rating ?? 0) > 180)
       .sort((a, b) =>
         (b.rating ?? 0) - (a.rating ?? 0)
         || (b.potential ?? 0) - (a.potential ?? 0)
@@ -255,8 +255,8 @@ const limitEliteRatings = (catalog = [], maxElite = 3) => {
   );
 
   return catalog.map((player) => {
-    if ((player.rating ?? 0) <= 90 || eliteIds.has(player.id)) return player;
-    const rating = 90;
+    if ((player.rating ?? 0) <= 180 || eliteIds.has(player.id)) return player;
+    const rating = 180;
     const value = estimateValue(rating, Math.max(rating, player.potential ?? rating), player.age ?? 24, player.clubTier ?? 2);
     return {
       ...player,
@@ -288,13 +288,13 @@ const evolveRating = (baseRating, baseAge, potential, season) => {
     } else if (a < 32) {
       // Début déclin, peut encore progresser si gros écart
       r = Math.min(potential, r + (gap > 22 ? 1 : 0));
-      if (gap <= 22) r = Math.max(50, r - 1);
+      if (gap <= 22) r = Math.max(100, r - 1);
     } else {
-      r = Math.max(50, r - 1);
+      r = Math.max(100, r - 1);
     }
     a++;
   }
-  return Math.min(99, Math.max(50, r));
+  return Math.min(198, Math.max(100, r));
 };
 
 // ── Rôle du contrat (Club Role) ────────────────────────────────────────────────
@@ -433,7 +433,7 @@ const buildSquadPlayer = (club, slotIdx, season) => {
     slot.starter ? ranges.starterMax : ranges.benchMax,
   );
   const baseAge = slot.starter ? sInt(baseSeed, 1, 21, 32) : sInt(baseSeed, 1, 17, 27);
-  const potentialCeil = slot.starter ? 96 : 88;
+  const potentialCeil = slot.starter ? 192 : 176;
   const potential = Math.min(potentialCeil, baseRating + sInt(baseSeed, 2, 0, baseAge <= 22 ? 12 : 6));
 
   // Évolution inter-saisons
@@ -540,9 +540,9 @@ const buildYouthPlayer = (club, youthSlotIdx, season) => {
   const baseAge = sInt(baseSeed, 1, slot.ageMin, slot.ageMax);
   const age     = baseAge + (season - 1);
   // Prospects : rating bas, potential élevé
-  const baseRating = TIER_RATING[tier].benchMin - 5 + sInt(baseSeed, 0, 0, 10);
-  const rating     = evolveRating(baseRating, baseAge, 88, season);
-  const potential  = Math.min(92, baseRating + sInt(baseSeed, 2, 10, 22));
+  const baseRating = TIER_RATING[tier].benchMin - 10 + sInt(baseSeed, 0, 0, 10);
+  const rating     = evolveRating(baseRating, baseAge, 176, season);
+  const potential  = Math.min(184, baseRating + sInt(baseSeed, 2, 10, 22));
 
   const personality = sPick(baseSeed, 3, PERSONALITIES);
   const countryCode = pickNationality(club, baseSeed, 10);
@@ -656,8 +656,8 @@ export const setDatabasePlayerCatalog = (players = []) => {
       ...player,
       catalogSeason: player.catalogSeason ?? 1,
       catalogBaseAge: player.catalogBaseAge ?? player.age ?? 24,
-      catalogBaseRating: player.catalogBaseRating ?? player.rating ?? 60,
-      catalogBasePotential: player.catalogBasePotential ?? player.potential ?? player.rating ?? 60,
+      catalogBaseRating: player.catalogBaseRating ?? player.rating ?? 120,
+      catalogBasePotential: player.catalogBasePotential ?? player.potential ?? player.rating ?? 120,
       databaseBacked: true,
     }));
   databasePlayerCatalog = normalized.length ? normalized : null;
@@ -738,7 +738,7 @@ export const reconcilePlayerWithCatalog = (player, season = 1) => {
   return merged;
 };
 
-const chooseCatalogPlayer = ({ catalog, position, targetRating, usedIds, usedClubsThisBatch, eligibleClubs, allowedCountryCodes = null, maxRating = 99, salt = 0 }) => {
+const chooseCatalogPlayer = ({ catalog, position, targetRating, usedIds, usedClubsThisBatch, eligibleClubs, allowedCountryCodes = null, maxRating = 198, salt = 0 }) => {
   const allowedCountrySet = allowedCountryCodes?.length ? new Set(allowedCountryCodes) : null;
   const collectCandidates = (relaxClubUniqueness = false) => catalog.filter((player) => {
     if (usedIds.has(player.id)) return false;
@@ -782,7 +782,7 @@ export const drawMarketPlayers = ({
   const eligibleClubs = getEligibleClubs(reputation, { agencyCountryCode, scoutLevel, allowedCountryCodes: marketCountryCodes });
   const catalog = createPlayerCatalog(season);
   const rep = getMarketReputationScore(reputation);
-  const targetRating = clamp(54 + rep * 0.28 + scoutLevel * 1.6, 50, 91);
+  const targetRating = clamp(108 + rep * 0.28 + scoutLevel * 1.6, 100, 182);
   const maxRating = getMarketRatingCeiling(reputation, scoutLevel);
   const specialGabriel = catalog.find((player) => player.id === GABRIEL_FIXIO_ID);
 
@@ -858,8 +858,8 @@ export const drawFreeAgents = ({
   const eligibleClubs = getEligibleClubs(Math.max(0, reputation - 12), { agencyCountryCode, scoutLevel, allowedCountryCodes: marketCountryCodes });
   const catalog = createPlayerCatalog(season);
   const rep = getMarketReputationScore(reputation);
-  const targetRating = clamp(50 + rep * 0.22, 50, 82);
-  const maxRating = Math.max(58, getMarketRatingCeiling(reputation, scoutLevel) - 4);
+  const targetRating = clamp(100 + rep * 0.22, 100, 164);
+  const maxRating = Math.max(116, getMarketRatingCeiling(reputation, scoutLevel) - 8);
 
   for (const position of positionQuota) {
     const player = chooseCatalogPlayer({
@@ -995,7 +995,7 @@ const drawOnePlayer = ({ position, eligibleClubs, usedIds, usedClubsThisBatch, s
       const player = buildSquadPlayer(club, idx, season);
       if (usedIds.has(player.id)) continue;
 
-      const maxRatingForRep = 58 + Math.floor(reputation / 2) + scoutLevel * 2;
+      const maxRatingForRep = 116 + Math.floor(reputation / 2) + scoutLevel * 4;
       if (reputation < 40 && player.rating > maxRatingForRep) continue;
 
       return player;

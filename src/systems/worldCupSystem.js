@@ -105,7 +105,7 @@ export const createWorldCupState = (season, roster) => {
   const year = 2026 + (season - 1);
   const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   const selectedPlayers = roster
-    .filter((p) => p.rating >= 65 && !p.freeAgent && p.countryCode)
+    .filter((p) => p.rating >= 130 && !p.freeAgent && p.countryCode)
     .map((p) => ({ player: p, ...getWorldCupSelectionProfile(p) }))
     .filter(({ score }) => score > 0)
     .filter(({ score }) => {
@@ -140,7 +140,7 @@ export const createWorldCupState = (season, roster) => {
     drawGroups: groupLetters.reduce((acc, group) => ({ ...acc, [group]: [] }), {}),
     countryPressure: roster.reduce((acc, player) => {
       if (!player.countryCode) return acc;
-      const base = player.rating >= 80 ? 72 : player.rating >= 72 ? 60 : 48;
+      const base = player.rating >= 160 ? 72 : player.rating >= 144 ? 60 : 48;
       return { ...acc, [player.countryCode]: Math.max(acc[player.countryCode] ?? 0, base) };
     }, {}),
     results: [], // matchs joués
@@ -244,7 +244,7 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
   const result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
 
   // Performances individuelles
-  const isStarter = Math.random() < (playerEntry.starterChance ?? (player.rating >= 75 ? 0.85 : 0.6));
+  const isStarter = Math.random() < (playerEntry.starterChance ?? (player.rating >= 150 ? 0.85 : 0.6));
   const minutes = isStarter
     ? rand(playerEntry.starterChance >= 0.8 ? 72 : playerEntry.starterChance >= 0.66 ? 64 : 58, 90)
     : rand(0, playerEntry.starterChance >= 0.45 ? 35 : 28);

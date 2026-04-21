@@ -237,7 +237,7 @@ export const maybeCreateContextualMessage = ({ player, event, week, mercato = fa
   }
 
   // Demande augmentation — seulement si rating élevé ET grosse saison
-  if (player.rating >= 80 && (player.seasonStats?.goals ?? 0) >= 8 && Math.random() < 0.08) {
+  if (player.rating >= 160 && (player.seasonStats?.goals ?? 0) >= 8 && Math.random() < 0.08) {
     return createMessage({ player, type: 'raise_request', week, context: 'performance' });
   }
 
@@ -247,7 +247,7 @@ export const maybeCreateContextualMessage = ({ player, event, week, mercato = fa
   }
 
   // Offre secrète — très rare, uniquement mercato + haut niveau
-  if (mercato && player.rating >= 76 && Math.random() < 0.025) {
+  if (mercato && player.rating >= 152 && Math.random() < 0.025) {
     return createMessage({ player, type: 'secret_offer', week, context: 'mercato' });
   }
 

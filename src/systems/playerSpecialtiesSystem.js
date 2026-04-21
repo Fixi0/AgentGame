@@ -132,7 +132,7 @@ export const SPECIALTIES = {
     category: 'leadership',
     label: 'Capitaine',
     icon: '🦁',
-    requirement: (p) => p.attributes?.leadership?.current >= 17 && (p.age >= 24 || p.rating >= 80),
+    requirement: (p) => p.attributes?.leadership?.current >= 17 && (p.age >= 24 || p.rating >= 160),
     bonus: { leadership: 2 },
   },
   leader: {

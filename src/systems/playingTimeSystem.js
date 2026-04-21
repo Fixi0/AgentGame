@@ -173,11 +173,11 @@ export const generatePlayingTimeClause = (player, club) => {
   const rating = player.rating ?? 70;
   let guaranteeType = 'ROTATION';
 
-  if (rating >= 85) {
+  if (rating >= 170) {
     guaranteeType = 'STAR';
-  } else if (rating >= 78) {
+  } else if (rating >= 156) {
     guaranteeType = 'STARTER';
-  } else if (rating >= 72) {
+  } else if (rating >= 144) {
     guaranteeType = 'REGULAR';
   }
 

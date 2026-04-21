@@ -136,7 +136,7 @@ export const assessPlayerPersonality = (player = {}) => {
   traits.ambition = Math.min(20, Math.max(1,
     ((player.attributes?.leadership?.current ?? 10) / 4) +
     ((player.attributes?.mentality?.current ?? 10) / 4) +
-    ((player.potential ?? player.rating) >= 80 ? 4 : 0)
+    ((player.potential ?? player.rating) >= 160 ? 4 : 0)
   ));
 
   // Controversy: inverse of composure + professionalism
