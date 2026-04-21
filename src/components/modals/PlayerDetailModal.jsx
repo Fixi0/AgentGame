@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { PERSONALITY_LABELS } from '../../data/players';
 import { ALL_ATTRIBUTES } from '../../systems/attributesSystem';
@@ -10,6 +10,7 @@ import { NATIONAL_TEAMS } from '../../systems/worldCupSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 import PlayerAttributesPanel from '../PlayerAttributesPanel';
+import { assignIntelligentClubRole } from '../../data/localDatabase';
 
 const tabLabels = {
   dashboard: 'Tableau de bord',
@@ -34,37 +35,45 @@ const formatForm = (form = []) => form.length ? form.map((item) => String(item).
 export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, clubSeasonHistory = {}, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, worldCupState = null, databaseView = null, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
   const [tab, setTab] = useState('dashboard');
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
-  const playerPromises = (promises ?? []).filter((promise) => promise.playerId === player.id && !promise.resolved && !promise.failed);
-  const playerMessages = (messages ?? []).filter((message) => message.playerId === player.id);
-  const seasonStats = player.seasonStats ?? {};
-  const careerProgress = getCareerGoalProgress(player);
-  const clubRelation = clubRelations?.[player.club] ?? 50;
-  const memorySummary = getClubMemorySummary(clubMemory, player.club);
-  const clubMemoryScore = clubMemory?.[player.club]?.trust ?? 50;
-  const clubSeason = clubSeasonHistory?.[player.club] ?? null;
-  const clubTension = Math.max(0, 100 - clubRelation + Math.max(0, 55 - (player.trust ?? 50)) + Math.max(0, 55 - clubMemoryScore));
+
+  // Ensure player has clubRole assigned
+  const playerWithRole = useMemo(() => {
+    if (!player) return player;
+    if (player.clubRole) return player;
+    const clubRole = assignIntelligentClubRole(player);
+    return { ...player, clubRole };
+  }, [player]);
+  const playerPromises = (promises ?? []).filter((promise) => promise.playerId === playerWithRole.id && !promise.resolved && !promise.failed);
+  const playerMessages = (messages ?? []).filter((message) => message.playerId === playerWithRole.id);
+  const seasonStats = playerWithRole.seasonStats ?? {};
+  const careerProgress = getCareerGoalProgress(playerWithRole);
+  const clubRelation = clubRelations?.[playerWithRole.club] ?? 50;
+  const memorySummary = getClubMemorySummary(clubMemory, playerWithRole.club);
+  const clubMemoryScore = clubMemory?.[playerWithRole.club]?.trust ?? 50;
+  const clubSeason = clubSeasonHistory?.[playerWithRole.club] ?? null;
+  const clubTension = Math.max(0, 100 - clubRelation + Math.max(0, 55 - (playerWithRole.trust ?? 50)) + Math.max(0, 55 - clubMemoryScore));
   const tensionColor = clubTension > 68 ? '#b42318' : clubTension > 40 ? '#8a6f1f' : '#00a676';
-  const dossierStatus = getPlayerDossierStatus(player, { week: currentWeek, messages, messageQueue, promises, clubOffers, pendingTransfers, negotiationCooldowns });
-  const relevantDecisions = getDecisionHistoryByPlayer(decisionHistory, { playerId: player.id }).slice(0, 8);
+  const dossierStatus = getPlayerDossierStatus(playerWithRole, { week: currentWeek, messages, messageQueue, promises, clubOffers, pendingTransfers, negotiationCooldowns });
+  const relevantDecisions = getDecisionHistoryByPlayer(decisionHistory, { playerId: playerWithRole.id }).slice(0, 8);
   const recentActions = relevantDecisions.slice(0, 5);
-  const recruitmentMemory = player.recruitmentMemory ?? [];
-  const promiseMemory = (promises ?? []).filter((promise) => promise.playerId === player.id).slice(0, 6);
-  const dossierRecent = getRecentDossierEvents(dossierMemory ?? {}, player.id, 3);
-  const dossierSummary = getDossierHistorySummary(dossierMemory ?? {}, player.id);
-  const worldCupSelection = worldCupState?.selectedPlayers?.find((entry) => entry.playerId === player.id) ?? null;
+  const recruitmentMemory = playerWithRole.recruitmentMemory ?? [];
+  const promiseMemory = (promises ?? []).filter((promise) => promise.playerId === playerWithRole.id).slice(0, 6);
+  const dossierRecent = getRecentDossierEvents(dossierMemory ?? {}, playerWithRole.id, 3);
+  const dossierSummary = getDossierHistorySummary(dossierMemory ?? {}, playerWithRole.id);
+  const worldCupSelection = worldCupState?.selectedPlayers?.find((entry) => entry.playerId === playerWithRole.id) ?? null;
   const worldCupCountry = worldCupSelection ? NATIONAL_TEAMS.find((team) => team.code === worldCupSelection.countryCode) : null;
-  const dbPlayerRow = databaseView?.players?.find((row) => row.id === player.id) ?? null;
-  const clubSeasonContext = player.clubSeasonContext ?? dbPlayerRow?.club_season_context ?? null;
+  const dbPlayerRow = databaseView?.players?.find((row) => row.id === playerWithRole.id) ?? null;
+  const clubSeasonContext = playerWithRole.clubSeasonContext ?? dbPlayerRow?.club_season_context ?? null;
   const playerInjuries = (databaseView?.injuries ?? [])
-    .filter((row) => row.player_id === player.id)
+    .filter((row) => row.player_id === playerWithRole.id)
     .sort((a, b) => (b.started_week ?? 0) - (a.started_week ?? 0))
     .slice(0, 4);
   const clubCompetitionHistory = (databaseView?.competitionHistory ?? [])
-    .filter((row) => row.club_name === player.club)
+    .filter((row) => row.club_name === playerWithRole.club)
     .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
     .slice(0, 5);
   const playerTransfers = (databaseView?.transfers ?? [])
-    .filter((row) => row.player_id === player.id)
+    .filter((row) => row.player_id === playerWithRole.id)
     .sort((a, b) => (b.transfer_date ?? 0) - (a.transfer_date ?? 0))
     .slice(0, 4);
   const actionGridStyle = {
@@ -93,11 +102,11 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
         </div>
         <div style={S.mBody}>
           <div style={S.profileHero}>
-            <div style={{ ...S.playerAvatar, width: 60, height: 60 }}>{player.firstName?.[0]}{player.lastName?.[0]}</div>
+            <div style={{ ...S.playerAvatar, width: 60, height: 60 }}>{playerWithRole.firstName?.[0]}{playerWithRole.lastName?.[0]}</div>
             <div>
-              <h2 style={{ ...S.mTitle, marginBottom: 2, fontSize: 16 }}>{player.firstName} {player.lastName}</h2>
-              <div style={{ ...S.mPlayer, fontSize: 12, marginBottom: 4 }}>{player.position} · {player.countryFlag} · {player.roleLabel ?? player.position}</div>
-              <div style={{ fontSize: 11, color: '#64727d' }}>rôle club <strong>{player.clubRole ?? 'non défini'}</strong></div>
+              <h2 style={{ ...S.mTitle, marginBottom: 2, fontSize: 16 }}>{playerWithRole.firstName} {playerWithRole.lastName}</h2>
+              <div style={{ ...S.mPlayer, fontSize: 12, marginBottom: 4 }}>{playerWithRole.position} · {playerWithRole.countryFlag} · {playerWithRole.roleLabel ?? playerWithRole.position}</div>
+              <div style={{ fontSize: 11, color: '#64727d' }}>rôle club <strong style={{ color: playerWithRole.clubRole === 'Star' ? '#d97706' : '#172026' }}>{playerWithRole.clubRole ?? 'non défini'}</strong></div>
             </div>
           </div>
           <div style={{ ...S.tabRow, gap: 4, marginTop: 8 }}>
@@ -154,7 +163,7 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
 
           {tab === 'attributes' && (
             <>
-              {player.attributes && <PlayerAttributesPanel player={player} />}
+              {playerWithRole.attributes && <PlayerAttributesPanel player={playerWithRole} />}
             </>
           )}
 
@@ -418,9 +427,9 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
           <div style={{ marginTop: 16, padding: '12px', background: '#f7f9fb', borderRadius: 8, border: '1px solid #e2e8ef', display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 6 }}>
             <button onClick={() => onNego('extend')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>PROLONGER</button>
             <button onClick={() => onNego('transfer')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>TRANSFERT</button>
-            <button onClick={() => onCallPlayer?.(player)} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>APPELER</button>
-            <button onClick={() => onMeeting?.(player.id, 'career')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>RÉUNION</button>
-            <button onClick={() => onMarketAction?.(player.id, player.club === 'Libre' ? 'free_trial' : 'propose')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>{player.club === 'Libre' ? 'ESSAI' : 'PROPOSER'}</button>
+            <button onClick={() => onCallPlayer?.(playerWithRole)} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>APPELER</button>
+            <button onClick={() => onMeeting?.(playerWithRole.id, 'career')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>RÉUNION</button>
+            <button onClick={() => onMarketAction?.(playerWithRole.id, playerWithRole.club === 'Libre' ? 'free_trial' : 'propose')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>{playerWithRole.club === 'Libre' ? 'ESSAI' : 'PROPOSER'}</button>
             <button onClick={onClose} style={{ ...S.relBtn, padding: '8px 12px', fontSize: 11 }}>FERMER</button>
           </div>
         </div>
