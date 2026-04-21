@@ -18,6 +18,7 @@
 import { CLUBS, COUNTRIES } from './clubs';
 import { COUNTRY_NAME_POOLS, PERSONALITIES, POSITION_ROLES } from './players';
 import { clamp } from '../utils/helpers';
+import { generatePlayerAttributes } from '../systems/attributesSystem';
 
 // ── Constantes ───────────────────────────────────────────────────────────────
 
@@ -118,6 +119,7 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     developmentCurve: 'superstar_gem',
     signaturePlayer: false,
     hiddenPotential: true,
+    attributes: generatePlayerAttributes({ rating, potential, position: 'MIL' }, roleObj),
   };
 };
 
@@ -501,6 +503,8 @@ const buildSquadPlayer = (club, slotIdx, season) => {
     physique,
     playStyle,
     foot,
+    // 17-stat attribute system (FM26-level)
+    attributes: generatePlayerAttributes({ rating, potential, position: slot.position }, roleObj),
   };
 };
 
@@ -587,6 +591,8 @@ const buildYouthPlayer = (club, youthSlotIdx, season) => {
     physique,
     playStyle: rp.style,
     foot,
+    // 17-stat attribute system (FM26-level)
+    attributes: generatePlayerAttributes({ rating, potential, position: slot.position }, roleObj),
   };
 };
 
@@ -703,6 +709,10 @@ export const reconcilePlayerWithCatalog = (player, season = 1) => {
     traitRevealed: player.traitRevealed ?? catalogPlayer.traitRevealed,
     hiddenTrait: player.hiddenTrait ?? catalogPlayer.hiddenTrait,
     lastInteractionWeek: player.lastInteractionWeek ?? catalogPlayer.lastInteractionWeek,
+    // Preserve evolved attributes from saved state, fall back to catalog
+    attributes: player.attributes && Object.keys(player.attributes).length > 0
+      ? player.attributes
+      : catalogPlayer.attributes,
   };
   return merged;
 };

@@ -8,6 +8,7 @@ import { getPlayerDossierStatus, getRelevantDecisionHistory as getDecisionHistor
 import { NATIONAL_TEAMS } from '../../systems/worldCupSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
+import PlayerAttributesPanel from '../PlayerAttributesPanel';
 
 const tabLabels = {
   profile: 'Profil',
@@ -141,6 +142,7 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             <div style={S.sumRow}><span style={S.sumK}>Tension</span><strong style={{ color: tensionColor }}>{clubTension >= 65 ? 'forte' : clubTension >= 35 ? 'modérée' : 'calme'}</strong></div>
             <div style={S.progBar}><div style={{ ...S.progFill, width: `${Math.min(100, clubTension)}%`, background: tensionColor }} /></div>
           </div>
+          {player.attributes && <PlayerAttributesPanel player={player} />}
           <div style={S.objCard}>
             <div style={S.secTitle}>PROFIL HUMAIN</div>
             <div style={S.sumRow}><span style={S.sumK}>Ambition cachée</span><strong>{player.hiddenAmbition ?? 50}/100</strong></div>
