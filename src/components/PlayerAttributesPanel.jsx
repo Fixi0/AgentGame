@@ -69,33 +69,15 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
     <div className="attributes-panel">
       <div className="attributes-header">
         <h3>Attributs (17-stat)</h3>
-        <p className="attributes-subtitle">Profil de compétences détaillé</p>
       </div>
-
-      {Object.entries(ATTRIBUTE_KEYS_BY_CATEGORY).map(([category, keys]) => {
-        // Check if any attributes in this category exist
-        const hasAttributes = keys.some(
-          (key) => attributes[key] && (ALL_ATTRIBUTES[key].category !== 'goalkeeper' || position === 'GK')
-        );
-
-        if (!hasAttributes) return null;
-
-        const categoryName = {
-          technical: 'Technique (5)',
-          mental: 'Mental (6)',
-          physical: 'Physique (4)',
-          goalkeeper: 'Gardien (2)',
-        }[category];
-
-        return (
-          <div key={category} className="attributes-category">
-            <div className="category-header">{categoryName}</div>
-            <div className="category-attributes">
-              {keys.map((key) => renderAttributeBar(key, attributes[key]))}
-            </div>
-          </div>
-        );
-      })}
+      <div className="all-attributes-grid">
+        {Object.entries(ALL_ATTRIBUTES).map(([key, def]) => {
+          if (def.category === 'goalkeeper' && position !== 'GK') return null;
+          const attr = attributes[key];
+          if (!attr) return null;
+          return renderAttributeBar(key, attr);
+        })}
+      </div>
 
       <style jsx>{`
         .attributes-panel {
@@ -125,68 +107,51 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
           color: #172026;
         }
 
-        .attributes-subtitle {
-          margin: 0;
-          font-size: 12px;
-          color: #64727d;
-        }
-
-        .attributes-category {
-          margin-bottom: 24px;
-        }
-
-        .attributes-category:last-child {
-          margin-bottom: 0;
-        }
-
-        .category-header {
-          font-size: 13px;
-          font-weight: 600;
-          color: #64727d;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          margin-bottom: 12px;
-          padding-bottom: 8px;
-          border-bottom: 1px solid #d5dce0;
-        }
-
-        .category-attributes {
+        .all-attributes-grid {
           display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 8px;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 6px;
         }
 
         @media (max-width: 900px) {
-          .category-attributes {
-            grid-template-columns: repeat(4, 1fr);
+          .all-attributes-grid {
+            grid-template-columns: repeat(5, 1fr);
           }
         }
 
         @media (max-width: 768px) {
-          .category-attributes {
+          .all-attributes-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .all-attributes-grid {
             grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
           }
         }
 
         .attribute-grid-item {
           background: white;
-          border-radius: 6px;
-          padding: 8px 10px;
+          border-radius: 5px;
+          padding: 6px 8px;
           border: 1px solid #e2e8ef;
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 4px;
         }
 
         .attribute-grid-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          gap: 4px;
+          gap: 3px;
         }
 
         .attribute-grid-name {
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 600;
           color: #64727d;
           text-transform: uppercase;
@@ -194,15 +159,15 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
         }
 
         .attribute-grid-value {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
           color: #00a676;
         }
 
         .attribute-grid-bar {
-          height: 12px;
+          height: 10px;
           background: #d5dce0;
-          border-radius: 3px;
+          border-radius: 2px;
           position: relative;
           overflow: hidden;
         }
@@ -226,11 +191,11 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
         }
 
         .attribute-grid-footer {
-          font-size: 9px;
+          font-size: 8px;
           font-weight: 500;
           color: #8c96a3;
           text-align: center;
-          line-height: 1.2;
+          line-height: 1;
         }
 
         .attributes-compact {
