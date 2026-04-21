@@ -151,11 +151,21 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
         }
 
         .category-attributes {
-          display: flex;
-          flex-direction: row;
-          flex-wrap: wrap;
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
           gap: 8px;
-          align-items: flex-start;
+        }
+
+        @media (max-width: 900px) {
+          .category-attributes {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+
+        @media (max-width: 768px) {
+          .category-attributes {
+            grid-template-columns: repeat(3, 1fr);
+          }
         }
 
         .attribute-grid-item {
@@ -166,7 +176,6 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
           display: flex;
           flex-direction: column;
           gap: 6px;
-          min-width: 70px;
         }
 
         .attribute-grid-header {
