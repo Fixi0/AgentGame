@@ -102,7 +102,6 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
   // Status icon
   let statusIcon = null;
   if (player.injured > 0) statusIcon = '🤕';
-  else if (player.form >= 78 && player.moral >= 65) statusIcon = '🔥';
   else if (player.form <= 45 || player.moral <= 35) statusIcon = '❄️';
 
   // Mercato badge
@@ -133,10 +132,6 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
               {player.firstName} <strong>{player.lastName}</strong>
             </div>
             {statusIcon && <span style={{ fontSize: 13 }}>{statusIcon}</span>}
-            {isLegendary
-              ? <span style={{ background: 'linear-gradient(90deg,#d4a017,#f5c842)', color: '#1a1200', borderRadius: 4, fontSize: 9, fontWeight: 900, padding: '1px 6px', letterSpacing: 1 }}>LÉGENDAIRE ✦</span>
-              : <span style={{ ...S.notorietyBadge, background: notoriety.bg, color: notoriety.color }}>{notoriety.label}</span>
-            }
             {hasMercatoOffer && <span style={S.mercatoBadge}>Offre 🔴</span>}
             {currentCompetition && (() => {
               const cup = EURO_CUP_LABELS[currentCompetition];
