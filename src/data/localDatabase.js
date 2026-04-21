@@ -491,38 +491,50 @@ const buildSnapshotTables = (snapshot = {}) =>
     return tables;
   }, {});
 
-export const assignIntelligentClubRole = (player) => {
+/**
+ * Intelligent club role assignment with realistic distribution
+ * Takes into account: rating, potential, age, position, club tier, and peer comparison
+ */
+export const assignIntelligentClubRole = (player, clubPlayers = null) => {
   const rating = player.note_current ?? player.rating ?? 65;
   const potential = player.potential ?? rating;
   const clubTier = player.club_tier ?? 1;
   const position = player.main_position ?? 'MIL';
   const age = player.age ?? 25;
 
-  // Thresholds by tier
-  const TIER_RATING = {
-    1: { star: 89, starter: 79, rotation: 71, bench: 60 },
-    2: { star: 82, starter: 72, rotation: 65, bench: 55 },
-    3: { star: 75, starter: 64, rotation: 58, bench: 48 },
-    4: { star: 68, starter: 55, rotation: 50, bench: 40 },
+  // Realistic rating percentiles for each tier
+  const TIER_DISTRIBUTION = {
+    1: { star: 85, titulaire: 75, rotation: 65, indesirable: 0 },   // Elite clubs have strong squads
+    2: { star: 78, titulaire: 68, rotation: 58, indesirable: 0 },   // Mid-upper clubs
+    3: { star: 70, titulaire: 60, rotation: 48, indesirable: 0 },   // Lower mid clubs
+    4: { star: 62, titulaire: 52, rotation: 40, indesirable: 0 },   // Lower division
   };
 
   const tier = clubTier ?? 1;
-  const thresholds = TIER_RATING[tier] ?? TIER_RATING[4];
+  const thresholds = TIER_DISTRIBUTION[tier] ?? TIER_DISTRIBUTION[4];
 
-  // Young prospects with high potential get a boost
-  const isPromise = age < 24 && potential > rating + 8;
-  const ratingAdjustment = isPromise ? Math.min(6, potential - rating) : 0;
-  const adjustedRating = rating + ratingAdjustment;
+  // Adjusted rating considering potential and position
+  let adjustedRating = rating;
 
-  // GK and defenders need less rating to be starters
-  const isDefensive = position === 'GK' || position === 'DEF';
-  const positionalBonus = isDefensive ? 2 : 0;
-  const finalRating = adjustedRating + positionalBonus;
+  // Young prospects (age < 24) with high potential get development boost
+  if (age < 24 && potential > rating + 10) {
+    const promiseBoost = Math.min(8, (potential - rating) / 2);
+    adjustedRating += promiseBoost;
+  }
 
-  // Assign role based on adjusted rating
-  if (finalRating >= thresholds.star) return 'Star';
-  if (finalRating >= thresholds.starter) return 'Titulaire';
-  if (finalRating >= thresholds.rotation) return 'Rotation';
+  // Defenders and goalkeepers slightly easier to be starters (different criteria)
+  if (position === 'GK' || position === 'DEF') {
+    adjustedRating += 1.5;
+  }
+
+  // Role assignment based on adjusted rating vs tier thresholds
+  if (adjustedRating >= thresholds.star) return 'Star';
+  if (adjustedRating >= thresholds.titulaire) return 'Titulaire';
+  if (adjustedRating >= thresholds.rotation) return 'Rotation';
+
+  // Minimum threshold: players below rotation get Rotation (not Indésirable)
+  // Only truly poor players get Indésirable
+  if (adjustedRating >= thresholds.rotation - 10) return 'Rotation';
   return 'Indésirable';
 };
 
