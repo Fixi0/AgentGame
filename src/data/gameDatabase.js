@@ -37,6 +37,23 @@ const playerName = (player = {}) => {
   return [record.firstName, record.lastName].filter(Boolean).join(' ').trim();
 };
 
+const inferClubRole = (player = {}) => {
+  if (player.clubRole || player.club_role) return player.clubRole ?? player.club_role;
+  const rating = player.rating ?? player.note_current ?? 130;
+  const tier = player.clubTier ?? player.club_tier ?? 4;
+  const thresholds = {
+    1: { star: 168, titulaire: 158, rotation: 142 },
+    2: { star: 154, titulaire: 144, rotation: 130 },
+    3: { star: 138, titulaire: 128, rotation: 116 },
+    4: { star: 120, titulaire: 110, rotation: 100 },
+  }[tier] ?? { star: 120, titulaire: 110, rotation: 100 };
+
+  if (rating >= thresholds.star) return 'Star';
+  if (rating >= thresholds.titulaire) return 'Titulaire';
+  if (rating >= thresholds.rotation) return 'Rotation';
+  return 'Indésirable';
+};
+
 const roundNumber = (value, decimals = 1) => {
   if (!Number.isFinite(value)) return null;
   const factor = 10 ** decimals;
@@ -276,7 +293,7 @@ const buildPlayerRow = (player, agencyId, source, season, week) => {
     club_country_code: player.clubCountryCode ?? null,
     club_city: player.clubCity ?? null,
     club_tier: player.clubTier ?? null,
-    club_role: player.clubRole ?? null,
+    club_role: inferClubRole(player),
     club_league_position: player.clubLeaguePosition ?? player.clubSeasonContext?.position ?? null,
     club_league_points: player.clubSeasonContext?.points ?? null,
     club_league_form: player.clubLeagueForm ?? player.clubSeasonContext?.form ?? [],

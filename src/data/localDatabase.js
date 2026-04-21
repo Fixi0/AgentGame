@@ -500,9 +500,9 @@ const buildSnapshotTables = (snapshot = {}) =>
  * Compares player rating to club average and tier expectations
  */
 export const assignIntelligentClubRole = (player, clubPlayers = null) => {
-  const rating = player.note_current ?? player.rating ?? 65;
+  const rating = player.note_current ?? player.rating ?? 130;
   const potential = player.potential ?? rating;
-  const clubTier = player.club_tier ?? 1;
+  const clubTier = player.club_tier ?? player.clubTier ?? 4;
   const position = player.main_position ?? 'MIL';
   const age = player.age ?? 25;
   const clubName = player.club_name ?? player.club;
@@ -526,7 +526,7 @@ export const assignIntelligentClubRole = (player, clubPlayers = null) => {
     const clubPlayerRatings = clubPlayers
       .filter(p => (p.club_name ?? p.club) === clubName)
       .map(p => {
-        let r = p.note_current ?? p.rating ?? 65;
+        let r = p.note_current ?? p.rating ?? 130;
         if ((p.age ?? 25) < 24 && (p.potential ?? r) > r + 10) {
           r += Math.min(10, ((p.potential ?? r) - r) / 2.5);
         }
@@ -552,10 +552,10 @@ export const assignIntelligentClubRole = (player, clubPlayers = null) => {
 
   // Fallback to tier-based thresholds if no club data
   const TIER_THRESHOLDS = {
-    1: { star: 85, titulaire: 75, rotation: 65 },
-    2: { star: 78, titulaire: 68, rotation: 58 },
-    3: { star: 70, titulaire: 60, rotation: 48 },
-    4: { star: 62, titulaire: 52, rotation: 40 },
+    1: { star: 168, titulaire: 158, rotation: 142 },
+    2: { star: 154, titulaire: 144, rotation: 130 },
+    3: { star: 138, titulaire: 128, rotation: 116 },
+    4: { star: 120, titulaire: 110, rotation: 100 },
   };
 
   const tier = clubTier ?? 1;

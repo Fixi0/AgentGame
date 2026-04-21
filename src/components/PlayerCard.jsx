@@ -5,7 +5,6 @@ import { getPlayerDossierStatus } from '../systems/dossierSystem';
 import { getDossierHistorySummary, getRecentDossierEvents } from '../systems/coherenceSystem';
 import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
 import { formatMoney } from '../utils/format';
-import { getPlayerStarCount } from '../utils/playerStars';
 import { S } from './styles';
 
 const POS_COLORS = { ATT: '#e83a3a', DEF: '#2563eb', MIL: '#16a34a', GK: '#d97706' };
@@ -26,24 +25,6 @@ function hashClubColor(clubName) {
   for (let i = 0; i < clubName.length; i++) h = (h * 31 + clubName.charCodeAt(i)) & 0xffffff;
   const hue = h % 360;
   return `hsl(${hue},60%,45%)`;
-}
-
-function getNotoriety(rating) {
-  if (rating >= 180) return { label: 'Icône', bg: '#7c3aed', color: '#ffffff' };
-  if (rating >= 170) return { label: 'Star', bg: '#d97706', color: '#ffffff' };
-  if (rating >= 160) return { label: 'Reconnu', bg: '#2563eb', color: '#ffffff' };
-  if (rating >= 146) return { label: 'Confirmé', bg: '#16a34a', color: '#ffffff' };
-  if (rating >= 130) return { label: 'Promesse', bg: '#64727d', color: '#ffffff' };
-  return { label: 'Inconnu', bg: '#e5eaf0', color: '#64727d' };
-}
-
-function StarsDisplay({ rating, isLegendary }) {
-  const stars = getPlayerStarCount(rating);
-  return (
-    <div style={{ fontSize: 14, letterSpacing: 1, fontWeight: 900 }}>
-      {'★'.repeat(stars)}{'☆'.repeat(5 - stars)}
-    </div>
-  );
 }
 
 function FormDots({ results }) {
@@ -78,7 +59,6 @@ function MoraleBar({ label, value }) {
 
 export default function PlayerCard({ player, state, mode, money, onSign, onRelease, onNego, onDetails }) {
   const currentSeason = Math.floor(((state?.week ?? 1) - 1) / 38) + 1;
-  const ratingColor = player.rating >= 170 ? '#00a676' : player.rating >= 150 ? '#2f80ed' : '#9aa7b2';
   const canSign = mode === 'sign' ? money >= player.signingCost : true;
   const signHelp = canSign ? formatMoney(player.signingCost) : `Manque ${formatMoney(Math.max(0, (player.signingCost ?? 0) - (money ?? 0)))}`;
   const isFreeInRoster = mode === 'roster' && (player.freeAgent || player.club === 'Libre');
@@ -95,17 +75,8 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
         : '#ffffff';
 
   const posColor = POS_COLORS[player.position] ?? '#64727d';
-  const notoriety = getNotoriety(player.rating);
   const clubDot = hashClubColor(player.club);
   const playerProfile = player.playerProfile ?? getPlayerProfileSummary(player);
-
-  // Rating trend
-  let trendArrow = null;
-  if (player.previousRating != null && player.previousRating !== player.rating) {
-    trendArrow = player.rating > player.previousRating
-      ? <span style={{ color: '#16a34a', fontSize: 11, fontWeight: 900 }}>↑</span>
-      : <span style={{ color: '#e83a3a', fontSize: 11, fontWeight: 900 }}>↓</span>;
-  }
 
   // Status icon
   let statusIcon = null;
@@ -129,13 +100,6 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
         {/* Colored position avatar */}
         <div style={{ ...S.playerAvatar, background: isLegendary ? 'linear-gradient(135deg,#d4a017,#f5c842)' : posColor, color: isLegendary ? '#1a1200' : '#ffffff', border: `2px solid ${isLegendary ? '#d4a017' : posColor}` }}>
           {isLegendary ? '👑' : getInitials(player)}
-        </div>
-        <div style={{ ...S.badge, background: isLegendary ? 'linear-gradient(135deg,#d4a017,#b8860b)' : ratingColor }}>
-          <div style={{ ...S.badgeNum, color: isLegendary ? '#1a1200' : undefined, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <StarsDisplay rating={player.rating} isLegendary={isLegendary} />
-            {trendArrow}
-          </div>
-          <div style={{ ...S.badgePos, color: isLegendary ? '#1a1200' : undefined }}>{player.position}</div>
         </div>
         <div style={S.pInfo}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
