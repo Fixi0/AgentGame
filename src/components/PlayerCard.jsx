@@ -67,6 +67,9 @@ function MoraleBar({ label, value }) {
 }
 
 export default function PlayerCard({ player, state, mode, money, onSign, onRelease, onNego, onDetails }) {
+  if (player.clubTier === 1) {
+    console.log(`[CARD] ${player.firstName} ${player.lastName}: rating=${player.rating}, potential=${player.potential}, displayed=${player.rating}`);
+  }
   const currentSeason = Math.floor(((state?.week ?? 1) - 1) / 38) + 1;
   const ratingColor = player.rating >= 170 ? '#00a676' : player.rating >= 150 ? '#2f80ed' : '#9aa7b2';
   const canSign = mode === 'sign' ? money >= player.signingCost : true;
