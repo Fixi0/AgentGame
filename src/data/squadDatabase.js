@@ -503,7 +503,7 @@ const buildSquadPlayer = (club, slotIdx, season) => {
     physique,
     playStyle,
     foot,
-    // 17-stat attribute system (FM26-level)
+    // Système d'attributs détaillé (17 stats)
     attributes: generatePlayerAttributes({ rating, potential, position: slot.position }, roleObj),
   };
 };
@@ -591,7 +591,7 @@ const buildYouthPlayer = (club, youthSlotIdx, season) => {
     physique,
     playStyle: rp.style,
     foot,
-    // 17-stat attribute system (FM26-level)
+    // Système d'attributs détaillé (17 stats)
     attributes: generatePlayerAttributes({ rating, potential, position: slot.position }, roleObj),
   };
 };

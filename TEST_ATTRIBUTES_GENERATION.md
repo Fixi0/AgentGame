@@ -99,7 +99,7 @@ attributes: {
 ```
 
 ### Valeurs
-- **Scale**: 0-20 points par attribut (FM26 standard)
+- **Scale**: 0-20 points par attribut (standard industrie standard)
 - **Generation**: Déterministe basée sur position/rôle
 - **Variance**: ±2 points pour variation naturelle
 - **Potential**: Basé sur rating et potentiel du joueur

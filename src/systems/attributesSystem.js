@@ -1,7 +1,7 @@
 /**
  * attributesSystem.js
  * ─────────────────────────────────────────────────────────────────
- * 17-stat player attributes system (FM26-level)
+ * 17-stat player attributes system
  *
  * Attributes grouped by category:
  * - TECHNICAL (5): Pace, Shooting, Passing, Dribbling, Defense

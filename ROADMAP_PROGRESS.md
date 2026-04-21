@@ -2,7 +2,7 @@
 
 ## Summary
 **70+ hours of development** across 9 weeks of the 12-week roadmap completed.
-All critical bugs fixed, core TIER 1 systems implemented with FM26-level depth.
+All critical bugs fixed, core TIER 1 systems implemented with profondeur de système complète.
 
 ---
 
@@ -13,7 +13,7 @@ All critical bugs fixed, core TIER 1 systems implemented with FM26-level depth.
 - **Race Condition Fix**: Removed duplicate `market:` property assignment
 - **Gabriel Fixio Validation**: Confirmed all customization fields correctly configured
 
-### Weeks 2-3: 17-Stat Attributes System (FM26-Level)
+### Weeks 2-3: 17-Stat Attributes System (Système Complet)
 **Files**: `attributesSystem.js`, integrated into all player builders
 
 **Features**:
@@ -178,7 +178,7 @@ All critical bugs fixed, core TIER 1 systems implemented with FM26-level depth.
 - Gabriel Fixio profile validation
 
 ### Features Implemented
-- **17-stat player attributes** (FM26 standard)
+- **17-stat player attributes** (norme standard)
 - **Attribute-based match engine** (deterministic scoring)
 - **Club financial system** (realistic budgets)
 - **Playing time guarantees** (contract clauses)
@@ -221,8 +221,8 @@ All critical bugs fixed, core TIER 1 systems implemented with FM26-level depth.
 - Match engine uses attributes for realism
 - Contract negotiation leverages attributes
 
-### 3. FM26-Level Depth
-- Systems built to industry standard (FIFA/FM26)
+### 3. Système Complet Depth
+- Systems built to industry standard (standard industrie)
 - Position/role-specific attribute weighting
 - Complex financial fair play rules
 

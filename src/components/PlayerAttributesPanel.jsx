@@ -73,7 +73,7 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
     <div className="attributes-panel">
       <div className="attributes-header">
         <h3>Attributs (17-stat)</h3>
-        <p className="attributes-subtitle">FM26-level player attributes</p>
+        <p className="attributes-subtitle">Profil de compétences détaillé</p>
       </div>
 
       {Object.entries(ATTRIBUTE_KEYS_BY_CATEGORY).map(([category, keys]) => {
@@ -105,8 +105,17 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
         .attributes-panel {
           background: linear-gradient(135deg, #f5f7fa 0%, #eef2f5 100%);
           border-radius: 12px;
-          padding: 20px;
+          padding: 16px;
           border: 1px solid #e2e8ef;
+          overflow-x: hidden;
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+          .attributes-panel {
+            padding: 12px;
+          }
         }
 
         .attributes-header {
@@ -155,13 +164,28 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
           display: flex;
           align-items: center;
           gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+          .attribute-row {
+            gap: 8px;
+          }
         }
 
         .attribute-label {
           display: flex;
           align-items: center;
           gap: 6px;
-          min-width: 140px;
+          flex-shrink: 0;
+          width: auto;
+          max-width: 140px;
+        }
+
+        @media (max-width: 768px) {
+          .attribute-label {
+            max-width: 100px;
+          }
         }
 
         .attribute-name {
@@ -184,7 +208,7 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
           align-items: center;
           gap: 8px;
           flex: 1;
-          min-width: 200px;
+          min-width: 80px;
         }
 
         .attribute-bar {
@@ -194,7 +218,17 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
           border-radius: 4px;
           position: relative;
           overflow: hidden;
-          min-width: 150px;
+          min-width: 50px;
+        }
+
+        @media (max-width: 768px) {
+          .attribute-bar-container {
+            min-width: 60px;
+          }
+
+          .attribute-bar {
+            min-width: 30px;
+          }
         }
 
         .attribute-bar-fill {
@@ -219,8 +253,16 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
           font-size: 12px;
           font-weight: 600;
           color: #172026;
-          min-width: 50px;
+          min-width: 45px;
           text-align: right;
+          flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+          .attribute-value {
+            min-width: 35px;
+            font-size: 11px;
+          }
         }
 
         .attributes-compact {
