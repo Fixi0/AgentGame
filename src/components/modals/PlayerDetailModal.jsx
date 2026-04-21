@@ -8,7 +8,6 @@ import { getDossierHistorySummary, getRecentDossierEvents } from '../../systems/
 import { getPlayerDossierStatus, getRelevantDecisionHistory as getDecisionHistoryByPlayer, messageNeedsResponse } from '../../systems/dossierSystem';
 import { NATIONAL_TEAMS } from '../../systems/worldCupSystem';
 import { getPlayerProfileSummary } from '../../systems/playerProfileSystem';
-import { getPlayerSpecialties, getPrimarySpecialty, SPECIALTY_CATEGORIES, HIDDEN_TRAITS } from '../../systems/playerSpecialtiesSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 import PlayerAttributesPanel from '../PlayerAttributesPanel';
@@ -149,7 +148,6 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                 </div>
                 <div style={S.emptySmall}>{playerProfile.advice}</div>
               </div>
-              <SpecialtiesPanel player={playerWithRole} />
               <div style={S.objCard}>
             <div style={S.secTitle}>RÉSUMÉ</div>
             <div style={S.sumRow}><span style={S.sumK}>Statut</span><strong>{dossierStatus.label}</strong></div>
@@ -491,99 +489,4 @@ function Meter({ label, value, inverted = false }) {
   );
 }
 
-function SpecialtiesPanel({ player }) {
-  const specialties = useMemo(() => getPlayerSpecialties(player), [player]);
-  const primarySpecialty = useMemo(() => getPrimarySpecialty(player), [player]);
-
-  if (!specialties.length) {
-    return null;
-  }
-
-  // Group specialties by category
-  const groupedByCategory = {};
-  specialties.forEach((specialty) => {
-    const category = SPECIALTY_CATEGORIES[specialty.category];
-    if (!groupedByCategory[category]) {
-      groupedByCategory[category] = [];
-    }
-    groupedByCategory[category].push(specialty);
-  });
-
-  return (
-    <div style={S.objCard}>
-      <div style={S.secTitle}>SPÉCIALITÉS</div>
-
-      {primarySpecialty && (
-        <div style={{
-          background: 'linear-gradient(135deg, #f0fdf4 0%, #f7fdf3 100%)',
-          border: '2px solid #16a34a',
-          borderRadius: 8,
-          padding: '12px 14px',
-          marginBottom: 12,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 18 }}>{primarySpecialty.icon}</span>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 900, color: '#16a34a' }}>
-                {primarySpecialty.label}
-              </div>
-              <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
-                Spécialité principale
-              </div>
-            </div>
-          </div>
-          {primarySpecialty.description && (
-            <div style={{ fontSize: 11, color: '#3f5663', marginTop: 6, lineHeight: 1.4 }}>
-              {primarySpecialty.description}
-            </div>
-          )}
-          {Object.keys(primarySpecialty.bonus || {}).length > 0 && (
-            <div style={{ fontSize: 10, color: '#16a34a', marginTop: 6, fontWeight: 700 }}>
-              Bonus: {Object.entries(primarySpecialty.bonus).map(([key, val]) => `+${val} ${key}`).join(', ')}
-            </div>
-          )}
-        </div>
-      )}
-
-      {Object.entries(groupedByCategory).map(([category, specs]) => (
-        <div key={category} style={{ marginBottom: 12 }}>
-          <div style={{
-            fontSize: 10,
-            fontWeight: 900,
-            color: '#64727d',
-            letterSpacing: '.08em',
-            marginBottom: 8,
-            textTransform: 'uppercase',
-          }}>
-            {category}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {specs.map((spec) => (
-              <div
-                key={spec.key}
-                style={{
-                  background: '#f7f9fb',
-                  border: '1px solid #e5eaf0',
-                  borderRadius: 6,
-                  padding: '10px 12px',
-                  fontSize: 11,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 14 }}>{spec.icon}</span>
-                  <div style={{ fontWeight: 700, color: '#172026', flex: 1 }}>{spec.label}</div>
-                </div>
-                {spec.description && (
-                  <div style={{ fontSize: 10, color: '#64727d', lineHeight: 1.3 }}>
-                    {spec.description}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
