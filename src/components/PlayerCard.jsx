@@ -28,11 +28,11 @@ function hashClubColor(clubName) {
 }
 
 function getNotoriety(rating) {
-  if (rating >= 90) return { label: 'Icône', bg: '#7c3aed', color: '#ffffff' };
-  if (rating >= 85) return { label: 'Star', bg: '#d97706', color: '#ffffff' };
-  if (rating >= 80) return { label: 'Reconnu', bg: '#2563eb', color: '#ffffff' };
-  if (rating >= 73) return { label: 'Confirmé', bg: '#16a34a', color: '#ffffff' };
-  if (rating >= 65) return { label: 'Promesse', bg: '#64727d', color: '#ffffff' };
+  if (rating >= 180) return { label: 'Icône', bg: '#7c3aed', color: '#ffffff' };
+  if (rating >= 170) return { label: 'Star', bg: '#d97706', color: '#ffffff' };
+  if (rating >= 160) return { label: 'Reconnu', bg: '#2563eb', color: '#ffffff' };
+  if (rating >= 146) return { label: 'Confirmé', bg: '#16a34a', color: '#ffffff' };
+  if (rating >= 130) return { label: 'Promesse', bg: '#64727d', color: '#ffffff' };
   return { label: 'Inconnu', bg: '#e5eaf0', color: '#64727d' };
 }
 
@@ -68,7 +68,7 @@ function MoraleBar({ label, value }) {
 
 export default function PlayerCard({ player, state, mode, money, onSign, onRelease, onNego, onDetails }) {
   const currentSeason = Math.floor(((state?.week ?? 1) - 1) / 38) + 1;
-  const ratingColor = player.rating >= 85 ? '#00a676' : player.rating >= 75 ? '#2f80ed' : '#9aa7b2';
+  const ratingColor = player.rating >= 170 ? '#00a676' : player.rating >= 150 ? '#2f80ed' : '#9aa7b2';
   const canSign = mode === 'sign' ? money >= player.signingCost : true;
   const signHelp = canSign ? formatMoney(player.signingCost) : `Manque ${formatMoney(Math.max(0, (player.signingCost ?? 0) - (money ?? 0)))}`;
   const isFreeInRoster = mode === 'roster' && (player.freeAgent || player.club === 'Libre');
