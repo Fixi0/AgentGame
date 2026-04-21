@@ -60,6 +60,7 @@ import {
   getLocalGameDatabaseView,
   loadLocalGameProgress,
   saveLocalGameProgress,
+  ensurePlayersHaveClubRole,
 } from './data/localDatabase';
 import { getAgencyCapacity } from './systems/agencySystem';
 import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, getNegotiationContextModifier } from './systems/agencyReputationSystem';
@@ -491,8 +492,16 @@ export default function FootballAgentGame() {
           setDatabaseView(null);
           setSaveMenuOpen(true);
         })
-        .finally(() => {
-          if (!cancelled) setLoaded(true);
+        .finally(async () => {
+          if (!cancelled) {
+            // Migrate players to add clubRole if missing
+            try {
+              await ensurePlayersHaveClubRole();
+            } catch (err) {
+              console.warn('Club role migration failed:', err);
+            }
+            setLoaded(true);
+          }
         });
     } catch {
       if (!cancelled) {

@@ -491,6 +491,66 @@ const buildSnapshotTables = (snapshot = {}) =>
     return tables;
   }, {});
 
+const getClubRoleForPlayer = (rating, clubTier) => {
+  const TIER_RATING = {
+    1: { starterMin: 79, benchMin: 71 },
+    2: { starterMin: 72, benchMin: 65 },
+    3: { starterMin: 64, benchMin: 58 },
+    4: { starterMin: 55, benchMin: 50 },
+  };
+  const tier = clubTier ?? 1;
+  const tierRating = TIER_RATING[tier] ?? TIER_RATING[4];
+  const starThreshold = tierRating.starterMin + 10;
+  const starterThreshold = tierRating.starterMin;
+  const rotationThreshold = tierRating.benchMin;
+  if (rating >= starThreshold) return 'Star';
+  if (rating >= starterThreshold) return 'Titulaire';
+  if (rating >= rotationThreshold) return 'Rotation';
+  return 'Indésirable';
+};
+
+const migratePlayersWithClubRole = async () => {
+  try {
+    const players = await idbGetAll('players');
+    const needsMigration = players.some(p => !p.club_role);
+
+    if (!needsMigration || !players.length) return { migrated: 0, total: players.length };
+
+    const migratedPlayers = players.map(player => {
+      if (player.club_role) return player;
+
+      const rating = player.note_current ?? player.rating ?? 65;
+      const clubTier = player.club_tier ?? 1;
+      const clubRole = getClubRoleForPlayer(rating, clubTier);
+
+      return { ...player, club_role: clubRole };
+    });
+
+    // Write updated players back to database
+    const db = await openDb();
+    if (!db) return { migrated: 0, total: players.length };
+
+    return new Promise((resolve) => {
+      const tx = db.transaction('players', 'readwrite');
+      const store = tx.objectStore('players');
+
+      let count = 0;
+      migratedPlayers.forEach(player => {
+        if (!players.find(p => p.id === player.id)?.club_role) {
+          store.put(player);
+          count++;
+        }
+      });
+
+      tx.oncomplete = () => resolve({ migrated: count, total: players.length });
+      tx.onerror = () => resolve({ migrated: 0, total: players.length, error: tx.error });
+    });
+  } catch (error) {
+    console.error('Migration failed:', error);
+    return { migrated: 0, error: String(error) };
+  }
+};
+
 const hydrateRuntimeCatalogFromDb = async () => {
   const players = await idbGetAll('catalog_players');
   if (players.length) setDatabasePlayerCatalog(players);
@@ -854,3 +914,5 @@ export const getLocalDatabaseStats = async () => {
     counts,
   };
 };
+
+export const ensurePlayersHaveClubRole = migratePlayersWithClubRole;
