@@ -1,6 +1,6 @@
 /**
  * Player Specialties System
- * FM26-style player attributes: what makes each player unique
+ * Defines what makes each player unique - their special abilities and roles
  * Displayed in player detail modal
  */
 

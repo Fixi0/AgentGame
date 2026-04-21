@@ -1,7 +1,8 @@
 /**
  * Player Personality Traits System
- * FM26-style mental attributes that define how a player behaves and reacts
- * Values range from 1-20 (like FM26)
+ * Mental attributes that define how a player behaves and reacts
+ * Used internally by game engine for player behavior and development
+ * Values range from 1-20
  */
 
 // ─── PERSONALITY TRAITS DEFINITIONS ────────────────────────────────────────
@@ -213,11 +214,12 @@ export const assessPlayerPersonality = (player = {}) => {
 
 /**
  * Get CA/PA (Current Ability / Potential Ability)
+ * Rating 1-100 maps to CA 1-200
  */
 export const getPlayerAbility = (player = {}) => {
   return {
-    ca: Math.round(player.rating * 2), // Convert rating to CA (0-100 → 1-200)
-    pa: Math.round((player.potential ?? player.rating) * 2),
+    ca: Math.max(1, Math.min(200, Math.round(player.rating * 2))),
+    pa: Math.max(1, Math.min(200, Math.round((player.potential ?? player.rating) * 2))),
   };
 };
 

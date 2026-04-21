@@ -9,7 +9,6 @@ import { getPlayerDossierStatus, getRelevantDecisionHistory as getDecisionHistor
 import { NATIONAL_TEAMS } from '../../systems/worldCupSystem';
 import { getPlayerProfileSummary } from '../../systems/playerProfileSystem';
 import { getPlayerSpecialties, getPrimarySpecialty, SPECIALTY_CATEGORIES, HIDDEN_TRAITS } from '../../systems/playerSpecialtiesSystem';
-import { assessPlayerPersonality, getPlayerAbility, PERSONALITY_TRAITS, ABILITY_RANGES, getTraitColor, formatTraitValue } from '../../systems/playerPersonalityTraitsSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 import PlayerAttributesPanel from '../PlayerAttributesPanel';
@@ -211,7 +210,6 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
 
           {tab === 'statistics' && (
             <>
-              <PersonalityTraitsPanel player={playerWithRole} />
               <div style={S.objCard}>
                 <div style={S.secTitle}>PROFIL HUMAIN</div>
                 <div style={S.sumRow}><span style={S.sumK}>Ambition cachée</span><strong>{player.hiddenAmbition ?? 50}/100</strong></div>
@@ -513,7 +511,7 @@ function SpecialtiesPanel({ player }) {
 
   return (
     <div style={S.objCard}>
-      <div style={S.secTitle}>SPÉCIALITÉS FM</div>
+      <div style={S.secTitle}>SPÉCIALITÉS</div>
 
       {primarySpecialty && (
         <div style={{
@@ -589,94 +587,3 @@ function SpecialtiesPanel({ player }) {
   );
 }
 
-function PersonalityTraitsPanel({ player }) {
-  const traits = useMemo(() => assessPlayerPersonality(player), [player]);
-  const ability = useMemo(() => getPlayerAbility(player), [player]);
-
-  return (
-    <div style={S.objCard}>
-      <div style={S.secTitle}>TRAITS DE PERSONNALITÉ</div>
-
-      {/* Ability Section */}
-      <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #e5eaf0' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 8 }}>
-          <div style={{ background: '#f7f9fb', borderRadius: 6, padding: '10px 12px', border: '1px solid #e5eaf0' }}>
-            <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>
-              {ABILITY_RANGES.ca.short}
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: '#2563eb', marginTop: 4 }}>
-              {ability.ca}
-            </div>
-            <div style={{ fontSize: 9, color: '#64727d', marginTop: 2 }}>
-              Capacité actuelle
-            </div>
-          </div>
-          <div style={{ background: '#f7f9fb', borderRadius: 6, padding: '10px 12px', border: '1px solid #e5eaf0' }}>
-            <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>
-              {ABILITY_RANGES.pa.short}
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: '#7c3aed', marginTop: 4 }}>
-              {ability.pa}
-            </div>
-            <div style={{ fontSize: 9, color: '#64727d', marginTop: 2 }}>
-              Potentiel max
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Personality Traits Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {Object.entries(PERSONALITY_TRAITS).map(([key, traitDef]) => {
-          const value = traits[key] ?? 10;
-          const color = getTraitColor(value, traitDef.inverted);
-          const assessment = formatTraitValue(value);
-          const percentage = (value / traitDef.max) * 100;
-
-          return (
-            <div
-              key={key}
-              style={{
-                background: '#f7f9fb',
-                border: '1px solid #e5eaf0',
-                borderRadius: 6,
-                padding: '10px 12px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <span style={{ fontSize: 14 }}>{traitDef.icon}</span>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#172026' }}>
-                    {traitDef.label}
-                  </div>
-                  <div style={{ fontSize: 9, color: '#64727d' }}>
-                    {Math.round(value)}/{traitDef.max}
-                  </div>
-                </div>
-              </div>
-              <div style={{
-                background: '#e5eaf0',
-                borderRadius: 4,
-                height: 6,
-                overflow: 'hidden',
-                marginBottom: 4,
-              }}>
-                <div
-                  style={{
-                    height: '100%',
-                    width: `${percentage}%`,
-                    background: color,
-                    transition: 'width 0.2s ease',
-                  }}
-                />
-              </div>
-              <div style={{ fontSize: 9, color, fontWeight: 700, textAlign: 'right' }}>
-                {assessment}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
