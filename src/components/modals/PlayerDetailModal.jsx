@@ -93,18 +93,14 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
         </div>
         <div style={S.mBody}>
           <div style={S.profileHero}>
-            <div style={{ ...S.playerAvatar, width: 72, height: 72 }}>{player.firstName?.[0]}{player.lastName?.[0]}</div>
+            <div style={{ ...S.playerAvatar, width: 60, height: 60 }}>{player.firstName?.[0]}{player.lastName?.[0]}</div>
             <div>
-              <h2 style={S.mTitle}>{player.firstName} {player.lastName}</h2>
-              <div style={S.mPlayer}>{player.position} · {player.countryFlag} {player.countryLabel} · {PERSONALITY_LABELS[player.personality]}</div>
-              <div style={S.profileSub}>{player.roleLabel ?? player.position} · rôle club {player.clubRole ?? 'non défini'}</div>
-              <div style={{ ...S.statusPill, marginTop: 8, display: 'inline-flex' }}>
-                {dossierStatus.label}
-                {dossierStatus.detail ? ` · ${dossierStatus.detail}` : ''}
-              </div>
+              <h2 style={{ ...S.mTitle, marginBottom: 2, fontSize: 16 }}>{player.firstName} {player.lastName}</h2>
+              <div style={{ ...S.mPlayer, fontSize: 12, marginBottom: 4 }}>{player.position} · {player.countryFlag} · {player.roleLabel ?? player.position}</div>
+              <div style={{ fontSize: 11, color: '#64727d' }}>rôle club <strong>{player.clubRole ?? 'non défini'}</strong></div>
             </div>
           </div>
-          <div style={S.tabRow}>
+          <div style={{ ...S.tabRow, gap: 4, marginTop: 8 }}>
             {Object.entries(tabLabels).map(([key, label]) => (
               <button
                 key={key}
@@ -113,8 +109,9 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                   ...S.tabBtn,
                   background: tab === key ? '#172026' : '#f7f9fb',
                   color: tab === key ? '#ffffff' : '#172026',
-                  fontSize: 12,
-                  padding: '8px 14px',
+                  fontSize: 11,
+                  padding: '6px 12px',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {label}
