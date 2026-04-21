@@ -11,9 +11,13 @@ import { S } from '../styles';
 import PlayerAttributesPanel from '../PlayerAttributesPanel';
 
 const tabLabels = {
-  profile: 'Profil',
-  conversation: 'Conversation',
+  dashboard: 'Tableau de bord',
+  attributes: 'Attributs',
+  contract: 'Contrat',
+  statistics: 'Statistiques',
   dossier: 'Dossier',
+  relations: 'Relations',
+  conversation: 'Conversation',
 };
 
 const weekToLabel = (week) => {
@@ -27,7 +31,7 @@ const weekToLabel = (week) => {
 const formatForm = (form = []) => form.length ? form.map((item) => String(item).slice(0, 1).toUpperCase()).join(' ') : 'Pas assez de matchs';
 
 export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, clubSeasonHistory = {}, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, worldCupState = null, databaseView = null, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
-  const [tab, setTab] = useState('profile');
+  const [tab, setTab] = useState('dashboard');
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
   const playerPromises = (promises ?? []).filter((promise) => promise.playerId === player.id && !promise.resolved && !promise.failed);
   const playerMessages = (messages ?? []).filter((message) => message.playerId === player.id);
@@ -108,14 +112,23 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                   ...S.tabBtn,
                   background: tab === key ? '#172026' : '#f7f9fb',
                   color: tab === key ? '#ffffff' : '#172026',
+                  fontSize: 12,
+                  padding: '8px 14px',
                 }}
               >
                 {label}
               </button>
             ))}
           </div>
-          {tab === 'profile' && (
+
+          {tab === 'dashboard' && (
             <>
+              <div style={S.kpiGrid}>
+                <DetailMetric label="Note" value={player.rating} />
+                <DetailMetric label="Valeur" value={formatMoney(player.value)} />
+                <DetailMetric label="Salaire" value={`${formatMoney(player.weeklySalary)}/s`} />
+                <DetailMetric label="Marque" value={`${player.brandValue ?? 0}/100`} />
+              </div>
           <div style={S.objCard}>
             <div style={S.secTitle}>RÉSUMÉ RAPIDE</div>
             <div style={S.sumRow}><span style={S.sumK}>Statut</span><strong>{dossierStatus.label}{dossierStatus.detail ? ` · ${dossierStatus.detail}` : ''}</strong></div>
@@ -403,59 +416,127 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
               </div>
             )) : <div style={S.emptySmall}>Aucun match de club persisté pour l'instant.</div>}
           </div>
-          <div style={S.rActions}>
-            <button onClick={() => onNego('extend')} style={S.actBtn}>PROLONGER</button>
-            <button onClick={() => onNego('transfer')} style={S.actBtn}>TRANSFERT</button>
-            <button onClick={onClose} style={S.relBtn}>FERMER</button>
-          </div>
-          <div style={{ ...S.objCard, marginTop: 12 }}>
-            <div style={S.secTitle}>REUNION JOUEUR</div>
-            <div style={S.msgActions}>
-              <button onClick={() => onMeeting?.(player.id, 'career')} style={S.msgBtn}>Plan carrière</button>
-              <button onClick={() => onMeeting?.(player.id, 'support')} style={S.msgBtn}>Soutien</button>
-              <button onClick={() => onMeeting?.(player.id, 'discipline')} style={S.msgBtn}>Recadrer</button>
-              <button onClick={() => onCallPlayer?.(player)} style={S.msgBtn}>Appeler</button>
-            </div>
-          </div>
-          <div style={{ ...S.objCard, marginTop: 12 }}>
-            <div style={S.secTitle}>ACTIONS MERCATO</div>
-            <div style={S.msgActions}>
-              <button onClick={() => onMarketAction?.(player.id, player.club === 'Libre' ? 'free_trial' : 'propose')} style={S.msgBtn}>{player.club === 'Libre' ? 'Essai club' : 'Proposer'}</button>
-              <button onClick={() => onMarketAction?.(player.id, 'transfer_list')} style={S.msgBtn}>Mettre marché</button>
-              <button onClick={() => onMarketAction?.(player.id, 'loan')} style={S.msgBtn}>Chercher prêt</button>
-            </div>
-          </div>
+            </>
+          )}
+
+          {tab === 'attributes' && (
+            <>
+              {player.attributes && <PlayerAttributesPanel player={player} />}
+            </>
+          )}
+
+          {tab === 'contract' && (
+            <>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>CONTRAT CLUB</div>
+                {(() => {
+                  const weeksLeft = player.contractWeeksLeft ?? 0;
+                  const endWeek = (currentWeek ?? 0) + weeksLeft;
+                  const urgent = weeksLeft <= 8;
+                  const warning = weeksLeft > 8 && weeksLeft <= 26;
+                  const bannerColor = urgent ? '#dc2626' : warning ? '#b45309' : '#00a676';
+                  const bannerBg = urgent ? '#fef2f2' : warning ? '#fffbeb' : '#f0fdf8';
+                  return (
+                    <div style={{ background: bannerBg, border: `1px solid ${bannerColor}30`, borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>Expire</span>
+                        <strong style={{ fontSize: 13, color: bannerColor }}>
+                          {weeksLeft > 0 ? `${weeksLeft} sem. · ${weekToLabel(endWeek)}` : 'EXPIRÉ'}
+                        </strong>
+                      </div>
+                      {player.contractStartWeek && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                          <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>Signé</span>
+                          <span style={{ fontSize: 12, color: '#64727d' }}>{weekToLabel(player.contractStartWeek)}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                <div style={S.sumRow}><span style={S.sumK}>Club</span><strong>{player.club}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Rôle</span><strong style={{ color: player.clubRole === 'Star' ? '#d97706' : '#172026' }}>{player.clubRole ?? 'Non défini'}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Salaire</span><strong>{formatMoney(player.weeklySalary)}/sem</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Commission agence</span><strong>{Math.round(player.commission * 100)}%</strong></div>
+                {(player.signingBonus ?? 0) > 0 && (
+                  <div style={S.sumRow}><span style={S.sumK}>Prime à la signature</span><strong style={{ color: '#00a676' }}>{formatMoney(player.signingBonus)}</strong></div>
+                )}
+                <div style={S.sumRow}><span style={S.sumK}>Clause libératoire</span><strong>{formatMoney(player.releaseClause ?? 0)}</strong></div>
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>CONTRAT AGENT-JOUEUR</div>
+                <div style={S.sumRow}><span style={S.sumK}>Durée mandat</span><strong>{player.agentContract?.weeksLeft ?? 104} sem.</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Commission</span><strong>{Math.round((player.agentContract?.commission ?? player.commission) * 100)}%</strong></div>
+              </div>
+            </>
+          )}
+
+          {tab === 'statistics' && (
+            <>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>SAISON</div>
+                <div style={S.statLineGrid}>
+                  <div><strong>{seasonStats.appearances ?? 0}</strong><span>Matchs</span></div>
+                  <div><strong>{seasonStats.goals ?? 0}</strong><span>Buts</span></div>
+                  <div><strong>{seasonStats.assists ?? 0}</strong><span>Passes</span></div>
+                  <div><strong>{seasonStats.averageRating ?? '-'}</strong><span>Note moy.</span></div>
+                </div>
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>DERNIERS MATCHS</div>
+                {(player.matchHistory ?? []).length ? player.matchHistory.slice(0, 5).map((match) => (
+                  <div key={`${match.week}-${match.opponent}`} style={S.promiseRow}>
+                    <span>S{match.week} · {match.club} {match.score} {match.opponent}</span>
+                    <strong>{match.matchRating ? `${match.matchRating}/10` : 'ABS'}</strong>
+                  </div>
+                )) : <div style={S.emptySmall}>Aucun match simulé.</div>}
+              </div>
+            </>
+          )}
+
+          {tab === 'relations' && (
+            <>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>RELATION</div>
+                <Meter label="Moral" value={player.moral} />
+                <Meter label="Confiance" value={player.trust ?? 50} />
+                <Meter label="Forme" value={player.form} />
+                <Meter label="Fatigue" value={player.fatigue ?? 20} inverted />
+                <Meter label="Pression" value={player.pressure ?? 50} inverted />
+                <div style={S.sumRow}><span style={S.sumK}>Club relation</span><strong>{clubRelation}/100</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Tension</span><strong style={{ color: tensionColor }}>{clubTension >= 65 ? 'forte' : clubTension >= 35 ? 'modérée' : 'calme'}</strong></div>
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>PROFIL HUMAIN</div>
+                <div style={S.sumRow}><span style={S.sumK}>Club rêvé</span><strong>{player.dreamClub ?? '-'}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Entourage</span><strong>{player.entourage ?? '-'}</strong></div>
+              </div>
             </>
           )}
           {tab === 'conversation' && (
-            <div style={S.objCard}>
-              <div style={S.secTitle}>CONVERSATION</div>
-              {playerMessages.length ? playerMessages.slice(-8).map((message) => (
-                <div key={message.id} style={S.threadBlock}>
-                  <div style={S.incomingBubble}>
-                    <div style={S.threadMeta}>{message.senderName ?? message.playerName} · S{message.week} · {message.subject}</div>
-                    <div>{message.body}</div>
-                    {messageNeedsResponse(message) && <div style={S.responseBadgeInline}>Réponse attendue</div>}
-                  </div>
-                  {message.resolved ? (
-                    <div style={S.outgoingBubble}>{message.responseText ?? 'Réponse envoyée'}</div>
-                  ) : (
-                    <div style={actionGridStyle}>
-                      <button onClick={() => onCallPlayer?.(player)} style={actionBtnStyle}>Appeler</button>
-                      <button onClick={() => onMeeting?.(player.id, 'career')} style={actionBtnStyle}>Plan</button>
-                      <button onClick={() => onMeeting?.(player.id, 'support')} style={actionBtnStyle}>Soutenir</button>
+            <>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>CONVERSATION</div>
+                {playerMessages.length ? playerMessages.slice(-8).map((message) => (
+                  <div key={message.id} style={S.threadBlock}>
+                    <div style={S.incomingBubble}>
+                      <div style={S.threadMeta}>{message.senderName ?? message.playerName} · S{message.week} · {message.subject}</div>
+                      <div>{message.body}</div>
+                      {messageNeedsResponse(message) && <div style={S.responseBadgeInline}>Réponse attendue</div>}
                     </div>
-                  )}
-                </div>
-              )) : <div style={S.emptySmall}>Aucun échange encore.</div>}
-            </div>
+                    {message.resolved && (
+                      <div style={S.outgoingBubble}>{message.responseText ?? 'Réponse envoyée'}</div>
+                    )}
+                  </div>
+                )) : <div style={S.emptySmall}>Aucun échange encore.</div>}
+              </div>
+            </>
           )}
+
           {tab === 'dossier' && (
             <>
               <div style={S.objCard}>
                 <div style={S.secTitle}>MEMOIRE DOSSIER</div>
                 <div style={S.sumRow}><span style={S.sumK}>Lecture</span><strong>{dossierSummary}</strong></div>
-                <div style={S.sumRow}><span style={S.sumK}>Historique</span><strong>{dossierRecent.length} trace{dossierRecent.length > 1 ? 's' : ''}</strong></div>
                 {dossierRecent.length ? dossierRecent.map((entry) => (
                   <div key={entry.id} style={S.promiseRow}>
                     <span>{entry.label}</span>
@@ -463,28 +544,29 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                       {entry.impact > 0 ? 'Calmé' : entry.impact < 0 ? 'Tendu' : 'Neutre'}
                     </strong>
                   </div>
-                )) : <div style={S.emptySmall}>Aucun signal récent sur ce dossier.</div>}
+                )) : <div style={S.emptySmall}>Aucun signal récent.</div>}
               </div>
               <div style={S.objCard}>
                 <div style={S.secTitle}>PROMESSES</div>
                 {playerPromises.length ? playerPromises.map((promise) => (
                   <div key={promise.id} style={S.promiseRow}>
                     <span>{promise.label}</span>
-                    <strong>{promise.failed ? 'Cassée' : promise.resolved ? 'Tenue' : 'En cours'} · S{promise.dueWeek}</strong>
+                    <strong>{promise.failed ? 'Cassée' : promise.resolved ? 'Tenue' : 'En cours'}</strong>
                   </div>
                 )) : <div style={S.emptySmall}>Aucune promesse active.</div>}
               </div>
-              <div style={S.objCard}>
-                <div style={S.secTitle}>DOSSIER PRATIQUE</div>
-                <div style={actionGridStyle}>
-                  <button onClick={() => onContactClubStaff?.(player.id, 'coach')} style={actionBtnStyle}>Appeler coach</button>
-                  <button onClick={() => onContactClubStaff?.(player.id, 'ds')} style={actionBtnStyle}>Appeler DS</button>
-                  <button onClick={() => onCallPlayer?.(player)} style={actionBtnStyle}>Appeler joueur</button>
-                </div>
-                <div style={S.emptySmall}>Ici, on garde les contacts utiles pour avancer sans perdre le fil.</div>
-              </div>
             </>
           )}
+
+          {/* Centralized Action Buttons */}
+          <div style={{ marginTop: 16, padding: '12px', background: '#f7f9fb', borderRadius: 8, border: '1px solid #e2e8ef', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
+            <button onClick={() => onNego('extend')} style={{ ...S.actBtn, padding: '10px 14px', fontSize: 12 }}>PROLONGER</button>
+            <button onClick={() => onNego('transfer')} style={{ ...S.actBtn, padding: '10px 14px', fontSize: 12 }}>TRANSFERT</button>
+            <button onClick={() => onCallPlayer?.(player)} style={{ ...S.msgBtn, padding: '10px 14px', fontSize: 12 }}>APPELER</button>
+            <button onClick={() => onMeeting?.(player.id, 'career')} style={{ ...S.msgBtn, padding: '10px 14px', fontSize: 12 }}>RÉUNION</button>
+            <button onClick={() => onMarketAction?.(player.id, player.club === 'Libre' ? 'free_trial' : 'propose')} style={{ ...S.msgBtn, padding: '10px 14px', fontSize: 12 }}>{player.club === 'Libre' ? 'ESSAI' : 'PROPOSER'}</button>
+            <button onClick={onClose} style={{ ...S.relBtn, padding: '10px 14px', fontSize: 12 }}>FERMER</button>
+          </div>
         </div>
       </div>
     </div>
