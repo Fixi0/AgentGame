@@ -12,8 +12,9 @@ const STATUS_COLORS = {
   neutral: '#64727d',
 };
 
-export default function Dossiers({ state, onOpenPlayer, onClubDetails, onNav }) {
+export default function Dossiers({ state, databaseView = null, onOpenPlayer, onClubDetails, onNav }) {
   const counts = getPendingMessageCounts(state);
+  const playerById = useMemo(() => new Map((state.roster ?? []).map((player) => [player.id, player])), [state.roster]);
   const clubMemoryEntries = useMemo(() => (
     CLUBS.map((club) => ({
       club,
@@ -48,6 +49,17 @@ export default function Dossiers({ state, onOpenPlayer, onClubDetails, onNav }) 
   const inboxAlerts = (state.messages ?? []).filter(messageNeedsResponse).slice(0, 6);
   const dossierHistory = (state.decisionHistory ?? []).slice(0, 8);
   const marketQueue = getMarketOfferQueue(state).filter((offer) => offer.status === 'open').slice(0, 6);
+  const activeInjuries = (databaseView?.injuries ?? [])
+    .filter((injury) => injury.status === 'active')
+    .sort((a, b) => (b.remaining_weeks ?? 0) - (a.remaining_weeks ?? 0))
+    .slice(0, 5);
+  const recentTransfers = (databaseView?.transfers ?? [])
+    .sort((a, b) => (b.transfer_date ?? 0) - (a.transfer_date ?? 0))
+    .slice(0, 5);
+  const recentCompetitionRows = (databaseView?.competitionHistory ?? [])
+    .filter((row) => row.source === 'fixtures' && row.club_id === row.home_club_id)
+    .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
+    .slice(0, 6);
 
   return (
     <div style={S.vp}>
@@ -138,6 +150,65 @@ export default function Dossiers({ state, onOpenPlayer, onClubDetails, onNav }) 
             </strong>
           </button>
         )) : <div style={S.emptySmall}>Aucun joueur sensible pour l'instant.</div>}
+      </div>
+
+      <div style={S.objCard}>
+        <div style={S.secTitle}>SAISONS DE CLUB</div>
+        {sensitivePlayers.length ? sensitivePlayers.slice(0, 5).map(({ player, status }) => {
+          const context = player.clubSeasonContext;
+          return (
+            <button key={`season-${player.id}`} onClick={() => onOpenPlayer?.(player)} style={S.decisionRow}>
+              <span>
+                {player.firstName} {player.lastName}
+                <div style={S.fixtureMeta}>
+                  {player.club} · {context ? `${context.position ?? '-'}e/${context.totalClubs ?? '-'} · ${context.points ?? 0} pts` : 'classement à venir'}
+                </div>
+              </span>
+              <strong style={{ color: STATUS_COLORS[status.tone] ?? '#172026' }}>
+                {context?.objective ?? 'saison stable'}
+              </strong>
+            </button>
+          );
+        }) : <div style={S.emptySmall}>Les contextes de club apparaîtront avec les premiers matchs.</div>}
+      </div>
+
+      <div style={S.objCard}>
+        <div style={S.secTitle}>BLESSURES EN BASE</div>
+        {activeInjuries.length ? activeInjuries.map((injury) => {
+          const player = playerById.get(injury.player_id);
+          return (
+            <button key={injury.id} onClick={() => player && onOpenPlayer?.(player)} style={S.decisionRow}>
+              <span>
+                {injury.player_name}
+                <div style={S.fixtureMeta}>{injury.club_name} · {injury.reason}</div>
+              </span>
+              <strong>{injury.remaining_weeks} sem.</strong>
+            </button>
+          );
+        }) : <div style={S.emptySmall}>Aucune blessure active.</div>}
+      </div>
+
+      <div style={S.objCard}>
+        <div style={S.secTitle}>HISTORIQUE COMPETITIONS</div>
+        {recentCompetitionRows.length ? recentCompetitionRows.map((match) => (
+          <button key={match.id} onClick={() => onClubDetails?.(match.club_name)} style={S.decisionRow}>
+            <span>
+              {match.club_name} {match.score ?? '-'} {match.opponent_name}
+              <div style={S.fixtureMeta}>S{match.week} · {match.competition_label ?? match.competition}</div>
+            </span>
+            <strong>{match.result}</strong>
+          </button>
+        )) : <div style={S.emptySmall}>Aucun résultat persisté.</div>}
+      </div>
+
+      <div style={S.objCard}>
+        <div style={S.secTitle}>TRANSFERTS HISTORISES</div>
+        {recentTransfers.length ? recentTransfers.map((transfer) => (
+          <div key={transfer.id} style={S.promiseRow}>
+            <span>{transfer.player_name ?? transfer.player_id} · {transfer.from_club_name ? `${transfer.from_club_name} → ` : ''}{transfer.to_club_name ?? 'club'}</span>
+            <strong>{transfer.result ?? 'en cours'}</strong>
+          </div>
+        )) : <div style={S.emptySmall}>Aucun transfert enregistré en base.</div>}
       </div>
 
       <div style={S.objCard}>

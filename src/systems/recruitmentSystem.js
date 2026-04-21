@@ -1,4 +1,3 @@
-import { createMessage } from './messageSystem';
 import { applyReputationChange, normalizeAgencyReputation } from './reputationSystem';
 import { addDecisionHistory, applyCredibilityChange, applyPlayerSegmentReputation, getPlayerSegment } from './agencyReputationSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
@@ -206,10 +205,6 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
           playerId,
           playerName: `${player.firstName} ${player.lastName}`,
         }),
-        messages: [
-          createMessage({ player, type: 'complaint', week: state.week, context: 'recruitment_refused' }),
-          ...nextState.messages,
-        ].slice(0, 40),
       },
       error: `${player.firstName} ${player.lastName} veut un dossier plus cohérent`,
     };

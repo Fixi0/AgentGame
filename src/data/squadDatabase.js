@@ -238,6 +238,33 @@ const estimateValue = (rating, potential, age, tier) => {
   return Math.round(Math.min(280_000_000, Math.max(250_000, raw)) / 1000) * 1000;
 };
 
+const limitEliteRatings = (catalog = [], maxElite = 3) => {
+  const eliteIds = new Set(
+    [...catalog]
+      .filter((player) => (player.rating ?? 0) > 90)
+      .sort((a, b) =>
+        (b.rating ?? 0) - (a.rating ?? 0)
+        || (b.potential ?? 0) - (a.potential ?? 0)
+        || String(a.id).localeCompare(String(b.id)),
+      )
+      .slice(0, maxElite)
+      .map((player) => player.id),
+  );
+
+  return catalog.map((player) => {
+    if ((player.rating ?? 0) <= 90 || eliteIds.has(player.id)) return player;
+    const rating = 90;
+    const value = estimateValue(rating, Math.max(rating, player.potential ?? rating), player.age ?? 24, player.clubTier ?? 2);
+    return {
+      ...player,
+      rating,
+      value,
+      weeklySalary: Math.max(player.weeklySalary ?? 0, Math.floor(value / 135)),
+      signingCost: Math.max(player.signingCost ?? 0, Math.floor(value * 0.012)),
+    };
+  });
+};
+
 // ── Évolution inter-saisons ───────────────────────────────────────────────────
 /**
  * Fait évoluer le rating d'un joueur de la saison 1 à la saison N.
@@ -623,12 +650,13 @@ export const createPlayerCatalog = (season = 1) => {
   const cached = playerCatalogCache.get(cacheKey);
   if (cached) return cached;
 
-  const catalog = databasePlayerCatalog?.length
+  const rawCatalog = databasePlayerCatalog?.length
     ? databasePlayerCatalog.map((player) => evolveDatabaseCatalogPlayer(player, season))
     : CLUBS.flatMap((club) => [
       ...getClubSquad(club, season),
       ...getClubYouthPlayers(club, season),
     ]);
+  const catalog = limitEliteRatings(rawCatalog);
 
   playerCatalogCache.set(cacheKey, catalog);
   return catalog;

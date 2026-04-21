@@ -1,5 +1,4 @@
 import { CLUBS } from '../data/clubs';
-import { rand } from '../utils/helpers';
 
 const clubKey = (club) => `${club.countryCode}:${club.name}`;
 
@@ -21,6 +20,8 @@ const createSeededRandom = (seed) => {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 };
+
+const seededInt = (random, min, max) => Math.floor(random() * (max - min + 1)) + min;
 
 const seededShuffle = (items, seed) => {
   const array = [...items];
@@ -168,7 +169,7 @@ const HIGH_TACKLE_ROLES = new Set([
 const getPositionScoringProfile = (player) =>
   SCORING_PROFILES[player.roleId] ?? { goalChance: 0, assistChance: 0, maxGoals: 0, xgBase: 0 };
 
-const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = teamGoals, remainingAssists = teamGoals) => {
+const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = teamGoals, remainingAssists = teamGoals, random = Math.random) => {
   if (player.injured > 0) {
     return { minutes: 0, goals: 0, assists: 0, matchRating: null, selectionStatus: 'blessé', absenceReason: 'blessé' };
   }
@@ -182,42 +183,43 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
   const formBonus = Math.floor((player.form - 70) / 3);
   const startChance = Math.max(0.04, Math.min(0.96, 0.42 + levelGap * 0.035 + roleBonus / 100 + formBonus / 100 + contractRoleBonus / 100));
   const squadChance = Math.max(0.12, Math.min(0.98, 0.72 + levelGap * 0.025 + roleBonus / 120 + contractRoleBonus / 140));
-  if (Math.random() > squadChance) {
+  const qualityBonus = Math.max(-0.05, Math.min(0.18, (player.rating - 70) / 160));
+  if (random() > squadChance) {
     return { minutes: 0, goals: 0, assists: 0, matchRating: null, selectionStatus: 'hors groupe', absenceReason: 'hors groupe' };
   }
 
-  const starts = Math.random() < startChance;
+  const starts = random() < startChance;
   const minutes = starts
-    ? Math.min(90, Math.max(player.contractClauses?.coachRoleProtection && promisedRole === 'Star' ? 72 : player.contractClauses?.coachRoleProtection && promisedRole === 'Titulaire' ? 60 : 55, rand(62, 90) + formBonus + Math.max(-12, levelGap)))
-    : Math.min(45, Math.max(8, rand(8, 32) + formBonus + Math.floor(levelGap / 3)));
+    ? Math.min(90, Math.max(player.contractClauses?.coachRoleProtection && promisedRole === 'Star' ? 72 : player.contractClauses?.coachRoleProtection && promisedRole === 'Titulaire' ? 60 : 55, seededInt(random, 62, 90) + formBonus + Math.max(-12, levelGap)))
+    : Math.min(45, Math.max(8, seededInt(random, 8, 32) + formBonus + Math.floor(levelGap / 3)));
   const scoringProfile = getPositionScoringProfile(player);
   const availableGoals = Math.max(0, Math.min(teamGoals, remainingGoals));
-  const goals = availableGoals > 0 && scoringProfile.maxGoals > 0 && Math.random() < scoringProfile.goalChance + player.rating / 650
-    ? rand(1, Math.min(scoringProfile.maxGoals, availableGoals))
+  const goals = availableGoals > 0 && scoringProfile.maxGoals > 0 && random() < scoringProfile.goalChance + qualityBonus + player.form / 1500
+    ? seededInt(random, 1, Math.min(scoringProfile.maxGoals, availableGoals))
     : 0;
   const availableAssists = Math.max(0, Math.min(teamGoals - goals, remainingAssists));
-  const assists = availableAssists > 0 && scoringProfile.assistChance > 0 && Math.random() < scoringProfile.assistChance + player.form / 820 ? 1 : 0;
+  const assists = availableAssists > 0 && scoringProfile.assistChance > 0 && random() < scoringProfile.assistChance + qualityBonus / 2 + player.form / 1100 ? 1 : 0;
   const teamResult = teamGoals > opponentGoals ? 'win' : teamGoals < opponentGoals ? 'loss' : 'draw';
   const cleanSheetBonus = opponentGoals === 0 && ['DEF', 'GK'].includes(player.position) ? 0.5 : 0;
   const goalkeeperSaveBonus = player.position === 'GK' ? 0.15 + Math.max(0, opponentGoals === 0 ? 0.35 : 0) : 0;
-  const saves = player.position === 'GK' ? Math.max(0, rand(1, 7) + opponentGoals - (teamResult === 'loss' ? 1 : 0)) : 0;
-  const tackles = player.position === 'DEF' ? rand(2, 8) : HIGH_TACKLE_ROLES.has(player.roleId) ? rand(2, 6) : rand(0, 3);
-  const keyPasses = KEY_PASS_ROLES.has(player.roleId) ? rand(1, 5) : rand(0, 2);
-  const xg = Number(Math.max(0, scoringProfile.xgBase + goals * 0.22 + rand(-8, 16) / 100).toFixed(2));
+  const saves = player.position === 'GK' ? Math.max(0, seededInt(random, 1, 7) + opponentGoals - (teamResult === 'loss' ? 1 : 0) + Math.floor(Math.max(0, player.rating - 75) / 12)) : 0;
+  const tackles = player.position === 'DEF' ? seededInt(random, 2, 8) : HIGH_TACKLE_ROLES.has(player.roleId) ? seededInt(random, 2, 6) : seededInt(random, 0, 3);
+  const keyPasses = KEY_PASS_ROLES.has(player.roleId) ? seededInt(random, 1, 5) + (player.rating >= 84 ? 1 : 0) : seededInt(random, 0, 2);
+  const xg = Number(Math.max(0, scoringProfile.xgBase + goals * 0.22 + seededInt(random, -8, 16) / 100).toFixed(2));
   const passBonus = ['playmaker', 'libero'].includes(player.roleId) ? 5 : ['attacking_mid', 'central_mid', 'box_to_box'].includes(player.roleId) ? 2 : 0;
-  const passAccuracy = Math.max(58, Math.min(96, rand(70, 90) + Math.floor((player.rating - 70) / 3) + passBonus));
+  const passAccuracy = Math.max(58, Math.min(96, seededInt(random, 70, 90) + Math.floor((player.rating - 70) / 3) + passBonus));
   const incidents = [];
   if (player.position === 'GK' && opponentGoals === 0) incidents.push('clean_sheet');
-  if (player.position === 'GK' && Math.random() < 0.04 + opponentGoals * 0.03) incidents.push('distribution_error');
-  if (player.position === 'GK' && Math.random() < 0.035) incidents.push('penalty_saved');
-  if (player.position === 'GK' && opponentGoals >= 2 && Math.random() < 0.08) incidents.push('goalkeeper_blunder');
-  if (player.position === 'DEF' && Math.random() < 0.05) incidents.push('line_clearance');
-  if (player.position === 'DEF' && tackles <= 2 && opponentGoals >= 2 && Math.random() < 0.08) incidents.push('lost_duel');
+  if (player.position === 'GK' && random() < 0.04 + opponentGoals * 0.03 - qualityBonus / 3) incidents.push('distribution_error');
+  if (player.position === 'GK' && random() < 0.035 + qualityBonus / 5) incidents.push('penalty_saved');
+  if (player.position === 'GK' && opponentGoals >= 2 && random() < 0.08 - qualityBonus / 3) incidents.push('goalkeeper_blunder');
+  if (player.position === 'DEF' && random() < 0.05 + qualityBonus / 4) incidents.push('line_clearance');
+  if (player.position === 'DEF' && tackles <= 2 && opponentGoals >= 2 && random() < 0.08 - qualityBonus / 3) incidents.push('lost_duel');
   if (player.position === 'DEF' && tackles >= 6 && opponentGoals === 0) incidents.push('defensive_masterclass');
   if (player.position === 'MIL' && keyPasses >= 4) incidents.push('tempo_control');
-  if (player.position === 'MIL' && Math.random() < 0.06 && teamResult === 'loss') incidents.push('dangerous_turnover');
+  if (player.position === 'MIL' && random() < 0.06 - qualityBonus / 4 && teamResult === 'loss') incidents.push('dangerous_turnover');
   if (player.position === 'ATT' && xg >= 0.75 && goals === 0) incidents.push('wasteful_finishing');
-  if (player.position === 'ATT' && Math.random() < 0.035) incidents.push('disallowed_goal');
+  if (player.position === 'ATT' && random() < 0.035) incidents.push('disallowed_goal');
   const fatiguePenalty = (player.fatigue ?? 20) > 70 ? 0.45 : (player.fatigue ?? 20) > 55 ? 0.2 : 0;
   const incidentRating =
     (incidents.includes('penalty_saved') ? 0.65 : 0)
@@ -240,7 +242,8 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
     + incidentRating
     + (teamResult === 'win' ? 0.35 : teamResult === 'loss' ? -0.4 : 0)
     + (minutes < 35 ? -0.45 : 0)
-    + rand(-6, 7) / 10
+    + Math.max(-0.35, Math.min(0.55, levelGap * 0.025))
+    + seededInt(random, -6, 7) / 10
     - fatiguePenalty;
 
   const matchRating = Number(Math.min(10, Math.max(4.5, rating)).toFixed(1));
@@ -333,7 +336,8 @@ const toPlayerResult = ({ player, fixture, budget }) => {
   const opponent = isHome ? fixture.awayClub : fixture.homeClub;
   const teamKey = isHome ? clubKey(fixture.homeClub) : clubKey(fixture.awayClub);
   const currentBudget = budget?.get(teamKey) ?? { goals: ownGoals, assists: ownGoals };
-  const playerOutput = getPlayerOutput(player, ownGoals, opponentGoals, currentBudget.goals, currentBudget.assists);
+  const random = createSeededRandom(hashString(`${fixture.fixtureId}:${player.id}:${fixture.week}`));
+  const playerOutput = getPlayerOutput(player, ownGoals, opponentGoals, currentBudget.goals, currentBudget.assists, random);
   if (budget) {
     budget.set(teamKey, {
       goals: Math.max(0, currentBudget.goals - playerOutput.goals),
@@ -373,8 +377,8 @@ export const buildWeeklyFixtures = (roster = [], week = 1) => {
   const season = Math.floor((week - 1) / 38) + 1;
   const seasonWeek = ((week - 1) % 38) + 1;
 
-  // Weeks 1-3 = pré-saison (matchs amicaux) — pas de classement, faible impact
-  const isFriendlyWeek = seasonWeek <= 3;
+  // Le championnat commence dès la semaine 1 pour que le classement visible avance tout de suite.
+  const isFriendlyWeek = false;
 
   clubsByCountry.forEach((countryClubs, countryCode) => {
     const rounds = buildRoundRobinPairings(countryClubs, hashString(`${season}:${countryCode}`));

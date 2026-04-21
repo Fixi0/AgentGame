@@ -17,6 +17,12 @@ const makeGameStamp = (season = 1, week = 1) => `S${season}W${week}`;
 
 const safeArray = (value) => (Array.isArray(value) ? value : []);
 
+const EURO_COMPETITION_LABELS = {
+  CL: 'Ligue des Champions',
+  EL: 'Europa League',
+  ECL: 'Conference League',
+};
+
 const getSeasonNumberFromWeek = (week = 1) => Math.floor(((week ?? 1) - 1) / 38) + 1;
 
 const getSeasonWeekFromWeek = (week = 1) => (((week ?? 1) - 1) % 38) + 1;
@@ -269,6 +275,11 @@ const buildPlayerRow = (player, agencyId, source, season, week) => {
     club_city: player.clubCity ?? null,
     club_tier: player.clubTier ?? null,
     club_role: player.clubRole ?? null,
+    club_league_position: player.clubLeaguePosition ?? player.clubSeasonContext?.position ?? null,
+    club_league_points: player.clubSeasonContext?.points ?? null,
+    club_league_form: player.clubLeagueForm ?? player.clubSeasonContext?.form ?? [],
+    club_season_objective: player.clubSeasonObjective ?? player.clubSeasonContext?.objective ?? null,
+    club_season_context: player.clubSeasonContext ?? null,
     european_competition: player.europeanCompetition ?? null,
     note_current: player.rating ?? null,
     potential: player.potential ?? null,
@@ -302,6 +313,9 @@ const buildPlayerRow = (player, agencyId, source, season, week) => {
     career_goal: player.careerGoal ?? null,
     scout_report: player.scoutReport ?? null,
     agent_contract: player.agentContract ?? null,
+    agency_signed_week: player.agencySignedWeek ?? player.relationshipStartedWeek ?? null,
+    last_interaction_week: player.lastInteractionWeek ?? null,
+    last_message_week: player.lastMessageWeek ?? null,
     contract_weeks_left: player.contractWeeksLeft ?? null,
     contract_start_week: player.contractStartWeek ?? null,
     signing_bonus: player.signingBonus ?? player.contractClauses?.signingBonus ?? 0,
@@ -582,6 +596,7 @@ const buildMarketSnapshotRows = (state = {}, season = 1, week = 1, agencyId = de
       salary_weekly: player.weeklySalary ?? null,
       scout_level: state.office?.scoutLevel ?? 0,
       source: player.databaseBacked ? 'catalog_players' : 'state',
+      market_version: player.marketCatalogVersion ?? state.marketCatalogVersion ?? null,
       visible: true,
     }));
   return [
@@ -594,8 +609,11 @@ const buildTransferRows = (state = {}, season = 1, week = 1) => {
   const completed = safeArray(state.transferHistory).map((transfer) => ({
     id: transfer.id ?? `transfer_${transfer.playerId ?? 'player'}_${transfer.season ?? season}_${transfer.week ?? week}_${transfer.toClub ?? 'club'}`,
     player_id: transfer.playerId ?? null,
+    player_name: transfer.playerName ?? null,
     from_club_id: transfer.fromClubId ?? clubIdFromName(transfer.fromClub),
+    from_club_name: transfer.fromClub ?? null,
     to_club_id: transfer.toClubId ?? clubIdFromName(transfer.toClub),
+    to_club_name: transfer.toClub ?? null,
     transfer_type: transfer.type ?? 'transfer',
     fee: transfer.fee ?? transfer.amount ?? 0,
     agent_commission: transfer.commission ?? 0,
@@ -607,8 +625,11 @@ const buildTransferRows = (state = {}, season = 1, week = 1) => {
   const pending = safeArray(state.pendingTransfers).map((transfer) => ({
     id: transfer.id ?? `transfer_${transfer.playerId ?? 'player'}_${transfer.effectiveWeek ?? week}_${transfer.offer?.club ?? 'club'}`,
     player_id: transfer.playerId ?? null,
+    player_name: transfer.playerName ?? null,
     from_club_id: transfer.offer?.fromClubId ?? null,
+    from_club_name: transfer.offer?.fromClub ?? null,
     to_club_id: transfer.offer?.club ? `club_${slugId(transfer.offer.club)}` : null,
+    to_club_name: transfer.offer?.club ?? null,
     transfer_type: transfer.offer?.type ?? 'transfer',
     fee: transfer.offer?.amount ?? 0,
     agent_commission: transfer.agreement?.commission ?? 0,
@@ -619,6 +640,41 @@ const buildTransferRows = (state = {}, season = 1, week = 1) => {
   }));
   return [...completed, ...pending];
 };
+
+const buildInjuryRows = (state = {}, season = 1, week = 1) =>
+  safeArray(state.roster)
+    .filter((player) => player?.id && ((player.injured ?? 0) > 0 || player.injuryStatus === 'recovered' || player.lastInjury))
+    .map((player) => {
+      const active = (player.injured ?? 0) > 0;
+      const startedWeek = player.injuryStartedWeek ?? player.lastInjury?.startedWeek ?? Math.max(1, week - (player.injured ?? 0));
+      const endedWeek = active ? null : player.injuryEndedWeek ?? player.lastInjury?.endedWeek ?? week;
+      const reason = player.injuryReason ?? player.lastInjury?.reason ?? 'Blessure';
+      return {
+        id: `injury_${player.id}_${startedWeek}_${active ? 'active' : 'recovered'}`,
+        player_id: player.id,
+        player_name: playerName(player),
+        club_id: clubIdFromName(player.club),
+        club_name: player.club ?? null,
+        season_id: getSeasonId(getSeasonNumberFromWeek(startedWeek)),
+        week: startedWeek,
+        started_week: startedWeek,
+        ended_week: endedWeek,
+        remaining_weeks: active ? player.injured ?? 0 : 0,
+        severity: (player.injured ?? 0) >= 6 ? 'grave' : (player.injured ?? 0) >= 3 ? 'moyenne' : 'legere',
+        reason,
+        source: player.injurySource ?? null,
+        status: active ? 'active' : 'recovered',
+        raw_injury: {
+          playerId: player.id,
+          playerName: playerName(player),
+          startedWeek,
+          endedWeek,
+          remainingWeeks: active ? player.injured ?? 0 : 0,
+          reason,
+          source: player.injurySource ?? null,
+        },
+      };
+    });
 
 const buildPromiseRows = (state = {}, agencyId = defaultAgency.id) => safeArray(state.promises).map((promise) => ({
   id: promise.id ?? `promise_${slugId(`${promise.playerId ?? ''}_${promise.type ?? ''}`)}`,
@@ -797,6 +853,131 @@ const buildMatchResultRows = (state = {}, season = 1, week = 1) => {
   });
 
   return [...rosterRows, ...worldCupRows];
+};
+
+const buildCompetitionHistoryRows = (state = {}, season = 1, week = 1) => {
+  const fixtureRows = buildFixtureRows(state, season, week).flatMap((fixture) => {
+    const played = Number.isFinite(fixture.home_goals) && Number.isFinite(fixture.away_goals);
+    const homeResult = !played ? fixture.status : fixture.home_goals > fixture.away_goals ? 'win' : fixture.home_goals < fixture.away_goals ? 'loss' : 'draw';
+    const awayResult = !played ? fixture.status : fixture.away_goals > fixture.home_goals ? 'win' : fixture.away_goals < fixture.home_goals ? 'loss' : 'draw';
+    const base = {
+      season_id: fixture.season_id,
+      week: fixture.week,
+      season_week: fixture.season_week,
+      competition: fixture.competition,
+      competition_label: fixture.competition === 'league' ? 'Championnat' : fixture.competition,
+      country_code: fixture.country_code,
+      phase: fixture.source,
+      stage: fixture.status,
+      home_club_id: fixture.home_club_id,
+      home_club_name: fixture.home_club_name,
+      away_club_id: fixture.away_club_id,
+      away_club_name: fixture.away_club_name,
+      score: fixture.score,
+      source: 'fixtures',
+      raw: fixture.raw ?? fixture,
+    };
+    return [
+      {
+        ...base,
+        id: `competition_${fixture.id}_home`,
+        club_id: fixture.home_club_id,
+        club_name: fixture.home_club_name,
+        opponent_id: fixture.away_club_id,
+        opponent_name: fixture.away_club_name,
+        goals_for: fixture.home_goals,
+        goals_against: fixture.away_goals,
+        result: homeResult,
+      },
+      {
+        ...base,
+        id: `competition_${fixture.id}_away`,
+        club_id: fixture.away_club_id,
+        club_name: fixture.away_club_name,
+        opponent_id: fixture.home_club_id,
+        opponent_name: fixture.home_club_name,
+        goals_for: fixture.away_goals,
+        goals_against: fixture.home_goals,
+        result: awayResult,
+      },
+    ];
+  });
+
+  const europeanRows = Object.entries(state.europeanCupData ?? {}).flatMap(([competition, data]) =>
+    Object.entries(data?.bracketState?.rounds ?? {}).flatMap(([roundKey, round]) =>
+      safeArray(round?.matches).flatMap((match, index) => {
+        const base = {
+          season_id: getSeasonId(season),
+          week: ((season - 1) * 38) + (match.week ?? round.week ?? week),
+          season_week: match.week ?? round.week ?? null,
+          competition,
+          competition_label: EURO_COMPETITION_LABELS[competition] ?? competition,
+          country_code: null,
+          phase: round.stage ?? match.stage ?? null,
+          stage: roundKey,
+          home_club_id: clubIdFromName(match.home),
+          home_club_name: match.home ?? null,
+          away_club_id: clubIdFromName(match.away),
+          away_club_name: match.away ?? null,
+          score: match.score ?? null,
+          source: 'european_competitions',
+          raw: match,
+        };
+        return [
+          {
+            ...base,
+            id: `competition_europe_${season}_${competition}_${roundKey}_${index}_home`,
+            club_id: clubIdFromName(match.home),
+            club_name: match.home ?? null,
+            opponent_id: clubIdFromName(match.away),
+            opponent_name: match.away ?? null,
+            goals_for: match.homeGoals ?? null,
+            goals_against: match.awayGoals ?? null,
+            result: match.winner ? match.winner === match.home ? 'win' : 'loss' : 'played',
+          },
+          {
+            ...base,
+            id: `competition_europe_${season}_${competition}_${roundKey}_${index}_away`,
+            club_id: clubIdFromName(match.away),
+            club_name: match.away ?? null,
+            opponent_id: clubIdFromName(match.home),
+            opponent_name: match.home ?? null,
+            goals_for: match.awayGoals ?? null,
+            goals_against: match.homeGoals ?? null,
+            result: match.winner ? match.winner === match.away ? 'win' : 'loss' : 'played',
+          },
+        ];
+      }),
+    ),
+  );
+
+  const worldCupRows = safeArray(state.worldCupState?.results).map((match, index) => ({
+    id: match.id ? `competition_${match.id}` : `competition_world_cup_${season}_${match.week ?? week}_${index}`,
+    season_id: getSeasonId(season),
+    week: match.week ?? week,
+    season_week: getSeasonWeekFromWeek(match.week ?? week),
+    competition: 'world_cup',
+    competition_label: 'Coupe du Monde',
+    country_code: match.countryCode ?? null,
+    phase: match.phase ?? state.worldCupState?.phase ?? null,
+    stage: match.phase ?? state.worldCupState?.phase ?? null,
+    club_id: match.countryCode ?? null,
+    club_name: match.countryName ?? null,
+    opponent_id: match.opponentCode ?? null,
+    opponent_name: match.opponent ?? null,
+    home_club_id: match.countryCode ?? null,
+    home_club_name: match.countryName ?? null,
+    away_club_id: match.opponentCode ?? null,
+    away_club_name: match.opponent ?? null,
+    score: match.score ?? null,
+    goals_for: match.score ? Number(String(match.score).split('-')[0]) : null,
+    goals_against: match.score ? Number(String(match.score).split('-')[1]) : null,
+    result: match.result ?? null,
+    source: 'world_cups',
+    raw: match,
+  }));
+
+  return [...fixtureRows, ...europeanRows, ...worldCupRows];
 };
 
 const buildLeagueTableRows = (state = {}, season = 1) =>
@@ -1155,6 +1336,8 @@ export const createGameDatabaseSnapshot = (state = {}) => {
   const fixtures = buildFixtureRows(state, season, week);
   const matchResults = buildMatchResultRows(state, season, week);
   const marketSnapshots = buildMarketSnapshotRows(state, season, week, agency.id);
+  const injuries = buildInjuryRows(state, season, week);
+  const competitionHistory = buildCompetitionHistoryRows(state, season, week);
 
   return {
     agency: [agency],
@@ -1188,6 +1371,7 @@ export const createGameDatabaseSnapshot = (state = {}) => {
     careers: buildCareerRows(players, season),
     contracts,
     transfers: buildTransferRows(state, season, week),
+    injuries,
     loans: safeArray(state.loans).map((loan, index) => ({
       id: loan.id ?? `loan_${index}`,
       player_id: loan.playerId ?? null,
@@ -1243,6 +1427,7 @@ export const createGameDatabaseSnapshot = (state = {}) => {
     market_snapshots: marketSnapshots,
     fixtures,
     match_results: matchResults,
+    competition_history: competitionHistory,
     league_seasons: buildLeagueSeasonRows(state, season, week),
     league_table_rows: buildLeagueTableRows(state, season),
     club_season_history: buildClubSeasonHistoryRows(state, season),

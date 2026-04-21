@@ -3,12 +3,12 @@ import { setDatabasePlayerCatalog } from './squadDatabase';
 import { STORAGE_KEY } from '../game/gameLogic';
 
 const DB_NAME = 'agent_foot_local_db';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const SAVE_ID = 'active_save';
 const CATALOG_ID = 'catalog_v2';
 // Bumper cette valeur à chaque modification de la base de données de joueurs
 // pour forcer un re-seed automatique sans perdre la sauvegarde en cours.
-const CATALOG_DATA_VERSION = '2026-04-20-v6';
+const CATALOG_DATA_VERSION = '2026-04-21-market-v2';
 
 const STATIC_TABLES = [
   'countries',
@@ -31,6 +31,7 @@ const GAME_TABLES = [
   'careers',
   'contracts',
   'transfers',
+  'injuries',
   'loans',
   'negotiations',
   'negotiation_turns',
@@ -50,6 +51,7 @@ const GAME_TABLES = [
   'market_snapshots',
   'fixtures',
   'match_results',
+  'competition_history',
   'league_seasons',
   'league_table_rows',
   'club_season_history',
@@ -102,6 +104,12 @@ const STORE_DEFINITIONS = [
   { name: 'careers', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'season_id', keyPath: 'season_id' }] },
   { name: 'contracts', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'end_date', keyPath: 'end_date' }] },
   { name: 'transfers', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'season_id', keyPath: 'season_id' }] },
+  { name: 'injuries', keyPath: 'id', indexes: [
+    { name: 'player_id', keyPath: 'player_id' },
+    { name: 'season_id', keyPath: 'season_id' },
+    { name: 'status', keyPath: 'status' },
+    { name: 'week', keyPath: 'week' },
+  ] },
   { name: 'loans', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'status', keyPath: 'status' }] },
   { name: 'negotiations', keyPath: 'id', indexes: [
     { name: 'agency_id', keyPath: 'agency_id' },
@@ -144,6 +152,12 @@ const STORE_DEFINITIONS = [
   ] },
   { name: 'fixtures', keyPath: 'id', indexes: [{ name: 'week', keyPath: 'week' }, { name: 'club_id', keyPath: 'club_id' }, { name: 'status', keyPath: 'status' }] },
   { name: 'match_results', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'week', keyPath: 'week' }, { name: 'competition', keyPath: 'competition' }] },
+  { name: 'competition_history', keyPath: 'id', indexes: [
+    { name: 'season_id', keyPath: 'season_id' },
+    { name: 'week', keyPath: 'week' },
+    { name: 'competition', keyPath: 'competition' },
+    { name: 'club_id', keyPath: 'club_id' },
+  ] },
   { name: 'league_seasons', keyPath: 'id', indexes: [{ name: 'season_id', keyPath: 'season_id' }, { name: 'country_code', keyPath: 'country_code' }] },
   { name: 'league_table_rows', keyPath: 'id', indexes: [{ name: 'country_code', keyPath: 'country_code' }, { name: 'season_id', keyPath: 'season_id' }] },
   { name: 'club_season_history', keyPath: 'id', indexes: [{ name: 'club_id', keyPath: 'club_id' }, { name: 'season_id', keyPath: 'season_id' }] },
@@ -229,6 +243,10 @@ const stableRowId = (storeName, row) => {
       return row.player_id && row.season_id
         ? `transfer_${row.player_id}_${row.season_id}_${row.transfer_date ?? row.effective_week ?? 'date'}_${row.to_club_id ?? 'club'}`
         : null;
+    case 'injuries':
+      return row.player_id && row.started_week
+        ? `injury_${row.player_id}_${row.started_week}_${row.status ?? 'active'}`
+        : null;
     case 'negotiation_turns':
       return row.negotiation_id && row.round_number ? `turn_${row.negotiation_id}_${row.round_number}` : null;
     case 'objectives':
@@ -250,6 +268,10 @@ const stableRowId = (storeName, row) => {
     case 'match_results':
       return row.player_id && row.week
         ? `match_${row.player_id}_${row.week}_${row.competition ?? 'league'}_${row.fixture_id ?? row.opponent ?? 'opponent'}`
+        : null;
+    case 'competition_history':
+      return row.season_id && row.week && row.competition && (row.club_id || row.home_club_id)
+        ? `competition_${row.season_id}_${row.week}_${row.competition}_${row.club_id ?? row.home_club_id}_${row.opponent_id ?? row.away_club_id ?? 'opponent'}`
         : null;
     case 'league_table_rows':
       return row.club_id && row.season_id ? `table_${row.season_id}_${row.club_id}` : null;
@@ -295,7 +317,11 @@ const validateRow = (storeName, row) => {
 const normalizeRow = (storeName, row) => {
   if (!row || typeof row !== 'object') return null;
   if (row.id != null && row.id !== '') return row;
-  const id = stableRowId(storeName, row);
+  let id = stableRowId(storeName, row);
+  // Fallback to UUID if stableRowId can't generate a deterministic ID
+  if (!id) {
+    id = `${storeName}_${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substr(2, 9)}`;
+  }
   const normalized = id ? { ...row, id } : null;
   return validateRow(storeName, normalized) ? normalized : null;
 };
@@ -472,7 +498,7 @@ const hydrateRuntimeCatalogFromDb = async () => {
 };
 
 const readRuntimeTables = async () => {
-  const tableNames = [...new Set([...GAME_TABLES, 'clubs', 'countries', 'leagues'])];
+  const tableNames = [...new Set([...GAME_TABLES, ...STATIC_TABLES])];
   const entries = await Promise.all(tableNames.map(async (storeName) => [storeName, await idbGetAll(storeName)]));
   return Object.fromEntries(entries);
 };
@@ -763,6 +789,7 @@ export const getLocalGameDatabaseView = async () => {
     agencyUpgrades: tables.agency_upgrades ?? [],
     staff: tables.staff ?? [],
     players: tables.players ?? [],
+    catalogPlayers: tables.catalog_players ?? [],
     clubs: tables.clubs ?? [],
     countries: tables.countries ?? [],
     leagues: tables.leagues ?? [],
@@ -770,6 +797,7 @@ export const getLocalGameDatabaseView = async () => {
     careers: tables.careers ?? [],
     contracts: tables.contracts ?? [],
     transfers: tables.transfers ?? [],
+    injuries: tables.injuries ?? [],
     loans: tables.loans ?? [],
     negotiations: tables.negotiations ?? [],
     negotiationTurns: tables.negotiation_turns ?? [],
@@ -778,6 +806,7 @@ export const getLocalGameDatabaseView = async () => {
     eventInstances: tables.event_instances ?? [],
     fixtures: tables.fixtures ?? [],
     matchResults: tables.match_results ?? [],
+    competitionHistory: tables.competition_history ?? [],
     leagueSeasons: tables.league_seasons ?? [],
     leagueTableRows: tables.league_table_rows ?? [],
     clubSeasonHistory: tables.club_season_history ?? [],

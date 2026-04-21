@@ -23,7 +23,9 @@ const weekToLabel = (week) => {
   return `${MONTHS[monthIdx]} S${season}`;
 };
 
-export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, clubSeasonHistory = {}, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, worldCupState = null, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
+const formatForm = (form = []) => form.length ? form.map((item) => String(item).slice(0, 1).toUpperCase()).join(' ') : 'Pas assez de matchs';
+
+export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, clubSeasonHistory = {}, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, worldCupState = null, databaseView = null, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
   const [tab, setTab] = useState('profile');
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
   const playerPromises = (promises ?? []).filter((promise) => promise.playerId === player.id && !promise.resolved && !promise.failed);
@@ -45,6 +47,20 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
   const dossierSummary = getDossierHistorySummary(dossierMemory ?? {}, player.id);
   const worldCupSelection = worldCupState?.selectedPlayers?.find((entry) => entry.playerId === player.id) ?? null;
   const worldCupCountry = worldCupSelection ? NATIONAL_TEAMS.find((team) => team.code === worldCupSelection.countryCode) : null;
+  const dbPlayerRow = databaseView?.players?.find((row) => row.id === player.id) ?? null;
+  const clubSeasonContext = player.clubSeasonContext ?? dbPlayerRow?.club_season_context ?? null;
+  const playerInjuries = (databaseView?.injuries ?? [])
+    .filter((row) => row.player_id === player.id)
+    .sort((a, b) => (b.started_week ?? 0) - (a.started_week ?? 0))
+    .slice(0, 4);
+  const clubCompetitionHistory = (databaseView?.competitionHistory ?? [])
+    .filter((row) => row.club_name === player.club)
+    .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
+    .slice(0, 5);
+  const playerTransfers = (databaseView?.transfers ?? [])
+    .filter((row) => row.player_id === player.id)
+    .sort((a, b) => (b.transfer_date ?? 0) - (a.transfer_date ?? 0))
+    .slice(0, 4);
   const actionGridStyle = {
     ...S.msgActions,
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
@@ -177,6 +193,16 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
               <div><strong>{seasonStats.xg ?? 0}</strong><span>xG</span></div>
             </div>
             <div style={S.sumRow}><span style={S.sumK}>Blessures saison</span><strong>{seasonStats.injuries ?? 0}</strong></div>
+            {clubSeasonContext && (
+              <>
+                <div style={{ marginTop: 10, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.08em', fontWeight: 900 }}>SAISON DU CLUB</div>
+                <div style={S.sumRow}><span style={S.sumK}>Classement</span><strong>{clubSeasonContext.position ?? '-'}e/{clubSeasonContext.totalClubs ?? '-'}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Points</span><strong>{clubSeasonContext.points ?? 0} pts · diff. {clubSeasonContext.goalDifference >= 0 ? `+${clubSeasonContext.goalDifference}` : clubSeasonContext.goalDifference}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Forme club</span><strong>{formatForm(clubSeasonContext.form)}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Objectif</span><strong>{clubSeasonContext.objective ?? 'Saison stable'}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Leader</span><strong>{clubSeasonContext.leader ?? '-'}</strong></div>
+              </>
+            )}
             {clubSeason && (
               <>
                 <div style={{ marginTop: 8, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.08em' }}>HISTORIQUE CLUB CETTE SAISON</div>
@@ -309,6 +335,24 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             )) : <div style={S.emptySmall}>Aucun moment clé enregistré.</div>}
           </div>
           <div style={S.objCard}>
+            <div style={S.secTitle}>HISTORIQUE BDD</div>
+            <div style={S.sumRow}><span style={S.sumK}>Blessures</span><strong>{playerInjuries.length}</strong></div>
+            {playerInjuries.length ? playerInjuries.map((injury) => (
+              <div key={injury.id} style={S.promiseRow}>
+                <span>S{injury.started_week} · {injury.reason}</span>
+                <strong>{injury.status === 'active' ? `${injury.remaining_weeks} sem.` : 'récupéré'}</strong>
+              </div>
+            )) : <div style={S.emptySmall}>Aucune blessure historisée en base.</div>}
+            <div style={{ height: 8 }} />
+            <div style={S.sumRow}><span style={S.sumK}>Transferts</span><strong>{playerTransfers.length}</strong></div>
+            {playerTransfers.length ? playerTransfers.map((transfer) => (
+              <div key={transfer.id} style={S.promiseRow}>
+                <span>{transfer.from_club_name ? `${transfer.from_club_name} → ` : 'Signature · '}{transfer.to_club_name ?? 'club'}</span>
+                <strong>S{transfer.transfer_date}</strong>
+              </div>
+            )) : <div style={S.emptySmall}>Aucun transfert historisé pour ce joueur.</div>}
+          </div>
+          <div style={S.objCard}>
             <div style={S.secTitle}>HISTORIQUE D'ACTIONS</div>
             {recentActions.length ? recentActions.map((decision) => (
               <div key={decision.id} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
@@ -347,6 +391,15 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                 {match.matchReport && <span style={{ gridColumn: '1 / -1', color: '#64727d' }}>{match.matchReport}</span>}
               </div>
             )) : <div style={S.emptySmall}>Aucun match simulé.</div>}
+          </div>
+          <div style={S.objCard}>
+            <div style={S.secTitle}>MATCHS DU CLUB EN BASE</div>
+            {clubCompetitionHistory.length ? clubCompetitionHistory.map((match) => (
+              <div key={match.id} style={S.promiseRow}>
+                <span>S{match.week} · {match.competition_label ?? match.competition} · {match.club_name} {match.score ?? '-'} {match.opponent_name}</span>
+                <strong>{match.result}</strong>
+              </div>
+            )) : <div style={S.emptySmall}>Aucun match de club persisté pour l'instant.</div>}
           </div>
           <div style={S.rActions}>
             <button onClick={() => onNego('extend')} style={S.actBtn}>PROLONGER</button>

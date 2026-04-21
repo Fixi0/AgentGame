@@ -267,8 +267,19 @@ export default function Standings({ state, databaseView = null, onClubDetails })
       .map(mapDbLeagueRow)
     : [];
   const table = dbTable.length ? dbTable : selectedCountry ? getSortedTable(state.leagueTables, selectedCountry.code) : [];
+  const leagueResults = (databaseView?.competitionHistory ?? [])
+    .filter((row) =>
+      row.competition === 'league'
+      && row.source === 'fixtures'
+      && row.club_id === row.home_club_id
+      && row.season_id === getSeasonId(currentSeason)
+      && (!selectedCountry?.code || row.raw?.countryCode === selectedCountry.code || row.country_code === selectedCountry.code),
+    )
+    .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
+    .slice(0, 8);
   const selectedClub = CLUBS.find((club) => club.name === selectedClubName) ?? CLUBS.find((club) => club.name === table[0]?.club);
   const clubProfile = selectedClub ? getClubProfile(selectedClub, state.clubRelations?.[selectedClub.name] ?? 50) : null;
+  const selectedClubContext = state.roster?.find((player) => player.club === selectedClub?.name)?.clubSeasonContext ?? null;
   const leagueRep = state.leagueReputation?.[selectedCountry?.code] ?? 0;
 
   return (
@@ -353,10 +364,32 @@ export default function Standings({ state, databaseView = null, onClubDetails })
               </button>
             )) : <div style={S.emptySmall}>Les classements apparaîtront après les premiers matchs.</div>}
           </div>
+          <div style={S.objCard}>
+            <div style={S.secTitle}>RESULTATS DU CHAMPIONNAT</div>
+            {leagueResults.length ? leagueResults.map((match) => (
+              <button
+                key={match.id}
+                onClick={() => onClubDetails?.(match.club_name)}
+                style={S.decisionRow}
+              >
+                <span>
+                  {match.home_club_name} {match.score ?? '-'} {match.away_club_name}
+                  <div style={S.fixtureMeta}>S{match.week} · {match.competition_label ?? 'Championnat'}</div>
+                </span>
+                <strong>{match.result}</strong>
+              </button>
+            )) : <div style={S.emptySmall}>Aucun résultat de championnat persisté.</div>}
+          </div>
           {selectedClub && clubProfile && (
             <div style={S.objCard}>
               <div style={S.secTitle}>FICHE CLUB</div>
               <div style={S.sumRow}><span style={S.sumK}>Club</span><strong>{selectedClub.name}</strong></div>
+              {selectedClubContext && (
+                <>
+                  <div style={S.sumRow}><span style={S.sumK}>Saison</span><strong>{selectedClubContext.position ?? '-'}e/{selectedClubContext.totalClubs ?? '-'} · {selectedClubContext.points ?? 0} pts</strong></div>
+                  <div style={S.sumRow}><span style={S.sumK}>Objectif</span><strong>{selectedClubContext.objective ?? 'saison stable'}</strong></div>
+                </>
+              )}
               <div style={S.sumRow}><span style={S.sumK}>Budget</span><strong>{clubProfile.budget}/100</strong></div>
               <div style={S.sumRow}><span style={S.sumK}>Prestige</span><strong>{clubProfile.prestige}/100</strong></div>
               <div style={S.sumRow}><span style={S.sumK}>Style</span><strong>{clubProfile.style}</strong></div>

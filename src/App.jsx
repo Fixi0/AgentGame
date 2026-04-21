@@ -43,6 +43,7 @@ import {
   createFreshState,
   finishNegotiation,
   getPhase,
+  MARKET_DATA_VERSION,
   migrateState,
   playWeek,
   proposePlayerToClubs,
@@ -184,7 +185,15 @@ const buildResponseContextTail = ({ message, player, responseAction }) => {
     : null;
   const pieces = [`Réponse alignée avec ${targetLabel}`, threadContext, dossierLabel, arrivalLabel].filter(Boolean);
   if (lastAction) pieces.push(`dernière action: ${lastAction}`);
-  return '';
+  const clubContext = player?.clubSeasonContext;
+  const clubLine = clubContext
+    ? `\n\nJe prends aussi en compte la saison du club: ${player.club} est ${clubContext.position ?? '?'}e/${clubContext.totalClubs ?? '?'} et vise ${clubContext.objective ?? 'une saison stable'}.`
+    : '';
+  const injuryLine = (player?.injured ?? 0) > 0
+    ? `\nPour le physique, tu es encore absent ${player.injured} semaine${player.injured > 1 ? 's' : ''}${player.injuryReason ? ` pour ${String(player.injuryReason).toLowerCase()}` : ''}.`
+    : '';
+  const actionLine = pieces.length ? `\nOn garde le fil: ${pieces.join(' · ')}.` : '';
+  return `${clubLine}${injuryLine}${actionLine}`;
 };
 
 const views = {
@@ -303,6 +312,96 @@ const messageFromDatabaseRow = (row = {}) => {
     read: row.read,
     resolved: row.status === 'resolved',
     archived: row.archived,
+  };
+};
+
+const rowsToRaw = (rows = [], rawKey = 'raw') =>
+  (rows ?? [])
+    .map((row) => row?.[rawKey] ?? null)
+    .filter((item) => item && typeof item === 'object');
+
+const rebuildLeagueTablesFromDb = (rows = [], fallback = {}) => {
+  if (!rows.length) return fallback;
+  return rows.reduce((tables, row) => {
+    if (!row.country_code || !row.club_name) return tables;
+    return {
+      ...tables,
+      [row.country_code]: {
+        ...(tables[row.country_code] ?? {}),
+        [row.club_name]: row.raw_row ?? {
+          club: row.club_name,
+          played: row.played ?? 0,
+          win: row.wins ?? 0,
+          draw: row.draws ?? 0,
+          loss: row.losses ?? 0,
+          goalsFor: row.goals_for ?? 0,
+          goalsAgainst: row.goals_against ?? 0,
+          points: row.points ?? 0,
+          form: row.form ?? [],
+        },
+      },
+    };
+  }, {});
+};
+
+const rebuildClubMapFromDb = (rows = [], rawKey, fallback = {}) => {
+  if (!rows.length) return fallback;
+  return rows.reduce((map, row) => {
+    if (!row.club_name) return map;
+    return { ...map, [row.club_name]: row[rawKey] ?? row.raw ?? row.relation_score ?? row };
+  }, {});
+};
+
+const buildStateFromDatabaseView = (fallbackState, databaseView) => {
+  if (!fallbackState || !databaseView?.tables) return fallbackState;
+  const dbRoster = (databaseView.players ?? [])
+    .filter((row) => row.market_status === 'roster' || row.source === 'roster')
+    .map(playerFromDatabaseRow);
+  const dbMarket = (databaseView.players ?? [])
+    .filter((row) => row.market_status === 'market' || row.source === 'market')
+    .map(playerFromDatabaseRow);
+  const dbFreeAgents = (databaseView.players ?? [])
+    .filter((row) => row.market_status === 'free_agent' || row.source === 'freeAgent')
+    .map((row) => ({ ...playerFromDatabaseRow(row), freeAgent: true }));
+  const dbMarketIsCurrent = fallbackState.marketCatalogVersion === MARKET_DATA_VERSION
+    && dbMarket.length
+    && dbMarket.every((player) => player.marketCatalogVersion === MARKET_DATA_VERSION && player.databaseBacked);
+  const dbFreeAgentsAreCurrent = fallbackState.marketCatalogVersion === MARKET_DATA_VERSION
+    && dbFreeAgents.length
+    && dbFreeAgents.every((player) => player.marketCatalogVersion === MARKET_DATA_VERSION && player.databaseBacked);
+  const dbMessages = (databaseView.messages ?? [])
+    .filter((row) => row.source !== 'queue')
+    .map(messageFromDatabaseRow);
+  const dbMessageQueue = (databaseView.messages ?? [])
+    .filter((row) => row.source === 'queue')
+    .map(messageFromDatabaseRow);
+  const leagueSeasonData = (databaseView.leagueSeasons ?? []).reduce((data, row) => ({
+    ...data,
+    [row.country_code]: row.raw_league ?? row,
+  }), {});
+
+  return {
+    ...fallbackState,
+    roster: dbRoster.length ? dbRoster : fallbackState.roster,
+    market: dbMarketIsCurrent ? dbMarket : fallbackState.market,
+    freeAgents: dbFreeAgentsAreCurrent ? dbFreeAgents : fallbackState.freeAgents,
+    marketCatalogVersion: fallbackState.marketCatalogVersion ?? MARKET_DATA_VERSION,
+    messages: databaseView.messages ? dbMessages : fallbackState.messages,
+    messageQueue: databaseView.messages ? dbMessageQueue : fallbackState.messageQueue,
+    promises: databaseView.promises ? rowsToRaw(databaseView.promises, 'raw_promise') : fallbackState.promises,
+    clubOffers: databaseView.clubOffers ? rowsToRaw(databaseView.clubOffers, 'raw') : fallbackState.clubOffers,
+    decisionHistory: databaseView.decisionHistory ? rowsToRaw(databaseView.decisionHistory, 'raw') : fallbackState.decisionHistory,
+    contacts: databaseView.contacts ? rowsToRaw(databaseView.contacts, 'raw') : fallbackState.contacts,
+    news: databaseView.newsPosts ? rowsToRaw(databaseView.newsPosts, 'raw_news') : fallbackState.news,
+    nextFixtures: databaseView.fixtures ? rowsToRaw((databaseView.fixtures ?? []).filter((row) => row.source === 'nextFixtures'), 'raw') : fallbackState.nextFixtures,
+    lastFixtures: databaseView.fixtures ? rowsToRaw((databaseView.fixtures ?? []).filter((row) => row.source === 'lastFixtures'), 'raw') : fallbackState.lastFixtures,
+    leagueTables: rebuildLeagueTablesFromDb(databaseView.leagueTableRows ?? [], fallbackState.leagueTables),
+    leagueSeasonData: Object.keys(leagueSeasonData).length ? leagueSeasonData : fallbackState.leagueSeasonData,
+    clubSeasonHistory: rebuildClubMapFromDb(databaseView.clubSeasonHistory ?? [], 'raw_history', fallbackState.clubSeasonHistory),
+    clubMemory: rebuildClubMapFromDb(databaseView.clubMemory ?? [], 'raw', fallbackState.clubMemory),
+    clubRelations: rebuildClubMapFromDb(databaseView.clubRelations ?? [], 'raw_score', fallbackState.clubRelations),
+    agencyGoals: databaseView.agencyGoals ? rowsToRaw(databaseView.agencyGoals, 'raw_goal') : fallbackState.agencyGoals,
+    databaseBacked: true,
   };
 };
 
@@ -436,6 +535,8 @@ export default function FootballAgentGame() {
     return true;
   };
 
+  const getDatabaseBackedState = () => buildStateFromDatabaseView(state, databaseView) ?? state;
+
   const buildFallbackWeekReport = (safeState) => {
     const nextWeek = (safeState.week ?? 1) + 1;
     const nextPhase = getPhase(nextWeek);
@@ -510,11 +611,12 @@ export default function FootballAgentGame() {
   };
 
   const handleRefreshMarket = () => {
-    commitResult(refreshMarket(state), 'Marché rafraîchi');
+    commitResult(refreshMarket(getDatabaseBackedState()), 'Marché rafraîchi');
   };
 
   const handleBuyShopItem = (itemId) => {
-    const result = purchaseShopItem(state, itemId);
+    const actionState = getDatabaseBackedState();
+    const result = purchaseShopItem(actionState, itemId);
     if (result.error) {
       showToast(result.error, 'error');
       return;
@@ -532,44 +634,46 @@ export default function FootballAgentGame() {
   };
 
   const handleUpgradeOffice = (type) => {
-    commitResult(upgradeOffice(state, type), 'Amélioration validée');
+    commitResult(upgradeOffice(getDatabaseBackedState(), type), 'Amélioration validée');
   };
 
   const handleUpgradeAgency = () => {
-    commitResult(upgradeAgency(state), 'Agence agrandie');
+    commitResult(upgradeAgency(getDatabaseBackedState()), 'Agence agrandie');
   };
 
   const handleUpgradeStaff = (key) => {
-    commitResult(upgradeStaff(state, key), 'Employé recruté');
+    commitResult(upgradeStaff(getDatabaseBackedState(), key), 'Employé recruté');
   };
 
   const handleStartScoutingMission = (countryCode) => {
-    commitResult(startScoutingMission(state, countryCode), 'Mission scouting lancée');
+    commitResult(startScoutingMission(getDatabaseBackedState(), countryCode), 'Mission scouting lancée');
   };
 
   const handleCallContact = (contactId) => {
-    const result = callContact(state, contactId);
+    const result = callContact(getDatabaseBackedState(), contactId);
     setState(result.state);
     showToast(result.result.message, result.result.error ? 'error' : result.result.onCooldown ? 'info' : 'success');
   };
 
   const handleCompareOffers = () => {
-    const openOffers = (state.clubOffers ?? []).filter((o) => o.status === 'open' && o.expiresWeek >= state.week);
+    const actionState = getDatabaseBackedState();
+    const openOffers = (actionState.clubOffers ?? []).filter((o) => o.status === 'open' && o.expiresWeek >= actionState.week);
     if (openOffers.length >= 2) setModal({ type: 'offer_compare', data: { offers: openOffers } });
   };
 
   const handleAcceptOffer = (offerId) => {
-    const offer = state.clubOffers.find((item) => item.id === offerId);
-    const player = state.roster.find((item) => item.id === offer?.playerId);
+    const actionState = getDatabaseBackedState();
+    const offer = actionState.clubOffers.find((item) => item.id === offerId);
+    const player = actionState.roster.find((item) => item.id === offer?.playerId);
     if (!offer || !player) {
       showToast('Offre indisponible', 'error');
       return;
     }
-    setModal({ type: 'offer_contract', data: { offer, player, readiness: getOfferAcceptanceReadiness(state, offer) } });
+    setModal({ type: 'offer_contract', data: { offer, player, readiness: getOfferAcceptanceReadiness(actionState, offer) } });
   };
 
   const handleRecruitPlayer = (player, pitchId) => {
-    const result = recruitPlayer(state, player.id, pitchId);
+    const result = recruitPlayer(getDatabaseBackedState(), player.id, pitchId);
     if (result.error) {
       if (result.state) setState(result.state);
       showToast(result.error, 'error');
@@ -583,11 +687,11 @@ export default function FootballAgentGame() {
   };
 
   const handleRejectOffer = (offerId) => {
-    commitResult(rejectClubOffer(state, offerId), 'Offre refusée');
+    commitResult(rejectClubOffer(getDatabaseBackedState(), offerId), 'Offre refusée');
   };
 
   const handleUpdateAgencyProfile = (profile) => {
-    commitResult(updateAgencyProfile(state, profile), 'Identité agence enregistrée');
+    commitResult(updateAgencyProfile(getDatabaseBackedState(), profile), 'Identité agence enregistrée');
   };
 
   const handleCompleteOnboarding = (profile) => {
@@ -596,7 +700,7 @@ export default function FootballAgentGame() {
   };
 
   const handlePlayWeek = () => {
-    const playableState = migrateState(state);
+    const playableState = migrateState(getDatabaseBackedState());
     if (!playableState.roster.length) {
       showToast('Recrute au moins 1 joueur', 'error');
       return;
@@ -678,7 +782,8 @@ export default function FootballAgentGame() {
   };
 
   const handleChoice = (event, player, choice) => {
-    const result = applyChoice(state, event, player, choice);
+    const actionState = getDatabaseBackedState();
+    const result = applyChoice(actionState, event, player, choice);
     if (result.error) {
       showToast(result.error, 'error');
       return;
@@ -712,8 +817,8 @@ export default function FootballAgentGame() {
           data: {
             player,
             contractType: 'extend',
-            offer: buildContractOffer(player, 'extend', state),
-            readiness: getExtensionReadiness(state, player),
+            offer: buildContractOffer(player, 'extend', actionState),
+            readiness: getExtensionReadiness(actionState, player),
           },
         });
       }
@@ -724,29 +829,30 @@ export default function FootballAgentGame() {
   };
 
   const handleFinishNegotiation = (type, player, outcome) => {
-    const nextState = finishNegotiation(state, type, player, outcome);
+    const nextState = finishNegotiation(getDatabaseBackedState(), type, player, outcome);
     setState(nextState);
     setModal(null);
     showToast(outcome.success ? 'Négociation conclue' : 'Négociation échouée', outcome.success ? 'success' : 'error');
   };
 
   const handleFinishOfferNegotiation = (offer, outcome) => {
+    const actionState = getDatabaseBackedState();
     if (!outcome.success) {
-      commitResult(rejectClubOffer(state, offer.id), 'Offre abandonnée');
+      commitResult(rejectClubOffer(actionState, offer.id), 'Offre abandonnée');
       setModal(null);
       return;
     }
 
-    const result = acceptClubOffer(state, offer.id, outcome);
+    const result = acceptClubOffer(actionState, offer.id, outcome);
     if (result.error) {
-      const fallbackOffer = state.clubOffers.find((item) => item.playerId === offer.playerId && item.status === 'open');
+      const fallbackOffer = actionState.clubOffers.find((item) => item.playerId === offer.playerId && item.status === 'open');
       if (fallbackOffer && fallbackOffer.id !== offer.id) {
-        const fallbackReadiness = getOfferAcceptanceReadiness(state, fallbackOffer);
+        const fallbackReadiness = getOfferAcceptanceReadiness(actionState, fallbackOffer);
         if (!fallbackReadiness.ok) {
           showToast(fallbackReadiness.reason, fallbackReadiness.tone === 'danger' ? 'error' : 'info');
           return;
         }
-        const retry = acceptClubOffer(state, fallbackOffer.id, outcome);
+        const retry = acceptClubOffer(actionState, fallbackOffer.id, outcome);
         if (!retry.error) {
           setState(retry.state);
           setModal(null);
@@ -769,11 +875,12 @@ export default function FootballAgentGame() {
   };
 
   const handleAcceptOfferDirect = (offer) => {
-    const result = acceptClubOffer(state, offer.id, null);
+    const actionState = getDatabaseBackedState();
+    const result = acceptClubOffer(actionState, offer.id, null);
     if (result.error) {
-      const fallbackOffer = state.clubOffers.find((item) => item.playerId === offer.playerId && item.status === 'open');
+      const fallbackOffer = actionState.clubOffers.find((item) => item.playerId === offer.playerId && item.status === 'open');
       if (fallbackOffer && fallbackOffer.id !== offer.id) {
-        const retry = acceptClubOffer(state, fallbackOffer.id, null);
+        const retry = acceptClubOffer(actionState, fallbackOffer.id, null);
         if (!retry.error) {
           setState(retry.state);
           const retryPending = (retry.state.pendingTransfers ?? []).find((pt) => pt.offerId === fallbackOffer.id);
@@ -801,13 +908,14 @@ export default function FootballAgentGame() {
 
   const handleMessageResponse = (messageId, responseType) => {
     const effects = responseEffects[responseType];
-    const currentMessage = state.messages.find((item) => item.id === messageId);
+    const actionState = getDatabaseBackedState();
+    const currentMessage = actionState.messages.find((item) => item.id === messageId);
     const currentMessageContext = String(currentMessage?.context ?? '');
     const isDealContext = ['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation'].includes(currentMessageContext);
     let responseAction = currentMessage ? getMessageResponseAction(currentMessage, responseType) : null;
-    const targetPlayer = currentMessage ? state.roster.find((player) => player.id === currentMessage.playerId) : null;
+    const targetPlayer = currentMessage ? actionState.roster.find((player) => player.id === currentMessage.playerId) : null;
     const weeksAtClub = targetPlayer?.contractStartWeek != null
-      ? Math.max(0, state.week - targetPlayer.contractStartWeek)
+      ? Math.max(0, actionState.week - targetPlayer.contractStartWeek)
       : null;
     const freshArrivalTransfer = Boolean(
       currentMessage?.type === 'transfer_request'
@@ -833,7 +941,7 @@ export default function FootballAgentGame() {
     }
     const isStaffThread = currentMessage && ['staff_dialogue', 'coach_dialogue', 'ds_dialogue'].includes(currentMessage.type);
     const staffReply = isStaffThread && currentMessage ? (() => {
-      const player = state.roster.find((item) => item.id === currentMessage.playerId);
+      const player = actionState.roster.find((item) => item.id === currentMessage.playerId);
       if (!player) return null; // joueur absent du roster — pas de réponse narrative
       const staffName = currentMessage.threadLabel ?? (String(currentMessage.context ?? '').includes('coach')
         ? `Coach de ${player?.club ?? 'son club'}`
@@ -854,7 +962,7 @@ export default function FootballAgentGame() {
           player,
           staffName,
           type: currentMessage.type === 'coach_dialogue' ? 'coach_dialogue' : currentMessage.type === 'ds_dialogue' ? 'ds_dialogue' : 'staff_dialogue',
-          week: state.week,
+          week: actionState.week,
           context: currentMessage.context,
           subject: `${staffName} répond`,
           body: coachReplyText,
@@ -862,7 +970,8 @@ export default function FootballAgentGame() {
         resolved: true,
       };
     })() : null;
-    setState((current) => {
+    setState((currentState) => {
+      const current = buildStateFromDatabaseView(currentState, databaseView) ?? currentState;
       const message = current.messages.find((item) => item.id === messageId);
       if (!message) return current;
       const targetPlayer = current.roster.find((player) => player.id === message.playerId);
@@ -1027,7 +1136,8 @@ export default function FootballAgentGame() {
   };
 
   const handleMessageAction = (messageId, actionType, message) => {
-    const player = message?.playerId ? state.roster.find((p) => p.id === message.playerId) : null;
+    const actionState = getDatabaseBackedState();
+    const player = message?.playerId ? actionState.roster.find((p) => p.id === message.playerId) : null;
     if (actionType === 'media_crisis') {
       const crisis = {
         type: message?.context?.includes('scandal') ? 'scandal' : message?.context?.includes('leak') ? 'leak' : 'controversy',
@@ -1053,8 +1163,9 @@ export default function FootballAgentGame() {
 
   const handleShortlistConfirm = (message, player, responseType, selectedClubs) => {
     if (!message || !player || !selectedClubs?.length) return;
+    const actionState = getDatabaseBackedState();
     const clubNames = selectedClubs.map((club) => club.name);
-    const proposal = proposePlayerToClubs(state, player.id, clubNames);
+    const proposal = proposePlayerToClubs(actionState, player.id, clubNames);
     if (proposal.error) {
       showToast(proposal.error, 'error');
       return;
@@ -1080,7 +1191,8 @@ export default function FootballAgentGame() {
     const playerMoodDelta = satisfied ? 4 : -3;
     const playerTrustDelta = satisfied ? 5 : -2;
 
-    setState((current) => {
+    setState((currentState) => {
+      const current = buildStateFromDatabaseView(currentState, databaseView) ?? currentState;
       const currentMessage = current.messages.find((item) => item.id === message.id);
       const currentPlayer = current.roster.find((item) => item.id === player.id) ?? player;
       if (!currentMessage || !currentPlayer) return current;
@@ -1207,14 +1319,15 @@ export default function FootballAgentGame() {
   };
 
   const startNegotiation = (player, type) => {
-    const latestPlayer = state.roster.find((item) => item.id === player.id) ?? player;
-    const cooldownUntil = state.negotiationCooldowns?.[latestPlayer.id];
-    if (cooldownUntil && cooldownUntil > state.week) {
+    const actionState = getDatabaseBackedState();
+    const latestPlayer = actionState.roster.find((item) => item.id === player.id) ?? player;
+    const cooldownUntil = actionState.negotiationCooldowns?.[latestPlayer.id];
+    if (cooldownUntil && cooldownUntil > actionState.week) {
       showToast(`Négociation en pause jusqu'en S${cooldownUntil}`, 'error');
       return;
     }
-    if (getActiveDossierPlayerIds(state).has(latestPlayer.id)) {
-      const lifecycle = getPlayerLifecycleState(latestPlayer, state);
+    if (getActiveDossierPlayerIds(actionState).has(latestPlayer.id)) {
+      const lifecycle = getPlayerLifecycleState(latestPlayer, actionState);
       const message = lifecycle.key === 'predeal'
         ? 'Ce joueur a déjà un pré-accord en cours.'
         : lifecycle.key === 'transferred'
@@ -1223,7 +1336,7 @@ export default function FootballAgentGame() {
       showToast(message, 'error');
       return;
     }
-    const readiness = type === 'transfer' ? getTransferReadiness(state, latestPlayer, phase) : getExtensionReadiness(state, latestPlayer);
+    const readiness = type === 'transfer' ? getTransferReadiness(actionState, latestPlayer, phase) : getExtensionReadiness(actionState, latestPlayer);
     if (!readiness.ok) {
       showToast(readiness.message, 'error');
       return;
@@ -1233,7 +1346,7 @@ export default function FootballAgentGame() {
       data: {
         player: latestPlayer,
         contractType: type === 'transfer' ? 'transfer' : 'extend',
-        offer: buildContractOffer(latestPlayer, type, state),
+        offer: buildContractOffer(latestPlayer, type, actionState),
         readiness,
       },
     });
@@ -1349,31 +1462,7 @@ export default function FootballAgentGame() {
   };
 
   const databaseState = useMemo(() => {
-    if (!state || !databaseView?.players?.length) return state;
-    const dbRoster = databaseView.players
-      .filter((row) => row.market_status === 'roster' || row.source === 'roster')
-      .map(playerFromDatabaseRow);
-    const dbMarket = databaseView.players
-      .filter((row) => row.market_status === 'market' || row.source === 'market')
-      .map(playerFromDatabaseRow);
-    const dbFreeAgents = databaseView.players
-      .filter((row) => row.market_status === 'free_agent' || row.source === 'freeAgent')
-      .map((row) => ({ ...playerFromDatabaseRow(row), freeAgent: true }));
-    const dbMessages = (databaseView.messages ?? [])
-      .filter((row) => row.source !== 'queue')
-      .map(messageFromDatabaseRow);
-    const dbMessageQueue = (databaseView.messages ?? [])
-      .filter((row) => row.source === 'queue')
-      .map(messageFromDatabaseRow);
-    return {
-      ...state,
-      roster: dbRoster.length ? dbRoster : state.roster,
-      market: dbMarket.length ? dbMarket : state.market,
-      freeAgents: dbFreeAgents.length ? dbFreeAgents : state.freeAgents,
-      messages: dbMessages.length ? dbMessages : state.messages,
-      messageQueue: dbMessageQueue.length ? dbMessageQueue : state.messageQueue,
-      databaseBacked: true,
-    };
+    return buildStateFromDatabaseView(state, databaseView);
   }, [state, databaseView]);
 
   if (!loaded && !saveMenuOpen) {
@@ -1508,7 +1597,7 @@ export default function FootballAgentGame() {
         {view === 'deadline' && <DeadlineDay state={databaseState} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={databaseState} onStartMission={handleStartScoutingMission} />}
         {view === 'vestiaire' && <Vestiaire state={databaseState} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} />}
-        {view === 'dossiers' && <Dossiers state={databaseState} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} onNav={setView} />}
+        {view === 'dossiers' && <Dossiers state={databaseState} databaseView={databaseView} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} onNav={setView} />}
         {view === 'office' && (
           <Office
             state={databaseState}
@@ -1642,6 +1731,7 @@ export default function FootballAgentGame() {
             negotiationCooldowns={state.negotiationCooldowns}
             currentWeek={state.week}
             worldCupState={state.worldCupState}
+            databaseView={databaseView}
             onClose={() => setModal(null)}
             onNego={(type) => startNegotiation(modal.data.player, type)}
             onMeeting={handlePlayerMeeting}

@@ -60,6 +60,7 @@ import { formatMoney } from '../utils/format';
 import { normalizePromises } from '../systems/promiseSystem';
 
 export const STORAGE_KEY = 'agent_fc_v4';
+export const MARKET_DATA_VERSION = '2026-04-21-db-market-v2';
 
 const createClubSeasonHistory = (season = 1) =>
   CLUBS.reduce((history, club) => ({
@@ -91,6 +92,83 @@ const normalizeClubSeasonHistory = (history = {}, season = 1) => {
     };
     return acc;
   }, {});
+};
+
+const sortLeagueTableRows = (table = {}) =>
+  Object.values(table ?? {}).sort((a, b) =>
+    (b.points ?? 0) - (a.points ?? 0)
+    || ((b.goalsFor ?? 0) - (b.goalsAgainst ?? 0)) - ((a.goalsFor ?? 0) - (a.goalsAgainst ?? 0))
+    || (b.goalsFor ?? 0) - (a.goalsFor ?? 0)
+    || String(a.club ?? '').localeCompare(String(b.club ?? '')),
+  );
+
+const getClubSeasonObjective = (player = {}, position = null, totalClubs = 20) => {
+  if (!position) return 'Saison a construire';
+  const tier = player.clubTier ?? 3;
+  if (tier <= 1) {
+    if (position <= 2) return 'jouer le titre';
+    if (position <= 4) return 'rester en Ligue des Champions';
+    return 'saison sous pression';
+  }
+  if (tier === 2) {
+    if (position <= 4) return 'accrocher l Europe';
+    if (position <= 8) return 'rester dans le bon wagon';
+    return 'relancer la saison';
+  }
+  if (tier === 3) {
+    if (position <= 8) return 'creer la surprise';
+    if (position <= 14) return 'saison stable';
+    return 'eviter la zone rouge';
+  }
+  return position <= Math.ceil(totalClubs * 0.7) ? 'assurer le maintien' : 'lutter pour survivre';
+};
+
+const buildClubSeasonContext = (player = {}, leagueTables = {}, leagueSeasonData = {}) => {
+  const countryCode = player.clubCountryCode ?? player.countryCode;
+  const clubName = player.club;
+  if (!countryCode || !clubName || clubName === 'Libre') return null;
+  const seasonData = leagueSeasonData?.[countryCode] ?? {};
+  const table = leagueTables?.[countryCode] ?? seasonData.table ?? {};
+  const sortedTable = sortLeagueTableRows(table);
+  const positionIndex = sortedTable.findIndex((row) => row.club === clubName);
+  const row = positionIndex >= 0 ? sortedTable[positionIndex] : table?.[clubName] ?? null;
+  if (!row) return null;
+  const totalClubs = sortedTable.length || Object.keys(table ?? {}).length || 20;
+  const form = Array.isArray(row.form) ? row.form.slice(-5) : [];
+  const position = positionIndex >= 0 ? positionIndex + 1 : null;
+  const goalDifference = (row.goalsFor ?? 0) - (row.goalsAgainst ?? 0);
+  return {
+    season: seasonData.season ?? null,
+    countryCode,
+    club: clubName,
+    position,
+    totalClubs,
+    points: row.points ?? 0,
+    played: row.played ?? 0,
+    goalDifference,
+    form,
+    objective: getClubSeasonObjective(player, position, totalClubs),
+    leader: seasonData.leader ?? sortedTable[0]?.club ?? null,
+    latestFixtures: (seasonData.latestFixtures ?? []).filter((fixture) =>
+      fixture.homeClub?.name === clubName
+      || fixture.awayClub?.name === clubName
+      || fixture.homeClubName === clubName
+      || fixture.awayClubName === clubName
+      || fixture.home === clubName
+      || fixture.away === clubName,
+    ).slice(0, 3),
+  };
+};
+
+const attachClubSeasonContext = (player = {}, leagueTables = {}, leagueSeasonData = {}) => {
+  const clubSeasonContext = buildClubSeasonContext(player, leagueTables, leagueSeasonData);
+  return {
+    ...player,
+    clubSeasonContext,
+    clubLeaguePosition: clubSeasonContext?.position ?? null,
+    clubLeagueForm: clubSeasonContext?.form ?? [],
+    clubSeasonObjective: clubSeasonContext?.objective ?? null,
+  };
 };
 
 const DEFAULT_AGENCY_PROFILE = createDefaultAgencyRecord({
@@ -431,8 +509,9 @@ export const createFreshState = () => ({
   contacts: createDefaultContacts(),
   seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 20 }),
   roster: [],
-  market: generateMarket(20, 0, 5, [], 1, DEFAULT_AGENCY_PROFILE.countryCode),
-  freeAgents: generateFreeAgents(20, 4, [], 1, DEFAULT_AGENCY_PROFILE.countryCode, 0),
+  market: generateMarket(20, 0, 8, [], 1, DEFAULT_AGENCY_PROFILE.countryCode).map((player) => ({ ...player, marketCatalogVersion: MARKET_DATA_VERSION })),
+  freeAgents: generateFreeAgents(20, 6, [], 1, DEFAULT_AGENCY_PROFILE.countryCode, 0).map((player) => ({ ...player, marketCatalogVersion: MARKET_DATA_VERSION })),
+  marketCatalogVersion: MARKET_DATA_VERSION,
   leagueTables: createInitialLeagueTables(),
   leagueSeasonData: {},
   leagueReputation: createDefaultLeagueReputation(DEFAULT_AGENCY_PROFILE.countryCode),
@@ -485,7 +564,7 @@ export const migrateState = (state) => {
     };
   };
   const rawReputation = state.reputation ?? 20;
-  const reputation = rawReputation <= 100 ? rawReputation * 10 : rawReputation;
+  const reputation = rawReputation;
   const agencyCountryCode = getAgencyCountryCode(state);
   const marketScoutLevel = (state.office?.scoutLevel ?? 0) + getStaffEffect(state.staff ?? {}, 'scoutAfrica');
   const allowedMarketCountryCodes = getMarketCountryCodes({ agencyCountryCode, reputation, scoutLevel: marketScoutLevel });
@@ -527,7 +606,18 @@ export const migrateState = (state) => {
   };
   const playerCatalog = createPlayerCatalog(currentSeason);
   const reconcileCatalogPlayer = (player) => reconcilePlayerWithCatalog(player, currentSeason);
-  const normalizeMarketShelf = (list, count = 5) => {
+  const savedMarketVersion = state.marketCatalogVersion ?? null;
+  const marketNeedsCatalogRefresh =
+    savedMarketVersion !== MARKET_DATA_VERSION
+    || asArray(state.market).length < 8
+    || asArray(state.market).some((player) => player?.marketCatalogVersion !== MARKET_DATA_VERSION || !player?.databaseBacked);
+  const freeAgentsNeedCatalogRefresh =
+    savedMarketVersion !== MARKET_DATA_VERSION
+    || asArray(state.freeAgents).length < 6
+    || asArray(state.freeAgents).some((player) => player?.marketCatalogVersion !== MARKET_DATA_VERSION || !player?.databaseBacked);
+  const marketShelfSource = marketNeedsCatalogRefresh ? [] : state.market;
+  const freeAgentShelfSource = freeAgentsNeedCatalogRefresh ? [] : state.freeAgents;
+  const normalizeMarketShelf = (list, count = 8) => {
     const current = asArray(list);
     const marketCap = getMarketRatingCeiling(reputation, marketScoutLevel);
     const sanitized = current
@@ -560,7 +650,7 @@ export const migrateState = (state) => {
     const filler = generateMarket(reputation, marketScoutLevel, targetCount - finalList.length, [...existingIds], currentSeason, agencyCountryCode);
     return [...finalList, ...filler].slice(0, count);
   };
-  const normalizeFreeAgentShelf = (list, count = 4) => {
+  const normalizeFreeAgentShelf = (list, count = 6) => {
     const current = asArray(list);
     const marketCap = Math.max(58, getMarketRatingCeiling(reputation, marketScoutLevel) - 4);
     const sanitized = current
@@ -569,7 +659,7 @@ export const migrateState = (state) => {
       .filter(isMarketCountryAllowed);
     const existingIds = new Set([
       ...asArray(state.roster).map((player) => player?.id).filter(Boolean),
-      ...normalizeMarketShelf(state.market, 5).map((player) => player?.id).filter(Boolean),
+      ...normalizeMarketShelf(marketShelfSource, 8).map((player) => player?.id).filter(Boolean),
       ...sanitized.map((player) => player?.id).filter(Boolean),
     ]);
     if (sanitized.length >= count) return sanitized.slice(0, count);
@@ -647,15 +737,17 @@ export const migrateState = (state) => {
     socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
     dossierMemory: state.dossierMemory ?? createDefaultDossierMemory(),
     pendingChainedEvents: asArray(state.pendingChainedEvents),
-    market: normalizeMarketShelf(state.market, 5).map((rawPlayer) => {
+    marketCatalogVersion: MARKET_DATA_VERSION,
+    market: normalizeMarketShelf(marketShelfSource, 8).map((rawPlayer) => {
       const player = reconcileCatalogPlayer(rawPlayer);
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
       const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
 
-      return {
+      return attachClubSeasonContext({
         ...player,
+        marketCatalogVersion: MARKET_DATA_VERSION,
         ...coreProfile,
         ...ensureDeepPlayerProfile(player, country.code, club),
         ...normalizeRoleProfile(player),
@@ -680,17 +772,18 @@ export const migrateState = (state) => {
         trust: player.trust ?? getInitialTrust(personality),
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
         europeanCompetition: getPlayerEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
-      };
+      }, state.leagueTables, state.leagueSeasonData);
     }),
-    freeAgents: normalizeFreeAgentShelf(state.freeAgents, 4).map((rawPlayer) => {
+    freeAgents: normalizeFreeAgentShelf(freeAgentShelfSource, 6).map((rawPlayer) => {
       const player = reconcileCatalogPlayer(rawPlayer);
       const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
       const personality = player.personality ?? pick(PERSONALITIES);
       const club = normalizeClubForPlayer(player, country.code);
       const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
 
-      return {
+      return attachClubSeasonContext({
         ...player,
+        marketCatalogVersion: MARKET_DATA_VERSION,
         ...coreProfile,
         ...ensureDeepPlayerProfile(player, country.code, club),
         ...normalizeRoleProfile(player),
@@ -714,7 +807,7 @@ export const migrateState = (state) => {
         trust: player.trust ?? getInitialTrust(personality),
         clubSeasonHistory: clubSeasonHistory[club.name] ?? null,
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
-      };
+      }, state.leagueTables, state.leagueSeasonData);
     }),
     promises: normalizePromises(asArray(state.promises)),
     roster: asArray(state.roster).map((rawPlayer) => {
@@ -724,7 +817,7 @@ export const migrateState = (state) => {
       const club = normalizeClubForPlayer(player, country.code);
       const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
 
-      return {
+      return attachClubSeasonContext({
         ...player,
         ...coreProfile,
         ...ensureDeepPlayerProfile(player, country.code, club),
@@ -755,42 +848,7 @@ export const migrateState = (state) => {
         clubSeasonHistory: clubSeasonHistory[club.name] ?? null,
         europeanCompetition: getPlayerEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
-      };
-    }),
-    market: normalizeMarketShelf(state.market, 5).map((rawPlayer) => {
-      const player = reconcileCatalogPlayer(rawPlayer);
-      const country = player.countryCode ? getCountry(player.countryCode) : getWeightedCountry(reputation);
-      const personality = player.personality ?? pick(PERSONALITIES);
-      const club = normalizeClubForPlayer(player, country.code);
-      const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
-
-      return {
-        ...player,
-        ...coreProfile,
-        ...ensureDeepPlayerProfile(player, country.code, club),
-        ...normalizeRoleProfile(player),
-        club: club.name,
-        clubTier: player.clubTier ?? club.tier,
-        clubCountryCode: club.countryCode,
-        clubCity: club.city,
-        countryCode: player.countryCode ?? country.code,
-        countryLabel: player.countryLabel ?? country.label,
-        countryFlag: player.countryFlag ?? country.flag,
-        value: normalizeTransferValue(player, club),
-        weeklySalary: player.weeklySalary < 1000 ? player.weeklySalary * 20 : player.weeklySalary,
-        signingCost: player.signingCost < 1000 ? player.signingCost * 10 : player.signingCost,
-        fatigue: player.fatigue ?? rand(12, 36),
-        brandValue: player.brandValue ?? rand(8, 35),
-        seasonStats: player.seasonStats ?? { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
-        careerGoal: player.careerGoal ?? createCareerGoal(player),
-        scoutReport: (state.staff?.scoutAfrica ?? 0) > 0 ? player.scoutReport ?? createScoutReport(player, state.office?.scoutLevel ?? 0) : null,
-        agentContract: player.agentContract ?? createAgentContract(player),
-        timeline: player.timeline ?? [],
-        personality,
-        trust: player.trust ?? getInitialTrust(personality),
-        matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
-        europeanCompetition: getPlayerEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
-      };
+      }, state.leagueTables, state.leagueSeasonData);
     }),
   };
 };
@@ -801,8 +859,12 @@ export const signPlayer = (state, player) => {
   if (state.money < signingCost) return { state, error: 'Fonds insuffisants' };
   if (state.roster.length >= capacity) return { state, error: `Agence pleine (${capacity} joueurs)` };
   const currentSeason = Math.floor(((state.week ?? 1) - 1) / 38) + 1;
-  const signedPlayer = {
+  const signedPlayer = attachClubSeasonContext({
     ...player,
+    agencySignedWeek: state.week,
+    lastInteractionWeek: state.week,
+    lastMessageWeek: state.week,
+    relationshipStartedWeek: state.week,
     careerGoal: player.careerGoal ?? createCareerGoal(player),
     agentContract: player.agentContract ?? createAgentContract(player),
     europeanCompetition: getPlayerEuropeanCompetition(player, currentSeason),
@@ -811,7 +873,7 @@ export const signPlayer = (state, player) => {
       { week: state.week, type: 'signature', label: `Signature avec ${state.agencyProfile?.name ?? 'ton agence'}` },
       ...(player.timeline ?? []),
     ],
-  };
+  }, state.leagueTables, state.leagueSeasonData);
   const nextRoster = [...state.roster, signedPlayer];
 
   return {
@@ -855,12 +917,13 @@ export const refreshMarket = (state) => {
   let newMarket = generateMarket(
     state.reputation + staffBonus * 3 + specializationBonus,
     scoutLevel,
-    5,
+    8,
     rosterIds,
     currentSeason,
     getAgencyCountryCode(state),
   ).map((player) => ({
     ...player,
+    marketCatalogVersion: MARKET_DATA_VERSION,
     scoutReport: scoutLevel > 0 ? createScoutReport(player, scoutLevel) : null,
   }));
 
@@ -880,6 +943,7 @@ export const refreshMarket = (state) => {
       ...state,
       money: state.money - MARKET_REFRESH_COST,
       market: newMarket,
+      marketCatalogVersion: MARKET_DATA_VERSION,
       legendarySeenIds: nextSeenIds,
     },
   };
@@ -964,8 +1028,9 @@ export const updateAgencyProfile = (state, profilePatch) => {
       ...nextState,
       countryReputation: createDefaultCountryReputation(countryCode, normalizeAgencyReputation(nextState.reputation ?? 20)),
       leagueReputation: createDefaultLeagueReputation(countryCode),
-      market: generateMarket(nextState.reputation, scoutLevel, 5, rosterIds, currentSeason, countryCode),
-      freeAgents: generateFreeAgents(nextState.reputation, 4, rosterIds, currentSeason, countryCode, scoutLevel),
+      market: generateMarket(nextState.reputation, scoutLevel, 8, rosterIds, currentSeason, countryCode).map((player) => ({ ...player, marketCatalogVersion: MARKET_DATA_VERSION })),
+      freeAgents: generateFreeAgents(nextState.reputation, 6, rosterIds, currentSeason, countryCode, scoutLevel).map((player) => ({ ...player, marketCatalogVersion: MARKET_DATA_VERSION })),
+      marketCatalogVersion: MARKET_DATA_VERSION,
     },
   };
 };
@@ -1546,9 +1611,9 @@ export const playWeek = (state) => {
   totalCost += staffWeeklyCost;
   totalCost += WEEKLY_OVERHEAD[state.agencyLevel ?? 1] ?? 300;
 
-  // Semaines 1-3 = pré-saison (matchs amicaux, pas de classement).
+  // Le championnat démarre dès la semaine 1 pour garder le classement synchronisé avec le fil.
   // Semaine 38 = mercato été, pas de match.
-  const isFriendlyWeek = phase.seasonWeek <= 3;
+  const isFriendlyWeek = false;
   const clubFootballActive = !(phase.mercato && phase.window === 'été') && !isWorldCupActive;
   const weeklySimulation = clubFootballActive
     ? simulateWeeklyClubResults(state.roster, state.week)
@@ -1568,13 +1633,17 @@ export const playWeek = (state) => {
   const activeDossierPlayerIds = [...getMarketLockedPlayerIds(state)];
 
   const updatedRoster = state.roster.map((player) => {
+    const currentInjuryWeeks = player.injured ?? 0;
+    const nextInjuryWeeks = Math.max(0, currentInjuryWeeks - 1);
     let updatedPlayer = {
       ...player,
       previousRating: player.rating,
-      injured: Math.max(0, player.injured - 1),
+      injured: nextInjuryWeeks,
+      injuryStatus: nextInjuryWeeks > 0 ? 'active' : currentInjuryWeeks > 0 ? 'recovered' : player.injuryStatus ?? null,
+      injuryEndedWeek: currentInjuryWeeks > 0 && nextInjuryWeeks === 0 ? state.week : player.injuryEndedWeek ?? null,
       contractWeeksLeft: Math.max(0, player.contractWeeksLeft - 1),
       agentContract: tickAgentContract(player.agentContract ?? createAgentContract(player)),
-      fatigue: player.injured > 0 ? clamp((player.fatigue ?? 20) - 8, 0, 100) : player.fatigue ?? 20,
+      fatigue: currentInjuryWeeks > 0 ? clamp((player.fatigue ?? 20) - 8, 0, 100) : player.fatigue ?? 20,
       europeanCompetition: getPlayerEuropeanCompetition(player, currentSeason),
     };
     const { salaryCost, commissionIncome } = calculateWeeklyPlayerEconomy(updatedPlayer);
@@ -1665,6 +1734,10 @@ export const playWeek = (state) => {
       if (event.injury) {
         updatedPlayer = {
           ...updatedPlayer,
+          injuryStatus: 'active',
+          injuryStartedWeek: state.week,
+          injuryReason: event.label ?? event.id ?? 'Blessure',
+          injurySource: event.id ?? event.type ?? 'event',
           seasonStats: { ...(updatedPlayer.seasonStats ?? {}), injuries: (updatedPlayer.seasonStats?.injuries ?? 0) + 1 },
         };
       }
@@ -1738,9 +1811,10 @@ export const playWeek = (state) => {
       }
 
       // ── Système de négligence — plainte si pas d'interaction depuis 6+ semaines ─
-      const lastInteraction = updatedPlayer.lastInteractionWeek ?? 0;
+      const signedAgencyWeek = updatedPlayer.agencySignedWeek ?? updatedPlayer.relationshipStartedWeek ?? updatedPlayer.contractStartWeek ?? state.week;
+      const lastInteraction = updatedPlayer.lastInteractionWeek ?? signedAgencyWeek;
       const weeksSinceContact = state.week - lastInteraction;
-      const notNewRecruit = (state.week - (updatedPlayer.contractStartWeek ?? 0)) >= 8;
+      const notNewRecruit = (state.week - signedAgencyWeek) >= 8;
       const alreadyHasMsg = generatedMessages.some((m) => m.playerId === updatedPlayer.id);
       if (notNewRecruit && weeksSinceContact >= 6 && (updatedPlayer.trust ?? 50) < 70 && updatedPlayer.moral < 70 && !alreadyHasMsg && Math.random() < 0.15) {
         generatedMessages.push(createMessage({ player: updatedPlayer, type: 'complaint', week: state.week, context: 'neglect' }));
@@ -1777,9 +1851,14 @@ export const playWeek = (state) => {
 
     const recurrentRisk = ((updatedPlayer.recurringInjuryRisk ?? 8) + Math.max(0, (updatedPlayer.fatigue ?? 20) - 68)) / 1000;
     if (!updatedPlayer.injured && Math.random() < recurrentRisk) {
+      const injuryWeeks = rand(2, 5);
       updatedPlayer = {
         ...updatedPlayer,
-        injured: rand(2, 5),
+        injured: injuryWeeks,
+        injuryStatus: 'active',
+        injuryStartedWeek: state.week,
+        injuryReason: 'Alerte musculaire liée à la fatigue',
+        injurySource: 'recurring_risk',
         fatigue: clamp((updatedPlayer.fatigue ?? 20) - 10, 0, 100),
         seasonStats: { ...(updatedPlayer.seasonStats ?? {}), injuries: (updatedPlayer.seasonStats?.injuries ?? 0) + 1 },
         timeline: [{ week: state.week, type: 'blessure', label: 'Alerte musculaire liée à la fatigue' }, ...(updatedPlayer.timeline ?? [])].slice(0, 18),
@@ -2814,6 +2893,12 @@ export const playWeek = (state) => {
       leader: Object.values(table ?? {}).sort((a, b) => (b.points ?? 0) - (a.points ?? 0))[0]?.club ?? null,
     },
   }), {});
+  const finalRosterWithClubContext = finalRoster.map((player) =>
+    attachClubSeasonContext(player, nextLeagueTables, nextLeagueSeasonData),
+  );
+  const nextMarketWithClubContext = [...completedScouting, ...(Array.isArray(state.market) ? state.market : [])]
+    .slice(0, 12)
+    .map((player) => attachClubSeasonContext({ ...player, marketCatalogVersion: player.marketCatalogVersion ?? MARKET_DATA_VERSION }, nextLeagueTables, nextLeagueSeasonData));
 
   const nextState = {
     ...state,
@@ -2843,8 +2928,9 @@ export const playWeek = (state) => {
     pendingChainedEvents: updatedPendingChains,
     seasonAwards: annualCalendar.seasonAwards,
     clubSeasonHistory: nextPhase.seasonWeek === 1 && state.week > 1 ? createClubSeasonHistory(nextPhase.season) : clubSeasonHistory,
-    roster: finalRoster,
-    market: [...completedScouting, ...(Array.isArray(state.market) ? state.market : [])].slice(0, 12),
+    roster: finalRosterWithClubContext,
+    market: nextMarketWithClubContext,
+    marketCatalogVersion: state.marketCatalogVersion ?? MARKET_DATA_VERSION,
     lastFixtures: weeklyFixtures,
     nextFixtures,
     leagueTables: nextLeagueTables,
