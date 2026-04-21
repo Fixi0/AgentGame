@@ -75,6 +75,7 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
     .filter((row) => row.player_id === playerWithRole.id)
     .sort((a, b) => (b.transfer_date ?? 0) - (a.transfer_date ?? 0))
     .slice(0, 4);
+  const isPlayerRecruited = playerWithRole.agentContract != null;
   const actionGridStyle = {
     ...S.msgActions,
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
@@ -263,15 +264,24 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
           )}
 
 
-          {/* Centralized Action Buttons */}
+          {/* Action Buttons - Only show if player is recruited */}
           <div style={{ marginTop: 16, padding: '12px', background: '#f7f9fb', borderRadius: 8, border: '1px solid #e2e8ef', display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 6 }}>
-            <button onClick={() => onNego('extend')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>PROLONGER</button>
-            <button onClick={() => onNego('transfer')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>TRANSFERT</button>
-            <button onClick={() => onCallPlayer?.(playerWithRole)} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>APPELER</button>
-            <button onClick={() => onContactClubStaff?.(playerWithRole.id, 'coach')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>COACH</button>
-            <button onClick={() => onContactClubStaff?.(playerWithRole.id, 'ds')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>DS</button>
-            <button onClick={() => onMeeting?.(playerWithRole.id, 'career')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>RÉUNION</button>
-            <button onClick={() => onMarketAction?.(playerWithRole.id, playerWithRole.club === 'Libre' ? 'free_trial' : 'propose')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>{playerWithRole.club === 'Libre' ? 'ESSAI' : 'PROPOSER'}</button>
+            {isPlayerRecruited ? (
+              <>
+                <button onClick={() => onNego('extend')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>PROLONGER</button>
+                <button onClick={() => onNego('transfer')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>TRANSFERT</button>
+                <button onClick={() => onCallPlayer?.(playerWithRole)} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>APPELER</button>
+                <button onClick={() => onContactClubStaff?.(playerWithRole.id, 'coach')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>COACH</button>
+                <button onClick={() => onContactClubStaff?.(playerWithRole.id, 'ds')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>DS</button>
+                <button onClick={() => onMeeting?.(playerWithRole.id, 'career')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>RÉUNION</button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => onMarketAction?.(playerWithRole.id, playerWithRole.club === 'Libre' ? 'free_trial' : 'propose')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11, gridColumn: '1 / -1' }}>
+                  {playerWithRole.club === 'Libre' ? 'PROPOSER ESSAI' : 'PROPOSER'}
+                </button>
+              </>
+            )}
             <button onClick={onClose} style={{ ...S.relBtn, padding: '8px 12px', fontSize: 11 }}>FERMER</button>
           </div>
         </div>
