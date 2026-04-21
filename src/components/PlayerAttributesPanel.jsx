@@ -19,26 +19,22 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
     if (def.category === 'goalkeeper' && position !== 'GK') return null;
 
     const percentage = (attr.current / 20) * 100;
-    const potentialPercentage = (attr.potential / 20) * 100;
 
     return (
-      <div key={key} className="attribute-grid-item">
-        <div className="attribute-grid-header">
-          <span className="attribute-grid-name">{def.short}</span>
-          <span className="attribute-grid-value">{attr.current.toFixed(0)}</span>
+      <div key={key} className="attribute-row">
+        <div className="attribute-label">
+          <span className="attribute-name">{def.label}</span>
+          <span className="attribute-short">{def.short}</span>
         </div>
-        <div className="attribute-grid-bar">
-          <div
-            className="attribute-bar-fill"
-            style={{ width: `${percentage}%` }}
-            title={`${attr.current.toFixed(1)} / ${attr.potential}`}
-          />
-          <div
-            className="attribute-bar-potential"
-            style={{ width: `${potentialPercentage}%` }}
-          />
+        <div className="attribute-bar-container">
+          <div className="attribute-bar">
+            <div
+              className="attribute-bar-fill"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+          <div className="attribute-value">{attr.current.toFixed(1)}/20</div>
         </div>
-        <div className="attribute-grid-footer">{attr.current.toFixed(1)}/{attr.potential}</div>
       </div>
     );
   };
@@ -69,8 +65,9 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
     <div className="attributes-panel">
       <div className="attributes-header">
         <h3>Attributs (17-stat)</h3>
+        <p className="attributes-subtitle">Échelle 0-20</p>
       </div>
-      <div className="all-attributes-grid">
+      <div className="attributes-list">
         {Object.entries(ALL_ATTRIBUTES).map(([key, def]) => {
           if (def.category === 'goalkeeper' && position !== 'GK') return null;
           const attr = attributes[key];
@@ -85,89 +82,75 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
           border-radius: 12px;
           padding: 16px;
           border: 1px solid #e2e8ef;
-          overflow-x: hidden;
           width: 100%;
           box-sizing: border-box;
         }
 
-        @media (max-width: 768px) {
-          .attributes-panel {
-            padding: 12px;
-          }
-        }
-
         .attributes-header {
-          margin-bottom: 20px;
+          margin-bottom: 16px;
         }
 
         .attributes-header h3 {
           margin: 0 0 4px 0;
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 700;
           color: #172026;
         }
 
-        .all-attributes-grid {
-          display: grid;
-          grid-template-columns: repeat(6, 1fr);
-          gap: 6px;
+        .attributes-subtitle {
+          margin: 0;
+          font-size: 11px;
+          color: #64727d;
         }
 
-        @media (max-width: 900px) {
-          .all-attributes-grid {
-            grid-template-columns: repeat(5, 1fr);
-          }
-        }
-
-        @media (max-width: 768px) {
-          .all-attributes-grid {
-            grid-template-columns: repeat(4, 1fr);
-            gap: 5px;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .all-attributes-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 4px;
-          }
-        }
-
-        .attribute-grid-item {
-          background: white;
-          border-radius: 5px;
-          padding: 6px 8px;
-          border: 1px solid #e2e8ef;
+        .attributes-list {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 10px;
         }
 
-        .attribute-grid-header {
+        .attribute-row {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          gap: 3px;
+          gap: 12px;
         }
 
-        .attribute-grid-name {
-          font-size: 9px;
+        .attribute-label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          min-width: 140px;
+          flex-shrink: 0;
+        }
+
+        .attribute-name {
+          font-size: 12px;
+          font-weight: 500;
+          color: #172026;
+        }
+
+        .attribute-short {
+          font-size: 10px;
           font-weight: 600;
-          color: #64727d;
-          text-transform: uppercase;
-          letter-spacing: 0.02em;
+          color: #8c96a3;
+          background: #e2e8ef;
+          padding: 2px 6px;
+          border-radius: 3px;
         }
 
-        .attribute-grid-value {
-          font-size: 11px;
-          font-weight: 700;
-          color: #00a676;
+        .attribute-bar-container {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex: 1;
+          min-width: 100px;
         }
 
-        .attribute-grid-bar {
-          height: 10px;
+        .attribute-bar {
+          flex: 1;
+          height: 18px;
           background: #d5dce0;
-          border-radius: 2px;
+          border-radius: 3px;
           position: relative;
           overflow: hidden;
         }
@@ -181,21 +164,13 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
           transition: width 0.3s ease;
         }
 
-        .attribute-bar-potential {
-          height: 100%;
-          background: rgba(0, 166, 118, 0.2);
-          position: absolute;
-          top: 0;
-          left: 0;
-          border: 1px dashed #00a676;
-        }
-
-        .attribute-grid-footer {
-          font-size: 8px;
-          font-weight: 500;
-          color: #8c96a3;
-          text-align: center;
-          line-height: 1;
+        .attribute-value {
+          font-size: 11px;
+          font-weight: 600;
+          color: #172026;
+          min-width: 40px;
+          text-align: right;
+          flex-shrink: 0;
         }
 
         .attributes-compact {
