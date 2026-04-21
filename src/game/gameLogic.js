@@ -453,8 +453,8 @@ const normalizePlayerCoreProfile = (player, countryCode, club, season = 1) => {
     return {
       firstName: dbPlayer.firstName,
       lastName: dbPlayer.lastName,
-      rating: clamp(Math.round(dbPlayer.rating), 50, 99),
-      potential: clamp(Math.round(dbPlayer.potential ?? dbPlayer.rating), Math.round(dbPlayer.rating), 99),
+      rating: clamp(Math.round(dbPlayer.rating), 100, 198),
+      potential: clamp(Math.round(dbPlayer.potential ?? dbPlayer.rating), Math.round(dbPlayer.rating), 198),
     };
   }
 
@@ -470,19 +470,19 @@ const normalizePlayerCoreProfile = (player, countryCode, club, season = 1) => {
   const rawRating = ratingCandidates.find((value) => Number.isFinite(Number(value)));
   const rating = Number.isFinite(Number(rawRating))
     ? Number(rawRating)
-    : clamp(60 + (club?.tier ? (4 - Math.min(4, club.tier)) * 4 : 0), 50, 80);
+    : clamp(120 + (club?.tier ? (4 - Math.min(4, club.tier)) * 8 : 0), 100, 160);
 
   const potentialCandidates = [player.potential, player.maxRating, player.ceiling];
   const rawPotential = potentialCandidates.find((value) => Number.isFinite(Number(value)));
   const potential = Number.isFinite(Number(rawPotential))
     ? Number(rawPotential)
-    : Math.min(99, Math.max(rating, rating + 6));
+    : Math.min(198, Math.max(rating, rating + 12));
 
   return {
     firstName,
     lastName,
-    rating: clamp(Math.round(rating), 50, 99),
-    potential: clamp(Math.round(potential), Math.round(rating), 99),
+    rating: clamp(Math.round(rating), 100, 198),
+    potential: clamp(Math.round(potential), Math.round(rating), 198),
   };
 };
 
