@@ -733,6 +733,8 @@ export const reconcilePlayerWithCatalog = (player, season = 1) => {
     attributes: player.attributes && Object.keys(player.attributes).length > 0
       ? player.attributes
       : catalogPlayer.attributes,
+    // Add clubRole if missing
+    clubRole: player.clubRole ?? catalogPlayer.clubRole,
   };
   return merged;
 };
