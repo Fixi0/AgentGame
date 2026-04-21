@@ -120,6 +120,7 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     signaturePlayer: false,
     hiddenPotential: true,
     attributes: generatePlayerAttributes({ rating, potential, position: 'MIL' }, roleObj),
+    clubRole: getClubRole(rating, fixioClub.tier ?? 1, true),
   };
 };
 
@@ -294,6 +295,23 @@ const evolveRating = (baseRating, baseAge, potential, season) => {
     a++;
   }
   return Math.min(99, Math.max(50, r));
+};
+
+// ── Rôle du contrat (Club Role) ────────────────────────────────────────────────
+/**
+ * Détermine le rôle contrat d'un joueur (Star/Titulaire/Rotation/Indésirable)
+ * basé sur son rating vs les attentes du tier du club
+ */
+const getClubRole = (rating, tier, isStarter) => {
+  const tierRating = TIER_RATING[tier] ?? TIER_RATING[4];
+  const starThreshold = tierRating.starterMin + 10;
+  const starterThreshold = tierRating.starterMin;
+  const rotationThreshold = tierRating.benchMin;
+
+  if (rating >= starThreshold) return 'Star';
+  if (isStarter && rating >= starterThreshold) return 'Titulaire';
+  if (rating >= rotationThreshold) return 'Rotation';
+  return 'Indésirable';
 };
 
 // ── Nationalités réalistes par club ─────────────────────────────────────────
@@ -505,6 +523,7 @@ const buildSquadPlayer = (club, slotIdx, season) => {
     foot,
     // Système d'attributs détaillé (17 stats)
     attributes: generatePlayerAttributes({ rating, potential, position: slot.position }, roleObj),
+    clubRole: getClubRole(rating, tier, slot.starter),
   };
 };
 
@@ -593,6 +612,7 @@ const buildYouthPlayer = (club, youthSlotIdx, season) => {
     foot,
     // Système d'attributs détaillé (17 stats)
     attributes: generatePlayerAttributes({ rating, potential, position: slot.position }, roleObj),
+    clubRole: getClubRole(rating, tier, false),
   };
 };
 

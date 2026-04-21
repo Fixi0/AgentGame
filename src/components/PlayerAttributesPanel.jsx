@@ -22,27 +22,23 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
     const potentialPercentage = (attr.potential / 20) * 100;
 
     return (
-      <div key={key} className="attribute-row">
-        <div className="attribute-label">
-          <span className="attribute-name">{def.label}</span>
-          <span className="attribute-short">{def.short}</span>
+      <div key={key} className="attribute-grid-item">
+        <div className="attribute-grid-header">
+          <span className="attribute-grid-name">{def.short}</span>
+          <span className="attribute-grid-value">{attr.current.toFixed(0)}</span>
         </div>
-        <div className="attribute-bar-container">
-          <div className="attribute-bar">
-            <div
-              className="attribute-bar-fill"
-              style={{ width: `${percentage}%` }}
-              title={`${attr.current.toFixed(1)}`}
-            />
-            <div
-              className="attribute-bar-potential"
-              style={{ width: `${potentialPercentage}%` }}
-            />
-          </div>
-          <div className="attribute-value">
-            {attr.current.toFixed(1)}/{attr.potential}
-          </div>
+        <div className="attribute-grid-bar">
+          <div
+            className="attribute-bar-fill"
+            style={{ width: `${percentage}%` }}
+            title={`${attr.current.toFixed(1)} / ${attr.potential}`}
+          />
+          <div
+            className="attribute-bar-potential"
+            style={{ width: `${potentialPercentage}%` }}
+          />
         </div>
+        <div className="attribute-grid-footer">{attr.current.toFixed(1)}/{attr.potential}</div>
       </div>
     );
   };
@@ -155,80 +151,55 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
         }
 
         .category-attributes {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 12px;
+        }
+
+        @media (max-width: 768px) {
+          .category-attributes {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
+        }
+
+        .attribute-grid-item {
+          background: white;
+          border-radius: 8px;
+          padding: 10px;
+          border: 1px solid #e2e8ef;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 8px;
         }
 
-        .attribute-row {
+        .attribute-grid-header {
           display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-
-        @media (max-width: 768px) {
-          .attribute-row {
-            gap: 8px;
-          }
-        }
-
-        .attribute-label {
-          display: flex;
+          justify-content: space-between;
           align-items: center;
           gap: 6px;
-          flex-shrink: 0;
-          width: auto;
-          max-width: 140px;
         }
 
-        @media (max-width: 768px) {
-          .attribute-label {
-            max-width: 100px;
-          }
-        }
-
-        .attribute-name {
-          font-size: 13px;
-          font-weight: 500;
-          color: #172026;
-        }
-
-        .attribute-short {
-          font-size: 11px;
+        .attribute-grid-name {
+          font-size: 12px;
           font-weight: 600;
-          color: #8c96a3;
-          background: #e2e8ef;
-          padding: 2px 6px;
-          border-radius: 4px;
+          color: #64727d;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
         }
 
-        .attribute-bar-container {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex: 1;
-          min-width: 80px;
+        .attribute-grid-value {
+          font-size: 14px;
+          font-weight: 700;
+          color: #00a676;
         }
 
-        .attribute-bar {
-          flex: 1;
-          height: 20px;
+        .attribute-grid-bar {
+          height: 16px;
           background: #d5dce0;
           border-radius: 4px;
           position: relative;
           overflow: hidden;
-          min-width: 50px;
-        }
-
-        @media (max-width: 768px) {
-          .attribute-bar-container {
-            min-width: 60px;
-          }
-
-          .attribute-bar {
-            min-width: 30px;
-          }
         }
 
         .attribute-bar-fill {
@@ -249,20 +220,11 @@ const PlayerAttributesPanel = ({ player, compact = false }) => {
           border: 1px dashed #00a676;
         }
 
-        .attribute-value {
-          font-size: 12px;
-          font-weight: 600;
-          color: #172026;
-          min-width: 45px;
-          text-align: right;
-          flex-shrink: 0;
-        }
-
-        @media (max-width: 768px) {
-          .attribute-value {
-            min-width: 35px;
-            font-size: 11px;
-          }
+        .attribute-grid-footer {
+          font-size: 11px;
+          font-weight: 500;
+          color: #8c96a3;
+          text-align: center;
         }
 
         .attributes-compact {
