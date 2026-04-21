@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { PERSONALITY_LABELS } from '../../data/players';
+import { ALL_ATTRIBUTES } from '../../systems/attributesSystem';
 import { getCareerGoalProgress } from '../../systems/playerDevelopmentSystem';
 import { getClubMemorySummary } from '../../systems/clubSystem';
 import { getDossierHistorySummary, getRecentDossierEvents } from '../../systems/coherenceSystem';
@@ -129,6 +130,28 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                 <DetailMetric label="Salaire" value={`${formatMoney(player.weeklySalary)}/s`} />
                 <DetailMetric label="Marque" value={`${player.brandValue ?? 0}/100`} />
               </div>
+              {player.attributes && (
+                <div style={{ ...S.objCard, marginTop: 12 }}>
+                  <div style={S.secTitle}>ATTRIBUTS (17-STAT)</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 8 }}>
+                    {Object.entries(player.attributes).map(([key, attr]) => {
+                      const def = ALL_ATTRIBUTES[key];
+                      if (!def || (def.category === 'goalkeeper' && player.position !== 'GK')) return null;
+                      if (!attr) return null;
+                      const pct = (attr.current / 20) * 100;
+                      return (
+                        <div key={key} style={{ background: '#f7f9fb', borderRadius: 6, padding: '8px', textAlign: 'center', border: '1px solid #e2e8ef' }}>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: '#64727d', marginBottom: 4, textTransform: 'uppercase' }}>{def.short}</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: '#00a676', marginBottom: 4 }}>{attr.current.toFixed(0)}</div>
+                          <div style={{ height: 8, background: '#d5dce0', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
+                            <div style={{ height: '100%', background: 'linear-gradient(90deg, #00a676 0%, #00d488 100%)', width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
           <div style={S.objCard}>
             <div style={S.secTitle}>RÉSUMÉ RAPIDE</div>
             <div style={S.sumRow}><span style={S.sumK}>Statut</span><strong>{dossierStatus.label}{dossierStatus.detail ? ` · ${dossierStatus.detail}` : ''}</strong></div>
