@@ -492,8 +492,8 @@ const buildSnapshotTables = (snapshot = {}) =>
   }, {});
 
 /**
- * Intelligent club role assignment with realistic distribution
- * Takes into account: rating, potential, age, position, club tier, and peer comparison
+ * Realistic club role assignment based on peer comparison within club
+ * Compares player rating to club average and tier expectations
  */
 export const assignIntelligentClubRole = (player, clubPlayers = null) => {
   const rating = player.note_current ?? player.rating ?? 65;
@@ -501,40 +501,65 @@ export const assignIntelligentClubRole = (player, clubPlayers = null) => {
   const clubTier = player.club_tier ?? 1;
   const position = player.main_position ?? 'MIL';
   const age = player.age ?? 25;
+  const clubName = player.club_name ?? player.club;
 
-  // Realistic rating percentiles for each tier
-  const TIER_DISTRIBUTION = {
-    1: { star: 85, titulaire: 75, rotation: 65, indesirable: 0 },   // Elite clubs have strong squads
-    2: { star: 78, titulaire: 68, rotation: 58, indesirable: 0 },   // Mid-upper clubs
-    3: { star: 70, titulaire: 60, rotation: 48, indesirable: 0 },   // Lower mid clubs
-    4: { star: 62, titulaire: 52, rotation: 40, indesirable: 0 },   // Lower division
-  };
-
-  const tier = clubTier ?? 1;
-  const thresholds = TIER_DISTRIBUTION[tier] ?? TIER_DISTRIBUTION[4];
-
-  // Adjusted rating considering potential and position
+  // Calculate adjusted rating with bonuses
   let adjustedRating = rating;
 
   // Young prospects (age < 24) with high potential get development boost
   if (age < 24 && potential > rating + 10) {
-    const promiseBoost = Math.min(8, (potential - rating) / 2);
+    const promiseBoost = Math.min(10, (potential - rating) / 2.5);
     adjustedRating += promiseBoost;
   }
 
-  // Defenders and goalkeepers slightly easier to be starters (different criteria)
+  // Defenders and goalkeepers: slightly different standards
   if (position === 'GK' || position === 'DEF') {
-    adjustedRating += 1.5;
+    adjustedRating += 2;
   }
 
-  // Role assignment based on adjusted rating vs tier thresholds
+  // If we have club players data, use peer comparison
+  if (clubPlayers && Array.isArray(clubPlayers) && clubPlayers.length > 0) {
+    const clubPlayerRatings = clubPlayers
+      .filter(p => (p.club_name ?? p.club) === clubName)
+      .map(p => {
+        let r = p.note_current ?? p.rating ?? 65;
+        if ((p.age ?? 25) < 24 && (p.potential ?? r) > r + 10) {
+          r += Math.min(10, ((p.potential ?? r) - r) / 2.5);
+        }
+        if ((p.main_position ?? 'MIL') === 'GK' || (p.main_position ?? 'MIL') === 'DEF') {
+          r += 2;
+        }
+        return r;
+      });
+
+    if (clubPlayerRatings.length > 0) {
+      clubPlayerRatings.sort((a, b) => b - a);
+      const percentile = clubPlayerRatings.length > 1
+        ? clubPlayerRatings.indexOf(adjustedRating) / (clubPlayerRatings.length - 1)
+        : 0;
+
+      // Realistic distribution within club
+      if (percentile < 0.15) return 'Star';
+      if (percentile < 0.35) return 'Titulaire';
+      if (percentile < 0.85) return 'Rotation';
+      return 'Indésirable';
+    }
+  }
+
+  // Fallback to tier-based thresholds if no club data
+  const TIER_THRESHOLDS = {
+    1: { star: 85, titulaire: 75, rotation: 65 },
+    2: { star: 78, titulaire: 68, rotation: 58 },
+    3: { star: 70, titulaire: 60, rotation: 48 },
+    4: { star: 62, titulaire: 52, rotation: 40 },
+  };
+
+  const tier = clubTier ?? 1;
+  const thresholds = TIER_THRESHOLDS[tier] ?? TIER_THRESHOLDS[4];
+
   if (adjustedRating >= thresholds.star) return 'Star';
   if (adjustedRating >= thresholds.titulaire) return 'Titulaire';
   if (adjustedRating >= thresholds.rotation) return 'Rotation';
-
-  // Minimum threshold: players below rotation get Rotation (not Indésirable)
-  // Only truly poor players get Indésirable
-  if (adjustedRating >= thresholds.rotation - 10) return 'Rotation';
   return 'Indésirable';
 };
 
