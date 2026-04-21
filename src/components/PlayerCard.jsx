@@ -138,9 +138,6 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
           <div style={S.pMeta}>
             {player.age}a · {player.roleShort ?? player.position} {player.roleLabel ?? player.position} · {player.countryFlag} {player.countryLabel}
           </div>
-          <div style={{ ...S.pMeta2, color: '#172026', fontWeight: 800 }}>
-            {playerProfile.label} · {playerProfile.style}
-          </div>
           <div style={{ ...S.pMeta, display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: clubDot, display: 'inline-block', flexShrink: 0 }} />
             {player.clubCountry} {player.club}

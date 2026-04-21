@@ -75,7 +75,7 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
     .filter((row) => row.player_id === playerWithRole.id)
     .sort((a, b) => (b.transfer_date ?? 0) - (a.transfer_date ?? 0))
     .slice(0, 4);
-  const isPlayerRecruited = playerWithRole.agentContract != null;
+  const isPlayerRecruited = playerWithRole.agencySignedWeek != null;
   const actionGridStyle = {
     ...S.msgActions,
     gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
