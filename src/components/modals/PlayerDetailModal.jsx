@@ -128,19 +128,15 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                 <DetailMetric label="Marque" value={`${player.brandValue ?? 0}/100`} />
               </div>
           <div style={S.objCard}>
-            <div style={S.secTitle}>RÉSUMÉ RAPIDE</div>
-            <div style={S.sumRow}><span style={S.sumK}>Statut</span><strong>{dossierStatus.label}{dossierStatus.detail ? ` · ${dossierStatus.detail}` : ''}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Contrat</span><strong>{(player.contractWeeksLeft ?? 0) > 0 ? `${player.contractWeeksLeft} sem. restantes` : 'Expiré'}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Saison</span><strong>{seasonStats.appearances ?? 0} matchs · {seasonStats.goals ?? 0} buts · {seasonStats.assists ?? 0} passes</strong></div>
-            {player.birthDateLabel && <div style={S.sumRow}><span style={S.sumK}>Naissance</span><strong>{player.birthDateLabel} · {player.birthPlace ?? player.clubCity ?? '-'}</strong></div>}
-            <div style={S.sumRow}><span style={S.sumK}>Coupe du monde</span><strong>{worldCupSelection ? `${worldCupCountry?.flag ?? worldCupSelection.countryFlag ?? player.countryFlag ?? ''} ${worldCupCountry?.name ?? player.countryLabel ?? 'Sélection'} · ${worldCupSelection.selectionNote ?? 'sélectionné'}` : 'Hors tournoi'}</strong></div>
+            <div style={S.secTitle}>RÉSUMÉ</div>
+            <div style={S.sumRow}><span style={S.sumK}>Statut</span><strong>{dossierStatus.label}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Contrat</span><strong>{(player.contractWeeksLeft ?? 0) > 0 ? `${player.contractWeeksLeft} sem.` : 'Expiré'}</strong></div>
           </div>
-          <div style={S.kpiGrid}>
-            <DetailMetric label="Note" value={player.rating} />
-            <DetailMetric label="Valeur" value={formatMoney(player.value)} />
-            <DetailMetric label="Salaire" value={`${formatMoney(player.weeklySalary)}/s`} />
-            <DetailMetric label="Marque" value={`${player.brandValue ?? 0}/100`} />
-          </div>
+            </>
+          )}
+
+          {tab === 'relations' && (
+            <>
             <div style={S.objCard}>
             <div style={S.secTitle}>RELATION</div>
             <Meter label="Moral" value={player.moral} />
@@ -153,7 +149,17 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             <div style={S.sumRow}><span style={S.sumK}>Tension</span><strong style={{ color: tensionColor }}>{clubTension >= 65 ? 'forte' : clubTension >= 35 ? 'modérée' : 'calme'}</strong></div>
             <div style={S.progBar}><div style={{ ...S.progFill, width: `${Math.min(100, clubTension)}%`, background: tensionColor }} /></div>
           </div>
-          {player.attributes && <PlayerAttributesPanel player={player} />}
+            </>
+          )}
+
+          {tab === 'attributes' && (
+            <>
+              {player.attributes && <PlayerAttributesPanel player={player} />}
+            </>
+          )}
+
+          {tab === 'dossier' && (
+            <>
           <div style={S.objCard}>
             <div style={S.secTitle}>PROFIL HUMAIN</div>
             <div style={S.sumRow}><span style={S.sumK}>Ambition cachée</span><strong>{player.hiddenAmbition ?? 50}/100</strong></div>
