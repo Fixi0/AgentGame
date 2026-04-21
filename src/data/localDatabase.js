@@ -491,21 +491,38 @@ const buildSnapshotTables = (snapshot = {}) =>
     return tables;
   }, {});
 
-const getClubRoleForPlayer = (rating, clubTier) => {
+const assignIntelligentClubRole = (player) => {
+  const rating = player.note_current ?? player.rating ?? 65;
+  const potential = player.potential ?? rating;
+  const clubTier = player.club_tier ?? 1;
+  const position = player.main_position ?? 'MIL';
+  const age = player.age ?? 25;
+
+  // Thresholds by tier
   const TIER_RATING = {
-    1: { starterMin: 79, benchMin: 71 },
-    2: { starterMin: 72, benchMin: 65 },
-    3: { starterMin: 64, benchMin: 58 },
-    4: { starterMin: 55, benchMin: 50 },
+    1: { star: 89, starter: 79, rotation: 71, bench: 60 },
+    2: { star: 82, starter: 72, rotation: 65, bench: 55 },
+    3: { star: 75, starter: 64, rotation: 58, bench: 48 },
+    4: { star: 68, starter: 55, rotation: 50, bench: 40 },
   };
+
   const tier = clubTier ?? 1;
-  const tierRating = TIER_RATING[tier] ?? TIER_RATING[4];
-  const starThreshold = tierRating.starterMin + 10;
-  const starterThreshold = tierRating.starterMin;
-  const rotationThreshold = tierRating.benchMin;
-  if (rating >= starThreshold) return 'Star';
-  if (rating >= starterThreshold) return 'Titulaire';
-  if (rating >= rotationThreshold) return 'Rotation';
+  const thresholds = TIER_RATING[tier] ?? TIER_RATING[4];
+
+  // Young prospects with high potential get a boost
+  const isPromise = age < 24 && potential > rating + 8;
+  const ratingAdjustment = isPromise ? Math.min(6, potential - rating) : 0;
+  const adjustedRating = rating + ratingAdjustment;
+
+  // GK and defenders need less rating to be starters
+  const isDefensive = position === 'GK' || position === 'DEF';
+  const positionalBonus = isDefensive ? 2 : 0;
+  const finalRating = adjustedRating + positionalBonus;
+
+  // Assign role based on adjusted rating
+  if (finalRating >= thresholds.star) return 'Star';
+  if (finalRating >= thresholds.starter) return 'Titulaire';
+  if (finalRating >= thresholds.rotation) return 'Rotation';
   return 'Indésirable';
 };
 
@@ -519,10 +536,7 @@ const migratePlayersWithClubRole = async () => {
     const migratedPlayers = players.map(player => {
       if (player.club_role) return player;
 
-      const rating = player.note_current ?? player.rating ?? 65;
-      const clubTier = player.club_tier ?? 1;
-      const clubRole = getClubRoleForPlayer(rating, clubTier);
-
+      const clubRole = assignIntelligentClubRole(player);
       return { ...player, club_role: clubRole };
     });
 
@@ -536,13 +550,17 @@ const migratePlayersWithClubRole = async () => {
 
       let count = 0;
       migratedPlayers.forEach(player => {
-        if (!players.find(p => p.id === player.id)?.club_role) {
+        const original = players.find(p => p.id === player.id);
+        if (original && !original.club_role) {
           store.put(player);
           count++;
         }
       });
 
-      tx.oncomplete = () => resolve({ migrated: count, total: players.length });
+      tx.oncomplete = () => {
+        console.log(`✅ Migrated ${count}/${players.length} players with club roles`);
+        resolve({ migrated: count, total: players.length });
+      };
       tx.onerror = () => resolve({ migrated: 0, total: players.length, error: tx.error });
     });
   } catch (error) {
