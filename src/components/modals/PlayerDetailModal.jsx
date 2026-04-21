@@ -160,6 +160,20 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
 
           {tab === 'dossier' && (
             <>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>PROMESSES & DOSSIER</div>
+                {playerPromises.length ? playerPromises.map((promise) => (
+                  <div key={promise.id} style={S.promiseRow}>
+                    <span>{promise.label}</span>
+                    <strong>{promise.failed ? 'Cassée' : promise.resolved ? 'Tenue' : 'En cours'}</strong>
+                  </div>
+                )) : <div style={S.emptySmall}>Aucune promesse active.</div>}
+              </div>
+            </>
+          )}
+
+          {tab === 'statistics' && (
+            <>
           <div style={S.objCard}>
             <div style={S.secTitle}>PROFIL HUMAIN</div>
             <div style={S.sumRow}><span style={S.sumK}>Ambition cachée</span><strong>{player.hiddenAmbition ?? 50}/100</strong></div>
