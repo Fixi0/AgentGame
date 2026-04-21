@@ -1,19 +1,26 @@
 import { Filter, Search } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { MARKET_REFRESH_COST } from '../game/economy';
+import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
 import { formatMoney } from '../utils/format';
 import PlayerCard from './PlayerCard';
 import { S } from './styles';
 
 export default function Market({ state, market, freeAgents = [], money, onSign, onRefresh, onDetails }) {
-  const [filters, setFilters] = useState({ position: 'all', country: 'all', maxCost: 'all', sort: 'rating' });
+  const [filters, setFilters] = useState({ position: 'all', country: 'all', profile: 'all', maxCost: 'all', sort: 'rating' });
   const [favoriteIds, setFavoriteIds] = useState([]);
   const allPlayers = useMemo(() => [...freeAgents, ...market], [freeAgents, market]);
   const countries = useMemo(() => [...new Map(allPlayers.map((player) => [player.countryCode, player])).values()], [allPlayers]);
+  const profileOptions = useMemo(() => {
+    const profiles = allPlayers.map((player) => player.playerProfile ?? getPlayerProfileSummary(player));
+    return [...new Map(profiles.map((profile) => [profile.id, profile])).values()];
+  }, [allPlayers]);
   const filteredMarket = allPlayers
       .filter((player) => {
+        const profile = player.playerProfile ?? getPlayerProfileSummary(player);
         if (filters.position !== 'all' && player.position !== filters.position) return false;
         if (filters.country !== 'all' && player.countryCode !== filters.country) return false;
+        if (filters.profile !== 'all' && profile.id !== filters.profile) return false;
         if (filters.maxCost !== 'all' && player.signingCost > Number(filters.maxCost)) return false;
         return true;
       })
@@ -64,12 +71,18 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
               {countries.map((player) => <option key={player.countryCode} value={player.countryCode}>{player.countryFlag} {player.countryLabel}</option>)}
             </select>
           </label>
+          <label style={S.fieldLabel}>Profil
+            <select value={filters.profile} onChange={(event) => updateFilter('profile', event.target.value)} style={S.textInput}>
+              <option value="all">Tous</option>
+              {profileOptions.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
+            </select>
+          </label>
           <label style={S.fieldLabel}>Budget signature
             <select value={filters.maxCost} onChange={(event) => updateFilter('maxCost', event.target.value)} style={S.textInput}>
               <option value="all">Tous</option>
-              <option value="5000">≤ €5k</option>
-              <option value="15000">≤ €15k</option>
-              <option value="50000">≤ €50k</option>
+              <option value="5000">≤ 5 k €</option>
+              <option value="15000">≤ 15 k €</option>
+              <option value="50000">≤ 50 k €</option>
             </select>
           </label>
           <label style={S.fieldLabel}>Tri

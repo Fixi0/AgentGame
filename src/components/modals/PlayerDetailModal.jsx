@@ -7,6 +7,7 @@ import { getClubMemorySummary } from '../../systems/clubSystem';
 import { getDossierHistorySummary, getRecentDossierEvents } from '../../systems/coherenceSystem';
 import { getPlayerDossierStatus, getRelevantDecisionHistory as getDecisionHistoryByPlayer, messageNeedsResponse } from '../../systems/dossierSystem';
 import { NATIONAL_TEAMS } from '../../systems/worldCupSystem';
+import { getPlayerProfileSummary } from '../../systems/playerProfileSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 import PlayerAttributesPanel from '../PlayerAttributesPanel';
@@ -63,6 +64,7 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
   const worldCupSelection = worldCupState?.selectedPlayers?.find((entry) => entry.playerId === playerWithRole.id) ?? null;
   const worldCupCountry = worldCupSelection ? NATIONAL_TEAMS.find((team) => team.code === worldCupSelection.countryCode) : null;
   const dbPlayerRow = databaseView?.players?.find((row) => row.id === playerWithRole.id) ?? null;
+  const playerProfile = playerWithRole.playerProfile ?? dbPlayerRow?.player_profile ?? getPlayerProfileSummary(playerWithRole);
   const clubSeasonContext = playerWithRole.clubSeasonContext ?? dbPlayerRow?.club_season_context ?? null;
   const playerInjuries = (databaseView?.injuries ?? [])
     .filter((row) => row.player_id === playerWithRole.id)
@@ -136,7 +138,17 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                 <DetailMetric label="Salaire" value={`${formatMoney(player.weeklySalary)}/s`} />
                 <DetailMetric label="Marque" value={`${player.brandValue ?? 0}/100`} />
               </div>
-          <div style={S.objCard}>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>LECTURE JOUEUR</div>
+                <div style={S.sumRow}><span style={S.sumK}>Profil</span><strong>{playerProfile.label}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Style</span><strong>{playerProfile.style}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Besoin</span><strong>{playerProfile.developmentNeed}</strong></div>
+                <div style={S.tagRow}>
+                  {playerProfile.tags.map((tag) => <span key={tag} style={S.softTag}>{tag}</span>)}
+                </div>
+                <div style={S.emptySmall}>{playerProfile.advice}</div>
+              </div>
+              <div style={S.objCard}>
             <div style={S.secTitle}>RÉSUMÉ</div>
             <div style={S.sumRow}><span style={S.sumK}>Statut</span><strong>{dossierStatus.label}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Contrat</span><strong>{(player.contractWeeksLeft ?? 0) > 0 ? `${player.contractWeeksLeft} sem.` : 'Expiré'}</strong></div>
@@ -163,6 +175,19 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
 
           {tab === 'attributes' && (
             <>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>PROFIL ATTRIBUTS</div>
+                <div style={S.kpiGrid}>
+                  <DetailMetric label="Technique" value={`${playerProfile.technical}/100`} />
+                  <DetailMetric label="Mental" value={`${playerProfile.mental}/100`} />
+                  <DetailMetric label="Physique" value={`${playerProfile.physical}/100`} />
+                  <DetailMetric label="Fiabilité" value={`${playerProfile.reliability}/100`} />
+                </div>
+                <div style={S.sumRow}><span style={S.sumK}>Forces</span><strong>{playerProfile.strengths.join(', ')}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>A travailler</span><strong>{playerProfile.weaknesses.join(', ')}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Risque blessure</span><strong>{playerProfile.injuryRisk}/100</strong></div>
+                <div style={S.emptySmall}>{playerProfile.negotiationHook}</div>
+              </div>
               {playerWithRole.attributes && <PlayerAttributesPanel player={playerWithRole} />}
             </>
           )}
@@ -276,6 +301,8 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                 <div style={S.objCard}>
                   <div style={S.secTitle}>RAPPORT SCOUT</div>
                   <div style={S.sumRow}><span style={S.sumK}>Confiance scout</span><strong>{player.scoutReport.confidence}%</strong></div>
+                  <div style={S.sumRow}><span style={S.sumK}>Profil lu</span><strong>{player.scoutReport.profile?.label ?? playerProfile.label}</strong></div>
+                  <div style={S.sumRow}><span style={S.sumK}>Risque</span><strong>{player.scoutReport.risk ?? 'normal'}</strong></div>
                   <div style={S.emptySmall}>{player.scoutReport.note}</div>
                 </div>
               )}
@@ -428,6 +455,8 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             <button onClick={() => onNego('extend')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>PROLONGER</button>
             <button onClick={() => onNego('transfer')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>TRANSFERT</button>
             <button onClick={() => onCallPlayer?.(playerWithRole)} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>APPELER</button>
+            <button onClick={() => onContactClubStaff?.(playerWithRole.id, 'coach')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>COACH</button>
+            <button onClick={() => onContactClubStaff?.(playerWithRole.id, 'ds')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>DS</button>
             <button onClick={() => onMeeting?.(playerWithRole.id, 'career')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>RÉUNION</button>
             <button onClick={() => onMarketAction?.(playerWithRole.id, playerWithRole.club === 'Libre' ? 'free_trial' : 'propose')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>{playerWithRole.club === 'Libre' ? 'ESSAI' : 'PROPOSER'}</button>
             <button onClick={onClose} style={{ ...S.relBtn, padding: '8px 12px', fontSize: 11 }}>FERMER</button>

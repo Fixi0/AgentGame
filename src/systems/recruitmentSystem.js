@@ -2,6 +2,7 @@ import { applyReputationChange, normalizeAgencyReputation } from './reputationSy
 import { addDecisionHistory, applyCredibilityChange, applyPlayerSegmentReputation, getPlayerSegment } from './agencyReputationSystem';
 import { applyLeagueReputation } from './leagueReputationSystem';
 import { signPlayer } from '../game/gameLogic';
+import { getPlayerProfileSummary, getProfilePitchModifier } from './playerProfileSystem';
 import { clamp } from '../utils/helpers';
 
 export const RECRUITMENT_PITCHES = [
@@ -118,11 +119,13 @@ const getRecruitmentMemoryPenalty = (player, pitchId, currentWeek = 0) => {
 export const getRecruitmentPreview = (state, player, pitchId) => {
   if (!player) return null;
   const pitch = RECRUITMENT_PITCHES.find((item) => item.id === pitchId) ?? RECRUITMENT_PITCHES[0];
+  const profile = player.playerProfile ?? getPlayerProfileSummary(player);
   const threshold = getThreshold(player, state);
-  const pitchBonus = getPitchBonus(player, pitch.id);
+  const pitchBonus = getPitchBonus(player, pitch.id) + getProfilePitchModifier(profile, pitch.id);
   const agencyBonus = getAgencyBonus(state, player);
   const networkBonus = getRecruitmentNetworkBonus(state, player, pitch.id);
-  const dealBreakerPenalty = (player.recruitmentDealBreakers ?? []).length * 3;
+  const profileRiskPenalty = profile.injuryRisk >= 65 && pitch.id === 'ambition' ? 4 : profile.pressure <= 45 && pitch.id === 'ambition' ? 5 : 0;
+  const dealBreakerPenalty = (player.recruitmentDealBreakers ?? []).length * 3 + profileRiskPenalty;
   const memoryPenalty = getRecruitmentMemoryPenalty(player, pitch.id, state.week ?? 0);
   const fit = clamp(Math.round(32 + pitchBonus + agencyBonus + networkBonus.bonus - dealBreakerPenalty - memoryPenalty), 0, 100);
   const chance = clamp(Math.round(50 + (fit - threshold) * 1.5), 10, 95);
@@ -134,9 +137,14 @@ export const getRecruitmentPreview = (state, player, pitchId) => {
     chance,
     network: networkBonus,
     memoryPenalty,
+    profile,
     reasons: [
+      `Profil: ${profile.label}`,
+      `Besoin: ${profile.developmentNeed}`,
       ...(player.recruitmentPriorities ?? []).slice(0, 3).map((item) => `Priorité: ${item}`),
       ...(player.recruitmentDealBreakers ?? []).slice(0, 3).map((item) => `Point sensible: ${item}`),
+      ...(profile.pressure <= 45 ? ['Point sensible: pression'] : []),
+      ...(profile.injuryRisk >= 65 ? ['Point sensible: physique'] : []),
       ...(networkBonus.contact ? [`Intermédiaire: ${networkBonus.contact.name}`] : []),
       ...(memoryPenalty > 0 ? [`Ancien refus: -${memoryPenalty}`] : []),
     ],
@@ -169,7 +177,8 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
   const threshold = preview.threshold;
   const fit = preview.fit;
   const successChance = clamp(0.28 + (fit - threshold) / 120, 0.15, 0.92);
-  const accepted = fit >= threshold && Math.random() < successChance;
+  const guaranteedStarterTarget = player.id === 'sig_gabriel_fixio' && fit >= threshold;
+  const accepted = fit >= threshold && (guaranteedStarterTarget || Math.random() < successChance);
 
   if (!accepted) {
     const failedMemory = tagRecruitmentMemory(player, {

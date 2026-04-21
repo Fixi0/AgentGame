@@ -366,6 +366,11 @@ const RESPONSE_OPTIONS_BY_TYPE = {
     empathique: 'Reconnaître l\'erreur',
     ferme: 'Regarder vers l\'avenir',
   },
+  competitor_agent: {
+    professionnel: 'Rassurer le joueur',
+    empathique: 'Appeler directement',
+    ferme: 'Couper l’approche',
+  },
 };
 
 const buildStoredResponseOptions = (message) =>
@@ -383,7 +388,10 @@ export const normalizeMessageRecord = (message) => {
   const senderRole = inferSenderRole(message);
   const normalized = { ...message, senderRole };
   if (typeof normalized.responseText === 'string') {
-    normalized.responseText = normalized.responseText.replace(/\n\n\[[^\]]*\]\s*$/, '').trimEnd();
+    normalized.responseText = normalized.responseText
+      .replace(/\n\n\[[^\]]*\]\s*$/, '')
+      .replace(/\nOn garde le fil:.*$/s, '')
+      .trimEnd();
   }
   if (!Array.isArray(normalized.responseOptions) || !normalized.responseOptions.length) {
     normalized.responseOptions = buildStoredResponseOptions(normalized);
@@ -536,6 +544,9 @@ export const getMessageResponseAction = (message, responseType) => {
   if (message.type === 'ds_dialogue' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel DS programmé' };
   if (message.type === 'ds_dialogue' && responseType === 'ferme') return { type: 'club_check', label: 'Direction mise sous cadre' };
   if (message.type === 'complaint' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel de crise programmé' };
+  if (message.type === 'competitor_agent' && responseType === 'professionnel') return { type: 'deal_followup', label: 'Joueur rassuré face à l’agent rival' };
+  if (message.type === 'competitor_agent' && responseType === 'empathique') return { type: 'voice_call', label: 'Appel fidélisation joueur' };
+  if (message.type === 'competitor_agent' && responseType === 'ferme') return { type: 'focus_reset', label: 'Approche concurrente recadrée' };
   if (message.type === 'media_pressure' && responseType === 'professionnel') return { type: 'press_release', label: 'Communiqué média préparé' };
   if (message.type === 'secret_offer' && responseType === 'professionnel') return { type: 'club_check', label: 'Vérification club lancée' };
   return null;
@@ -553,16 +564,17 @@ export const getResponseCopy = (message, responseType, player = null) => {
   const trust = player?.trust ?? 50;
   const lastContactWeeks = player?.lastInteractionWeek ? Math.max(0, (message?.week ?? 0) - player.lastInteractionWeek) : null;
   const situationHint = () => {
-    if (clubRole === 'Star') return 'statut important';
-    if (clubRole === 'Titulaire') return 'temps de jeu solide';
-    if (clubRole === 'Rotation') return 'statut à sécuriser';
+    if (clubRole === 'Star') return 'situation de joueur majeur';
+    if (clubRole === 'Titulaire') return 'situation de titulaire';
+    if (clubRole === 'Rotation') return 'place dans la rotation';
+    if (clubRole === 'Projet jeune') return 'trajectoire de jeune à installer';
     if (clubRole === 'Indésirable') return 'situation tendue';
     return 'situation actuelle';
   };
 
   if (participant.role === 'staff') {
     if (participant.audience === 'coach') {
-      if (responseType === 'professionnel') return `Je te réponds clairement.\n\nJe veux un cadre précis sur le temps de jeu, le rôle et les semaines à venir. Avec son ${situationHint()}, le joueur a besoin de savoir si le plan du coach tient vraiment.\n\nOn garde un échange propre et direct.`;
+      if (responseType === 'professionnel') return `Je te réponds clairement.\n\nJe veux un cadre précis sur le temps de jeu, le rôle et les semaines à venir. Avec sa ${situationHint()}, le joueur a besoin de savoir si le plan du coach tient vraiment.\n\nOn garde un échange propre et direct.`;
       if (responseType === 'empathique') return `Je comprends qu'il faut du dialogue.\n\nJe vais calmer le dossier avec le joueur et éviter qu'il le vive comme un blocage personnel. Avec un ${clubRole.toLowerCase()}, la confiance se joue vite sur les minutes.\n\nOn se parle vite, sans surjouer la tension.`;
       return "Je vais être franc: si le rôle promis ne colle pas à la réalité, je protège mon joueur.\n\nJe ne cherche pas le conflit, je cherche de la cohérence. Donne-moi des minutes ou donne-moi une sortie claire.\n\nLe message est passé.";
     }
@@ -837,7 +849,7 @@ export const getMessageContextOutcome = ({ message, responseType, player }) => {
     return outcome;
   }
 
-  if (context === 'competitor_agent') {
+  if (context === 'competitor_agent' || message?.type === 'competitor_agent') {
     outcome.actionOverride = responseType === 'ferme'
       ? { type: 'focus_reset', label: 'Cadre anti-agent concurrent posé' }
       : { type: 'deal_followup', label: 'Fidélisation joueur relancée' };

@@ -332,6 +332,9 @@ export default function WeekTickerModal({ report, activePeriod, onDone }) {
   };
 
   const progress = timeline.length > 0 ? Math.round((revealed / timeline.length) * 100) : 0;
+  const weekLabel = report?.phase?.season && report?.phase?.seasonWeek
+    ? `S${report.phase.season} · S${report.phase.seasonWeek}/38`
+    : `Semaine ${report?.week ?? '—'}`;
 
   return (
     <div style={{
@@ -358,7 +361,7 @@ export default function WeekTickerModal({ report, activePeriod, onDone }) {
           <div>
             <div style={{ fontSize: 10, letterSpacing: '.18em', color: '#00a676', fontFamily: 'system-ui,sans-serif', fontWeight: 850, textTransform: 'uppercase' }}>
               <Zap size={10} style={{ display: 'inline', marginRight: 4 }} />
-              Semaine {report?.week ?? '—'}
+              {weekLabel}
             </div>
             <div style={{ fontSize: 17, fontWeight: 900, color: '#172026', marginTop: 2 }}>
               Fil jour par jour

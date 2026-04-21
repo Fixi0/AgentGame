@@ -28,7 +28,7 @@ import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/co
 import { awardGems } from '../systems/shopSystem';
 import { generateSeasonObjectives, updateObjectiveProgress, checkObjectiveCompletion } from '../systems/objectivesSystem';
 import { createDefaultContacts } from '../systems/contactsSystem';
-import { getActiveDossierPlayerIds, getMarketLockedPlayerIds, getMessagePriority } from '../systems/dossierSystem';
+import { getActiveDossierPlayerIds, getMarketLockedPlayerIds, getMessagePriority, messageNeedsResponse } from '../systems/dossierSystem';
 import { applyLockerRoomDynamics, buildLockerRoomSnapshot } from '../systems/lockerRoomSystem';
 import { createPublicRep, tickPublicRep, getPublicRepOfferBonus } from '../systems/publicReputationSystem';
 import { createDefaultDossierMemory, recordDossierEvent } from '../systems/coherenceSystem';
@@ -45,6 +45,8 @@ import {
   getPlayerSegment,
 } from '../systems/agencyReputationSystem';
 import { generateLivingWeek } from '../systems/livingEventSystem';
+import { calculateRatingFromAttributes, developAttributes } from '../systems/attributesSystem';
+import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
 import {
   applyCompletedTransferToPlayer as applyCompletedTransferToPlayerFromEngine,
   buildTransferAgreement as buildTransferAgreementFromEngine,
@@ -60,7 +62,8 @@ import { formatMoney } from '../utils/format';
 import { normalizePromises } from '../systems/promiseSystem';
 
 export const STORAGE_KEY = 'agent_fc_v4';
-export const MARKET_DATA_VERSION = '2026-04-21-db-market-v2';
+export const MARKET_DATA_VERSION = '2026-04-21-fixio-project-v1';
+const MAX_OPEN_RESPONSE_MESSAGES_PER_PLAYER = 4;
 
 const createClubSeasonHistory = (season = 1) =>
   CLUBS.reduce((history, club) => ({
@@ -92,6 +95,104 @@ const normalizeClubSeasonHistory = (history = {}, season = 1) => {
     };
     return acc;
   }, {});
+};
+
+const compactOpenResponseMessages = (messages = []) => {
+  const openByPlayer = new Map();
+  return messages.filter((message) => {
+    if (!messageNeedsResponse(message)) return true;
+    const playerKey = message.playerId ?? message.threadKey ?? 'global';
+    const count = openByPlayer.get(playerKey) ?? 0;
+    if (count >= MAX_OPEN_RESPONSE_MESSAGES_PER_PLAYER) return false;
+    openByPlayer.set(playerKey, count + 1);
+    return true;
+  });
+};
+
+const limitQueuedResponseMessages = (messages = [], existingMessages = []) => {
+  const openByPlayer = new Map();
+  existingMessages.forEach((message) => {
+    if (!messageNeedsResponse(message)) return;
+    const playerKey = message.playerId ?? message.threadKey ?? 'global';
+    openByPlayer.set(playerKey, (openByPlayer.get(playerKey) ?? 0) + 1);
+  });
+
+  const seenOpenContexts = new Set(
+    existingMessages
+      .filter((message) => messageNeedsResponse(message))
+      .map((message) => `${message.playerId ?? message.threadKey ?? 'global'}:${message.type ?? 'message'}:${message.context ?? message.subject ?? ''}`),
+  );
+
+  return messages.filter((message) => {
+    if (!messageNeedsResponse(message)) return true;
+    const playerKey = message.playerId ?? message.threadKey ?? 'global';
+    const contextKey = `${playerKey}:${message.type ?? 'message'}:${message.context ?? message.subject ?? ''}`;
+    if (seenOpenContexts.has(contextKey)) return false;
+    const count = openByPlayer.get(playerKey) ?? 0;
+    if (count >= MAX_OPEN_RESPONSE_MESSAGES_PER_PLAYER) return false;
+    openByPlayer.set(playerKey, count + 1);
+    seenOpenContexts.add(contextKey);
+    return true;
+  });
+};
+
+const getWeeksSinceAgencySignature = (player = {}, week = 1) => {
+  const signedWeek = player.agencySignedWeek ?? player.relationshipStartedWeek ?? player.agentContract?.signedWeek ?? week;
+  return Math.max(0, week - signedWeek);
+};
+
+const isMessageCoherentForPlayer = (message, player, state = {}) => {
+  if (!message || !player) return true;
+  const week = message.week ?? state.week ?? 1;
+  const context = String(message.context ?? '');
+  const weeksInAgency = getWeeksSinceAgencySignature(player, week);
+  const weeksSinceContact = player.lastInteractionWeek != null ? Math.max(0, week - player.lastInteractionWeek) : 0;
+  const stats = player.seasonStats ?? {};
+  const recentRatings = (player.matchHistory ?? [])
+    .map((match) => match.matchRating)
+    .filter(Number.isFinite)
+    .slice(0, 4);
+  const recentAverage = recentRatings.length
+    ? recentRatings.reduce((sum, rating) => sum + rating, 0) / recentRatings.length
+    : null;
+  const roleState = getRoleExpectationState(player);
+
+  if (message.type === 'welcome') return context === 'signing' || weeksInAgency <= 2;
+  if (message.type === 'complaint' && context === 'neglect') {
+    return weeksInAgency >= 8 && weeksSinceContact >= 6 && (player.trust ?? 50) < 70 && (player.moral ?? 50) < 70;
+  }
+  if (message.type === 'role_frustration') {
+    return roleState.roleMismatch || context.includes('coach') || context.includes('club_role') || context.includes('promise');
+  }
+  if (message.type === 'injury_worry') return (player.injured ?? 0) > 0 || context.includes('injury');
+  if (message.type === 'form_slump') return (player.form ?? 60) < 55 || (recentAverage != null && recentAverage < 6);
+  if (message.type === 'raise_request') return (player.rating ?? 0) >= 75 && ((stats.goals ?? 0) + (stats.assists ?? 0) >= 6 || (stats.averageRating ?? 0) >= 7.1);
+  if (message.type === 'transfer_request') {
+    if (['deal_signed', 'deal_signed_player', 'predeal_signed', 'predeal_signed_player', 'predeal_activation', 'staff_promise_failed'].includes(context)) return true;
+    if (weeksInAgency < 8) return false;
+    return (player.moral ?? 50) < 62
+      || (player.hiddenAmbition ?? 0) > 62
+      || ['ambitieux', 'mercenaire'].includes(player.personality)
+      || context.includes('transfer')
+      || context.includes('mercato')
+      || context.includes('rumor');
+  }
+  if (message.type === 'ambition_clash') return weeksInAgency >= 8 && ((player.moral ?? 50) < 60 || ['ambitieux', 'mercenaire'].includes(player.personality));
+  if (message.type === 'national_pride') return context.includes('world_cup') || context.includes('selection') || context.includes('callup') || player.seasonStatus === 'international';
+  if (message.type === 'thanks') {
+    if (context.includes('injury_comeback')) return false;
+    return (player.moral ?? 50) >= 45 || (stats.averageRating ?? 0) >= 7 || context.includes('signing') || context.includes('selection');
+  }
+  if (message.type === 'competitor_agent') return weeksInAgency >= 4 && (player.trust ?? 50) < 75;
+  return true;
+};
+
+const filterCoherentMessages = (messages = [], roster = [], state = {}) => {
+  const playerById = new Map(roster.map((player) => [player.id, player]));
+  return messages.filter((message) => {
+    if (!message?.playerId) return true;
+    return isMessageCoherentForPlayer(message, playerById.get(message.playerId), state);
+  });
 };
 
 const sortLeagueTableRows = (table = {}) =>
@@ -162,8 +263,12 @@ const buildClubSeasonContext = (player = {}, leagueTables = {}, leagueSeasonData
 
 const attachClubSeasonContext = (player = {}, leagueTables = {}, leagueSeasonData = {}) => {
   const clubSeasonContext = buildClubSeasonContext(player, leagueTables, leagueSeasonData);
-  return {
+  const profiledPlayer = {
     ...player,
+    playerProfile: getPlayerProfileSummary(player),
+  };
+  return {
+    ...profiledPlayer,
     clubSeasonContext,
     clubLeaguePosition: clubSeasonContext?.position ?? null,
     clubLeagueForm: clubSeasonContext?.form ?? [],
@@ -1839,9 +1944,15 @@ export const playWeek = (state) => {
     const developmentAgeCap = isLateBloomer ? 33 : updatedPlayer.developmentCurve === 'superstar_gem' ? 28 : 24;
     const developmentGain = updatedPlayer.developmentCurve === 'superstar_gem' ? 3 : 1;
     if (updatedPlayer.age < developmentAgeCap && Math.random() < developmentChance && updatedPlayer.rating < updatedPlayer.potential) {
+      const nextAttributes = updatedPlayer.attributes
+        ? developAttributes(updatedPlayer.attributes, updatedPlayer, developmentCurveBoost + dataAnalystLevel * 0.02 + (specialization.youthProgress ?? 0))
+        : updatedPlayer.attributes;
+      const attributeRating = nextAttributes ? calculateRatingFromAttributes(nextAttributes) : updatedPlayer.rating + developmentGain;
+      const nextRating = Math.min(updatedPlayer.potential, Math.max(updatedPlayer.rating + developmentGain, attributeRating));
       updatedPlayer = {
         ...updatedPlayer,
-        rating: Math.min(updatedPlayer.potential, updatedPlayer.rating + developmentGain),
+        attributes: nextAttributes,
+        rating: nextRating,
         value: Math.floor(updatedPlayer.value * 1.035),
         timeline: [{ week: state.week, type: 'progression', label: 'Progression validée par le temps de jeu' }, ...(updatedPlayer.timeline ?? [])].slice(0, 18),
       };
@@ -2855,7 +2966,9 @@ export const playWeek = (state) => {
     });
   });
 
-  const queuedMessages = [...(state.messageQueue ?? []), ...generatedMessages].map((message) => normalizeMessageRecord({
+  const coherentGeneratedMessages = filterCoherentMessages(generatedMessages, finalRoster, { ...state, week: state.week + 1 });
+  const existingInboxMessages = compactOpenResponseMessages((state.messages ?? []).filter(keepsDepartedClean));
+  const queuedMessages = limitQueuedResponseMessages([...(state.messageQueue ?? []), ...coherentGeneratedMessages], existingInboxMessages).map((message) => normalizeMessageRecord({
     ...message,
     priority: message.priority ?? getMessagePriority(message),
     queuedWeek: message.queuedWeek ?? state.week + 1,
@@ -2947,7 +3060,7 @@ export const playWeek = (state) => {
       ...generatedNews,
       ...state.news,
     ].slice(0, 60),
-    messages: [...deliveredMessages, ...(state.messages ?? [])].filter(keepsDepartedClean).slice(0, 40),
+    messages: compactOpenResponseMessages([...deliveredMessages, ...existingInboxMessages]).filter(keepsDepartedClean).slice(0, 40),
     promises: normalizePromises(promiseEvaluation.promises.filter(keepsDepartedClean)).slice(0, 30),
     messageQueue: remainingMessageQueue,
     clubOffers: [...newClubOffers, ...expiredOffers].filter(keepsDepartedClean).slice(0, 30),
@@ -3245,7 +3358,7 @@ export const finishNegotiation = (state, type, player, outcome) => {
       coachRoleProtection: Boolean(contractClausesBase.coachRoleProtection),
       rolePromise: contractClausesBase.rolePromise ?? clubRole,
     };
-    const bonus = Math.floor(signingBonus * 0.08 + (clubBonuses.total ?? 0) * 0.02 + player.value * 0.01);
+    const bonus = Math.floor(signingBonus * 0.035 + (clubBonuses.total ?? 0) * 0.01 + player.value * 0.001);
     const contractWeeks = clamp(outcome.contractWeeks ?? 104, 52, 260);
     nextState = {
       ...nextState,

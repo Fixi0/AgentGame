@@ -1,4 +1,5 @@
 import { pick, rand } from '../utils/helpers';
+import { getPlayerProfileSummary } from './playerProfileSystem';
 
 const CAREER_GOALS = [
   { id: 'starter', label: 'Devenir titulaire indiscutable', metric: 'appearances', target: 24, rewardTrust: 6 },
@@ -19,11 +20,16 @@ export const createCareerGoal = (player) => {
 
 export const createScoutReport = (player, scoutLevel = 0) => {
   const uncertainty = Math.max(2, 12 - scoutLevel * 2);
+  const profile = getPlayerProfileSummary(player);
   return {
     potentialMin: Math.max(player.rating, player.potential - rand(2, uncertainty)),
     potentialMax: Math.min(99, player.potential + rand(1, uncertainty)),
     confidence: Math.min(95, 45 + scoutLevel * 14 + (player.age < 21 ? 8 : 0)),
-    note: player.age < 21 ? 'Marge de progression élevée, variance importante.' : 'Profil plus lisible, progression plus stable.',
+    profile,
+    strengths: profile.strengths,
+    weaknesses: profile.weaknesses,
+    risk: profile.injuryRisk >= 65 ? 'physique' : profile.pressure <= 45 ? 'pression' : 'normal',
+    note: `${profile.label} · forces: ${profile.strengths.join(', ')}. A surveiller: ${profile.weaknesses.join(', ')}. ${profile.advice}`,
   };
 };
 

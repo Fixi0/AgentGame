@@ -8,7 +8,7 @@ const SAVE_ID = 'active_save';
 const CATALOG_ID = 'catalog_v2';
 // Bumper cette valeur à chaque modification de la base de données de joueurs
 // pour forcer un re-seed automatique sans perdre la sauvegarde en cours.
-const CATALOG_DATA_VERSION = '2026-04-21-market-v2';
+const CATALOG_DATA_VERSION = '2026-04-21-fixio-project-v1';
 
 const STATIC_TABLES = [
   'countries',

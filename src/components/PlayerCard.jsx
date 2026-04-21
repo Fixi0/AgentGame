@@ -4,6 +4,7 @@ import { PERSONALITY_LABELS } from '../data/players';
 import { EURO_CUP_LABELS, getEuropeanCompetition } from '../systems/europeanCupSystem';
 import { getPlayerDossierStatus } from '../systems/dossierSystem';
 import { getDossierHistorySummary, getRecentDossierEvents } from '../systems/coherenceSystem';
+import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
 
@@ -70,6 +71,7 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
   const currentSeason = Math.floor(((state?.week ?? 1) - 1) / 38) + 1;
   const ratingColor = player.rating >= 85 ? '#00a676' : player.rating >= 75 ? '#2f80ed' : '#9aa7b2';
   const canSign = mode === 'sign' ? money >= player.signingCost : true;
+  const signHelp = canSign ? formatMoney(player.signingCost) : `Manque ${formatMoney(Math.max(0, (player.signingCost ?? 0) - (money ?? 0)))}`;
   const isFreeInRoster = mode === 'roster' && (player.freeAgent || player.club === 'Libre');
   const dossierStatus = getPlayerDossierStatus(player, state);
   const dossierSummary = getDossierHistorySummary(state?.dossierMemory ?? {}, player.id);
@@ -87,6 +89,7 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
   const notoriety = getNotoriety(player.rating);
   const clubDot = hashClubColor(player.club);
   const currentCompetition = getEuropeanCompetition(player, currentSeason);
+  const playerProfile = player.playerProfile ?? getPlayerProfileSummary(player);
 
   // Rating trend
   let trendArrow = null;
@@ -146,6 +149,9 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
           <div style={S.pMeta}>
             {player.age}a · {player.roleShort ?? player.position} {player.roleLabel ?? player.position} · {player.countryFlag} {player.countryLabel}
           </div>
+          <div style={{ ...S.pMeta2, color: '#172026', fontWeight: 800 }}>
+            {playerProfile.label} · {playerProfile.style}
+          </div>
           <div style={{ ...S.pMeta, display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: clubDot, display: 'inline-block', flexShrink: 0 }} />
             {player.clubCountry} {player.club}
@@ -193,7 +199,7 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
             </div>
           )}
           <div style={S.pMeta2}>
-            <span>{player.scoutReport ? `Lecture scout ${player.scoutReport.confidence}%` : 'Projection cachée'}</span>
+            <span>{player.scoutReport ? `Lecture scout ${player.scoutReport.confidence}% · ${player.scoutReport.risk ?? 'normal'}` : `Besoin: ${playerProfile.developmentNeed}`}</span>
           </div>
           <div style={S.pMeta2}>
             <span>{dossierSummary}</span>
@@ -225,10 +231,13 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
           style={{ ...S.signBtn, opacity: canSign ? 1 : 0.4, cursor: canSign ? 'pointer' : 'not-allowed' }}
         >
           <span>RECRUTER</span>
-          <span>{formatMoney(player.signingCost)}</span>
+          <span>{signHelp}</span>
         </button>
       ) : (
         <div style={S.rActions}>
+          <button onClick={onDetails} style={S.actBtn}>
+            DOSSIER
+          </button>
           <button onClick={() => onNego('extend')} style={S.actBtn}>
             <Handshake size={11} /> PROLONG.
           </button>

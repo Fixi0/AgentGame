@@ -202,6 +202,9 @@ export const buildWeeklyTimeline = ({
   reputationChange,
 }) => {
   const currentDate = getCalendarSnapshot(week);
+  const seasonWeekLabel = phase?.season && phase?.seasonWeek
+    ? `S${phase.season} · Semaine ${phase.seasonWeek}/38`
+    : `Semaine ${week}`;
   const topEuroMatch = [...euroMatchResults].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
   const topWorldCupMatch = [...worldCupMatchResults].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
   const worldCupBlock = topWorldCupMatch ? {
@@ -230,7 +233,7 @@ export const buildWeeklyTimeline = ({
       major: false,
       kind: 'calendar',
       title: currentDate.dateLabel,
-      text: `Semaine ${week} · ${phase.phase}. ${activePeriod ? `${activePeriod.emoji} ${activePeriod.label}` : 'Rythme normal'} de l'agence.`,
+      text: `${seasonWeekLabel} · ${phase.phase}. ${activePeriod ? `${activePeriod.emoji} ${activePeriod.label}` : 'Rythme normal'} de l'agence.`,
       chips: [currentDate.weekRangeLabel, `Messages ${deliveredMessagesCount}/${queueSize}`],
     },
     worldCupBlock,

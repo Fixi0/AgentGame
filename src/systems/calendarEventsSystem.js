@@ -19,6 +19,7 @@
 
 import { makeId } from '../utils/helpers';
 import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
+import { normalizeMessageRecord } from './messageSystem';
 
 // ── Définitions des périodes saisonnières ────────────────────────────────────
 
@@ -116,7 +117,7 @@ export const maybeCreateSeasonalMessage = (player, periodKey, week, alreadyHasMe
       && (hasOpenMediaPressure(state, player.id) || getMediaCrisisCooldownWeeks(state, player.id) > 0)) {
     return null;
   }
-  return {
+  return normalizeMessageRecord({
     id: makeId('msg'),
     week,
     sortWeek: week + 0.1,
@@ -132,7 +133,7 @@ export const maybeCreateSeasonalMessage = (player, periodKey, week, alreadyHasMe
     body: narrative.body,
     read: false,
     resolved: narrative.type === 'thanks',
-  };
+  });
 };
 
 // ── Événements passifs saisonniers (petits effets sur news/ambiance) ──────────

@@ -2,6 +2,7 @@ import { CLUBS, COUNTRIES, getCitiesForCountry } from './clubs';
 import { PERSONALITIES, PERSONALITY_LABELS, PERSONALITY_PROFILES } from './players';
 import { INTERACTIVE_EVENTS, PASSIVE_EVENTS } from './events';
 import { createPlayerCatalog } from './squadDatabase';
+import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
 import { STAFF_ROLES, createDefaultStaff } from '../systems/staffSystem';
 import { createDefaultClubMemory, createDefaultClubRelations, getClubProfile } from '../systems/clubSystem';
 import { getAgencyCapacity } from '../systems/agencySystem';
@@ -247,6 +248,7 @@ const buildPlayerRow = (player, agencyId, source, season, week) => {
   const marketStatus = source === 'market' ? 'market' : source === 'freeAgent' ? 'free_agent' : 'roster';
   const careerStatus = player.freeAgent || player.club === 'Libre' ? 'free' : player.injured > 0 ? 'injured' : 'active';
   const fullName = playerName(player);
+  const playerProfile = player.playerProfile ?? getPlayerProfileSummary(player);
   return {
     id: player.id,
     catalog_player_id: player.catalogPlayerId ?? player.id,
@@ -307,6 +309,12 @@ const buildPlayerRow = (player, agencyId, source, season, week) => {
     development_boost: player.developmentBoost ?? null,
     hidden_trait: player.hiddenTrait ?? null,
     trait_revealed: Boolean(player.traitRevealed),
+    player_profile: playerProfile,
+    profile_label: playerProfile.label,
+    profile_style: playerProfile.style,
+    profile_reliability: playerProfile.reliability,
+    profile_pressure: playerProfile.pressure,
+    profile_injury_risk: playerProfile.injuryRisk,
     sensitive_history: (player.timeline ?? []).slice(0, 5),
     match_history: safeArray(player.matchHistory),
     season_stats: player.seasonStats ?? {},
@@ -1250,14 +1258,24 @@ const buildSeasonRows = (state = {}, week = 1) => [{
 }];
 
 const createCatalogPlayerRows = () =>
-  createPlayerCatalog(1).map((player) => ({
-    ...player,
-    catalogSeason: player.catalogSeason ?? 1,
-    catalogBaseAge: player.catalogBaseAge ?? player.age ?? 24,
-    catalogBaseRating: player.catalogBaseRating ?? player.rating ?? 60,
-    catalogBasePotential: player.catalogBasePotential ?? player.potential ?? player.rating ?? 60,
-    databaseSource: player.databaseSource ?? 'seed',
-  }));
+  createPlayerCatalog(1).map((player) => {
+    const playerProfile = player.playerProfile ?? getPlayerProfileSummary(player);
+    return {
+      ...player,
+      playerProfile,
+      player_profile: playerProfile,
+      profile_label: playerProfile.label,
+      profile_style: playerProfile.style,
+      profile_reliability: playerProfile.reliability,
+      profile_pressure: playerProfile.pressure,
+      profile_injury_risk: playerProfile.injuryRisk,
+      catalogSeason: player.catalogSeason ?? 1,
+      catalogBaseAge: player.catalogBaseAge ?? player.age ?? 24,
+      catalogBaseRating: player.catalogBaseRating ?? player.rating ?? 60,
+      catalogBasePotential: player.catalogBasePotential ?? player.potential ?? player.rating ?? 60,
+      databaseSource: player.databaseSource ?? 'seed',
+    };
+  });
 
 export const createGameCatalog = () => {
   const catalogPlayers = createCatalogPlayerRows();

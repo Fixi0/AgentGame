@@ -1,5 +1,4 @@
 import { CLUBS } from '../data/clubs';
-import { ALL_ATTRIBUTES } from './attributesSystem';
 
 const clubKey = (club) => `${club.countryCode}:${club.name}`;
 
@@ -170,6 +169,12 @@ const HIGH_TACKLE_ROLES = new Set([
 const getPositionScoringProfile = (player) =>
   SCORING_PROFILES[player.roleId] ?? { goalChance: 0, assistChance: 0, maxGoals: 0, xgBase: 0 };
 
+const attrValue = (player, key, fallback = 10) =>
+  Number.isFinite(player.attributes?.[key]?.current) ? player.attributes[key].current : fallback;
+
+const attrDelta = (player, key, fallback = 10) =>
+  (attrValue(player, key, fallback) - 10) / 10;
+
 /**
  * Calculate attribute-based bonuses for match performance
  * Uses 17-stat player attributes to enhance match scoring
@@ -180,49 +185,24 @@ const getAttributeQualityBonus = (player) => {
     return Math.max(-0.05, Math.min(0.18, (player.rating - 70) / 160));
   }
 
-  const attributes = player.attributes;
   const position = player.position;
+  const mentalCore =
+    attrDelta(player, 'awareness') * 0.03
+    + attrDelta(player, 'decisionMaking') * 0.035
+    + attrDelta(player, 'consistency') * 0.03;
+  let roleCore = 0;
 
-  // Calculate position-specific attribute quality bonus
-  let totalBonus = 0;
-  let attributeCount = 0;
-
-  // Base attributes that affect all positions
-  const paceBonus = (attributes.pace?.current ?? 10) / 20 * 0.02;
-  const awarenessBonus = (attributes.awareness?.current ?? 10) / 20 * 0.02;
-  const decisionBonus = (attributes.decisionMaking?.current ?? 10) / 20 * 0.02;
-
-  totalBonus += paceBonus + awarenessBonus + decisionBonus;
-  attributeCount += 3;
-
-  // Position-specific attribute bonuses
   if (position === 'GK') {
-    const handlingBonus = (attributes.handling?.current ?? 10) / 20 * 0.035;
-    const distributionBonus = (attributes.distribution?.current ?? 10) / 20 * 0.02;
-    totalBonus += handlingBonus + distributionBonus;
-    attributeCount += 2;
+    roleCore = attrDelta(player, 'handling') * 0.05 + attrDelta(player, 'positioning') * 0.035 + attrDelta(player, 'distribution') * 0.02;
   } else if (position === 'DEF') {
-    const defenseBonus = (attributes.defense?.current ?? 10) / 20 * 0.035;
-    const strengthBonus = (attributes.strength?.current ?? 10) / 20 * 0.02;
-    const positioningBonus = (attributes.positioning?.current ?? 10) / 20 * 0.025;
-    totalBonus += defenseBonus + strengthBonus + positioningBonus;
-    attributeCount += 3;
+    roleCore = attrDelta(player, 'defense') * 0.05 + attrDelta(player, 'positioning') * 0.04 + attrDelta(player, 'strength') * 0.025;
   } else if (position === 'MIL') {
-    const passingBonus = (attributes.passing?.current ?? 10) / 20 * 0.03;
-    const dribblingBonus = (attributes.dribbling?.current ?? 10) / 20 * 0.025;
-    const consistencyBonus = (attributes.consistency?.current ?? 10) / 20 * 0.02;
-    totalBonus += passingBonus + dribblingBonus + consistencyBonus;
-    attributeCount += 3;
+    roleCore = attrDelta(player, 'passing') * 0.045 + attrDelta(player, 'dribbling') * 0.03 + attrDelta(player, 'stamina') * 0.025;
   } else if (position === 'ATT') {
-    const shootingBonus = (attributes.shooting?.current ?? 10) / 20 * 0.035;
-    const dribblingBonus = (attributes.dribbling?.current ?? 10) / 20 * 0.025;
-    const agilityBonus = (attributes.agility?.current ?? 10) / 20 * 0.02;
-    totalBonus += shootingBonus + dribblingBonus + agilityBonus;
-    attributeCount += 3;
+    roleCore = attrDelta(player, 'shooting') * 0.055 + attrDelta(player, 'dribbling') * 0.03 + attrDelta(player, 'positioning') * 0.025;
   }
 
-  const averageBonus = attributeCount > 0 ? totalBonus / attributeCount : 0;
-  return Math.max(-0.08, Math.min(0.20, averageBonus));
+  return Math.max(-0.10, Math.min(0.22, mentalCore + roleCore));
 };
 
 /**
@@ -233,7 +213,7 @@ const getAttributeGoalChance = (player, baseChance) => {
     return baseChance;
   }
 
-  const shootingAttr = player.attributes.shooting.current ?? 10;
+  const shootingAttr = attrValue(player, 'shooting');
   const shootingBonus = (shootingAttr / 20 - 0.5) * baseChance * 0.4; // ±40% boost
   return Math.max(0, baseChance + shootingBonus);
 };
@@ -246,7 +226,7 @@ const getAttributeAssistChance = (player, baseChance) => {
     return baseChance;
   }
 
-  const passingAttr = player.attributes.passing.current ?? 10;
+  const passingAttr = attrValue(player, 'passing');
   const passingBonus = (passingAttr / 20 - 0.5) * baseChance * 0.35; // ±35% boost
   return Math.max(0, baseChance + passingBonus);
 };
@@ -259,8 +239,8 @@ const getAttributeSaveBonus = (player) => {
     return 0;
   }
 
-  const handling = player.attributes.handling?.current ?? 10;
-  const positioning = player.attributes.positioning?.current ?? 10;
+  const handling = attrValue(player, 'handling');
+  const positioning = attrValue(player, 'positioning');
   return ((handling + positioning) / 40 - 0.5) * 2; // -1 to +1 range
 };
 
@@ -276,8 +256,13 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
   const roleBonus = player.clubRole === 'Star' ? 18 : player.clubRole === 'Titulaire' ? 12 : player.clubRole === 'Rotation' ? 4 : player.clubRole === 'Indésirable' ? -18 : 0;
   const contractRoleBonus = (player.contractClauses?.coachRoleProtection ?? false) ? Math.max(0, rolePriority) * 0.35 : 0;
   const formBonus = Math.floor((player.form - 70) / 3);
-  const startChance = Math.max(0.04, Math.min(0.96, 0.42 + levelGap * 0.035 + roleBonus / 100 + formBonus / 100 + contractRoleBonus / 100));
-  const squadChance = Math.max(0.12, Math.min(0.98, 0.72 + levelGap * 0.025 + roleBonus / 120 + contractRoleBonus / 140));
+  const selectionBonus =
+    attrDelta(player, 'positioning') * 0.05
+    + attrDelta(player, 'decisionMaking') * 0.04
+    + attrDelta(player, 'stamina') * 0.03
+    + attrDelta(player, 'consistency') * 0.035;
+  const startChance = Math.max(0.04, Math.min(0.96, 0.42 + levelGap * 0.035 + roleBonus / 100 + formBonus / 100 + contractRoleBonus / 100 + selectionBonus));
+  const squadChance = Math.max(0.12, Math.min(0.98, 0.72 + levelGap * 0.025 + roleBonus / 120 + contractRoleBonus / 140 + selectionBonus / 1.5));
   // Use attribute-based quality bonus if attributes exist, otherwise fall back to rating-based
   const qualityBonus = getAttributeQualityBonus(player);
   if (random() > squadChance) {
@@ -285,9 +270,10 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
   }
 
   const starts = random() < startChance;
+  const staminaMinuteBonus = Math.round(attrDelta(player, 'stamina') * 8);
   const minutes = starts
-    ? Math.min(90, Math.max(player.contractClauses?.coachRoleProtection && promisedRole === 'Star' ? 72 : player.contractClauses?.coachRoleProtection && promisedRole === 'Titulaire' ? 60 : 55, seededInt(random, 62, 90) + formBonus + Math.max(-12, levelGap)))
-    : Math.min(45, Math.max(8, seededInt(random, 8, 32) + formBonus + Math.floor(levelGap / 3)));
+    ? Math.min(90, Math.max(player.contractClauses?.coachRoleProtection && promisedRole === 'Star' ? 72 : player.contractClauses?.coachRoleProtection && promisedRole === 'Titulaire' ? 60 : 55, seededInt(random, 62, 90) + formBonus + Math.max(-12, levelGap) + staminaMinuteBonus))
+    : Math.min(45, Math.max(8, seededInt(random, 8, 32) + formBonus + Math.floor(levelGap / 3) + Math.floor(staminaMinuteBonus / 2)));
   const scoringProfile = getPositionScoringProfile(player);
   const availableGoals = Math.max(0, Math.min(teamGoals, remainingGoals));
   const attributeGoalChance = getAttributeGoalChance(player, scoringProfile.goalChance);
@@ -303,14 +289,14 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
   const goalkeeperSaveBonus = player.position === 'GK' ? 0.15 + Math.max(0, opponentGoals === 0 ? 0.35 : 0) + attributeSaveBonus * 0.1 : 0;
   const saves = player.position === 'GK' ? Math.max(0, seededInt(random, 1, 7) + opponentGoals - (teamResult === 'loss' ? 1 : 0) + Math.floor(Math.max(0, player.rating - 75) / 12)) + Math.max(0, Math.floor(attributeSaveBonus)) : 0;
   // Enhance tackles with defense attribute if available
-  const defenseAttrBonus = player.attributes?.defense ? Math.floor((player.attributes.defense.current ?? 10) / 10 - 1) : 0;
+  const defenseAttrBonus = player.attributes?.defense ? Math.floor(attrValue(player, 'defense') / 10 - 1) : 0;
   const tackles = player.position === 'DEF' ? seededInt(random, 2, 8) + defenseAttrBonus : HIGH_TACKLE_ROLES.has(player.roleId) ? seededInt(random, 2, 6) + Math.floor(defenseAttrBonus / 2) : seededInt(random, 0, 3);
   // Enhance key passes with passing attribute if available
-  const passingAttrBonus = player.attributes?.passing ? Math.floor((player.attributes.passing.current ?? 10) / 10 - 1) : 0;
+  const passingAttrBonus = player.attributes?.passing ? Math.floor(attrValue(player, 'passing') / 10 - 1) : 0;
   const keyPasses = KEY_PASS_ROLES.has(player.roleId) ? seededInt(random, 1, 5) + (player.rating >= 84 ? 1 : 0) + passingAttrBonus : seededInt(random, 0, 2) + Math.floor(passingAttrBonus / 2);
   const xg = Number(Math.max(0, scoringProfile.xgBase + goals * 0.22 + seededInt(random, -8, 16) / 100).toFixed(2));
   const passBonus = ['playmaker', 'libero'].includes(player.roleId) ? 5 : ['attacking_mid', 'central_mid', 'box_to_box'].includes(player.roleId) ? 2 : 0;
-  const passAccuracy = Math.max(58, Math.min(96, seededInt(random, 70, 90) + Math.floor((player.rating - 70) / 3) + passBonus));
+  const passAccuracy = Math.max(58, Math.min(96, seededInt(random, 70, 90) + Math.floor((player.rating - 70) / 3) + passBonus + Math.round(attrDelta(player, 'passing') * 7)));
   const incidents = [];
   if (player.position === 'GK' && opponentGoals === 0) incidents.push('clean_sheet');
   if (player.position === 'GK' && random() < 0.04 + opponentGoals * 0.03 - qualityBonus / 3) incidents.push('distribution_error');
@@ -346,7 +332,7 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
     + (teamResult === 'win' ? 0.35 : teamResult === 'loss' ? -0.4 : 0)
     + (minutes < 35 ? -0.45 : 0)
     + Math.max(-0.35, Math.min(0.55, levelGap * 0.025))
-    + seededInt(random, -6, 7) / 10
+    + seededInt(random, -6, 7) / 10 * Math.max(0.45, 1 - Math.max(0, attrDelta(player, 'consistency')) * 0.25)
     - fatiguePenalty;
 
   const matchRating = Number(Math.min(10, Math.max(4.5, rating)).toFixed(1));

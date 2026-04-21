@@ -216,13 +216,31 @@ const worldTemplates = [
 ];
 
 const MEDIA_PRESSURE_TEMPLATE_IDS = new Set(['media_phone', 'bad_press', 'fake_news', 'salary_leak']);
+const CLUB_CONTEXT_TEMPLATE_IDS = new Set([
+  'supporters_pressure',
+  'coach_warning',
+  'salary_leak',
+  'club_need',
+  'president_call',
+  'teammate_quote',
+  'good_press',
+  'bad_press',
+  'nostalgia',
+  'club_instability',
+  'shirt_sales',
+  'hostile_fans',
+  'training_extra',
+  'medical_warning',
+]);
 
 const getTemplatePool = ({ phase, player, state }) => {
+  const hasClubContext = player.club && player.club !== 'Libre';
   const mediaCooldownActive = hasOpenMediaPressure(state, player.id) || getMediaCrisisCooldownWeeks(state, player.id) > 0;
   const recentMediaPressure = hasRecentDossierEvent(state.dossierMemory, player.id, 'media', 6, state.week);
   const recentCoachTalk = hasRecentDossierEvent(state.dossierMemory, player.id, 'coach', 4, state.week);
   const recentTransferTalk = hasRecentDossierEvent(state.dossierMemory, player.id, 'transfer', 5, state.week);
   return worldTemplates.filter((template) => {
+    if (!hasClubContext && CLUB_CONTEXT_TEMPLATE_IDS.has(template.id)) return false;
     if (mediaCooldownActive && MEDIA_PRESSURE_TEMPLATE_IDS.has(template.id)) return false;
     if (recentMediaPressure && MEDIA_PRESSURE_TEMPLATE_IDS.has(template.id)) return false;
     if (recentCoachTalk && template.id === 'coach_warning') return false;
@@ -297,7 +315,7 @@ export const generateLivingWeek = ({ state, roster, phase }) => {
         id: makeId('msg'),
         week: state.week + 1,
         type: 'competitor_agent',
-        context: 'living_world',
+        context: 'competitor_agent',
         playerId: player.id,
         playerName: `${player.firstName} ${player.lastName}`,
         subject: `${rival.name} tourne autour du dossier`,

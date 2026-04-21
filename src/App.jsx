@@ -168,11 +168,6 @@ const buildResponseContextTail = ({ message, player, responseAction }) => {
   const weeksAtClub = player?.contractStartWeek != null
     ? Math.max(0, (message?.week ?? 0) - player.contractStartWeek)
     : null;
-  const dossierLabel = player?.clubRole
-    ? `statut ${player.clubRole}`
-    : player?.careerStatus
-      ? `statut ${player.careerStatus}`
-      : 'statut en cours';
   const lastAction = responseAction?.label || player?.activeActions?.[0]?.label || player?.timeline?.[0]?.label || null;
   const targetLabel = participant.role === 'staff'
     ? participant.audience === 'coach'
@@ -181,12 +176,13 @@ const buildResponseContextTail = ({ message, player, responseAction }) => {
         ? 'direction'
         : 'staff'
     : 'joueur';
-  const threadContext = message?.context ? `contexte ${String(message.context).replace(/_/g, ' ')}` : 'contexte direct';
   const arrivalLabel = weeksAtClub != null && weeksAtClub < 10
-    ? `arrivée récente (${weeksAtClub} sem.)`
+    ? 'Il vient d’arriver, donc je garde un suivi rapproché.'
     : null;
-  const pieces = [`Réponse alignée avec ${targetLabel}`, threadContext, dossierLabel, arrivalLabel].filter(Boolean);
-  if (lastAction) pieces.push(`dernière action: ${lastAction}`);
+  const followLines = [];
+  if (arrivalLabel) followLines.push(arrivalLabel);
+  if (lastAction) followLines.push(`Prochaine étape: ${lastAction.toLowerCase()}.`);
+  if (participant.role === 'staff') followLines.push(`Je garde ${targetLabel === 'direction' ? 'la direction' : `le ${targetLabel}`} dans la boucle.`);
   const clubContext = player?.clubSeasonContext;
   const clubLine = clubContext
     ? `\n\nJe prends aussi en compte la saison du club: ${player.club} est ${clubContext.position ?? '?'}e/${clubContext.totalClubs ?? '?'} et vise ${clubContext.objective ?? 'une saison stable'}.`
@@ -194,7 +190,7 @@ const buildResponseContextTail = ({ message, player, responseAction }) => {
   const injuryLine = (player?.injured ?? 0) > 0
     ? `\nPour le physique, tu es encore absent ${player.injured} semaine${player.injured > 1 ? 's' : ''}${player.injuryReason ? ` pour ${String(player.injuryReason).toLowerCase()}` : ''}.`
     : '';
-  const actionLine = pieces.length ? `\nOn garde le fil: ${pieces.join(' · ')}.` : '';
+  const actionLine = followLines.length ? `\n${followLines.join(' ')}` : '';
   return `${clubLine}${injuryLine}${actionLine}`;
 };
 
@@ -296,6 +292,7 @@ const playerFromDatabaseRow = (row = {}) => {
     traitRevealed: row.trait_revealed,
     signaturePlayer: row.signature_player,
     hiddenPotential: row.hidden_potential,
+    playerProfile: row.player_profile,
     databaseRowId: row.id,
     databaseSource: row.source ?? row.market_status,
   };
@@ -1418,6 +1415,7 @@ export default function FootballAgentGame() {
         ].slice(0, 40),
       };
     });
+    setModal(null);
     setActiveMessageThreadKey(`${playerId}:staff:${target}`);
     setView('messages');
     showToast(target === 'coach' ? 'Coach contacté' : 'DS contacté', 'success');

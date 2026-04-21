@@ -49,6 +49,16 @@ export default function RecruitmentModal({ state, player, onConfirm, onClose }) 
           <p style={S.mText}>Avant de signer, on construit un vrai dossier de recrutement. On regarde ses objectifs, ses freins et le pitch le plus crédible pour le convaincre.</p>
 
           <div style={S.objCard}>
+            <div style={S.secTitle}>LECTURE JOUEUR</div>
+            <div style={S.sumRow}><span style={S.sumK}>Profil</span><strong>{preview.profile?.label ?? 'Profil incomplet'}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Style</span><strong>{preview.profile?.style ?? 'A confirmer'}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Besoin</span><strong>{preview.profile?.developmentNeed ?? 'Plan simple'}</strong></div>
+            <div style={S.tagRow}>
+              {(preview.profile?.tags ?? []).map((tag) => <span key={tag} style={S.softTag}>{tag}</span>)}
+            </div>
+          </div>
+
+          <div style={S.objCard}>
             <div style={S.secTitle}>OBJECTIFS DU JOUEUR</div>
             <div style={S.tagRow}>
               {(player.recruitmentPriorities ?? []).length ? player.recruitmentPriorities.map((item) => (

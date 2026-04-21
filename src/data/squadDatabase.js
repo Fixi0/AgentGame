@@ -74,7 +74,7 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     potential,
     value,
     weeklySalary,
-    signingCost: Math.max(12000, Math.floor(value * 0.009)),
+    signingCost: 28000,
     club: fixioClub.name,
     clubTier: fixioClub.tier ?? 1,
     clubCountry: (COUNTRIES.find((c) => c.code === fixioClub.countryCode) ?? COUNTRIES[0]).flag,
@@ -120,7 +120,7 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     signaturePlayer: false,
     hiddenPotential: true,
     attributes: generatePlayerAttributes({ rating, potential, position: 'MIL' }, roleObj),
-    clubRole: getClubRole(rating, fixioClub.tier ?? 1, true),
+    clubRole: 'Projet jeune',
   };
 };
 
@@ -733,8 +733,7 @@ export const reconcilePlayerWithCatalog = (player, season = 1) => {
     attributes: player.attributes && Object.keys(player.attributes).length > 0
       ? player.attributes
       : catalogPlayer.attributes,
-    // Add clubRole if missing
-    clubRole: player.clubRole ?? catalogPlayer.clubRole,
+    clubRole: player.id === GABRIEL_FIXIO_ID ? catalogPlayer.clubRole : player.clubRole ?? catalogPlayer.clubRole,
   };
   return merged;
 };

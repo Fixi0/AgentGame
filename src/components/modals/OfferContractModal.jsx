@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowUpRight, CheckCircle2, RefreshCcw, X } from 'lucide-react';
+import { getPlayerProfileSummary } from '../../systems/playerProfileSystem';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
@@ -31,12 +32,16 @@ const getBaseTerms = (offer, player) => ({
 });
 
 const assessClubReaction = (terms, baseTerms, round, player) => {
+  const profile = player.playerProfile ?? getPlayerProfileSummary(player);
   const roleGap = roleRank(terms.role) - roleRank(baseTerms.role);
   const yearsGap = terms.contractYears - baseTerms.contractYears;
   const salaryGap = terms.salMult - baseTerms.salMult;
   const bonusGap = (terms.signingBonus - baseTerms.signingBonus) / Math.max(1, player.weeklySalary ?? 1);
   const clauseGap = Math.max(0, (baseTerms.releaseClause * 0.95) - terms.releaseClause) / Math.max(1, player.value ?? 1);
   const sellOnGap = Math.max(0, terms.sellOnPercent - baseTerms.sellOnPercent) / 10;
+  const fragileStarRole = terms.role === 'Star' && (profile.pressure < 58 || profile.reliability < 58);
+  const riskyStarterRole = ['Star', 'Titulaire'].includes(terms.role) && profile.injuryRisk >= 66;
+  const profilePressure = (fragileStarRole ? 0.18 : 0) + (riskyStarterRole ? 0.10 : 0);
 
   const pressure =
     Math.max(0, roleGap) * 0.28
@@ -45,6 +50,7 @@ const assessClubReaction = (terms, baseTerms, round, player) => {
     + Math.max(0, bonusGap) * 0.16
     + clauseGap * 0.25
     + sellOnGap * 0.12
+    + profilePressure
     - Math.max(0, -yearsGap) * 0.05
     - Math.max(0, -salaryGap) * 0.10;
 
@@ -66,6 +72,10 @@ const assessClubReaction = (terms, baseTerms, round, player) => {
     }
   } else if (roleShifted) {
     label = `Le club refuse pour l'instant ${terms.role} et veut revenir à ${baseTerms.role}.`;
+  } else if (fragileStarRole) {
+    label = 'Le club doute du profil pour porter un statut de star tout de suite.';
+  } else if (riskyStarterRole) {
+    label = 'Le club veut protéger le contrat: le risque physique est jugé trop haut pour ce rôle.';
   } else if (yearsGap > 0) {
     label = `Le club préfère ${baseTerms.contractYears} ans au lieu de ${terms.contractYears}.`;
   } else if (salaryGap > 0.1) {
@@ -74,7 +84,7 @@ const assessClubReaction = (terms, baseTerms, round, player) => {
     label = 'Le club veut un autre tour de discussion.';
   }
 
-  return { accepted, label, roleShifted, durationShifted };
+  return { accepted, label, roleShifted, durationShifted, profile };
 };
 
 const buildOutcome = (terms, player, offer) => {
@@ -143,13 +153,16 @@ function SelectPills({ label, values, value, onChange, suffix = '' }) {
 
 export default function OfferContractModal({ offer, player, readiness, mode = 'offer', onClose, onSign, onReject }) {
   const baseTerms = useMemo(() => getBaseTerms(offer, player), [offer, player]);
+  const playerProfile = useMemo(() => player.playerProfile ?? getPlayerProfileSummary(player), [player]);
   const [terms, setTerms] = useState(() => getBaseTerms(offer, player));
   const [status, setStatus] = useState({
-    tone: readiness?.tone ?? 'good',
-    label: readiness?.reason ?? 'Offre prête.',
+    tone: readiness?.ok === false ? (readiness?.tone ?? 'warn') : 'warn',
+    label: readiness?.ok === false
+      ? readiness.reason
+      : 'Version préparée. Envoie-la au club pour obtenir une vraie réponse.',
   });
   const [round, setRound] = useState(1);
-  const [stage, setStage] = useState(readiness?.ok ? 'approved' : 'draft');
+  const [stage, setStage] = useState('draft');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const clubAssessment = useMemo(
@@ -280,6 +293,15 @@ export default function OfferContractModal({ offer, player, readiness, mode = 'o
             )}
             <div style={S.sumRow}><span style={S.sumK}>Salaire</span><strong>x{(offer.salMult ?? 1.2).toFixed(2)}</strong></div>
             <div style={S.sumRow}><span style={S.sumK}>Fenêtre</span><strong>{offer.preWindow ? `S${offer.effectiveWeek}` : `S${offer.expiresWeek}`}</strong></div>
+          </div>
+
+          <div style={S.objCard}>
+            <div style={S.secTitle}>LECTURE PROFIL</div>
+            <div style={S.sumRow}><span style={S.sumK}>Type</span><strong>{playerProfile.label}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Style</span><strong>{playerProfile.style}</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Fiabilité</span><strong>{playerProfile.reliability}/100</strong></div>
+            <div style={S.sumRow}><span style={S.sumK}>Pression</span><strong>{playerProfile.pressure}/100</strong></div>
+            <div style={S.emptySmall}>{playerProfile.negotiationHook}</div>
           </div>
 
           <div style={S.negoStat}>
