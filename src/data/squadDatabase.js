@@ -440,6 +440,10 @@ const buildSquadPlayer = (club, slotIdx, season) => {
   const rating = evolveRating(baseRating, baseAge, potential, season);
   const age    = baseAge + (season - 1);
 
+  if (club.tier === 1) {
+    console.log(`[BUILD] ${slot.roleId} Tier${tier}: ranges=[${ranges.starterMin}-${ranges.starterMax}], baseRating=${baseRating}, rating=${rating}`);
+  }
+
   // Attributs stables
   const personality    = sPick(baseSeed, 3, PERSONALITIES);
   const form           = 55 + sInt(baseSeed, 4, 0, 40);
