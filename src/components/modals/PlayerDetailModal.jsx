@@ -174,272 +174,178 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
 
           {tab === 'statistics' && (
             <>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>PROFIL HUMAIN</div>
-            <div style={S.sumRow}><span style={S.sumK}>Ambition cachée</span><strong>{player.hiddenAmbition ?? 50}/100</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Loyauté réelle</span><strong>{player.loyalty ?? 50}/100</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Peur du banc</span><strong>{player.benchFear ?? 50}/100</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Tolérance pression</span><strong>{player.pressureTolerance ?? 50}/100</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Entourage</span><strong>{player.entourage ?? '-'}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Club rêvé</span><strong>{player.dreamClub ?? '-'}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Villes préférées</span><strong>{(player.preferredCities ?? []).join(', ') || '-'}</strong></div>
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>DOSSIER RECRUTEMENT</div>
-            <div style={S.tagRow}>
-              {(player.recruitmentPriorities ?? []).length
-                ? player.recruitmentPriorities.map((item) => <span key={item} style={S.softTag}>{item}</span>)
-                : <span style={S.emptySmall}>Aucune priorité détectée.</span>}
-            </div>
-            <div style={S.tagRow}>
-              {(player.recruitmentDealBreakers ?? []).length
-                ? player.recruitmentDealBreakers.map((item) => <span key={item} style={S.warnTag}>{item}</span>)
-                : <span style={S.emptySmall}>Aucun frein majeur.</span>}
-            </div>
-            <div style={S.sumRow}><span style={S.sumK}>Fit recrutement</span><strong>{player.recruitmentFit ?? '--'}/100</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Angle choisi</span><strong>{player.signReason ?? player.recruitmentPitch ?? 'à déterminer'}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Approches</span><strong>{recruitmentMemory.length}</strong></div>
-            {recruitmentMemory.slice(0, 2).map((entry, index) => (
-              <div key={`${entry.week}-${entry.pitchId}-${index}`} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '8px 10px', marginTop: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                  <strong style={{ fontSize: 12, color: '#172026' }}>{entry.pitchLabel ?? entry.pitchId}</strong>
-                  <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>S{entry.week}</span>
-                </div>
-                <div style={S.fixtureMeta}>
-                  {entry.result === 'refused' ? 'Refus' : 'Accord'} · Fit {entry.fit}/100 · Seuil {entry.threshold}/100
-                </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>PROFIL HUMAIN</div>
+                <div style={S.sumRow}><span style={S.sumK}>Ambition cachée</span><strong>{player.hiddenAmbition ?? 50}/100</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Loyauté réelle</span><strong>{player.loyalty ?? 50}/100</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Peur du banc</span><strong>{player.benchFear ?? 50}/100</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Tolérance pression</span><strong>{player.pressureTolerance ?? 50}/100</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Entourage</span><strong>{player.entourage ?? '-'}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Club rêvé</span><strong>{player.dreamClub ?? '-'}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Villes préférées</span><strong>{(player.preferredCities ?? []).join(', ') || '-'}</strong></div>
               </div>
-            ))}
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>SAISON</div>
-            <div style={S.statLineGrid}>
-              <div><strong>{seasonStats.appearances ?? 0}</strong><span>Matchs</span></div>
-              <div><strong>{seasonStats.goals ?? 0}</strong><span>Buts</span></div>
-              <div><strong>{seasonStats.assists ?? 0}</strong><span>Passes</span></div>
-              <div><strong>{seasonStats.averageRating ?? '-'}</strong><span>Note moy.</span></div>
-            </div>
-            <div style={S.statLineGrid}>
-              <div><strong>{seasonStats.saves ?? 0}</strong><span>Arrêts</span></div>
-              <div><strong>{seasonStats.tackles ?? 0}</strong><span>Tacles</span></div>
-              <div><strong>{seasonStats.keyPasses ?? 0}</strong><span>Passes clés</span></div>
-              <div><strong>{seasonStats.xg ?? 0}</strong><span>xG</span></div>
-            </div>
-            <div style={S.sumRow}><span style={S.sumK}>Blessures saison</span><strong>{seasonStats.injuries ?? 0}</strong></div>
-            {clubSeasonContext && (
-              <>
-                <div style={{ marginTop: 10, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.08em', fontWeight: 900 }}>SAISON DU CLUB</div>
-                <div style={S.sumRow}><span style={S.sumK}>Classement</span><strong>{clubSeasonContext.position ?? '-'}e/{clubSeasonContext.totalClubs ?? '-'}</strong></div>
-                <div style={S.sumRow}><span style={S.sumK}>Points</span><strong>{clubSeasonContext.points ?? 0} pts · diff. {clubSeasonContext.goalDifference >= 0 ? `+${clubSeasonContext.goalDifference}` : clubSeasonContext.goalDifference}</strong></div>
-                <div style={S.sumRow}><span style={S.sumK}>Forme club</span><strong>{formatForm(clubSeasonContext.form)}</strong></div>
-                <div style={S.sumRow}><span style={S.sumK}>Objectif</span><strong>{clubSeasonContext.objective ?? 'Saison stable'}</strong></div>
-                <div style={S.sumRow}><span style={S.sumK}>Leader</span><strong>{clubSeasonContext.leader ?? '-'}</strong></div>
-              </>
-            )}
-            {clubSeason && (
-              <>
-                <div style={{ marginTop: 8, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.08em' }}>HISTORIQUE CLUB CETTE SAISON</div>
-                <div style={S.sumRow}><span style={S.sumK}>Coupe</span><strong>{clubSeason.competition ?? 'Aucune'}</strong></div>
-                <div style={S.sumRow}><span style={S.sumK}>Matchs club</span><strong>{(clubSeason.league?.length ?? 0) + (clubSeason.europe?.length ?? 0)}</strong></div>
-                <div style={S.sumRow}><span style={S.sumK}>Dernier résumé</span><strong>{clubSeason.summary?.[0] ?? 'Pas encore de résumé'}</strong></div>
-              </>
-            )}
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>DOSSIER JOUEUR</div>
-            <div style={S.sumRow}><span style={S.sumK}>Humeur</span><strong>{player.moral >= 65 ? 'positive' : player.moral >= 45 ? 'prudente' : 'fragile'}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Entourage</span><strong>{player.entourageRelation ?? player.entourage ?? '-'}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Objectif caché</span><strong>{(player.trust ?? 50) >= 65 ? player.dreamClub ?? 'à découvrir' : 'à découvrir avec la confiance'}</strong></div>
-            {(player.activeActions ?? []).slice(0, 3).map((action, index) => (
-              <div key={`${action.type}-${index}`} style={S.promiseRow}>
-                <span>{action.label}</span>
-                <strong>actif</strong>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>DOSSIER RECRUTEMENT</div>
+                <div style={S.tagRow}>
+                  {(player.recruitmentPriorities ?? []).length
+                    ? player.recruitmentPriorities.map((item) => <span key={item} style={S.softTag}>{item}</span>)
+                    : <span style={S.emptySmall}>Aucune priorité détectée.</span>}
+                </div>
+                <div style={S.tagRow}>
+                  {(player.recruitmentDealBreakers ?? []).length
+                    ? player.recruitmentDealBreakers.map((item) => <span key={item} style={S.warnTag}>{item}</span>)
+                    : <span style={S.emptySmall}>Aucun frein majeur.</span>}
+                </div>
+                <div style={S.sumRow}><span style={S.sumK}>Fit recrutement</span><strong>{player.recruitmentFit ?? '--'}/100</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Angle choisi</span><strong>{player.signReason ?? player.recruitmentPitch ?? 'à déterminer'}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Approches</span><strong>{recruitmentMemory.length}</strong></div>
+                {recruitmentMemory.slice(0, 2).map((entry, index) => (
+                  <div key={`${entry.week}-${entry.pitchId}-${index}`} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '8px 10px', marginTop: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                      <strong style={{ fontSize: 12, color: '#172026' }}>{entry.pitchLabel ?? entry.pitchId}</strong>
+                      <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>S{entry.week}</span>
+                    </div>
+                    <div style={S.fixtureMeta}>
+                      {entry.result === 'refused' ? 'Refus' : 'Accord'} · Fit {entry.fit}/100 · Seuil {entry.threshold}/100
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>OBJECTIF CARRIERE</div>
-            <div style={S.objLabel}>{player.careerGoal?.label ?? 'Aucun objectif'}</div>
-            <div style={S.progBar}><div style={{ ...S.progFill, width: `${careerProgress.percent}%` }} /></div>
-            <div style={S.objReward}>{careerProgress.value}/{careerProgress.target}</div>
-          </div>
-          {player.scoutReport && (
-            <div style={S.objCard}>
-              <div style={S.secTitle}>RAPPORT SCOUT</div>
-              <div style={S.sumRow}><span style={S.sumK}>Confiance scout</span><strong>{player.scoutReport.confidence}%</strong></div>
-              <div style={S.emptySmall}>{player.scoutReport.note}</div>
-            </div>
-          )}
-          <div style={S.objCard}>
-            <div style={S.secTitle}>CONTRAT CLUB</div>
-            {/* Contract status banner */}
-            {(() => {
-              const weeksLeft = player.contractWeeksLeft ?? 0;
-              const endWeek = (currentWeek ?? 0) + weeksLeft;
-              const urgent = weeksLeft <= 8;
-              const warning = weeksLeft > 8 && weeksLeft <= 26;
-              const bannerColor = urgent ? '#dc2626' : warning ? '#b45309' : '#00a676';
-              const bannerBg = urgent ? '#fef2f2' : warning ? '#fffbeb' : '#f0fdf8';
-              return (
-                <div style={{ background: bannerBg, border: `1px solid ${bannerColor}30`, borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>Expire</span>
-                    <strong style={{ fontSize: 13, color: bannerColor }}>
-                      {weeksLeft > 0 ? `${weeksLeft} sem. · ${weekToLabel(endWeek)}` : 'EXPIRÉ'}
+              <div style={S.objCard}>
+                <div style={S.secTitle}>SAISON</div>
+                <div style={S.statLineGrid}>
+                  <div><strong>{seasonStats.appearances ?? 0}</strong><span>Matchs</span></div>
+                  <div><strong>{seasonStats.goals ?? 0}</strong><span>Buts</span></div>
+                  <div><strong>{seasonStats.assists ?? 0}</strong><span>Passes</span></div>
+                  <div><strong>{seasonStats.averageRating ?? '-'}</strong><span>Note moy.</span></div>
+                </div>
+                <div style={S.statLineGrid}>
+                  <div><strong>{seasonStats.saves ?? 0}</strong><span>Arrêts</span></div>
+                  <div><strong>{seasonStats.tackles ?? 0}</strong><span>Tacles</span></div>
+                  <div><strong>{seasonStats.keyPasses ?? 0}</strong><span>Passes clés</span></div>
+                  <div><strong>{seasonStats.xg ?? 0}</strong><span>xG</span></div>
+                </div>
+                <div style={S.sumRow}><span style={S.sumK}>Blessures saison</span><strong>{seasonStats.injuries ?? 0}</strong></div>
+                {clubSeasonContext && (
+                  <>
+                    <div style={{ marginTop: 10, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.08em', fontWeight: 900 }}>SAISON DU CLUB</div>
+                    <div style={S.sumRow}><span style={S.sumK}>Classement</span><strong>{clubSeasonContext.position ?? '-'}e/{clubSeasonContext.totalClubs ?? '-'}</strong></div>
+                    <div style={S.sumRow}><span style={S.sumK}>Points</span><strong>{clubSeasonContext.points ?? 0} pts · diff. {clubSeasonContext.goalDifference >= 0 ? `+${clubSeasonContext.goalDifference}` : clubSeasonContext.goalDifference}</strong></div>
+                    <div style={S.sumRow}><span style={S.sumK}>Forme club</span><strong>{formatForm(clubSeasonContext.form)}</strong></div>
+                    <div style={S.sumRow}><span style={S.sumK}>Objectif</span><strong>{clubSeasonContext.objective ?? 'Saison stable'}</strong></div>
+                    <div style={S.sumRow}><span style={S.sumK}>Leader</span><strong>{clubSeasonContext.leader ?? '-'}</strong></div>
+                  </>
+                )}
+                {clubSeason && (
+                  <>
+                    <div style={{ marginTop: 8, fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.08em' }}>HISTORIQUE CLUB CETTE SAISON</div>
+                    <div style={S.sumRow}><span style={S.sumK}>Coupe</span><strong>{clubSeason.competition ?? 'Aucune'}</strong></div>
+                    <div style={S.sumRow}><span style={S.sumK}>Matchs club</span><strong>{(clubSeason.league?.length ?? 0) + (clubSeason.europe?.length ?? 0)}</strong></div>
+                    <div style={S.sumRow}><span style={S.sumK}>Dernier résumé</span><strong>{clubSeason.summary?.[0] ?? 'Pas encore de résumé'}</strong></div>
+                  </>
+                )}
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>DOSSIER JOUEUR</div>
+                <div style={S.sumRow}><span style={S.sumK}>Humeur</span><strong>{player.moral >= 65 ? 'positive' : player.moral >= 45 ? 'prudente' : 'fragile'}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Entourage</span><strong>{player.entourageRelation ?? player.entourage ?? '-'}</strong></div>
+                <div style={S.sumRow}><span style={S.sumK}>Objectif caché</span><strong>{(player.trust ?? 50) >= 65 ? player.dreamClub ?? 'à découvrir' : 'à découvrir avec la confiance'}</strong></div>
+                {(player.activeActions ?? []).slice(0, 3).map((action, index) => (
+                  <div key={`${action.type}-${index}`} style={S.promiseRow}>
+                    <span>{action.label}</span>
+                    <strong>actif</strong>
+                  </div>
+                ))}
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>OBJECTIF CARRIERE</div>
+                <div style={S.objLabel}>{player.careerGoal?.label ?? 'Aucun objectif'}</div>
+                <div style={S.progBar}><div style={{ ...S.progFill, width: `${careerProgress.percent}%` }} /></div>
+                <div style={S.objReward}>{careerProgress.value}/{careerProgress.target}</div>
+              </div>
+              {player.scoutReport && (
+                <div style={S.objCard}>
+                  <div style={S.secTitle}>RAPPORT SCOUT</div>
+                  <div style={S.sumRow}><span style={S.sumK}>Confiance scout</span><strong>{player.scoutReport.confidence}%</strong></div>
+                  <div style={S.emptySmall}>{player.scoutReport.note}</div>
+                </div>
+              )}
+              <div style={S.objCard}>
+                <div style={S.secTitle}>HISTORIQUE BDD</div>
+                <div style={S.sumRow}><span style={S.sumK}>Blessures</span><strong>{playerInjuries.length}</strong></div>
+                {playerInjuries.length ? playerInjuries.map((injury) => (
+                  <div key={injury.id} style={S.promiseRow}>
+                    <span>S{injury.started_week} · {injury.reason}</span>
+                    <strong>{injury.status === 'active' ? `${injury.remaining_weeks} sem.` : 'récupéré'}</strong>
+                  </div>
+                )) : <div style={S.emptySmall}>Aucune blessure historisée en base.</div>}
+                <div style={{ height: 8 }} />
+                <div style={S.sumRow}><span style={S.sumK}>Transferts</span><strong>{playerTransfers.length}</strong></div>
+                {playerTransfers.length ? playerTransfers.map((transfer) => (
+                  <div key={transfer.id} style={S.promiseRow}>
+                    <span>{transfer.from_club_name ? `${transfer.from_club_name} → ` : 'Signature · '}{transfer.to_club_name ?? 'club'}</span>
+                    <strong>S{transfer.transfer_date}</strong>
+                  </div>
+                )) : <div style={S.emptySmall}>Aucun transfert historisé pour ce joueur.</div>}
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>HISTORIQUE D'ACTIONS</div>
+                {recentActions.length ? recentActions.map((decision) => (
+                  <div key={decision.id} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 850, color: '#172026' }}>{decision.label}</div>
+                        <div style={S.fixtureMeta}>{decision.type ?? 'action'} · S{decision.week}</div>
+                      </div>
+                      <strong style={{ fontSize: 11, color: '#00a676', whiteSpace: 'nowrap' }}>
+                        {decision.impact ? `${decision.impact > 0 ? '+' : ''}${decision.impact}` : '—'}
+                      </strong>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#3f5663', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginTop: 6 }}>
+                      Conséquence : {decision.detail ?? 'Effet enregistré dans le dossier.'}
+                    </div>
+                  </div>
+                )) : <div style={S.emptySmall}>Aucune décision récente liée à ce dossier.</div>}
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>TIMELINE</div>
+                {(player.timeline ?? []).length ? player.timeline.slice(0, 6).map((item, index) => (
+                  <div key={`${item.week}-${item.label}-${index}`} style={S.promiseRow}>
+                    <span>{item.label}</span>
+                    <strong>S{item.week}</strong>
+                  </div>
+                )) : <div style={S.emptySmall}>Aucun moment clé enregistré.</div>}
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>MATCHS DU CLUB EN BASE</div>
+                {clubCompetitionHistory.length ? clubCompetitionHistory.map((match) => (
+                  <div key={match.id} style={S.promiseRow}>
+                    <span>S{match.week} · {match.competition_label ?? match.competition} · {match.club_name} {match.score ?? '-'} {match.opponent_name}</span>
+                    <strong>{match.result}</strong>
+                  </div>
+                )) : <div style={S.emptySmall}>Aucun match de club persisté pour l'instant.</div>}
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>DERNIERS MATCHS</div>
+                {(player.matchHistory ?? []).length ? player.matchHistory.slice(0, 5).map((match) => (
+                  <div key={`${match.week}-${match.opponent}`} style={S.promiseRow}>
+                    <span>S{match.week} · {match.club} {match.score} {match.opponent}</span>
+                    <strong>{match.matchRating ? `${match.matchRating}/10` : 'ABS'}</strong>
+                    {match.matchReport && <span style={{ gridColumn: '1 / -1', color: '#64727d' }}>{match.matchReport}</span>}
+                  </div>
+                )) : <div style={S.emptySmall}>Aucun match simulé.</div>}
+              </div>
+              <div style={S.objCard}>
+                <div style={S.secTitle}>PROMESSES</div>
+                {promiseMemory.length ? promiseMemory.map((promise) => (
+                  <div key={promise.id} style={S.promiseRow}>
+                    <span>{promise.label}</span>
+                    <strong>
+                      {promise.failed ? 'Cassée' : promise.resolved ? 'Tenue' : 'En cours'} · S{promise.dueWeek}
                     </strong>
                   </div>
-                  {player.contractStartWeek && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                      <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>Signé</span>
-                      <span style={{ fontSize: 12, color: '#64727d' }}>{weekToLabel(player.contractStartWeek)}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-            <div style={S.sumRow}><span style={S.sumK}>Club</span><strong>{player.club}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Ville</span><strong>{player.clubCity || '-'}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Rôle</span><strong style={{ color: player.clubRole === 'Star' ? '#d97706' : '#172026' }}>{player.clubRole ?? 'Non défini'}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Salaire</span><strong>{formatMoney(player.weeklySalary)}/sem</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Commission agence</span><strong>{Math.round(player.commission * 100)}%</strong></div>
-            {(player.signingBonus ?? 0) > 0 && (
-              <div style={S.sumRow}><span style={S.sumK}>Prime à la signature</span><strong style={{ color: '#00a676' }}>{formatMoney(player.signingBonus)}</strong></div>
-            )}
-            <div style={S.sumRow}><span style={S.sumK}>Clause libératoire</span><strong>{formatMoney(player.releaseClause ?? 0)}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>% revente</span><strong>{player.sellOnPercent ?? 0}%</strong></div>
-            {(player.clubBonuses?.total ?? 0) > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>PRIMES DE PERFORMANCE</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  {[
-                    { k: 'Total', v: player.clubBonuses.total },
-                    { k: 'Buts', v: player.clubBonuses.goals ?? 0 },
-                    { k: 'Matchs', v: player.clubBonuses.appearances ?? 0 },
-                    { k: 'Europe', v: player.clubBonuses.europe ?? 0 },
-                  ].map(({ k, v }) => v > 0 && (
-                    <div key={k} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '6px 8px' }}>
-                      <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>{k.toUpperCase()}</div>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{formatMoney(v)}</div>
-                    </div>
-                  ))}
-                </div>
+                )) : <div style={S.emptySmall}>Aucune promesse enregistrée.</div>}
               </div>
-            )}
-            {player.contractClauses && (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>CLAUSES</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '6px 8px' }}>
-                    <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>BALLON D'OR</div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{formatMoney(player.contractClauses.ballonDorBonus ?? 0)}</div>
-                  </div>
-                  <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '6px 8px' }}>
-                    <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>NO-CUT</div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{player.contractClauses.noCutClause ? 'Oui' : 'Non'}</div>
-                  </div>
-                  <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '6px 8px', gridColumn: '1 / -1' }}>
-                    <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>RÔLE PROTÉGÉ</div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{player.contractClauses.coachRoleProtection ? 'Oui' : 'Non'}</div>
-                  </div>
-                  {player.contractClauses.rolePromise && (
-                    <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '6px 8px', gridColumn: '1 / -1' }}>
-                      <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.12em' }}>RÔLE PROMIS</div>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: '#172026', fontFamily: 'system-ui,sans-serif' }}>{player.contractClauses.rolePromise}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>CONTRAT AGENT-JOUEUR</div>
-            <div style={S.sumRow}><span style={S.sumK}>Durée mandat</span><strong>{player.agentContract?.weeksLeft ?? 104} sem.</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Commission</span><strong>{Math.round((player.agentContract?.commission ?? player.commission) * 100)}%</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Clause sortie</span><strong>{formatMoney(player.agentContract?.releaseClause ?? 0)}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Bonus loyauté</span><strong>{formatMoney(player.agentContract?.loyaltyBonus ?? 0)}</strong></div>
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>TIMELINE</div>
-            {(player.timeline ?? []).length ? player.timeline.slice(0, 6).map((item, index) => (
-              <div key={`${item.week}-${item.label}-${index}`} style={S.promiseRow}>
-                <span>{item.label}</span>
-                <strong>S{item.week}</strong>
-              </div>
-            )) : <div style={S.emptySmall}>Aucun moment clé enregistré.</div>}
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>HISTORIQUE BDD</div>
-            <div style={S.sumRow}><span style={S.sumK}>Blessures</span><strong>{playerInjuries.length}</strong></div>
-            {playerInjuries.length ? playerInjuries.map((injury) => (
-              <div key={injury.id} style={S.promiseRow}>
-                <span>S{injury.started_week} · {injury.reason}</span>
-                <strong>{injury.status === 'active' ? `${injury.remaining_weeks} sem.` : 'récupéré'}</strong>
-              </div>
-            )) : <div style={S.emptySmall}>Aucune blessure historisée en base.</div>}
-            <div style={{ height: 8 }} />
-            <div style={S.sumRow}><span style={S.sumK}>Transferts</span><strong>{playerTransfers.length}</strong></div>
-            {playerTransfers.length ? playerTransfers.map((transfer) => (
-              <div key={transfer.id} style={S.promiseRow}>
-                <span>{transfer.from_club_name ? `${transfer.from_club_name} → ` : 'Signature · '}{transfer.to_club_name ?? 'club'}</span>
-                <strong>S{transfer.transfer_date}</strong>
-              </div>
-            )) : <div style={S.emptySmall}>Aucun transfert historisé pour ce joueur.</div>}
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>HISTORIQUE D'ACTIONS</div>
-            {recentActions.length ? recentActions.map((decision) => (
-              <div key={decision.id} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 850, color: '#172026' }}>{decision.label}</div>
-                    <div style={S.fixtureMeta}>{decision.type ?? 'action'} · S{decision.week}</div>
-                  </div>
-                  <strong style={{ fontSize: 11, color: '#00a676', whiteSpace: 'nowrap' }}>
-                    {decision.impact ? `${decision.impact > 0 ? '+' : ''}${decision.impact}` : '—'}
-                  </strong>
-                </div>
-                <div style={{ fontSize: 12, color: '#3f5663', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5, marginTop: 6 }}>
-                  Conséquence : {decision.detail ?? 'Effet enregistré dans le dossier.'}
-                </div>
-              </div>
-            )) : <div style={S.emptySmall}>Aucune décision récente liée à ce dossier.</div>}
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>PROMESSES</div>
-            {promiseMemory.length ? promiseMemory.map((promise) => (
-              <div key={promise.id} style={S.promiseRow}>
-                <span>{promise.label}</span>
-                <strong>
-                  {promise.failed ? 'Cassée' : promise.resolved ? 'Tenue' : 'En cours'} · S{promise.dueWeek}
-                </strong>
-              </div>
-            )) : <div style={S.emptySmall}>Aucune promesse enregistrée.</div>}
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>DERNIERS MATCHS</div>
-            {(player.matchHistory ?? []).length ? player.matchHistory.slice(0, 5).map((match) => (
-              <div key={`${match.week}-${match.opponent}`} style={S.promiseRow}>
-                <span>S{match.week} · {match.club} {match.score} {match.opponent}</span>
-                <strong>{match.matchRating ? `${match.matchRating}/10` : 'ABS'}</strong>
-                {match.matchReport && <span style={{ gridColumn: '1 / -1', color: '#64727d' }}>{match.matchReport}</span>}
-              </div>
-            )) : <div style={S.emptySmall}>Aucun match simulé.</div>}
-          </div>
-          <div style={S.objCard}>
-            <div style={S.secTitle}>MATCHS DU CLUB EN BASE</div>
-            {clubCompetitionHistory.length ? clubCompetitionHistory.map((match) => (
-              <div key={match.id} style={S.promiseRow}>
-                <span>S{match.week} · {match.competition_label ?? match.competition} · {match.club_name} {match.score ?? '-'} {match.opponent_name}</span>
-                <strong>{match.result}</strong>
-              </div>
-            )) : <div style={S.emptySmall}>Aucun match de club persisté pour l'instant.</div>}
-          </div>
-            </>
-          )}
-
-          {tab === 'attributes' && (
-            <>
-              {player.attributes && <PlayerAttributesPanel player={player} />}
             </>
           )}
 
@@ -488,48 +394,6 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             </>
           )}
 
-          {tab === 'statistics' && (
-            <>
-              <div style={S.objCard}>
-                <div style={S.secTitle}>SAISON</div>
-                <div style={S.statLineGrid}>
-                  <div><strong>{seasonStats.appearances ?? 0}</strong><span>Matchs</span></div>
-                  <div><strong>{seasonStats.goals ?? 0}</strong><span>Buts</span></div>
-                  <div><strong>{seasonStats.assists ?? 0}</strong><span>Passes</span></div>
-                  <div><strong>{seasonStats.averageRating ?? '-'}</strong><span>Note moy.</span></div>
-                </div>
-              </div>
-              <div style={S.objCard}>
-                <div style={S.secTitle}>DERNIERS MATCHS</div>
-                {(player.matchHistory ?? []).length ? player.matchHistory.slice(0, 5).map((match) => (
-                  <div key={`${match.week}-${match.opponent}`} style={S.promiseRow}>
-                    <span>S{match.week} · {match.club} {match.score} {match.opponent}</span>
-                    <strong>{match.matchRating ? `${match.matchRating}/10` : 'ABS'}</strong>
-                  </div>
-                )) : <div style={S.emptySmall}>Aucun match simulé.</div>}
-              </div>
-            </>
-          )}
-
-          {tab === 'relations' && (
-            <>
-              <div style={S.objCard}>
-                <div style={S.secTitle}>RELATION</div>
-                <Meter label="Moral" value={player.moral} />
-                <Meter label="Confiance" value={player.trust ?? 50} />
-                <Meter label="Forme" value={player.form} />
-                <Meter label="Fatigue" value={player.fatigue ?? 20} inverted />
-                <Meter label="Pression" value={player.pressure ?? 50} inverted />
-                <div style={S.sumRow}><span style={S.sumK}>Club relation</span><strong>{clubRelation}/100</strong></div>
-                <div style={S.sumRow}><span style={S.sumK}>Tension</span><strong style={{ color: tensionColor }}>{clubTension >= 65 ? 'forte' : clubTension >= 35 ? 'modérée' : 'calme'}</strong></div>
-              </div>
-              <div style={S.objCard}>
-                <div style={S.secTitle}>PROFIL HUMAIN</div>
-                <div style={S.sumRow}><span style={S.sumK}>Club rêvé</span><strong>{player.dreamClub ?? '-'}</strong></div>
-                <div style={S.sumRow}><span style={S.sumK}>Entourage</span><strong>{player.entourage ?? '-'}</strong></div>
-              </div>
-            </>
-          )}
           {tab === 'conversation' && (
             <>
               <div style={S.objCard}>
@@ -546,32 +410,6 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                     )}
                   </div>
                 )) : <div style={S.emptySmall}>Aucun échange encore.</div>}
-              </div>
-            </>
-          )}
-
-          {tab === 'dossier' && (
-            <>
-              <div style={S.objCard}>
-                <div style={S.secTitle}>MEMOIRE DOSSIER</div>
-                <div style={S.sumRow}><span style={S.sumK}>Lecture</span><strong>{dossierSummary}</strong></div>
-                {dossierRecent.length ? dossierRecent.map((entry) => (
-                  <div key={entry.id} style={S.promiseRow}>
-                    <span>{entry.label}</span>
-                    <strong style={{ color: entry.impact > 0 ? '#00a676' : entry.impact < 0 ? '#b42318' : '#64727d' }}>
-                      {entry.impact > 0 ? 'Calmé' : entry.impact < 0 ? 'Tendu' : 'Neutre'}
-                    </strong>
-                  </div>
-                )) : <div style={S.emptySmall}>Aucun signal récent.</div>}
-              </div>
-              <div style={S.objCard}>
-                <div style={S.secTitle}>PROMESSES</div>
-                {playerPromises.length ? playerPromises.map((promise) => (
-                  <div key={promise.id} style={S.promiseRow}>
-                    <span>{promise.label}</span>
-                    <strong>{promise.failed ? 'Cassée' : promise.resolved ? 'Tenue' : 'En cours'}</strong>
-                  </div>
-                )) : <div style={S.emptySmall}>Aucune promesse active.</div>}
               </div>
             </>
           )}

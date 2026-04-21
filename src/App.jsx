@@ -238,6 +238,24 @@ const moreItems = [
   { key: 'profile', label: 'Profil', desc: "Bilan de l'agence", icon: UserCircle },
 ];
 
+const getClubRoleForPlayer = (rating, clubTier, position, roleId) => {
+  const TIER_RATING = {
+    1: { starterMin: 79, benchMin: 71 },
+    2: { starterMin: 72, benchMin: 65 },
+    3: { starterMin: 64, benchMin: 58 },
+    4: { starterMin: 55, benchMin: 50 },
+  };
+  const tier = clubTier ?? 1;
+  const tierRating = TIER_RATING[tier] ?? TIER_RATING[4];
+  const starThreshold = tierRating.starterMin + 10;
+  const starterThreshold = tierRating.starterMin;
+  const rotationThreshold = tierRating.benchMin;
+  if (rating >= starThreshold) return 'Star';
+  if (rating >= starterThreshold) return 'Titulaire';
+  if (rating >= rotationThreshold) return 'Rotation';
+  return 'Indésirable';
+};
+
 const playerFromDatabaseRow = (row = {}) => {
   if (row.raw_player) {
     return {
@@ -246,6 +264,13 @@ const playerFromDatabaseRow = (row = {}) => {
       databaseSource: row.source ?? row.market_status,
     };
   }
+  // Calculate clubRole if missing
+  const rating = row.note_current ?? 65;
+  const clubTier = row.club_tier ?? 1;
+  const position = row.main_position ?? 'MIL';
+  const roleId = row.role_id;
+  const clubRole = row.club_role ?? getClubRoleForPlayer(rating, clubTier, position, roleId);
+
   return {
     id: row.id,
     firstName: row.first_name ?? '',
@@ -260,7 +285,7 @@ const playerFromDatabaseRow = (row = {}) => {
     clubTier: row.club_tier,
     clubCountryCode: row.club_country_code,
     clubCity: row.club_city,
-    clubRole: row.club_role,
+    clubRole,
     europeanCompetition: row.european_competition,
     rating: row.note_current,
     potential: row.potential,
