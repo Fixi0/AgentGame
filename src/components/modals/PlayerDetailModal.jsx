@@ -560,13 +560,13 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
           )}
 
           {/* Centralized Action Buttons */}
-          <div style={{ marginTop: 16, padding: '12px', background: '#f7f9fb', borderRadius: 8, border: '1px solid #e2e8ef', display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 8 }}>
-            <button onClick={() => onNego('extend')} style={{ ...S.actBtn, padding: '10px 14px', fontSize: 12 }}>PROLONGER</button>
-            <button onClick={() => onNego('transfer')} style={{ ...S.actBtn, padding: '10px 14px', fontSize: 12 }}>TRANSFERT</button>
-            <button onClick={() => onCallPlayer?.(player)} style={{ ...S.msgBtn, padding: '10px 14px', fontSize: 12 }}>APPELER</button>
-            <button onClick={() => onMeeting?.(player.id, 'career')} style={{ ...S.msgBtn, padding: '10px 14px', fontSize: 12 }}>RÉUNION</button>
-            <button onClick={() => onMarketAction?.(player.id, player.club === 'Libre' ? 'free_trial' : 'propose')} style={{ ...S.msgBtn, padding: '10px 14px', fontSize: 12 }}>{player.club === 'Libre' ? 'ESSAI' : 'PROPOSER'}</button>
-            <button onClick={onClose} style={{ ...S.relBtn, padding: '10px 14px', fontSize: 12 }}>FERMER</button>
+          <div style={{ marginTop: 16, padding: '12px', background: '#f7f9fb', borderRadius: 8, border: '1px solid #e2e8ef', display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 6 }}>
+            <button onClick={() => onNego('extend')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>PROLONGER</button>
+            <button onClick={() => onNego('transfer')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>TRANSFERT</button>
+            <button onClick={() => onCallPlayer?.(player)} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>APPELER</button>
+            <button onClick={() => onMeeting?.(player.id, 'career')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>RÉUNION</button>
+            <button onClick={() => onMarketAction?.(player.id, player.club === 'Libre' ? 'free_trial' : 'propose')} style={{ ...S.msgBtn, padding: '8px 12px', fontSize: 11 }}>{player.club === 'Libre' ? 'ESSAI' : 'PROPOSER'}</button>
+            <button onClick={onClose} style={{ ...S.relBtn, padding: '8px 12px', fontSize: 11 }}>FERMER</button>
           </div>
         </div>
       </div>
