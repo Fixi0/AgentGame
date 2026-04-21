@@ -2,27 +2,12 @@ import { CLUBS } from '../data/clubs';
 import { EURO_CUP_LABELS } from '../systems/europeanCupSystem';
 import { createManualNewsPost } from '../systems/newsSystem';
 import { getCalendarSnapshot } from '../systems/seasonSystem';
+import { generateSeasonAwards, calculateCoherenceScore } from '../systems/weeklyEventsSystem';
 import { pick, rand } from '../utils/helpers';
 
 const getSeasonAwardMemory = (seasonAwards, season) => ({
   ...(seasonAwards?.[season] ?? {}),
 });
-
-const scoreAwardCandidate = (player) => {
-  const averageRating = player.seasonStats?.averageRating ?? 6.6;
-  const appearances = player.seasonStats?.appearances ?? 0;
-  const goalImpact = (player.seasonStats?.goals ?? 0) * 4 + (player.seasonStats?.assists ?? 0) * 2;
-  return player.rating * 1.2 + player.form + averageRating * 12 + goalImpact + (player.brandValue ?? 10) + Math.min(appearances, 20);
-};
-
-const getBallonDorWinner = (roster) => {
-  const eligible = roster
-    .filter((player) => player.injured <= 0)
-    .filter((player) => player.rating >= 78 || (player.seasonStats?.averageRating ?? 0) >= 7.4 || (player.brandValue ?? 0) >= 55)
-    .sort((a, b) => scoreAwardCandidate(b) - scoreAwardCandidate(a));
-
-  return eligible[0] ?? null;
-};
 
 const getChampionsLeagueWinner = (leagueTables) => {
   const rows = Object.values(leagueTables ?? {}).flat();
@@ -88,10 +73,14 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
   }
 
   if (phase.seasonWeek === 10 && !seasonMemory.ballonDorWinner) {
-    const winner = getBallonDorWinner(nextRoster);
-    const playerWins = winner && scoreAwardCandidate(winner) >= 235;
-    nextSeasonMemory.ballonDorWinner = playerWins ? winner.id : 'world_winner';
-    if (playerWins) {
+    // Use coherent award generation system
+    const awards = generateSeasonAwards(nextRoster, phase.seasonWeek);
+    const ballonDorAward = awards.find((a) => a.type === 'ballon_dor');
+
+    if (ballonDorAward) {
+      const winner = nextRoster.find((p) => p.id === ballonDorAward.playerId);
+      nextSeasonMemory.ballonDorWinner = winner.id;
+
       nextRoster = nextRoster.map((player) =>
         player.id === winner.id
           ? {
@@ -101,7 +90,7 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
               trust: Math.max(0, Math.min(100, (player.trust ?? 50) + 5)),
               brandValue: Math.max(0, Math.min(100, (player.brandValue ?? 10) + 25)),
               timeline: [
-                { week, type: 'trophee', label: "Ballon d'Or" },
+                { week, type: 'trophee', label: "Ballon d'Or", coherenceScore: ballonDorAward.coherenceScore },
                 ...(player.timeline ?? []),
               ],
             }
@@ -109,18 +98,38 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
       );
       income += 80000;
       reputation += 35;
-      events.push({ player: `${winner.firstName} ${winner.lastName}`, playerId: winner.id, label: "Remporte le Ballon d'Or", good: true, money: 80000, rep: 35, calendar: true });
+      events.push({
+        player: `${winner.firstName} ${winner.lastName}`,
+        playerId: winner.id,
+        label: "Remporte le Ballon d'Or",
+        good: true,
+        money: 80000,
+        rep: 35,
+        calendar: true,
+        rating: winner.rating,
+        seasonAvg: winner.seasonStats?.averageRating,
+        coherenceScore: ballonDorAward.coherenceScore,
+      });
+
+      news.push(createManualNewsPost({
+        type: 'media',
+        player: winner,
+        week,
+        text: `${winner.firstName} ${winner.lastName} remporte le Ballon d'Or avec un score de cohérence de ${ballonDorAward.coherenceScore} (note: ${winner.rating}, moyenne: ${winner.seasonStats?.averageRating?.toFixed(1)}). L'agence change de dimension.`,
+        reputationImpact: 35,
+        account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
+      }));
+    } else {
+      nextSeasonMemory.ballonDorWinner = 'world_winner';
+      news.push(createManualNewsPost({
+        type: 'media',
+        player: null,
+        week,
+        text: "Le Ballon d'Or est attribué hors de l'agence. Les standards mondiaux restent très élevés (minimum note 85+, moyenne 8.2+).",
+        reputationImpact: 0,
+        account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
+      }));
     }
-    news.push(createManualNewsPost({
-      type: 'media',
-      player: playerWins ? winner : null,
-      week,
-      text: playerWins
-        ? `${winner.firstName} ${winner.lastName} remporte le Ballon d'Or. L'agence change de dimension.`
-        : "Le Ballon d'Or est attribué hors de l'agence. Les standards mondiaux restent très élevés.",
-      reputationImpact: playerWins ? 35 : 0,
-      account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
-    }));
   }
 
   if (phase.seasonWeek === 36 && !seasonMemory.championsLeagueWinner) {

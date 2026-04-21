@@ -66,6 +66,7 @@ const GAME_TABLES = [
   'european_competitions',
   'narrative_arcs',
   'season_awards',
+  'weekly_events',
   'save_slots',
 ];
 
@@ -172,6 +173,7 @@ const STORE_DEFINITIONS = [
   { name: 'european_competitions', keyPath: 'id', indexes: [{ name: 'season_id', keyPath: 'season_id' }, { name: 'competition', keyPath: 'competition' }] },
   { name: 'narrative_arcs', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'type', keyPath: 'type' }] },
   { name: 'season_awards', keyPath: 'id', indexes: [{ name: 'season_id', keyPath: 'season_id' }] },
+  { name: 'weekly_events', keyPath: 'id', indexes: [{ name: 'week', keyPath: 'week' }, { name: 'created_at', keyPath: 'created_at' }] },
   { name: 'save_slots', keyPath: 'id', indexes: [{ name: 'agency_id', keyPath: 'agency_id' }, { name: 'updated_at', keyPath: 'updated_at' }] },
 ];
 
@@ -303,6 +305,8 @@ const stableRowId = (storeName, row) => {
       return row.player_id && row.type ? `arc_${row.player_id}_${row.type}` : null;
     case 'season_awards':
       return row.season_id ? `awards_${row.season_id}` : null;
+    case 'weekly_events':
+      return row.week ? `weekly_events_${row.week}` : null;
     default:
       return null;
   }
