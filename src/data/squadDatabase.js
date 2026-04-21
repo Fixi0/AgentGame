@@ -637,8 +637,16 @@ const evolveDatabaseCatalogPlayer = (player, season = 1) => {
   const catalogSeason = player.catalogSeason ?? 1;
   const relativeSeason = Math.max(1, season - catalogSeason + 1);
   const baseAge = player.catalogBaseAge ?? player.age ?? 24;
-  const baseRating = player.catalogBaseRating ?? player.rating ?? 120;
-  const potential = player.catalogBasePotential ?? player.potential ?? baseRating;
+
+  // Migration: convert old 1-100 scale to 1-200 scale if needed
+  let baseRating = player.catalogBaseRating ?? player.rating ?? 120;
+  let potential = player.catalogBasePotential ?? player.potential ?? baseRating;
+  if (baseRating > 0 && baseRating <= 100) {
+    baseRating = baseRating * 2;
+  }
+  if (potential > 0 && potential <= 100) {
+    potential = potential * 2;
+  }
   const age = baseAge + Math.max(0, relativeSeason - 1);
   const rating = evolveRating(baseRating, baseAge, potential, relativeSeason);
   return {
