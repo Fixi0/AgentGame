@@ -642,6 +642,7 @@ const evolveDatabaseCatalogPlayer = (player, season = 1) => {
   let baseRating = player.catalogBaseRating ?? player.rating ?? 120;
   let potential = player.catalogBasePotential ?? player.potential ?? baseRating;
   if (baseRating > 0 && baseRating <= 100) {
+    console.log(`[MIGRATE] ${player.firstName} ${player.lastName}: ${baseRating} → ${baseRating * 2}`);
     baseRating = baseRating * 2;
   }
   if (potential > 0 && potential <= 100) {
