@@ -1,7 +1,6 @@
 import { ArrowUpRight, Handshake, X } from 'lucide-react';
 import React from 'react';
 import { PERSONALITY_LABELS } from '../data/players';
-import { EURO_CUP_LABELS, getEuropeanCompetition } from '../systems/europeanCupSystem';
 import { getPlayerDossierStatus } from '../systems/dossierSystem';
 import { getDossierHistorySummary, getRecentDossierEvents } from '../systems/coherenceSystem';
 import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
@@ -88,7 +87,6 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
   const posColor = POS_COLORS[player.position] ?? '#64727d';
   const notoriety = getNotoriety(player.rating);
   const clubDot = hashClubColor(player.club);
-  const currentCompetition = getEuropeanCompetition(player, currentSeason);
   const playerProfile = player.playerProfile ?? getPlayerProfileSummary(player);
 
   // Rating trend
@@ -133,10 +131,6 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
             </div>
             {statusIcon && <span style={{ fontSize: 13 }}>{statusIcon}</span>}
             {hasMercatoOffer && <span style={S.mercatoBadge}>Offre 🔴</span>}
-            {currentCompetition && (() => {
-              const cup = EURO_CUP_LABELS[currentCompetition];
-              return cup ? <span style={{ fontSize: 9, fontWeight: 800, color: '#fff', background: cup.color, borderRadius: 4, padding: '1px 5px', letterSpacing: '.05em' }}>{cup.icon} {cup.short}</span> : null;
-            })()}
           </div>
 
           <FormDots results={player.recentResults} />
