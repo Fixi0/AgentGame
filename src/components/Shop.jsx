@@ -1,13 +1,83 @@
 import React, { useMemo, useState } from 'react';
-import { Coins, Gem, Lock, ShoppingBag, Sparkles, Star } from 'lucide-react';
+import { Coins, Gem, Lock, Rocket, ShieldCheck, ShoppingBag, Sparkles, Star, TrendingUp } from 'lucide-react';
 import { getAgencyCapacity } from '../systems/agencySystem';
 import { GEM_PACKS, SHOP_CATEGORIES, SHOP_ITEMS, getShopRuntimeView } from '../systems/shopSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
 
+const CATEGORY_THEME = {
+  finances: {
+    chip: '#0f766e',
+    chipBg: '#ecfeff',
+    border: '#99f6e4',
+    gradient: 'linear-gradient(135deg,#0f766e,#14b8a6)',
+    label: 'Trésorerie',
+  },
+  boost: {
+    chip: '#2563eb',
+    chipBg: '#eff6ff',
+    border: '#bfdbfe',
+    gradient: 'linear-gradient(135deg,#1d4ed8,#3b82f6)',
+    label: 'Accélération',
+  },
+  scouting: {
+    chip: '#7c3aed',
+    chipBg: '#f5f3ff',
+    border: '#ddd6fe',
+    gradient: 'linear-gradient(135deg,#6d28d9,#8b5cf6)',
+    label: 'Scouting',
+  },
+  contacts: {
+    chip: '#c2410c',
+    chipBg: '#fff7ed',
+    border: '#fed7aa',
+    gradient: 'linear-gradient(135deg,#c2410c,#f97316)',
+    label: 'Réseau',
+  },
+  transfer: {
+    chip: '#166534',
+    chipBg: '#f0fdf4',
+    border: '#bbf7d0',
+    gradient: 'linear-gradient(135deg,#166534,#22c55e)',
+    label: 'Mercato',
+  },
+  default: {
+    chip: '#334155',
+    chipBg: '#f8fafc',
+    border: '#cbd5e1',
+    gradient: 'linear-gradient(135deg,#1e293b,#334155)',
+    label: 'Bonus',
+  },
+};
+
+const PACK_THEME = {
+  gems_starter: { gradient: 'linear-gradient(135deg,#0f172a,#1f2937)', halo: 'rgba(15,23,42,.28)', tag: 'Nouveau' },
+  gems_player: { gradient: 'linear-gradient(135deg,#1d4ed8,#2563eb)', halo: 'rgba(37,99,235,.26)', tag: 'Populaire' },
+  gems_pro: { gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', halo: 'rgba(124,58,237,.26)', tag: 'Pro' },
+  gems_elite: { gradient: 'linear-gradient(135deg,#c2410c,#f97316)', halo: 'rgba(194,65,12,.26)', tag: 'Élite' },
+  gems_legend: { gradient: 'linear-gradient(135deg,#14532d,#22c55e)', halo: 'rgba(20,83,45,.26)', tag: 'Légende' },
+};
+
+const getEffectLabel = (item) => {
+  const fx = item?.effect ?? {};
+  if (fx.money) return `+${formatMoney(fx.money)} immédiatement`;
+  if (fx.reputation) return `+${fx.reputation} réputation`;
+  if (fx.incomeBoostWeeks) return `Commissions boostées ${fx.incomeBoostWeeks} semaines`;
+  if (fx.negoBoostWeeks) return `Négociation boostée ${fx.negoBoostWeeks} semaines`;
+  if (fx.eliteMarketWeeks) return `Marché élite ${fx.eliteMarketWeeks} semaines`;
+  if (fx.contactTrustBoost) return `+${fx.contactTrustBoost} confiance contacts`;
+  if (fx.action === 'refresh_market') return 'Nouveau marché instantané';
+  if (fx.action === 'reveal_potential') return 'Potentiel réel révélé';
+  if (fx.action === 'mercato_express') return '1 transfert hors fenêtre';
+  if (fx.action === 'skip_contact_cooldowns') return 'Cooldowns contacts supprimés';
+  return 'Avantage immédiat';
+};
+
 export default function Shop({ state, phase, onBuy }) {
   const [category, setCategory] = useState('all');
   const gems = state.gems ?? 0;
+  const money = state.money ?? 0;
+  const reputation = state.reputation ?? 0;
   const rosterCount = state.roster?.length ?? 0;
   const capacity = getAgencyCapacity(state.agencyLevel);
   const shopRuntime = useMemo(() => getShopRuntimeView(state), [state]);
@@ -21,30 +91,62 @@ export default function Shop({ state, phase, onBuy }) {
     <div style={S.vp}>
       <div style={S.et}>
         <div style={S.el}>BOUTIQUE</div>
-        <h1 style={S.eh}>Gemmes & bonus</h1>
+        <h1 style={S.eh}>Tycoon Store</h1>
+      </div>
+
+      <div style={{
+        borderRadius: 8,
+        border: '1px solid #dbe3ea',
+        padding: 16,
+        marginBottom: 14,
+        background: 'linear-gradient(135deg,#0f172a,#1e293b)',
+        boxShadow: '0 18px 36px rgba(15,23,42,.2)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: '.16em', color: 'rgba(255,255,255,.75)', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>
+              SALLE DU CONSEIL
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 950, color: '#ffffff', lineHeight: 1.1 }}>
+              Fais grandir ton empire
+            </div>
+            <div style={{ marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,.75)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45 }}>
+              Des boosts concrets pour accélérer ton agence sans casser ton rythme de jeu.
+            </div>
+          </div>
+          <div style={{ fontSize: 34, lineHeight: 1, filter: 'drop-shadow(0 8px 18px rgba(255,214,10,.26))' }}>🏦</div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 8 }}>
+          <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>CAPITAL</div>
+            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900 }}>{formatMoney(money)}</div>
+          </div>
+          <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>GEMMES</div>
+            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900 }}>{gems}</div>
+          </div>
+          <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>RÉPUTATION</div>
+            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900 }}>{reputation}/1000</div>
+          </div>
+        </div>
       </div>
 
       <div style={S.objCard}>
         <div style={S.secTitle}>
-          <Sparkles size={14} />
-          <span>APERÇU RAPIDE</span>
+          <TrendingUp size={14} />
+          <span>PILOTAGE RAPIDE</span>
         </div>
         {phase && <div style={S.sumRow}><span style={S.sumK}>Date</span><strong>S{phase.season} · S{phase.seasonWeek}/38</strong></div>}
-        <div style={S.sumRow}><span style={S.sumK}>Joueurs</span><strong>{rosterCount}</strong></div>
-        <div style={S.sumRow}><span style={S.sumK}>Capacité</span><strong>{rosterCount}/${capacity}</strong></div>
-        <div style={S.sumRow}><span style={S.sumK}>Gemmes</span><strong>{gems}</strong></div>
-        <div style={S.sumRow}><span style={S.sumK}>Argent</span><strong>{formatMoney(state.money ?? 0)}</strong></div>
-      </div>
-
-      <div style={S.objCard}>
-        <div style={S.secTitle}>
-          <Gem size={14} />
-          <span>SOLDE ACTUEL</span>
-        </div>
-        <div style={{ fontSize: 30, fontWeight: 950, color: '#00a676', marginBottom: 6 }}>{gems}</div>
-        <div style={{ ...S.qSub, lineHeight: 1.5 }}>
-          Les gemmes se gagnent en jouant: objectifs de saison, jalons, résultats et petites récompenses de progression.
-        </div>
+        <div style={S.sumRow}><span style={S.sumK}>Effectif géré</span><strong>{rosterCount}/{capacity}</strong></div>
+        <div style={S.sumRow}><span style={S.sumK}>Cycle fidélité</span><strong>{shopRuntime.loyalty.progress}/{shopRuntime.loyalty.target}</strong></div>
+        <div style={S.sumRow}><span style={S.sumK}>Récompense cycle</span><strong>{shopRuntime.loyalty.reward.gems} gemmes + {formatMoney(shopRuntime.loyalty.reward.money)}</strong></div>
+        {shopRuntime.firstPurchaseBonusPending && (
+          <div style={{ marginTop: 8, borderRadius: 8, background: '#f0fdf8', border: '1px solid #b7ebd6', padding: '9px 10px', fontSize: 11, color: '#0f766e', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>
+            Premier achat du jour: bonus immédiat +12 gemmes.
+          </div>
+        )}
       </div>
 
       <div style={S.objCard}>
@@ -72,46 +174,29 @@ export default function Shop({ state, phase, onBuy }) {
 
       <div style={S.objCard}>
         <div style={S.secTitle}>
-          <Star size={14} />
-          <span>PROGRAMME FIDÉLITÉ</span>
-        </div>
-        <div style={S.sumRow}>
-          <span style={S.sumK}>Progression achats gemmes</span>
-          <strong>{shopRuntime.loyalty.progress}/{shopRuntime.loyalty.target}</strong>
-        </div>
-        <div style={S.sumRow}>
-          <span style={S.sumK}>Prochaine récompense</span>
-          <strong>{shopRuntime.loyalty.reward.gems} gemmes + {formatMoney(shopRuntime.loyalty.reward.money)}</strong>
-        </div>
-        {shopRuntime.firstPurchaseBonusPending && (
-          <div style={{ ...S.emptySmall, marginTop: 8 }}>
-            Bonus premier achat actif: +12 gemmes immédiates.
-          </div>
-        )}
-      </div>
-
-      <div style={S.objCard}>
-        <div style={S.secTitle}>
-          <Star size={14} />
-          <span>PACKS GEMMES</span>
+          <Gem size={14} />
+          <span>COFFRES GEMMES</span>
         </div>
         <div style={S.cardList}>
           {GEM_PACKS.map((pack) => (
             <div key={pack.id} style={{
-              background: '#ffffff',
-              border: '1px solid #e5eaf0',
+              background: PACK_THEME[pack.id]?.gradient ?? 'linear-gradient(135deg,#1f2937,#334155)',
+              border: '1px solid rgba(255,255,255,.18)',
               borderRadius: 8,
               padding: 14,
-              boxShadow: '0 10px 24px rgba(15,23,32,.06)',
+              boxShadow: `0 14px 30px ${PACK_THEME[pack.id]?.halo ?? 'rgba(51,65,85,.24)'}`,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: '#172026' }}>{pack.label}</div>
-                  <div style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 3 }}>{pack.gems} gemmes · {pack.bonus || '—'}</div>
+                  <div style={{ display: 'inline-flex', padding: '3px 7px', borderRadius: 8, background: 'rgba(255,255,255,.18)', color: '#ffffff', fontSize: 9, letterSpacing: '.12em', fontWeight: 900, fontFamily: 'system-ui,sans-serif', marginBottom: 8 }}>
+                    {PACK_THEME[pack.id]?.tag ?? 'Pack'}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: '#ffffff' }}>{pack.label}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.86)', fontFamily: 'system-ui,sans-serif', marginTop: 3 }}>{pack.gems} gemmes · {pack.bonus || 'Sans bonus'}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: '#172026' }}>{pack.price}</div>
-                  <div style={{ fontSize: 9, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>bientôt</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>{pack.price}</div>
+                  <div style={{ fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,255,255,.8)', fontFamily: 'system-ui,sans-serif' }}>achat in-app</div>
                 </div>
               </div>
             </div>
@@ -141,15 +226,16 @@ export default function Shop({ state, phase, onBuy }) {
           const effectiveCost = shopRuntime.priceByItemId[item.id] ?? item.cost;
           const discountPercent = shopRuntime.discountByItemId[item.id] ?? 0;
           const canBuy = isGem ? gems >= effectiveCost : (state.money ?? 0) >= effectiveCost;
+          const theme = CATEGORY_THEME[item.category] ?? CATEGORY_THEME.default;
           return (
             <div
               key={item.id}
               style={{
                 background: '#ffffff',
-                border: item.highlight ? '1px solid #00a676' : '1px solid #e5eaf0',
+                border: item.highlight ? `1px solid ${theme.border}` : '1px solid #e5eaf0',
                 borderRadius: 8,
                 padding: 14,
-                boxShadow: item.highlight ? '0 14px 32px rgba(0,166,118,.12)' : '0 10px 24px rgba(15,23,32,.06)',
+                boxShadow: item.highlight ? '0 14px 32px rgba(15,23,42,.12)' : '0 10px 24px rgba(15,23,32,.06)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 10,
@@ -157,6 +243,9 @@ export default function Shop({ state, phase, onBuy }) {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                 <div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 8, padding: '4px 8px', background: theme.chipBg, border: `1px solid ${theme.border}`, fontSize: 9, letterSpacing: '.12em', fontWeight: 900, color: theme.chip, fontFamily: 'system-ui,sans-serif', marginBottom: 7 }}>
+                    {theme.label}
+                  </div>
                   <div style={{ fontSize: 20, marginBottom: 4 }}>{item.icon ?? '✨'}</div>
                   <div style={{ fontSize: 14, fontWeight: 900, color: '#172026' }}>{item.label}</div>
                   <div style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 4, lineHeight: 1.45 }}>{item.desc}</div>
@@ -170,7 +259,7 @@ export default function Shop({ state, phase, onBuy }) {
                   fontWeight: 900,
                   letterSpacing: '.12em',
                   fontFamily: 'system-ui,sans-serif',
-                  color: isGem ? '#00a676' : '#2f80ed',
+                  color: isGem ? '#00a676' : '#2563eb',
                   background: isGem ? '#f0fdf8' : '#eff6ff',
                   border: `1px solid ${isGem ? '#b6f0da' : '#bfdbfe'}`,
                   padding: '3px 8px',
@@ -188,11 +277,25 @@ export default function Shop({ state, phase, onBuy }) {
                 </div>
               </div>
 
+              <div style={{
+                borderRadius: 8,
+                border: '1px solid #e5eaf0',
+                padding: '8px 10px',
+                background: '#f8fafc',
+                fontSize: 11,
+                color: '#334155',
+                fontFamily: 'system-ui,sans-serif',
+                fontWeight: 700,
+              }}>
+                Impact: {getEffectLabel(item)}
+              </div>
+
               <button
                 onClick={() => onBuy(item.id)}
                 disabled={!canBuy}
                 style={{
                   ...S.primaryBtn,
+                  background: theme.gradient,
                   marginBottom: 0,
                   padding: '11px 12px',
                   fontSize: 11,
@@ -208,8 +311,24 @@ export default function Shop({ state, phase, onBuy }) {
         })}
       </div>
 
-      <div style={S.emptySmall}>
-        Boutique pensée pour le confort: on peut avancer gratuitement, et les gemmes donnent juste un peu plus de marge.
+      <div style={{ ...S.objCard, marginBottom: 0, background: 'linear-gradient(135deg,#f8fafc,#f1f5f9)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <ShieldCheck size={15} color="#0f766e" />
+          <div style={{ fontSize: 12, fontWeight: 900, color: '#172026' }}>Progression équilibrée</div>
+        </div>
+        <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.5, fontFamily: 'system-ui,sans-serif' }}>
+          Tu peux monter ton agence sans payer. Les achats servent à accélérer les cycles clés: cashflow, réseau et mercato.
+        </div>
+        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ borderRadius: 8, border: '1px solid #dbe3ea', background: '#ffffff', padding: '8px 10px', fontSize: 10, color: '#334155', fontFamily: 'system-ui,sans-serif', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Rocket size={12} color="#2563eb" />
+            Plus de rythme
+          </div>
+          <div style={{ borderRadius: 8, border: '1px solid #dbe3ea', background: '#ffffff', padding: '8px 10px', fontSize: 10, color: '#334155', fontFamily: 'system-ui,sans-serif', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Star size={12} color="#ca8a04" />
+            Plus d'impact
+          </div>
+        </div>
       </div>
     </div>
   );
