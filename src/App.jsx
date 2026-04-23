@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Play, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
+import Achievements from './components/Achievements';
 import Calendar from './components/Calendar';
 import Dossiers from './components/Dossiers';
 import Contacts from './components/Contacts';
@@ -212,6 +213,7 @@ const views = {
   office: { label: 'Agence', icon: Briefcase },
   profile: { label: 'Profil', icon: UserCircle },
   messages: { label: 'Messages', icon: MessageCircle },
+  achievements: { label: 'Succès', icon: Trophy },
 };
 
 const mainNav = [
@@ -224,6 +226,7 @@ const mainNav = [
 
 const moreItems = [
   { key: 'shop', label: 'Boutique', desc: 'Gemmes et bonus', icon: ShoppingBag },
+  { key: 'achievements', label: 'Succès', desc: '120 exploits par catégories', icon: Trophy },
   { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase },
   { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network },
   { key: 'dossiers', label: 'Dossiers', desc: 'Messages, tensions, mémoire', icon: FileText },
@@ -1625,6 +1628,7 @@ export default function FootballAgentGame() {
         {view === 'roster' && <Roster state={databaseState} roster={databaseState.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
         {view === 'messages' && <Messages messages={databaseState.messages} messageQueue={databaseState.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
+        {view === 'achievements' && <Achievements state={databaseState} />}
         {view === 'shop' && <Shop state={databaseState} phase={phase} onBuy={handleBuyShopItem} />}
         {view === 'calendar' && <Calendar state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
         {view === 'standings' && <Standings state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}

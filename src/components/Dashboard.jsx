@@ -276,8 +276,8 @@ function AchievementsWidget({ achievements, onNav }) {
         </div>
       ))}
       {unlocked.length > 0 && (
-        <button onClick={() => onNav?.('office')} style={{ ...S.secBtn, marginBottom: 0, marginTop: 2 }}>
-          Voir la progression agence
+        <button onClick={() => onNav?.('achievements')} style={{ ...S.secBtn, marginBottom: 0, marginTop: 2 }}>
+          Voir tous les succès
         </button>
       )}
     </div>

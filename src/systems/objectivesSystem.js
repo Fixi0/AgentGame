@@ -63,18 +63,149 @@ const DAILY_OBJECTIVE_TYPES = {
   },
 };
 
-const ACHIEVEMENT_DEFS = [
-  { id: 'first_client', label: 'Premier mandat', desc: 'Signer ton premier joueur.', metric: 'playersSigned', target: 1, reward: { money: 6000, rep: 2, gems: 10 } },
-  { id: 'five_clients', label: 'Agence en mouvement', desc: 'Atteindre 5 joueurs signés.', metric: 'playersSigned', target: 5, reward: { money: 20000, rep: 5, gems: 20 } },
-  { id: 'ten_transfers', label: 'Maitre du mercato', desc: 'Finaliser 10 transferts.', metric: 'transfersDone', target: 10, reward: { money: 35000, rep: 8, gems: 30 } },
-  { id: 'income_500k', label: 'Premiers gros revenus', desc: 'Cumuler 500k€ de gains.', metric: 'totalEarned', target: 500000, reward: { money: 25000, rep: 6, gems: 25 } },
-  { id: 'income_2m', label: 'Machine a deals', desc: 'Cumuler 2M€ de gains.', metric: 'totalEarned', target: 2000000, reward: { money: 70000, rep: 12, gems: 45 } },
-  { id: 'rep_250', label: 'Nom connu', desc: 'Atteindre 250 de reputation.', metric: 'reputation', target: 250, reward: { money: 30000, rep: 8, gems: 25 } },
-  { id: 'rep_500', label: 'Top agent', desc: 'Atteindre 500 de reputation.', metric: 'reputation', target: 500, reward: { money: 90000, rep: 14, gems: 50 } },
-  { id: 'season_3', label: 'Cycle complet', desc: 'Jouer 3 saisons.', metric: 'seasonsPlayed', target: 3, reward: { money: 40000, rep: 10, gems: 35 } },
-  { id: 'shop_five', label: 'Outils premium', desc: 'Faire 5 achats boutique.', metric: 'shopPurchases', target: 5, reward: { money: 20000, rep: 4, gems: 20 } },
-  { id: 'spend_800', label: 'Investisseur', desc: 'Depenser 800 gemmes en boutique.', metric: 'shopGemsSpent', target: 800, reward: { money: 45000, rep: 8, gems: 30 } },
+export const ACHIEVEMENT_CATEGORY_LABELS = {
+  recruitment: 'Recrutement',
+  transfers: 'Transferts',
+  finance: 'Finances',
+  reputation: 'Réputation',
+  longevity: 'Longévité',
+  premium: 'Boutique',
+  prestige: 'Prestige',
+};
+
+export const ACHIEVEMENT_CATEGORY_ORDER = [
+  'recruitment',
+  'transfers',
+  'finance',
+  'reputation',
+  'longevity',
+  'premium',
+  'prestige',
 ];
+
+const moneyText = (value) => `${Math.round(value).toLocaleString('fr-FR')} €`;
+
+const createAchievementSeries = ({
+  category,
+  prefix,
+  metric,
+  icon,
+  title,
+  thresholds,
+  description,
+  rewardBase,
+}) => thresholds.map((target, index) => {
+  const tier = index + 1;
+  return {
+    id: `${prefix}_${tier}`,
+    category,
+    icon,
+    label: `${title} ${tier}`,
+    desc: description(target, tier),
+    metric,
+    target,
+    reward: {
+      money: rewardBase.money + tier * rewardBase.moneyStep,
+      rep: rewardBase.rep + Math.floor(tier / 2) * rewardBase.repStep,
+      gems: rewardBase.gems + Math.floor(tier / 2) * rewardBase.gemsStep,
+    },
+  };
+});
+
+const ACHIEVEMENT_DEFS = [
+  ...createAchievementSeries({
+    category: 'recruitment',
+    prefix: 'recruit',
+    metric: 'playersSigned',
+    icon: '🧩',
+    title: 'Bâtisseur d’effectif',
+    thresholds: [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 35, 40],
+    description: (target) => `Signer ${target} joueur${target > 1 ? 's' : ''} avec ton agence.`,
+    rewardBase: { money: 4000, moneyStep: 1200, rep: 1, repStep: 1, gems: 4, gemsStep: 1 },
+  }),
+  ...createAchievementSeries({
+    category: 'transfers',
+    prefix: 'transfer',
+    metric: 'transfersDone',
+    icon: '🔁',
+    title: 'Négociateur',
+    thresholds: [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 35, 40],
+    description: (target) => `Finaliser ${target} transfert${target > 1 ? 's' : ''}.`,
+    rewardBase: { money: 6000, moneyStep: 1500, rep: 1, repStep: 1, gems: 5, gemsStep: 1 },
+  }),
+  ...createAchievementSeries({
+    category: 'finance',
+    prefix: 'finance',
+    metric: 'totalEarned',
+    icon: '💸',
+    title: 'Empire financier',
+    thresholds: [25000, 50000, 90000, 130000, 180000, 250000, 330000, 430000, 550000, 700000, 900000, 1150000, 1450000, 1800000, 2200000, 2700000, 3300000, 4000000, 4800000, 6000000],
+    description: (target) => `Cumuler ${moneyText(target)} de gains.`,
+    rewardBase: { money: 7000, moneyStep: 2200, rep: 1, repStep: 1, gems: 5, gemsStep: 1 },
+  }),
+  ...createAchievementSeries({
+    category: 'reputation',
+    prefix: 'rep',
+    metric: 'reputation',
+    icon: '🛡️',
+    title: 'Statut d’agent',
+    thresholds: [25, 50, 75, 100, 130, 160, 200, 250, 320, 400, 500, 620, 750, 880, 1000],
+    description: (target) => `Atteindre ${target} de réputation.`,
+    rewardBase: { money: 9000, moneyStep: 2300, rep: 1, repStep: 1, gems: 6, gemsStep: 1 },
+  }),
+  ...createAchievementSeries({
+    category: 'longevity',
+    prefix: 'weeks',
+    metric: 'weeksPlayed',
+    icon: '📅',
+    title: 'Régularité',
+    thresholds: [4, 8, 12, 16, 20, 26, 32, 38, 50, 62, 76, 90, 110, 140, 180],
+    description: (target) => `Jouer ${target} semaine${target > 1 ? 's' : ''}.`,
+    rewardBase: { money: 5000, moneyStep: 1200, rep: 1, repStep: 1, gems: 4, gemsStep: 1 },
+  }),
+  ...createAchievementSeries({
+    category: 'longevity',
+    prefix: 'seasons',
+    metric: 'seasonsPlayed',
+    icon: '🏟️',
+    title: 'Dynastie',
+    thresholds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    description: (target) => `Terminer ${target} saison${target > 1 ? 's' : ''}.`,
+    rewardBase: { money: 16000, moneyStep: 4500, rep: 2, repStep: 1, gems: 10, gemsStep: 2 },
+  }),
+  ...createAchievementSeries({
+    category: 'premium',
+    prefix: 'shop_buy',
+    metric: 'shopPurchases',
+    icon: '🛒',
+    title: 'Client premium',
+    thresholds: [1, 2, 3, 4, 5, 7, 9, 12, 16, 20],
+    description: (target) => `Effectuer ${target} achat${target > 1 ? 's' : ''} boutique.`,
+    rewardBase: { money: 4500, moneyStep: 1200, rep: 1, repStep: 1, gems: 4, gemsStep: 1 },
+  }),
+  ...createAchievementSeries({
+    category: 'premium',
+    prefix: 'shop_spend',
+    metric: 'shopGemsSpent',
+    icon: '💎',
+    title: 'Investisseur premium',
+    thresholds: [80, 150, 250, 350, 500, 700, 900, 1200, 1600, 2200],
+    description: (target) => `Dépenser ${target.toLocaleString('fr-FR')} gemmes.`,
+    rewardBase: { money: 6000, moneyStep: 1800, rep: 1, repStep: 1, gems: 5, gemsStep: 1 },
+  }),
+  ...createAchievementSeries({
+    category: 'prestige',
+    prefix: 'hybrid',
+    metric: 'playersSigned',
+    icon: '👑',
+    title: 'Collection prestige',
+    thresholds: [6, 8, 10, 12, 14, 16, 18, 20, 24, 28],
+    description: (target) => `Gérer un portefeuille d’au moins ${target} signatures cumulées.`,
+    rewardBase: { money: 12000, moneyStep: 2800, rep: 2, repStep: 1, gems: 8, gemsStep: 2 },
+  }),
+];
+
+export const TOTAL_ACHIEVEMENTS = ACHIEVEMENT_DEFS.length;
 
 const DEFAULT_SHOP_STATS = {
   purchasesTotal: 0,
@@ -113,6 +244,7 @@ const clampRep = (value) => Math.max(0, Math.min(1000, value));
 
 const getProgressCounters = (state = {}) => ({
   week: state.week ?? 1,
+  weeksPlayed: Math.max(0, (state.week ?? 1) - 1),
   reputation: state.reputation ?? 0,
   totalEarned: state.stats?.totalEarned ?? 0,
   transfersDone: state.stats?.transfersDone ?? 0,
@@ -168,6 +300,8 @@ const generateDailyObjectives = (state = {}, dateKey = localDateKey()) => {
 const buildDefaultAchievementRows = () =>
   ACHIEVEMENT_DEFS.map((def) => ({
     id: def.id,
+    category: def.category,
+    icon: def.icon,
     label: def.label,
     desc: def.desc,
     metric: def.metric,
@@ -182,6 +316,8 @@ const mergeAchievements = (existing = []) => {
   const byId = safeArray(existing).reduce((acc, row) => ({ ...acc, [row.id]: row }), {});
   return ACHIEVEMENT_DEFS.map((def) => ({
     id: def.id,
+    category: def.category,
+    icon: def.icon,
     label: def.label,
     desc: def.desc,
     metric: def.metric,
@@ -254,9 +390,9 @@ export function syncProgressionSystems(state = {}) {
   const currentAchievements = mergeAchievements(nextState.achievements ?? buildDefaultAchievementRows());
   const progressedAchievements = currentAchievements.map((achievement) => {
     const value = counters?.[achievement.metric] ?? 0;
-    const current = Math.min(value, achievement.target);
-    const unlocked = value >= achievement.target;
     const wasUnlocked = Boolean(achievement.unlocked);
+    const unlocked = wasUnlocked || value >= achievement.target;
+    const current = unlocked ? achievement.target : Math.min(value, achievement.target);
     let unlockedAtWeek = achievement.unlockedAtWeek ?? null;
 
     if (unlocked && !wasUnlocked) {
