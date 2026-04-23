@@ -13,7 +13,11 @@ export default function More({ items, onNav }) {
           const Icon = item.icon;
           return (
             <button key={item.key} onClick={() => onNav(item.key)} style={S.quickCard}>
-              <Icon size={20} color="#00a676" />
+              {item.asset ? (
+                <img src={item.asset} alt={item.label} style={{ width: 22, height: 22, objectFit: 'contain' }} />
+              ) : (
+                <Icon size={20} color="#00a676" />
+              )}
               <div style={S.qLabel}>{item.label}</div>
               <div style={S.qSub}>{item.desc}</div>
             </button>

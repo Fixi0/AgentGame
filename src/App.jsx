@@ -224,20 +224,28 @@ const mainNav = [
   ['more', { label: 'Plus', icon: Layers }],
 ];
 
+const MAIN_NAV_ASSETS = {
+  dashboard: '/tycoon-assets/menu_home.png',
+  roster: '/tycoon-assets/menu_players.png',
+  market: '/tycoon-assets/menu_transfer.png',
+  messages: '/tycoon-assets/menu_messages.png',
+  more: '/tycoon-assets/menu_settings.png',
+};
+
 const moreItems = [
-  { key: 'shop', label: 'Boutique', desc: 'Gemmes et bonus', icon: ShoppingBag },
-  { key: 'achievements', label: 'Succès', desc: '120 exploits par catégories', icon: Trophy },
-  { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase },
-  { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network },
-  { key: 'dossiers', label: 'Dossiers', desc: 'Messages, tensions, mémoire', icon: FileText },
-  { key: 'standings', label: 'Ligues', desc: 'Classements nationaux + Europe', icon: Trophy },
-  { key: 'europe', label: 'Coupes Euro', desc: 'Bracket · Parcours KO · Stats', icon: Trophy },
-  { key: 'calendar', label: 'Calendrier', desc: 'Affiches et résultats', icon: CalendarDays },
-  { key: 'deadline', label: 'Deadline Day', desc: 'Appels mercato', icon: Timer },
-  { key: 'scouting', label: 'Scouting', desc: 'Missions et rapports', icon: Telescope },
-  { key: 'vestiaire', label: 'Vestiaire', desc: 'Chimie et tensions', icon: Users },
-  { key: 'office', label: 'Agence', desc: 'Staff et identité', icon: Briefcase },
-  { key: 'profile', label: 'Profil', desc: "Bilan de l'agence", icon: UserCircle },
+  { key: 'shop', label: 'Boutique', desc: 'Gemmes et bonus', icon: ShoppingBag, asset: '/tycoon-assets/v_shop.png' },
+  { key: 'achievements', label: 'Succès', desc: '120 exploits par catégories', icon: Trophy, asset: '/tycoon-assets/v_objectives.png' },
+  { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase, asset: '/tycoon-assets/v_staff.png' },
+  { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network, asset: '/tycoon-assets/v_messages.png' },
+  { key: 'dossiers', label: 'Dossiers', desc: 'Messages, tensions, mémoire', icon: FileText, asset: '/tycoon-assets/v_messages.png' },
+  { key: 'standings', label: 'Ligues', desc: 'Classements nationaux + Europe', icon: Trophy, asset: '/tycoon-assets/v_finances.png' },
+  { key: 'europe', label: 'Coupes Euro', desc: 'Bracket · Parcours KO · Stats', icon: Trophy, asset: '/tycoon-assets/badge_international.png' },
+  { key: 'calendar', label: 'Calendrier', desc: 'Affiches et résultats', icon: CalendarDays, asset: '/tycoon-assets/v_calendar.png' },
+  { key: 'deadline', label: 'Deadline Day', desc: 'Appels mercato', icon: Timer, asset: '/tycoon-assets/menu_transfer.png' },
+  { key: 'scouting', label: 'Scouting', desc: 'Missions et rapports', icon: Telescope, asset: '/tycoon-assets/shop_scout.png' },
+  { key: 'vestiaire', label: 'Vestiaire', desc: 'Chimie et tensions', icon: Users, asset: '/tycoon-assets/v_players.png' },
+  { key: 'office', label: 'Agence', desc: 'Staff et identité', icon: Briefcase, asset: '/tycoon-assets/reputation_shield.png' },
+  { key: 'profile', label: 'Profil', desc: "Bilan de l'agence", icon: UserCircle, asset: '/tycoon-assets/badge_legende.png' },
 ];
 
 const playerFromDatabaseRow = (row = {}) => {
@@ -1607,13 +1615,13 @@ export default function FootballAgentGame() {
         </div>
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {[
-            { icon: <DollarSign size={12} />, label: 'Capital', value: formatMoney(databaseState.money), accent: '#00a676' },
-            { icon: <Star size={12} />, label: 'Rép.', value: `${databaseState.reputation}`, accent: '#2f80ed' },
-            { icon: <Users size={12} />, label: 'Joueurs', value: `${databaseState.roster.length}/${getAgencyCapacity(databaseState.agencyLevel)}`, accent: '#3f5663' },
-            { icon: <Trophy size={12} />, label: 'Msg', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#b42318' : '#64727d' },
+            { asset: '/tycoon-assets/resource_cash.png', label: 'Capital', value: formatMoney(databaseState.money), accent: '#00a676' },
+            { asset: '/tycoon-assets/reputation_shield.png', label: 'Rép.', value: `${databaseState.reputation}`, accent: '#2f80ed' },
+            { asset: '/tycoon-assets/v_players.png', label: 'Joueurs', value: `${databaseState.roster.length}/${getAgencyCapacity(databaseState.agencyLevel)}`, accent: '#3f5663' },
+            { asset: '/tycoon-assets/menu_messages.png', label: 'Msg', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#b42318' : '#64727d' },
           ].map((chip) => (
             <div key={chip.label} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '6px 10px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ color: chip.accent }}>{chip.icon}</span>
+              <img src={chip.asset} alt={chip.label} style={{ width: 14, height: 14, objectFit: 'contain', flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 800, letterSpacing: '.1em', lineHeight: 1 }}>{chip.label}</div>
                 <div style={{ fontSize: 14, fontWeight: 850, color: '#172026', lineHeight: 1.2 }}>{chip.value}</div>
@@ -1656,6 +1664,7 @@ export default function FootballAgentGame() {
       <nav style={S.nav}>
         {mainNav.map(([key, item]) => {
           const Icon = item.icon;
+          const navAsset = MAIN_NAV_ASSETS[key];
           const active = key === 'more'
             ? !['dashboard', 'roster', 'market', 'messages'].includes(view)
             : view === key;
@@ -1669,7 +1678,15 @@ export default function FootballAgentGame() {
               borderBottom: active ? '2px solid #00a676' : '2px solid transparent',
             }}
           >
-            <Icon size={16} />
+            {navAsset ? (
+              <img
+                src={navAsset}
+                alt={item.label}
+                style={{ width: 17, height: 17, objectFit: 'contain', opacity: active ? 1 : 0.72 }}
+              />
+            ) : (
+              <Icon size={16} />
+            )}
             <span>{item.label}</span>
             {key === 'messages' && pendingCounts.total > 0 && <span style={S.navBadge}>{pendingCounts.total}</span>}
           </button>

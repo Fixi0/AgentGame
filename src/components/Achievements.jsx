@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Coins, Filter, Gem, Lock, Shield, Sparkles } from 'lucide-react';
+import { CheckCircle2, Coins, Filter, Gem, Lock, Sparkles } from 'lucide-react';
 import { ACHIEVEMENT_CATEGORY_LABELS, ACHIEVEMENT_CATEGORY_ORDER, TOTAL_ACHIEVEMENTS } from '../systems/objectivesSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
@@ -14,6 +14,24 @@ const CATEGORY_STYLE = {
   prestige: { border: '#fbcfe8', bg: '#fdf2f8', accent: '#be185d' },
   default: { border: '#e5eaf0', bg: '#f8fafc', accent: '#334155' },
 };
+
+const CATEGORY_ASSET = {
+  recruitment: '/tycoon-assets/v_players.png',
+  transfers: '/tycoon-assets/v_transfer.png',
+  finance: '/tycoon-assets/resource_cash.png',
+  reputation: '/tycoon-assets/reputation_shield.png',
+  longevity: '/tycoon-assets/v_calendar.png',
+  premium: '/tycoon-assets/v_shop.png',
+  prestige: '/tycoon-assets/badge_legende.png',
+};
+
+const REP_TIER_ASSETS = [
+  '/tycoon-assets/badge_local.png',
+  '/tycoon-assets/badge_national.png',
+  '/tycoon-assets/badge_international.png',
+  '/tycoon-assets/badge_elite.png',
+  '/tycoon-assets/badge_legende.png',
+];
 
 const FILTERS = [
   { id: 'all', label: 'Tous' },
@@ -81,7 +99,7 @@ export default function Achievements({ state }) {
               {unlocked}/{achievements.length || TOTAL_ACHIEVEMENTS} débloqués
             </div>
           </div>
-          <div style={{ fontSize: 30, lineHeight: 1 }}>🏆</div>
+          <img src="/tycoon-assets/badge_legende.png" alt="Badge légende" style={{ width: 56, height: 56, objectFit: 'contain' }} />
         </div>
 
         <div style={{ ...S.progBar, height: 7, background: 'rgba(255,255,255,.2)', marginBottom: 8 }}>
@@ -95,7 +113,7 @@ export default function Achievements({ state }) {
           <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.08)', padding: '8px 10px' }}>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,.74)', letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', fontWeight: 800, marginBottom: 2 }}>RÉPUTATION</div>
             <div style={{ fontSize: 13, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Shield size={12} />
+              <img src="/tycoon-assets/reputation_shield.png" alt="Réputation" style={{ width: 16, height: 16, objectFit: 'contain' }} />
               {(state?.reputation ?? 0)}/1000
             </div>
           </div>
@@ -114,6 +132,17 @@ export default function Achievements({ state }) {
             </div>
           </div>
         </div>
+
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+          {REP_TIER_ASSETS.map((asset, index) => (
+            <img
+              key={asset}
+              src={asset}
+              alt={`Palier ${index + 1}`}
+              style={{ width: 24, height: 24, objectFit: 'contain', opacity: (state?.reputation ?? 0) >= (index + 1) * 200 ? 1 : 0.45 }}
+            />
+          ))}
+        </div>
       </div>
 
       <div style={S.objCard}>
@@ -121,7 +150,7 @@ export default function Achievements({ state }) {
           <Filter size={13} />
           <span>CATÉGORIES</span>
         </div>
-        <div style={{ ...S.filterChips, marginBottom: 8 }}>
+      <div style={{ ...S.filterChips, marginBottom: 8 }}>
           {categoryOptions.map((item) => (
             <button
               key={item}
@@ -132,6 +161,9 @@ export default function Achievements({ state }) {
                 color: category === item ? '#ffffff' : '#172026',
               }}
             >
+              {item !== 'all' && CATEGORY_ASSET[item] && (
+                <img src={CATEGORY_ASSET[item]} alt={item} style={{ width: 14, height: 14, objectFit: 'contain', marginRight: 5, verticalAlign: 'middle' }} />
+              )}
               {item === 'all' ? 'Toutes' : ACHIEVEMENT_CATEGORY_LABELS[item] ?? item}
             </button>
           ))}
@@ -180,10 +212,16 @@ export default function Achievements({ state }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 8 }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 8, padding: '3px 8px', background: style.bg, border: `1px solid ${style.border}`, color: style.accent, fontSize: 9, letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>
+                    {CATEGORY_ASSET[achievement.category] && (
+                      <img src={CATEGORY_ASSET[achievement.category]} alt={achievement.category} style={{ width: 13, height: 13, objectFit: 'contain' }} />
+                    )}
                     {ACHIEVEMENT_CATEGORY_LABELS[achievement.category] ?? 'Succès'}
                   </div>
-                  <div style={{ fontSize: 14, color: '#172026', fontWeight: 900 }}>
-                    {achievement.icon ?? '🏅'} {achievement.label}
+                  <div style={{ fontSize: 14, color: '#172026', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {CATEGORY_ASSET[achievement.category] && (
+                      <img src={CATEGORY_ASSET[achievement.category]} alt={achievement.category} style={{ width: 16, height: 16, objectFit: 'contain' }} />
+                    )}
+                    <span>{achievement.icon ?? '🏅'} {achievement.label}</span>
                   </div>
                   <div style={{ ...S.fixtureMeta, marginTop: 4 }}>{achievement.desc}</div>
                 </div>

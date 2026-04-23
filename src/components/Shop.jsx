@@ -58,6 +58,23 @@ const PACK_THEME = {
   gems_legend: { gradient: 'linear-gradient(135deg,#14532d,#22c55e)', halo: 'rgba(20,83,45,.26)', tag: 'Légende' },
 };
 
+const CATEGORY_ASSET = {
+  all: '/tycoon-assets/v_shop.png',
+  finances: '/tycoon-assets/resource_cash.png',
+  boost: '/tycoon-assets/shop_rep_boost.png',
+  scouting: '/tycoon-assets/shop_scout.png',
+  contacts: '/tycoon-assets/v_messages.png',
+  transfer: '/tycoon-assets/shop_negociation.png',
+};
+
+const GEM_PACK_ASSET = {
+  gems_starter: '/tycoon-assets/icon_gem_blue.png',
+  gems_player: '/tycoon-assets/icon_gem_blue.png',
+  gems_pro: '/tycoon-assets/icon_gem_purple.png',
+  gems_elite: '/tycoon-assets/icon_gem_purple.png',
+  gems_legend: '/tycoon-assets/icon_gem_purple.png',
+};
+
 const getEffectLabel = (item) => {
   const fx = item?.effect ?? {};
   if (fx.money) return `+${formatMoney(fx.money)} immédiatement`;
@@ -114,21 +131,34 @@ export default function Shop({ state, phase, onBuy }) {
               Des boosts concrets pour accélérer ton agence sans casser ton rythme de jeu.
             </div>
           </div>
-          <div style={{ fontSize: 34, lineHeight: 1, filter: 'drop-shadow(0 8px 18px rgba(255,214,10,.26))' }}>🏦</div>
+          <img
+            src="/tycoon-assets/v_shop.png"
+            alt="Boutique"
+            style={{ width: 56, height: 56, objectFit: 'contain', filter: 'drop-shadow(0 8px 18px rgba(255,214,10,.26))' }}
+          />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 8 }}>
           <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>CAPITAL</div>
-            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900 }}>{formatMoney(money)}</div>
+            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <img src="/tycoon-assets/resource_cash.png" alt="Capital" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+              {formatMoney(money)}
+            </div>
           </div>
           <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>GEMMES</div>
-            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900 }}>{gems}</div>
+            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <img src="/tycoon-assets/resource_coin.png" alt="Gemmes" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+              {gems}
+            </div>
           </div>
           <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>RÉPUTATION</div>
-            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900 }}>{reputation}/1000</div>
+            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <img src="/tycoon-assets/reputation_shield.png" alt="Réputation" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+              {reputation}/1000
+            </div>
           </div>
         </div>
       </div>
@@ -157,11 +187,18 @@ export default function Shop({ state, phase, onBuy }) {
         <div style={{ display: 'grid', gap: 8 }}>
           {shopRuntime.featuredOffers.map((offer) => (
             <div key={offer.id} style={{ border: '1px solid #d7efe5', background: '#f0fdf8', borderRadius: 8, padding: '9px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: '#172026' }}>{offer.icon} {offer.label}</div>
-                <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
-                  <span style={{ textDecoration: 'line-through', marginRight: 6 }}>{offer.baseCost}</span>
-                  <strong style={{ color: '#00a676' }}>{offer.price} gemmes</strong>
+              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <img
+                  src={CATEGORY_ASSET[offer.category] ?? '/tycoon-assets/v_shop.png'}
+                  alt={offer.label}
+                  style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }}
+                />
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: '#172026' }}>{offer.label}</div>
+                  <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
+                    <span style={{ textDecoration: 'line-through', marginRight: 6 }}>{offer.baseCost}</span>
+                    <strong style={{ color: '#00a676' }}>{offer.price} gemmes</strong>
+                  </div>
                 </div>
               </div>
               <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: '#00a676', fontFamily: 'system-ui,sans-serif' }}>
@@ -195,6 +232,11 @@ export default function Shop({ state, phase, onBuy }) {
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.86)', fontFamily: 'system-ui,sans-serif', marginTop: 3 }}>{pack.gems} gemmes · {pack.bonus || 'Sans bonus'}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
+                  <img
+                    src={GEM_PACK_ASSET[pack.id] ?? '/tycoon-assets/icon_gem_blue.png'}
+                    alt={pack.label}
+                    style={{ width: 20, height: 20, objectFit: 'contain', marginLeft: 'auto', marginBottom: 4 }}
+                  />
                   <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>{pack.price}</div>
                   <div style={{ fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,255,255,.8)', fontFamily: 'system-ui,sans-serif' }}>achat in-app</div>
                 </div>
@@ -215,6 +257,9 @@ export default function Shop({ state, phase, onBuy }) {
               color: category === item.id ? '#ffffff' : '#172026',
             }}
           >
+            {CATEGORY_ASSET[item.id] && (
+              <img src={CATEGORY_ASSET[item.id]} alt={item.label} style={{ width: 14, height: 14, objectFit: 'contain', marginRight: 5, verticalAlign: 'middle' }} />
+            )}
             {item.label}
           </button>
         ))}
@@ -244,9 +289,18 @@ export default function Shop({ state, phase, onBuy }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                 <div>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 8, padding: '4px 8px', background: theme.chipBg, border: `1px solid ${theme.border}`, fontSize: 9, letterSpacing: '.12em', fontWeight: 900, color: theme.chip, fontFamily: 'system-ui,sans-serif', marginBottom: 7 }}>
+                    {CATEGORY_ASSET[item.category] && (
+                      <img src={CATEGORY_ASSET[item.category]} alt={item.category} style={{ width: 13, height: 13, objectFit: 'contain' }} />
+                    )}
                     {theme.label}
                   </div>
-                  <div style={{ fontSize: 20, marginBottom: 4 }}>{item.icon ?? '✨'}</div>
+                  <div style={{ marginBottom: 4 }}>
+                    <img
+                      src={CATEGORY_ASSET[item.category] ?? '/tycoon-assets/v_shop.png'}
+                      alt={item.label}
+                      style={{ width: 22, height: 22, objectFit: 'contain' }}
+                    />
+                  </div>
                   <div style={{ fontSize: 14, fontWeight: 900, color: '#172026' }}>{item.label}</div>
                   <div style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 4, lineHeight: 1.45 }}>{item.desc}</div>
                 </div>
