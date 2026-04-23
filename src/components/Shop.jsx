@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Coins, Gem, Lock, ShoppingBag, Sparkles, Star } from 'lucide-react';
 import { getAgencyCapacity } from '../systems/agencySystem';
-import { GEM_PACKS, SHOP_CATEGORIES, SHOP_ITEMS } from '../systems/shopSystem';
+import { GEM_PACKS, SHOP_CATEGORIES, SHOP_ITEMS, getShopRuntimeView } from '../systems/shopSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
 
@@ -10,6 +10,7 @@ export default function Shop({ state, phase, onBuy }) {
   const gems = state.gems ?? 0;
   const rosterCount = state.roster?.length ?? 0;
   const capacity = getAgencyCapacity(state.agencyLevel);
+  const shopRuntime = useMemo(() => getShopRuntimeView(state), [state]);
 
   const items = useMemo(() => {
     if (category === 'all') return SHOP_ITEMS;
@@ -44,6 +45,49 @@ export default function Shop({ state, phase, onBuy }) {
         <div style={{ ...S.qSub, lineHeight: 1.5 }}>
           Les gemmes se gagnent en jouant: objectifs de saison, jalons, résultats et petites récompenses de progression.
         </div>
+      </div>
+
+      <div style={S.objCard}>
+        <div style={S.secTitle}>
+          <Sparkles size={14} />
+          <span>OFFRES DU JOUR</span>
+        </div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {shopRuntime.featuredOffers.map((offer) => (
+            <div key={offer.id} style={{ border: '1px solid #d7efe5', background: '#f0fdf8', borderRadius: 8, padding: '9px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 900, color: '#172026' }}>{offer.icon} {offer.label}</div>
+                <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
+                  <span style={{ textDecoration: 'line-through', marginRight: 6 }}>{offer.baseCost}</span>
+                  <strong style={{ color: '#00a676' }}>{offer.price} gemmes</strong>
+                </div>
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: '#00a676', fontFamily: 'system-ui,sans-serif' }}>
+                -{offer.discountPercent}%
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={S.objCard}>
+        <div style={S.secTitle}>
+          <Star size={14} />
+          <span>PROGRAMME FIDÉLITÉ</span>
+        </div>
+        <div style={S.sumRow}>
+          <span style={S.sumK}>Progression achats gemmes</span>
+          <strong>{shopRuntime.loyalty.progress}/{shopRuntime.loyalty.target}</strong>
+        </div>
+        <div style={S.sumRow}>
+          <span style={S.sumK}>Prochaine récompense</span>
+          <strong>{shopRuntime.loyalty.reward.gems} gemmes + {formatMoney(shopRuntime.loyalty.reward.money)}</strong>
+        </div>
+        {shopRuntime.firstPurchaseBonusPending && (
+          <div style={{ ...S.emptySmall, marginTop: 8 }}>
+            Bonus premier achat actif: +12 gemmes immédiates.
+          </div>
+        )}
       </div>
 
       <div style={S.objCard}>
@@ -94,7 +138,9 @@ export default function Shop({ state, phase, onBuy }) {
       <div style={S.cardList}>
         {items.map((item) => {
           const isGem = item.currency === 'gems';
-          const canBuy = isGem ? gems >= item.cost : (state.money ?? 0) >= item.cost;
+          const effectiveCost = shopRuntime.priceByItemId[item.id] ?? item.cost;
+          const discountPercent = shopRuntime.discountByItemId[item.id] ?? 0;
+          const canBuy = isGem ? gems >= effectiveCost : (state.money ?? 0) >= effectiveCost;
           return (
             <div
               key={item.id}
@@ -131,7 +177,14 @@ export default function Shop({ state, phase, onBuy }) {
                   borderRadius: 8,
                 }}>
                   {isGem ? <Gem size={11} /> : <Coins size={11} />}
-                  {isGem ? `${item.cost} gemmes` : formatMoney(item.cost)}
+                  {isGem
+                    ? `${effectiveCost} gemmes`
+                    : formatMoney(effectiveCost)}
+                  {discountPercent > 0 && (
+                    <span style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginLeft: 4, textDecoration: 'line-through' }}>
+                      {item.cost}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -148,7 +201,7 @@ export default function Shop({ state, phase, onBuy }) {
                 }}
               >
                 {canBuy ? <ShoppingBag size={14} /> : <Lock size={14} />}
-                <span>{canBuy ? 'ACHETER' : 'SOLDE INSUFFISANT'}</span>
+                <span>{canBuy ? (discountPercent > 0 ? `ACHETER -${discountPercent}%` : 'ACHETER') : 'SOLDE INSUFFISANT'}</span>
               </button>
             </div>
           );

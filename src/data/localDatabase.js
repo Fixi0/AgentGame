@@ -70,6 +70,8 @@ const GAME_TABLES = [
   'save_slots',
 ];
 
+let saveProgressQueue = Promise.resolve();
+
 const SNAPSHOT_TABLE_MAP = {
   saves: 'save_slots',
 };
@@ -230,6 +232,7 @@ const idbRead = async (storeName, key) => {
 
 const stableRowId = (storeName, row) => {
   if (!row || typeof row !== 'object') return null;
+  if (row.id != null) return String(row.id);
   switch (storeName) {
     case 'agency_upgrades':
       return row.agency_id ? `agency_upgrades_${row.agency_id}` : null;
@@ -859,19 +862,25 @@ export const loadLocalGameProgress = async () => {
 };
 
 export const saveLocalGameProgress = async (state, slot = 1) => {
-  await ensureLocalGameDatabase();
-  const record = buildSaveRecord(state, slot);
-  await idbWrite('saves', record);
-  await idbWriteTables(buildSnapshotTables(record.snapshot), { clear: true });
-  await idbWrite('meta', {
-    id: 'active_save',
-    saveId: SAVE_ID,
-    updatedAt: record.updatedAt,
-    season: record.season,
-    week: record.week,
-  });
-  writeLegacySave(record);
-  return record;
+  const queuedSave = async () => {
+    await ensureLocalGameDatabase();
+    const record = buildSaveRecord(state, slot);
+    await idbWrite('saves', record);
+    await idbWriteTables(buildSnapshotTables(record.snapshot), { clear: true });
+    await idbWrite('meta', {
+      id: 'active_save',
+      saveId: SAVE_ID,
+      updatedAt: record.updatedAt,
+      season: record.season,
+      week: record.week,
+    });
+    writeLegacySave(record);
+    return record;
+  };
+
+  const next = saveProgressQueue.then(queuedSave, queuedSave);
+  saveProgressQueue = next.catch(() => null);
+  return next;
 };
 
 export const clearLocalGameProgress = async () => {

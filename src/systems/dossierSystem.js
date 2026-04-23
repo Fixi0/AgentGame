@@ -40,6 +40,20 @@ const RESPONSE_REQUIRED_TYPES = new Set([
   'retirement_thoughts',
 ]);
 
+const hasReplyChoices = (message) => {
+  if (!message) return false;
+  if (Array.isArray(message.responses) && message.responses.length > 0) return true;
+  if (Array.isArray(message.responseOptions) && message.responseOptions.length > 0) return true;
+  return false;
+};
+
+const isAwaitingResponse = (message) => {
+  if (!message || message.resolved) return false;
+  if (typeof message.requiresResponse === 'boolean') return message.requiresResponse;
+  if (hasReplyChoices(message)) return true;
+  return RESPONSE_REQUIRED_TYPES.has(message.type);
+};
+
 export const getMessagePriority = (message) => {
   if (!message) return 'normal';
   if (message.priority) return message.priority;
@@ -64,7 +78,7 @@ export const getPendingMessageCounts = (state) => {
   // Queue items are future deliveries, so they are tracked separately.
   const unresolved = inbox.filter((message) => !message.resolved);
   const urgent = unresolved.filter((message) => URGENT_MESSAGE_TYPES.has(message.type)).length;
-  const awaitingResponse = unresolved.filter((message) => RESPONSE_REQUIRED_TYPES.has(message.type)).length;
+  const awaitingResponse = unresolved.filter((message) => isAwaitingResponse(message)).length;
   const queued = queue.length;
   return {
     urgent,
@@ -75,7 +89,7 @@ export const getPendingMessageCounts = (state) => {
   };
 };
 
-export const messageNeedsResponse = (message) => RESPONSE_REQUIRED_TYPES.has(message?.type) && !message?.resolved;
+export const messageNeedsResponse = (message) => isAwaitingResponse(message);
 
 export const getActiveDossierPlayerIds = (state = {}) => {
   const ids = new Set();

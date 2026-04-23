@@ -75,6 +75,7 @@ import { getActiveDossierPlayerIds, getOfferAcceptanceReadiness, getPendingMessa
 import { recordDossierEvent } from './systems/coherenceSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
 import { purchaseShopItem } from './systems/shopSystem';
+import { syncProgressionSystems } from './systems/objectivesSystem';
 import { createManualNewsPost } from './systems/newsSystem';
 import { CLUBS } from './data/clubs';
 import { clamp, makeId, pick } from './utils/helpers';
@@ -534,6 +535,24 @@ export default function FootballAgentGame() {
     setTimeout(() => setToast(null), 2500);
   };
 
+  const progressionSyncRef = useRef(false);
+  useEffect(() => {
+    if (!loaded || !state) return;
+    if (progressionSyncRef.current) {
+      progressionSyncRef.current = false;
+      return;
+    }
+    const result = syncProgressionSystems(state);
+    if (!result.changed) return;
+    progressionSyncRef.current = true;
+    setState(result.state);
+    if (result.summary.dailyCompleted.length > 0) {
+      showToast(`Objectif quotidien validé: ${result.summary.dailyCompleted[0]}`, 'success');
+    } else if (result.summary.achievementsUnlocked.length > 0) {
+      showToast(`Exploit débloqué: ${result.summary.achievementsUnlocked[0]}`, 'success');
+    }
+  }, [state, loaded]);
+
   const commitResult = (result, successMessage) => {
     if (result.error) {
       showToast(result.error, 'error');
@@ -640,7 +659,12 @@ export default function FootballAgentGame() {
     }
 
     setState(nextState);
-    showToast(`Boutique: ${result.item.label}`, 'success');
+    const discountText = (result.meta?.discountPercent ?? 0) > 0 ? ` (-${result.meta.discountPercent}%)` : '';
+    const firstBonusText = (result.meta?.firstPurchaseBonus ?? 0) > 0 ? ` · bonus +${result.meta.firstPurchaseBonus} gemmes` : '';
+    const loyaltyText = result.meta?.loyaltyReward
+      ? ` · fidélité +${result.meta.loyaltyReward.gems} gemmes`
+      : '';
+    showToast(`Boutique: ${result.item.label}${discountText}${firstBonusText}${loyaltyText}`, 'success');
   };
 
   const handleUpgradeOffice = (type) => {

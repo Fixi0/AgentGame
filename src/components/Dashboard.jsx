@@ -223,6 +223,67 @@ function ObjectivesWidget({ objectives, onNav }) {
   );
 }
 
+function DailyObjectivesWidget({ objectives }) {
+  if (!objectives?.length) return null;
+  const done = objectives.filter((o) => o.completed).length;
+  const active = objectives.filter((o) => !o.completed);
+  return (
+    <div style={S.objWidget}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={S.objWidgetTitle}>📌 OBJECTIFS DU JOUR</div>
+        <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>{done}/{objectives.length}</span>
+      </div>
+      {active.map((obj) => {
+        const pct = Math.min(100, Math.round((obj.current / obj.target) * 100));
+        return (
+          <div key={obj.id} style={{ ...S.objItem, borderBottom: '1px solid #f0f4f7', paddingBottom: 8, marginBottom: 6 }}>
+            <Circle size={10} color={pct >= 100 ? '#00a676' : '#64727d'} style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ ...S.objItemLabel, marginBottom: 2 }}>{obj.label}</div>
+              <div style={S.fixtureMeta}>{obj.desc}</div>
+            </div>
+            <span style={S.objItemPct}>{obj.current}/{obj.target}</span>
+          </div>
+        );
+      })}
+      {done > 0 && (
+        <div style={S.emptySmall}>
+          Récompenses quotidiennes cumulées prêtes: argent + réputation + gemmes.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AchievementsWidget({ achievements, onNav }) {
+  if (!achievements?.length) return null;
+  const unlocked = achievements.filter((item) => item.unlocked);
+  const locked = achievements.filter((item) => !item.unlocked);
+  const spotlight = locked.slice(0, 3);
+  return (
+    <div style={S.objWidget}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={S.objWidgetTitle}>🏆 EXPLOITS</div>
+        <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>{unlocked.length}/{achievements.length} débloqués</span>
+      </div>
+      {spotlight.map((achievement) => (
+        <div key={achievement.id} style={{ ...S.objItem, borderBottom: '1px solid #f0f4f7', paddingBottom: 8, marginBottom: 6 }}>
+          <Trophy size={10} color="#9aa7b2" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={S.objItemLabel}>{achievement.label}</div>
+            <div style={S.fixtureMeta}>{achievement.current}/{achievement.target} · {achievement.desc}</div>
+          </div>
+        </div>
+      ))}
+      {unlocked.length > 0 && (
+        <button onClick={() => onNav?.('office')} style={{ ...S.secBtn, marginBottom: 0, marginTop: 2 }}>
+          Voir la progression agence
+        </button>
+      )}
+    </div>
+  );
+}
+
 const SummaryRow = ({ label, value, color }) => (
   <div style={S.sumRow}>
     <span style={S.sumK}>{label}</span>
@@ -1048,7 +1109,9 @@ export default function Dashboard({ state, phase, onPlay, onNav, onAcceptOffer, 
         <>
           <AgencyHealthScore state={state} />
           <SeasonArc currentWeek={phase.seasonWeek ?? 1} totalWeeks={38} />
+          <DailyObjectivesWidget objectives={state.dailyObjectives ?? []} />
           <ObjectivesWidget objectives={state.seasonObjectives} onNav={onNav} />
+          <AchievementsWidget achievements={state.achievements ?? []} onNav={onNav} />
         </>
       )}
 

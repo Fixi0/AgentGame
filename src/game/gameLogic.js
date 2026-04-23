@@ -26,7 +26,7 @@ import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSe
 import { generateWorldState } from '../systems/worldStateSystem';
 import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/consequenceSystem';
 import { awardGems } from '../systems/shopSystem';
-import { generateSeasonObjectives, updateObjectiveProgress, checkObjectiveCompletion } from '../systems/objectivesSystem';
+import { generateSeasonObjectives, updateObjectiveProgress, checkObjectiveCompletion, syncProgressionSystems } from '../systems/objectivesSystem';
 import { createDefaultContacts } from '../systems/contactsSystem';
 import { getActiveDossierPlayerIds, getMarketLockedPlayerIds, getMessagePriority, messageNeedsResponse } from '../systems/dossierSystem';
 import { applyLockerRoomDynamics, buildLockerRoomSnapshot } from '../systems/lockerRoomSystem';
@@ -238,7 +238,7 @@ const buildClubSeasonContext = (player = {}, leagueTables = {}, leagueSeasonData
   const form = Array.isArray(row.form) ? row.form.slice(-5) : [];
   const position = positionIndex >= 0 ? positionIndex + 1 : null;
   const goalDifference = (row.goalsFor ?? 0) - (row.goalsAgainst ?? 0);
-  return {
+  const migratedState = {
     season: seasonData.season ?? null,
     countryCode,
     club: clubName,
@@ -259,6 +259,7 @@ const buildClubSeasonContext = (player = {}, leagueTables = {}, leagueSeasonData
       || fixture.away === clubName,
     ).slice(0, 3),
   };
+  return syncProgressionSystems(migratedState).state;
 };
 
 const attachClubSeasonContext = (player = {}, leagueTables = {}, leagueSeasonData = {}) => {
@@ -579,7 +580,7 @@ export const getPhase = (week) => {
 export const generateObjectives = (season) =>
   generateSeasonObjectives({ week: (season - 1) * 38 + 1, reputation: 12 + season * 5 });
 
-export const createFreshState = () => ({
+export const createFreshState = () => syncProgressionSystems({
   money: 25000,
   gems: 0,
   legendarySeenIds: [],
@@ -642,7 +643,7 @@ export const createFreshState = () => ({
   ],
   messages: [],
   stats: { totalEarned: 0, playersSigned: 0, transfersDone: 0, seasonsPlayed: 0 },
-});
+}).state;
 
 export const migrateState = (state) => {
   if (!state) return createFreshState();

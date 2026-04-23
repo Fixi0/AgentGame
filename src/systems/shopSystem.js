@@ -187,28 +187,99 @@ export const SHOP_CATEGORIES = [
   { id: 'transfer', label: 'Transferts' },
 ];
 
+export const DEFAULT_SHOP_STATS = {
+  purchasesTotal: 0,
+  gemsSpentTotal: 0,
+  firstPurchaseDone: false,
+  loyaltyCycleProgress: 0,
+  loyaltyCycleTarget: 3,
+  loyaltyRewardsClaimed: 0,
+  lastPurchaseWeek: 0,
+};
+
+const dailyDateKey = (date = new Date()) => date.toLocaleDateString('sv-SE');
+
+const hashString = (value = '') => {
+  let hash = 2166136261;
+  const text = String(value);
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const seededSort = (items, seed) =>
+  [...items].sort((a, b) => hashString(`${seed}:${a.id}`) - hashString(`${seed}:${b.id}`));
+
+export const getShopRuntimeView = (state = {}) => {
+  const shopStats = { ...DEFAULT_SHOP_STATS, ...(state.shopStats ?? {}) };
+  const dateKey = dailyDateKey();
+  const seed = `${dateKey}:${state.week ?? 1}:${state.reputation ?? 0}:${state.agencyLevel ?? 1}`;
+  const gemItems = SHOP_ITEMS.filter((item) => item.currency === 'gems');
+  const featuredItems = seededSort(gemItems, seed).slice(0, 3);
+  const discountCurve = [25, 20, 15];
+  const firstPurchaseBoost = !shopStats.firstPurchaseDone ? 35 : null;
+
+  const featuredOffers = featuredItems.map((item, index) => {
+    const discountPercent = index === 0 && firstPurchaseBoost ? firstPurchaseBoost : discountCurve[index] ?? 15;
+    const price = Math.max(1, Math.round(item.cost * (1 - discountPercent / 100)));
+    return {
+      id: item.id,
+      label: item.label,
+      icon: item.icon,
+      category: item.category,
+      discountPercent,
+      baseCost: item.cost,
+      price,
+    };
+  });
+
+  const priceByItemId = featuredOffers.reduce((map, offer) => ({ ...map, [offer.id]: offer.price }), {});
+  const discountByItemId = featuredOffers.reduce((map, offer) => ({ ...map, [offer.id]: offer.discountPercent }), {});
+  const loyaltyCycleTarget = Math.max(3, shopStats.loyaltyCycleTarget ?? 3);
+  const loyaltyReward = { gems: 30, money: 12000 };
+
+  return {
+    dateKey,
+    featuredOffers,
+    priceByItemId,
+    discountByItemId,
+    loyalty: {
+      progress: Math.max(0, shopStats.loyaltyCycleProgress ?? 0),
+      target: loyaltyCycleTarget,
+      reward: loyaltyReward,
+      rewardsClaimed: shopStats.loyaltyRewardsClaimed ?? 0,
+    },
+    firstPurchaseBonusPending: !shopStats.firstPurchaseDone,
+  };
+};
+
 /** Apply a purchased shop item to game state */
 export const purchaseShopItem = (state, itemId) => {
   const item = SHOP_ITEMS.find((i) => i.id === itemId);
   if (!item) return { state, error: 'Article introuvable.' };
+  const runtime = getShopRuntimeView(state);
+  const adjustedCost = runtime.priceByItemId[item.id] ?? item.cost;
+  const discountPercent = runtime.discountByItemId[item.id] ?? 0;
 
   // Check affordability
   if (item.currency === 'gems') {
-    if ((state.gems ?? 0) < item.cost) return { state, error: `Pas assez de gemmes (${item.cost} requis).` };
+    if ((state.gems ?? 0) < adjustedCost) return { state, error: `Pas assez de gemmes (${adjustedCost} requis).` };
   } else if (item.currency === 'money') {
-    if (state.money < item.cost) return { state, error: `Fonds insuffisants (${item.cost} € requis).` };
+    if (state.money < adjustedCost) return { state, error: `Fonds insuffisants (${adjustedCost} € requis).` };
   }
 
-  let next = { ...state };
+  let next = { ...state, shopStats: { ...DEFAULT_SHOP_STATS, ...(state.shopStats ?? {}) } };
 
   // Deduct cost
-  if (item.currency === 'gems') next = { ...next, gems: (next.gems ?? 0) - item.cost };
-  else next = { ...next, money: next.money - item.cost };
+  if (item.currency === 'gems') next = { ...next, gems: (next.gems ?? 0) - adjustedCost };
+  else next = { ...next, money: next.money - adjustedCost };
 
   // Apply effect
   const fx = item.effect;
   if (fx.money) next = { ...next, money: next.money + fx.money };
-  if (fx.reputation) next = { ...next, reputation: Math.min(100, next.reputation + fx.reputation) };
+  if (fx.reputation) next = { ...next, reputation: Math.min(1000, next.reputation + fx.reputation) };
   if (fx.incomeBoostWeeks) {
     next = {
       ...next,
@@ -247,7 +318,46 @@ export const purchaseShopItem = (state, itemId) => {
     next = { ...next, _pendingMarketRefresh: true };
   }
 
-  return { state: next, item };
+  const shopStats = {
+    ...next.shopStats,
+    purchasesTotal: (next.shopStats?.purchasesTotal ?? 0) + 1,
+    gemsSpentTotal: (next.shopStats?.gemsSpentTotal ?? 0) + (item.currency === 'gems' ? adjustedCost : 0),
+    loyaltyCycleProgress: (next.shopStats?.loyaltyCycleProgress ?? 0) + (item.currency === 'gems' ? 1 : 0),
+    lastPurchaseWeek: next.week ?? next.shopStats?.lastPurchaseWeek ?? 0,
+  };
+
+  let firstPurchaseBonus = 0;
+  if (!shopStats.firstPurchaseDone) {
+    firstPurchaseBonus = 12;
+    shopStats.firstPurchaseDone = true;
+  }
+
+  let loyaltyReward = null;
+  const loyaltyTarget = Math.max(3, shopStats.loyaltyCycleTarget ?? 3);
+  if ((item.currency === 'gems') && (shopStats.loyaltyCycleProgress ?? 0) >= loyaltyTarget) {
+    loyaltyReward = { gems: 30, money: 12000 };
+    shopStats.loyaltyCycleProgress = 0;
+    shopStats.loyaltyRewardsClaimed = (shopStats.loyaltyRewardsClaimed ?? 0) + 1;
+  }
+
+  next = {
+    ...next,
+    shopStats,
+    gems: (next.gems ?? 0) + firstPurchaseBonus + (loyaltyReward?.gems ?? 0),
+    money: (next.money ?? 0) + (loyaltyReward?.money ?? 0),
+  };
+
+  return {
+    state: next,
+    item,
+    meta: {
+      finalCost: adjustedCost,
+      baseCost: item.cost,
+      discountPercent,
+      firstPurchaseBonus,
+      loyaltyReward,
+    },
+  };
 };
 
 /** Grant free gems from gameplay milestones */
