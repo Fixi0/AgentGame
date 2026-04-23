@@ -602,7 +602,6 @@ const migratePlayersWithClubRole = async () => {
       });
 
       tx.oncomplete = () => {
-        console.log(`✅ Migrated ${count}/${players.length} players with club roles`);
         resolve({ migrated: count, total: players.length });
       };
       tx.onerror = () => resolve({ migrated: 0, total: players.length, error: tx.error });

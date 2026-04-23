@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { COUNTRIES, getCitiesForCountry } from '../data/clubs';
 import { DIFFICULTIES, STARTING_PROFILES } from '../systems/agencyReputationSystem';
@@ -29,7 +29,7 @@ function ProgressBar({ step }) {
   );
 }
 
-function Step1({ draft, update }) {
+function Step1({ draft, update, onTap }) {
   const cities = useMemo(() => getCitiesForCountry(draft.countryCode), [draft.countryCode]);
   return (
     <div>
@@ -97,7 +97,10 @@ function Step1({ draft, update }) {
             {EMBLEMS.map((em) => (
               <button
                 key={em}
-                onClick={() => update('emblem', em)}
+                type="button"
+                onPointerUp={onTap(() => update('emblem', em))}
+                onMouseUp={onTap(() => update('emblem', em))}
+                onClick={onTap(() => update('emblem', em))}
                 style={{
                   fontSize: 22,
                   background: (draft.emblem ?? '⚡') === em ? draft.color : '#f0f4f8',
@@ -119,7 +122,7 @@ function Step1({ draft, update }) {
   );
 }
 
-function Step2({ draft, update }) {
+function Step2({ draft, update, onTap }) {
   const agencyStyles = [
     { value: 'equilibre', label: '⚖️ Équilibrée', desc: 'Bon départ, peu de risques. Idéal pour débuter.' },
     { value: 'business', label: '💼 Business agressif', desc: 'Plus forte sur le mercato, tu gagnes plus vite.' },
@@ -138,7 +141,10 @@ function Step2({ draft, update }) {
           {agencyStyles.map((style) => (
             <button
               key={style.value}
-              onClick={() => update('style', style.value)}
+              type="button"
+              onPointerUp={onTap(() => update('style', style.value))}
+              onMouseUp={onTap(() => update('style', style.value))}
+              onClick={onTap(() => update('style', style.value))}
               style={{
                 ...S.choiceBtn,
                 borderColor: draft.style === style.value ? '#00a676' : '#e5eaf0',
@@ -161,7 +167,10 @@ function Step2({ draft, update }) {
           {Object.entries(STARTING_PROFILES).map(([key, sp]) => (
             <button
               key={key}
-              onClick={() => update('startProfile', key)}
+              type="button"
+              onPointerUp={onTap(() => update('startProfile', key))}
+              onMouseUp={onTap(() => update('startProfile', key))}
+              onClick={onTap(() => update('startProfile', key))}
               style={{
                 ...S.choiceBtn,
                 borderColor: (draft.startProfile ?? 'ancien_joueur') === key ? '#2563eb' : '#e5eaf0',
@@ -246,6 +255,7 @@ function Step3({ draft }) {
 export default function Onboarding({ profile, onComplete }) {
   const [draft, setDraft] = useState(profile);
   const [step, setStep] = useState(1);
+  const lockRef = useRef(false);
 
   const update = (field, value) => {
     setDraft((prev) => {
@@ -258,6 +268,20 @@ export default function Onboarding({ profile, onComplete }) {
   const canAdvance = step === 1
     ? draft.name?.trim().length >= 2 && draft.ownerName?.trim().length >= 1
     : true;
+
+  const trigger = (handler) => (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (!handler || lockRef.current) return;
+    lockRef.current = true;
+    try {
+      handler();
+    } finally {
+      setTimeout(() => { lockRef.current = false; }, 120);
+    }
+  };
 
   const advance = () => {
     if (step < 3) setStep(step + 1);
@@ -286,12 +310,15 @@ export default function Onboarding({ profile, onComplete }) {
           La barre du bas n'apparaît qu'après la création de l'agence. Ici, tu construis d'abord ta carrière.
         </div>
 
-        {step === 1 && <Step1 draft={draft} update={update} />}
-        {step === 2 && <Step2 draft={draft} update={update} />}
+        {step === 1 && <Step1 draft={draft} update={update} onTap={trigger} />}
+        {step === 2 && <Step2 draft={draft} update={update} onTap={trigger} />}
         {step === 3 && <Step3 draft={draft} />}
 
         <button
-          onClick={advance}
+          type="button"
+          onPointerUp={trigger(advance)}
+          onMouseUp={trigger(advance)}
+          onClick={trigger(advance)}
           disabled={!canAdvance}
           style={{
             ...S.primaryBtn,
@@ -306,7 +333,10 @@ export default function Onboarding({ profile, onComplete }) {
         </button>
         {step > 1 && (
           <button
-            onClick={() => setStep(step - 1)}
+            type="button"
+            onPointerUp={trigger(() => setStep(step - 1))}
+            onMouseUp={trigger(() => setStep(step - 1))}
+            onClick={trigger(() => setStep(step - 1))}
             style={{ ...S.secBtn, marginTop: 10, marginBottom: 0 }}
           >
             ← Retour

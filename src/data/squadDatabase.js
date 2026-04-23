@@ -440,10 +440,6 @@ const buildSquadPlayer = (club, slotIdx, season) => {
   const rating = evolveRating(baseRating, baseAge, potential, season);
   const age    = baseAge + (season - 1);
 
-  if (club.tier === 1) {
-    console.log(`[BUILD] ${slot.roleId} Tier${tier}: ranges=[${ranges.starterMin}-${ranges.starterMax}], baseRating=${baseRating}, rating=${rating}`);
-  }
-
   // Attributs stables
   const personality    = sPick(baseSeed, 3, PERSONALITIES);
   const form           = 55 + sInt(baseSeed, 4, 0, 40);
@@ -646,7 +642,6 @@ const evolveDatabaseCatalogPlayer = (player, season = 1) => {
   let baseRating = player.catalogBaseRating ?? player.rating ?? 120;
   let potential = player.catalogBasePotential ?? player.potential ?? baseRating;
   if (baseRating > 0 && baseRating <= 100) {
-    console.log(`[MIGRATE] ${player.firstName} ${player.lastName}: ${baseRating} → ${baseRating * 2}`);
     baseRating = baseRating * 2;
   }
   if (potential > 0 && potential <= 100) {
@@ -696,19 +691,7 @@ export const createPlayerCatalog = (season = 1) => {
       ...getClubYouthPlayers(club, season),
     ]);
 
-  // DEBUG: Check ratings before limiting
-  const tier1players = rawCatalog.filter(p => p.clubTier === 1).slice(0, 3);
-  if (tier1players.length > 0) {
-    console.log('[CATALOG] Raw Tier1 players:', tier1players.map(p => `${p.firstName}=${p.rating}`));
-  }
-
   const catalog = limitEliteRatings(rawCatalog);
-
-  // DEBUG: Check after limiting
-  const tier1after = catalog.filter(p => p.clubTier === 1).slice(0, 3);
-  if (tier1after.length > 0) {
-    console.log('[CATALOG] After limit Tier1:', tier1after.map(p => `${p.firstName}=${p.rating}`));
-  }
 
   playerCatalogCache.set(cacheKey, catalog);
   return catalog;
