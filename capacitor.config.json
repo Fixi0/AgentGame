@@ -1,0 +1,9 @@
+{
+  "appId": "com.agentfc.footballagentsimulator",
+  "appName": "Football Agent Simulator",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

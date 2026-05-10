@@ -6,9 +6,12 @@ const DB_NAME = 'agent_foot_local_db';
 const DB_VERSION = 6;
 const SAVE_ID = 'active_save';
 const CATALOG_ID = 'catalog_v2';
+const SAVE_SLOT_MIN = 1;
+const SAVE_SLOT_MAX = 3;
+const ACTIVE_SAVE_META_KEY = 'active_save';
 // Bumper cette valeur à chaque modification de la base de données de joueurs
 // pour forcer un re-seed automatique sans perdre la sauvegarde en cours.
-const CATALOG_DATA_VERSION = '2026-04-21-fixio-project-v1';
+const CATALOG_DATA_VERSION = '2026-05-07-fixio-moxwmo-start-v1';
 
 const STATIC_TABLES = [
   'countries',
@@ -180,6 +183,24 @@ const STORE_DEFINITIONS = [
 ];
 
 const STORE_NAMES = STORE_DEFINITIONS.map((definition) => definition.name);
+
+const normalizeSaveSlot = (slot = 1) => {
+  const parsed = Number.parseInt(slot, 10);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(SAVE_SLOT_MIN, Math.min(SAVE_SLOT_MAX, parsed));
+};
+
+const getSaveRecordId = (slot = 1) => `save_slot_${normalizeSaveSlot(slot)}`;
+
+const getRecordSlot = (record = null) => {
+  if (!record) return 1;
+  if (Number.isFinite(record.slot)) return normalizeSaveSlot(record.slot);
+  if (typeof record.id === 'string') {
+    const match = record.id.match(/save_slot_(\d+)/);
+    if (match) return normalizeSaveSlot(Number.parseInt(match[1], 10));
+  }
+  return normalizeSaveSlot(record.slot_save ?? 1);
+};
 
 const supportsIndexedDb = () => typeof indexedDB !== 'undefined';
 
@@ -465,13 +486,14 @@ const removeLegacySave = () => {
 };
 
 const buildSaveRecord = (state, slot = 1) => {
+  const normalizedSlot = normalizeSaveSlot(slot);
   const preview = legacyPreviewFromState(state);
   const season = preview.season;
   const week = state?.week ?? 1;
   const snapshot = createGameDatabaseSnapshot(state ?? {});
   return {
-    id: SAVE_ID,
-    slot,
+    id: getSaveRecordId(normalizedSlot),
+    slot: normalizedSlot,
     updatedAt: Date.now(),
     state,
     snapshot,
@@ -776,6 +798,34 @@ const hydrateSavedRecordFromDatabase = async (record) => {
   };
 };
 
+const restoreSnapshotForRecord = async (record) => {
+  if (!record?.snapshot) return;
+  await idbWriteTables(buildSnapshotTables(record.snapshot), { clear: true });
+};
+
+const persistActiveSaveMeta = async (record) => {
+  if (!record) return;
+  await idbWrite('meta', {
+    id: ACTIVE_SAVE_META_KEY,
+    saveId: record.id,
+    slot: getRecordSlot(record),
+    updatedAt: record.updatedAt ?? Date.now(),
+    season: record.season,
+    week: record.week,
+  });
+};
+
+const getSavedSlotRecords = async () => {
+  const saves = await idbGetAll('saves');
+  return saves
+    .filter((save) => save?.state)
+    .map((save) => ({
+      ...save,
+      slot: getRecordSlot(save),
+    }))
+    .sort((a, b) => a.slot - b.slot || (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+};
+
 const seedCatalogIfNeeded = async () => {
   const existingCatalog = await idbRead('catalog', CATALOG_ID);
   const existingPlayers = await idbGetAll('catalog_players');
@@ -842,38 +892,70 @@ export const ensureLocalGameDatabase = async () => {
   return true;
 };
 
-export const loadLocalGameProgress = async () => {
+export const loadLocalGameProgress = async (slot = null) => {
   await ensureLocalGameDatabase();
-  const saved = await idbRead('saves', SAVE_ID);
-  if (saved?.state) return hydrateSavedRecordFromDatabase(saved);
-  const saves = await idbGetAll('saves');
-  const latest = saves
-    .filter((save) => save?.state)
-    .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
-  if (latest?.state) return hydrateSavedRecordFromDatabase(latest);
+
+  if (slot != null) {
+    const normalizedSlot = normalizeSaveSlot(slot);
+    const saved = await idbRead('saves', getSaveRecordId(normalizedSlot));
+    if (!saved?.state) return null;
+    const record = { ...saved, slot: normalizedSlot };
+    await restoreSnapshotForRecord(record);
+    await persistActiveSaveMeta(record);
+    if (normalizedSlot === 1) writeLegacySave(record);
+    return hydrateSavedRecordFromDatabase(record);
+  }
+
+  const activeMeta = await idbRead('meta', ACTIVE_SAVE_META_KEY);
+  if (activeMeta?.slot) {
+    const activeRecord = await idbRead('saves', getSaveRecordId(activeMeta.slot));
+    if (activeRecord?.state) {
+      const record = { ...activeRecord, slot: getRecordSlot(activeRecord) };
+      await restoreSnapshotForRecord(record);
+      await persistActiveSaveMeta(record);
+      if (record.slot === 1) writeLegacySave(record);
+      return hydrateSavedRecordFromDatabase(record);
+    }
+  }
+
+  const legacyIdRecord = await idbRead('saves', SAVE_ID);
+  if (legacyIdRecord?.state) {
+    const migrated = { ...legacyIdRecord, id: getSaveRecordId(1), slot: 1, updatedAt: Date.now() };
+    await idbWrite('saves', migrated);
+    await idbDelete('saves', SAVE_ID);
+    await restoreSnapshotForRecord(migrated);
+    await persistActiveSaveMeta(migrated);
+    writeLegacySave(migrated);
+    return hydrateSavedRecordFromDatabase(migrated);
+  }
+
+  const slotRecords = await getSavedSlotRecords();
+  const latest = [...slotRecords].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0];
+  if (latest?.state) {
+    await restoreSnapshotForRecord(latest);
+    await persistActiveSaveMeta(latest);
+    if (latest.slot === 1) writeLegacySave(latest);
+    return hydrateSavedRecordFromDatabase(latest);
+  }
 
   const legacy = readLegacySave();
   if (!legacy) return null;
   const record = buildSaveRecord(legacy, 1);
   await idbWrite('saves', record);
   await idbWriteTables(buildSnapshotTables(record.snapshot), { clear: true });
+  await persistActiveSaveMeta(record);
   return hydrateSavedRecordFromDatabase(record);
 };
 
 export const saveLocalGameProgress = async (state, slot = 1) => {
   const queuedSave = async () => {
     await ensureLocalGameDatabase();
-    const record = buildSaveRecord(state, slot);
+    const normalizedSlot = normalizeSaveSlot(slot);
+    const record = buildSaveRecord(state, normalizedSlot);
     await idbWrite('saves', record);
     await idbWriteTables(buildSnapshotTables(record.snapshot), { clear: true });
-    await idbWrite('meta', {
-      id: 'active_save',
-      saveId: SAVE_ID,
-      updatedAt: record.updatedAt,
-      season: record.season,
-      week: record.week,
-    });
-    writeLegacySave(record);
+    await persistActiveSaveMeta(record);
+    if (normalizedSlot === 1) writeLegacySave(record);
     return record;
   };
 
@@ -885,9 +967,84 @@ export const saveLocalGameProgress = async (state, slot = 1) => {
 export const clearLocalGameProgress = async () => {
   await ensureLocalGameDatabase();
   await idbDelete('saves', SAVE_ID);
-  await idbDelete('meta', 'active_save');
+  for (let slot = SAVE_SLOT_MIN; slot <= SAVE_SLOT_MAX; slot += 1) {
+    await idbDelete('saves', getSaveRecordId(slot));
+  }
+  await idbDelete('meta', ACTIVE_SAVE_META_KEY);
   await idbClearStores(GAME_TABLES);
   removeLegacySave();
+};
+
+export const clearLocalGameSlot = async (slot = 1, { clearRuntime = false } = {}) => {
+  await ensureLocalGameDatabase();
+  const normalizedSlot = normalizeSaveSlot(slot);
+  await idbDelete('saves', getSaveRecordId(normalizedSlot));
+  const activeMeta = await idbRead('meta', ACTIVE_SAVE_META_KEY);
+  if (activeMeta?.slot === normalizedSlot) {
+    await idbDelete('meta', ACTIVE_SAVE_META_KEY);
+    if (clearRuntime) await idbClearStores(GAME_TABLES);
+  }
+  if (normalizedSlot === 1) removeLegacySave();
+};
+
+export const getLocalSaveSlots = async () => {
+  await ensureLocalGameDatabase();
+  const records = await getSavedSlotRecords();
+  const bySlot = new Map(records.map((record) => [record.slot, record]));
+  const activeMeta = await idbRead('meta', ACTIVE_SAVE_META_KEY);
+
+  return Array.from({ length: SAVE_SLOT_MAX }, (_, idx) => {
+    const slot = idx + 1;
+    const record = bySlot.get(slot);
+    const preview = record?.preview ?? (record?.state ? legacyPreviewFromState(record.state) : null);
+    return {
+      slot,
+      hasSave: Boolean(record?.state),
+      isActive: activeMeta?.slot === slot,
+      updatedAt: record?.updatedAt ?? null,
+      preview: preview ?? null,
+    };
+  });
+};
+
+export const exportLocalGameSlot = async (slot = 1) => {
+  await ensureLocalGameDatabase();
+  const normalizedSlot = normalizeSaveSlot(slot);
+  const record = await idbRead('saves', getSaveRecordId(normalizedSlot));
+  if (!record?.state) return null;
+  return {
+    format: 'agent-foot-save',
+    version: 1,
+    exportedAt: Date.now(),
+    slot: normalizedSlot,
+    record: {
+      ...record,
+      id: getSaveRecordId(normalizedSlot),
+      slot: normalizedSlot,
+    },
+  };
+};
+
+export const importLocalGameSlot = async (slot = 1, payload = null, { activate = true } = {}) => {
+  await ensureLocalGameDatabase();
+  const normalizedSlot = normalizeSaveSlot(slot);
+  const importedRecord = payload?.record ?? payload;
+  if (!importedRecord?.state) throw new Error('Sauvegarde invalide');
+  const record = {
+    ...importedRecord,
+    id: getSaveRecordId(normalizedSlot),
+    slot: normalizedSlot,
+    updatedAt: Date.now(),
+    preview: importedRecord.preview ?? legacyPreviewFromState(importedRecord.state),
+    snapshot: importedRecord.snapshot ?? createGameDatabaseSnapshot(importedRecord.state),
+  };
+  await idbWrite('saves', record);
+  if (activate) {
+    await restoreSnapshotForRecord(record);
+    await persistActiveSaveMeta(record);
+  }
+  if (normalizedSlot === 1) writeLegacySave(record);
+  return record;
 };
 
 export const getLocalTableRows = async (storeName, options = {}) => {

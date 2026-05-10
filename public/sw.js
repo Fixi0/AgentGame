@@ -1,5 +1,13 @@
 const CACHE_NAME = 'agent-fc-shell-v2';
-const STATIC_ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
+const STATIC_ASSETS = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icon.png',
+  './branding/agent-foot-logo.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -33,7 +41,7 @@ self.addEventListener('fetch', (event) => {
       const cached = await cache.match(request);
       if (cached) return cached;
       if (isNavigation) {
-        const fallback = await cache.match('/index.html');
+        const fallback = await cache.match('./index.html');
         if (fallback) return fallback;
       }
       throw new Error('Offline and not cached');

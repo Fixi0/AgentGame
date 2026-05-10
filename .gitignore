@@ -6,3 +6,11 @@ dist/
 .env
 .env.local
 .vercel/
+android/.gradle/
+android/build/
+android/app/build/
+google-play-builds/
+app-store-screenshots/
+app-store-event-*/
+
+Football Agent Simulator/

@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Coins, Gem, Lock, Rocket, ShieldCheck, ShoppingBag, Sparkles, Star, TrendingUp } from 'lucide-react';
+import { Coins, Crown, Gem, Lock, PlayCircle, Rocket, ShieldCheck, ShoppingBag, Sparkles, Star, TrendingUp } from 'lucide-react';
 import { getAgencyCapacity } from '../systems/agencySystem';
-import { GEM_PACKS, SHOP_CATEGORIES, SHOP_ITEMS, getShopRuntimeView } from '../systems/shopSystem';
+import { GEM_PACKS, NO_ADS_PRODUCT_ID, PREMIUM_PRODUCTS, SHOP_CATEGORIES, SHOP_ITEMS, getShopRuntimeView } from '../systems/shopSystem';
 import { formatMoney } from '../utils/format';
+import { assetPath } from '../utils/assets';
 import { S } from './styles';
 
 const CATEGORY_THEME = {
@@ -56,23 +57,24 @@ const PACK_THEME = {
   gems_pro: { gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', halo: 'rgba(124,58,237,.26)', tag: 'Pro' },
   gems_elite: { gradient: 'linear-gradient(135deg,#c2410c,#f97316)', halo: 'rgba(194,65,12,.26)', tag: 'Élite' },
   gems_legend: { gradient: 'linear-gradient(135deg,#14532d,#22c55e)', halo: 'rgba(20,83,45,.26)', tag: 'Légende' },
+  remove_ads: { gradient: 'linear-gradient(135deg,#111827,#0f766e)', halo: 'rgba(15,118,110,.24)', tag: 'Premium' },
 };
 
 const CATEGORY_ASSET = {
-  all: '/tycoon-assets/v_shop.png',
-  finances: '/tycoon-assets/resource_cash.png',
-  boost: '/tycoon-assets/shop_rep_boost.png',
-  scouting: '/tycoon-assets/shop_scout.png',
-  contacts: '/tycoon-assets/v_messages.png',
-  transfer: '/tycoon-assets/shop_negociation.png',
+  all: assetPath('tycoon-assets/v_shop.png'),
+  finances: assetPath('tycoon-assets/resource_cash.png'),
+  boost: assetPath('tycoon-assets/shop_rep_boost.png'),
+  scouting: assetPath('tycoon-assets/shop_scout.png'),
+  contacts: assetPath('tycoon-assets/v_messages.png'),
+  transfer: assetPath('tycoon-assets/shop_negociation.png'),
 };
 
 const GEM_PACK_ASSET = {
-  gems_starter: '/tycoon-assets/icon_gem_blue.png',
-  gems_player: '/tycoon-assets/icon_gem_blue.png',
-  gems_pro: '/tycoon-assets/icon_gem_purple.png',
-  gems_elite: '/tycoon-assets/icon_gem_purple.png',
-  gems_legend: '/tycoon-assets/icon_gem_purple.png',
+  gems_starter: assetPath('tycoon-assets/icon_gem_blue.png'),
+  gems_player: assetPath('tycoon-assets/icon_gem_blue.png'),
+  gems_pro: assetPath('tycoon-assets/icon_gem_purple.png'),
+  gems_elite: assetPath('tycoon-assets/icon_gem_purple.png'),
+  gems_legend: assetPath('tycoon-assets/icon_gem_purple.png'),
 };
 
 const getEffectLabel = (item) => {
@@ -90,7 +92,7 @@ const getEffectLabel = (item) => {
   return 'Avantage immédiat';
 };
 
-export default function Shop({ state, phase, onBuy }) {
+export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewardedAd, iapPendingProductId = null, iapProducts = {} }) {
   const [category, setCategory] = useState('all');
   const gems = state.gems ?? 0;
   const money = state.money ?? 0;
@@ -132,7 +134,7 @@ export default function Shop({ state, phase, onBuy }) {
             </div>
           </div>
           <img
-            src="/tycoon-assets/v_shop.png"
+            src={assetPath('tycoon-assets/v_shop.png')}
             alt="Boutique"
             style={{ width: 56, height: 56, objectFit: 'contain', filter: 'drop-shadow(0 8px 18px rgba(255,214,10,.26))' }}
           />
@@ -142,21 +144,21 @@ export default function Shop({ state, phase, onBuy }) {
           <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>CAPITAL</div>
             <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <img src="/tycoon-assets/resource_cash.png" alt="Capital" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+              <img src={assetPath('tycoon-assets/resource_cash.png')} alt="Capital" style={{ width: 14, height: 14, objectFit: 'contain' }} />
               {formatMoney(money)}
             </div>
           </div>
           <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>GEMMES</div>
             <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <img src="/tycoon-assets/resource_coin.png" alt="Gemmes" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+              <img src={assetPath('tycoon-assets/resource_coin.png')} alt="Gemmes" style={{ width: 14, height: 14, objectFit: 'contain' }} />
               {gems}
             </div>
           </div>
           <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>RÉPUTATION</div>
             <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <img src="/tycoon-assets/reputation_shield.png" alt="Réputation" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+              <img src={assetPath('tycoon-assets/reputation_shield.png')} alt="Réputation" style={{ width: 14, height: 14, objectFit: 'contain' }} />
               {reputation}/1000
             </div>
           </div>
@@ -179,6 +181,105 @@ export default function Shop({ state, phase, onBuy }) {
         )}
       </div>
 
+      <div style={{
+        ...S.objCard,
+        border: '1px solid #bae6fd',
+        background: 'linear-gradient(135deg,#f0f9ff,#f0fdf8)',
+      }}>
+        <div style={S.secTitle}>
+          <Crown size={14} />
+          <span>PUBS & RÉCOMPENSES</span>
+        </div>
+
+        {PREMIUM_PRODUCTS.map((product) => {
+          const owned = Boolean(shopRuntime.ads.removed);
+          const pending = iapPendingProductId === product.id;
+          return (
+            <button
+              key={product.id}
+              type="button"
+              onClick={() => !owned && onBuyGemPack?.(product.id)}
+              disabled={owned || pending}
+              style={{
+                width: '100%',
+                border: '1px solid rgba(15,118,110,.25)',
+                borderRadius: 8,
+                padding: 13,
+                marginBottom: 10,
+                background: PACK_THEME[NO_ADS_PRODUCT_ID].gradient,
+                boxShadow: `0 14px 30px ${PACK_THEME[NO_ADS_PRODUCT_ID].halo}`,
+                cursor: owned ? 'default' : pending ? 'wait' : 'pointer',
+                opacity: pending ? 0.76 : 1,
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                <div>
+                  <div style={{ display: 'inline-flex', padding: '3px 7px', borderRadius: 8, background: 'rgba(255,255,255,.18)', color: '#ffffff', fontSize: 9, letterSpacing: '.12em', fontWeight: 900, fontFamily: 'system-ui,sans-serif', marginBottom: 8 }}>
+                    {owned ? 'Activé' : 'Premium'}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 950, color: '#ffffff' }}>{product.label}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.82)', fontFamily: 'system-ui,sans-serif', marginTop: 3, lineHeight: 1.4 }}>
+                    {product.desc}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <ShieldCheck size={22} color="#ffffff" style={{ marginBottom: 4 }} />
+                  <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>
+                    {owned ? 'OK' : (iapProducts[product.id]?.displayPrice ?? product.price)}
+                  </div>
+                  <div style={{ fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,255,255,.8)', fontFamily: 'system-ui,sans-serif' }}>
+                    {pending ? 'achat...' : owned ? 'sans pubs' : 'achat in-app'}
+                  </div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+
+        <div style={{ display: 'grid', gap: 8 }}>
+          {shopRuntime.ads.rewardOffers.map((offer) => (
+            <button
+              key={offer.id}
+              type="button"
+              onClick={() => offer.available && onWatchRewardedAd?.(offer.id)}
+              disabled={!offer.available}
+              style={{
+                border: '1px solid #d7efe5',
+                borderRadius: 8,
+                padding: '10px 11px',
+                background: offer.available ? '#ffffff' : '#f8fafc',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 10,
+                cursor: offer.available ? 'pointer' : 'not-allowed',
+                opacity: offer.available ? 1 : 0.58,
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ display: 'flex', gap: 9, alignItems: 'center', minWidth: 0 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: '#ecfeff', border: '1px solid #bae6fd', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <PlayCircle size={18} color="#0284c7" />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: '#172026' }}>{offer.label}</div>
+                  <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', lineHeight: 1.35 }}>
+                    {offer.desc}
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 950, color: '#00a676' }}>{offer.rewardLabel}</div>
+                <div style={{ marginTop: 2, fontSize: 9, color: '#64727d', letterSpacing: '.08em', fontWeight: 850, fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
+                  {offer.remaining}/{offer.maxPerDay} aujourd’hui
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div style={S.objCard}>
         <div style={S.secTitle}>
           <Sparkles size={14} />
@@ -189,7 +290,7 @@ export default function Shop({ state, phase, onBuy }) {
             <div key={offer.id} style={{ border: '1px solid #d7efe5', background: '#f0fdf8', borderRadius: 8, padding: '9px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <img
-                  src={CATEGORY_ASSET[offer.category] ?? '/tycoon-assets/v_shop.png'}
+                  src={CATEGORY_ASSET[offer.category] ?? assetPath('tycoon-assets/v_shop.png')}
                   alt={offer.label}
                   style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }}
                 />
@@ -216,12 +317,15 @@ export default function Shop({ state, phase, onBuy }) {
         </div>
         <div style={S.cardList}>
           {GEM_PACKS.map((pack) => (
-            <div key={pack.id} style={{
+            <button key={pack.id} type="button" onClick={() => onBuyGemPack?.(pack.id)} disabled={iapPendingProductId === pack.id} style={{
               background: PACK_THEME[pack.id]?.gradient ?? 'linear-gradient(135deg,#1f2937,#334155)',
               border: '1px solid rgba(255,255,255,.18)',
               borderRadius: 8,
               padding: 14,
               boxShadow: `0 14px 30px ${PACK_THEME[pack.id]?.halo ?? 'rgba(51,65,85,.24)'}`,
+              cursor: iapPendingProductId === pack.id ? 'wait' : 'pointer',
+              opacity: iapPendingProductId && iapPendingProductId !== pack.id ? 0.72 : 1,
+              textAlign: 'left',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                 <div>
@@ -233,15 +337,17 @@ export default function Shop({ state, phase, onBuy }) {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <img
-                    src={GEM_PACK_ASSET[pack.id] ?? '/tycoon-assets/icon_gem_blue.png'}
+                    src={GEM_PACK_ASSET[pack.id] ?? assetPath('tycoon-assets/icon_gem_blue.png')}
                     alt={pack.label}
                     style={{ width: 20, height: 20, objectFit: 'contain', marginLeft: 'auto', marginBottom: 4 }}
                   />
-                  <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>{pack.price}</div>
-                  <div style={{ fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,255,255,.8)', fontFamily: 'system-ui,sans-serif' }}>achat in-app</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>{iapProducts[pack.id]?.displayPrice ?? pack.price}</div>
+                  <div style={{ fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,255,255,.8)', fontFamily: 'system-ui,sans-serif' }}>
+                    {iapPendingProductId === pack.id ? 'achat...' : 'achat in-app'}
+                  </div>
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -296,7 +402,7 @@ export default function Shop({ state, phase, onBuy }) {
                   </div>
                   <div style={{ marginBottom: 4 }}>
                     <img
-                      src={CATEGORY_ASSET[item.category] ?? '/tycoon-assets/v_shop.png'}
+                      src={CATEGORY_ASSET[item.category] ?? assetPath('tycoon-assets/v_shop.png')}
                       alt={item.label}
                       style={{ width: 22, height: 22, objectFit: 'contain' }}
                     />

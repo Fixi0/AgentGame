@@ -67,12 +67,12 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
   const dossierRecent = getRecentDossierEvents(state?.dossierMemory ?? {}, player.id, 1)[0];
   const statusColor = dossierStatus.tone === 'good' ? '#00a676' : dossierStatus.tone === 'warn' ? '#b45309' : dossierStatus.tone === 'danger' ? '#b42318' : '#64727d';
   const tensionBg = dossierStatus.tone === 'danger'
-    ? '#fff7f7'
+    ? 'oklch(24% 0.07 25 / .88)'
     : dossierStatus.tone === 'warn'
-      ? '#fffbeb'
+      ? 'oklch(25% 0.06 83 / .88)'
       : dossierStatus.tone === 'good'
-        ? '#f0fdf8'
-        : '#ffffff';
+        ? 'oklch(23% 0.07 155 / .88)'
+        : 'oklch(20% 0.035 252 / .9)';
 
   const posColor = POS_COLORS[player.position] ?? '#64727d';
   const clubDot = hashClubColor(player.club);
@@ -80,8 +80,8 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
 
   // Status icon
   let statusIcon = null;
-  if (player.injured > 0) statusIcon = '🤕';
-  else if (player.form <= 45 || player.moral <= 35) statusIcon = '❄️';
+  if (player.injured > 0) statusIcon = 'SOINS';
+  else if (player.form <= 45 || player.moral <= 35) statusIcon = 'FRAGILE';
 
   // Mercato badge
   const hasMercatoOffer = state?.clubOffers?.some((o) => o.playerId === player.id && o.status === 'open');
@@ -92,28 +92,31 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
     borderColor: '#d4a017',
     boxShadow: '0 0 18px 3px rgba(212,160,23,0.45)',
   } : {};
-  const cardBg = isLegendary ? legendaryCardStyle : { background: tensionBg, borderColor: dossierStatus.tone === 'danger' ? '#fca5a5' : dossierStatus.tone === 'warn' ? '#fcd34d' : dossierStatus.tone === 'good' ? '#cfeee3' : '#e5eaf0' };
+  const cardBg = isLegendary ? legendaryCardStyle : {
+    background: `linear-gradient(145deg, ${tensionBg}, oklch(13% 0.035 258 / .94))`,
+    borderColor: dossierStatus.tone === 'danger' ? 'oklch(64% 0.18 25 / .55)' : dossierStatus.tone === 'warn' ? 'oklch(82% 0.16 83 / .45)' : dossierStatus.tone === 'good' ? 'oklch(70% 0.19 155 / .45)' : 'var(--af-border)',
+  };
 
   return (
     <div style={{ ...S.pCard, ...cardBg }}>
       <div style={S.pTop} onClick={onDetails} role={onDetails ? 'button' : undefined}>
         {/* Colored position avatar */}
         <div style={{ ...S.playerAvatar, background: isLegendary ? 'linear-gradient(135deg,#d4a017,#f5c842)' : posColor, color: isLegendary ? '#1a1200' : '#ffffff', border: `2px solid ${isLegendary ? '#d4a017' : posColor}` }}>
-          {isLegendary ? '👑' : getInitials(player)}
+          {getInitials(player)}
         </div>
         <div style={S.pInfo}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <div style={{ ...S.pName, color: isLegendary ? '#f5c842' : undefined }}>
               {player.firstName} <strong>{player.lastName}</strong>
             </div>
-            {statusIcon && <span style={{ fontSize: 13 }}>{statusIcon}</span>}
-            {hasMercatoOffer && <span style={S.mercatoBadge}>Offre 🔴</span>}
+            {statusIcon && <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.08em', color: 'var(--af-gold)' }}>{statusIcon}</span>}
+            {hasMercatoOffer && <span style={S.mercatoBadge}>Offre</span>}
           </div>
 
           <FormDots results={player.recentResults} />
 
           <div style={S.pMeta}>
-            {player.age}a · {player.roleShort ?? player.position} {player.roleLabel ?? player.position} · {player.countryFlag} {player.countryLabel}
+            {player.age}a · {player.roleShort ?? player.position} {player.roleLabel ?? player.position} · {player.countryLabel}
           </div>
           <div style={{ ...S.pMeta, display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: clubDot, display: 'inline-block', flexShrink: 0 }} />
@@ -154,10 +157,10 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
                 {player.matchHistory[0].matchRating}/10
               </span>
               {player.matchHistory[0].goals > 0 && (
-                <span style={{ fontSize: 10, color: '#3f5663', fontFamily: 'system-ui,sans-serif' }}>⚽{player.matchHistory[0].goals}</span>
+                <span style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>B {player.matchHistory[0].goals}</span>
               )}
               {player.matchHistory[0].assists > 0 && (
-                <span style={{ fontSize: 10, color: '#3f5663', fontFamily: 'system-ui,sans-serif' }}>🅰️{player.matchHistory[0].assists}</span>
+                <span style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>P {player.matchHistory[0].assists}</span>
               )}
             </div>
           )}

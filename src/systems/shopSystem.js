@@ -11,6 +11,53 @@ export const GEM_PACKS = [
   { id: 'gems_legend',  gems: 4500, label: 'Pack Légende',  price: '29,99 €', bonus: '+500 offerts' },
 ];
 
+export const getGemPackById = (packId) => GEM_PACKS.find((pack) => pack.id === packId) ?? null;
+
+export const NO_ADS_PRODUCT_ID = 'remove_ads';
+
+export const PREMIUM_PRODUCTS = [
+  {
+    id: NO_ADS_PRODUCT_ID,
+    label: 'Pack Sans Pubs',
+    price: '2,99 €',
+    desc: 'Retire les pubs automatiques et garde les pubs récompensées optionnelles.',
+    type: 'non_consumable',
+  },
+];
+
+export const AD_REWARD_OFFERS = [
+  {
+    id: 'reward_gems_small',
+    label: 'Spot sponsor',
+    desc: 'Regarde une pub courte et gagne des gemmes.',
+    rewardLabel: '+8 gemmes',
+    maxPerDay: 3,
+    reward: { gems: 8 },
+  },
+  {
+    id: 'reward_cash_small',
+    label: 'Prime partenaire',
+    desc: 'Regarde une pub et récupère une petite enveloppe cash.',
+    rewardLabel: '+5 000 €',
+    maxPerDay: 3,
+    reward: { money: 5000 },
+  },
+  {
+    id: 'reward_market_refresh',
+    label: 'Coup de fil réseau',
+    desc: 'Regarde une pub et rafraîchis le marché gratuitement.',
+    rewardLabel: 'Nouveau marché',
+    maxPerDay: 1,
+    reward: { action: 'refresh_market' },
+  },
+];
+
+export const getPremiumProductById = (productId) =>
+  PREMIUM_PRODUCTS.find((product) => product.id === productId) ?? null;
+
+export const getAdRewardOfferById = (offerId) =>
+  AD_REWARD_OFFERS.find((offer) => offer.id === offerId) ?? null;
+
 // Shop catalog — items purchasable with gems or in-game money
 export const SHOP_ITEMS = [
   // ── Boosts financiers ───────────────────────────────────────────
@@ -199,6 +246,27 @@ export const DEFAULT_SHOP_STATS = {
 
 const dailyDateKey = (date = new Date()) => date.toLocaleDateString('sv-SE');
 
+const normalizeAdState = (state = {}) => {
+  const current = state.ads ?? {};
+  const today = dailyDateKey();
+  const daily = current.daily?.dateKey === today
+    ? current.daily
+    : { dateKey: today, rewardCountByOfferId: {}, totalRewardedViews: 0 };
+
+  return {
+    removed: Boolean(current.removed),
+    rewardedViewsTotal: current.rewardedViewsTotal ?? 0,
+    interstitialViewsTotal: current.interstitialViewsTotal ?? 0,
+    daily: {
+      dateKey: today,
+      rewardCountByOfferId: daily.rewardCountByOfferId ?? {},
+      totalRewardedViews: daily.totalRewardedViews ?? 0,
+    },
+    history: Array.isArray(current.history) ? current.history : [],
+    lastIapTransactionId: current.lastIapTransactionId ?? null,
+  };
+};
+
 const hashString = (value = '') => {
   let hash = 2166136261;
   const text = String(value);
@@ -214,6 +282,7 @@ const seededSort = (items, seed) =>
 
 export const getShopRuntimeView = (state = {}) => {
   const shopStats = { ...DEFAULT_SHOP_STATS, ...(state.shopStats ?? {}) };
+  const ads = normalizeAdState(state);
   const dateKey = dailyDateKey();
   const seed = `${dateKey}:${state.week ?? 1}:${state.reputation ?? 0}:${state.agencyLevel ?? 1}`;
   const gemItems = SHOP_ITEMS.filter((item) => item.currency === 'gems');
@@ -252,6 +321,21 @@ export const getShopRuntimeView = (state = {}) => {
       rewardsClaimed: shopStats.loyaltyRewardsClaimed ?? 0,
     },
     firstPurchaseBonusPending: !shopStats.firstPurchaseDone,
+    ads: {
+      removed: ads.removed,
+      dailyRewardViews: ads.daily.totalRewardedViews,
+      rewardedViewsTotal: ads.rewardedViewsTotal,
+      canShowInterstitial: !ads.removed,
+      rewardOffers: AD_REWARD_OFFERS.map((offer) => {
+        const claimed = ads.daily.rewardCountByOfferId[offer.id] ?? 0;
+        return {
+          ...offer,
+          claimed,
+          remaining: Math.max(0, (offer.maxPerDay ?? 1) - claimed),
+          available: claimed < (offer.maxPerDay ?? 1),
+        };
+      }),
+    },
   };
 };
 
@@ -358,6 +442,133 @@ export const purchaseShopItem = (state, itemId) => {
       loyaltyReward,
     },
   };
+};
+
+export const grantGemPackPurchase = (state, packId, transactionId = null) => {
+  const pack = getGemPackById(packId);
+  if (!pack) return { state, error: 'Pack de gemmes introuvable.' };
+
+  const purchaseHistory = state.iapHistory ?? [];
+  if (transactionId && purchaseHistory.some((purchase) => String(purchase.id) === String(transactionId))) {
+    return { state, pack, skipped: true };
+  }
+
+  const nextShopStats = {
+    ...DEFAULT_SHOP_STATS,
+    ...(state.shopStats ?? {}),
+    purchasesTotal: ((state.shopStats ?? {}).purchasesTotal ?? 0) + 1,
+    lastPurchaseWeek: state.week ?? ((state.shopStats ?? {}).lastPurchaseWeek ?? 0),
+    lastIapTransactionId: transactionId ?? ((state.shopStats ?? {}).lastIapTransactionId ?? null),
+  };
+
+  return {
+    state: {
+      ...state,
+      gems: (state.gems ?? 0) + pack.gems,
+      shopStats: nextShopStats,
+      iapHistory: [
+        {
+          id: transactionId ?? `iap_${pack.id}_${Date.now()}`,
+          packId: pack.id,
+          gems: pack.gems,
+          createdAt: Date.now(),
+        },
+        ...purchaseHistory,
+      ].slice(0, 60),
+    },
+    pack,
+  };
+};
+
+export const grantNoAdsPurchase = (state, productId = NO_ADS_PRODUCT_ID, transactionId = null) => {
+  const product = getPremiumProductById(productId);
+  if (!product) return { state, error: 'Produit premium introuvable.' };
+
+  const purchaseHistory = state.iapHistory ?? [];
+  if (transactionId && purchaseHistory.some((purchase) => String(purchase.id) === String(transactionId))) {
+    return { state, product, skipped: true };
+  }
+
+  const ads = normalizeAdState(state);
+  return {
+    state: {
+      ...state,
+      ads: {
+        ...ads,
+        removed: true,
+        lastIapTransactionId: transactionId ?? ads.lastIapTransactionId,
+      },
+      shopStats: {
+        ...DEFAULT_SHOP_STATS,
+        ...(state.shopStats ?? {}),
+        purchasesTotal: ((state.shopStats ?? {}).purchasesTotal ?? 0) + 1,
+        lastPurchaseWeek: state.week ?? ((state.shopStats ?? {}).lastPurchaseWeek ?? 0),
+      },
+      iapHistory: [
+        {
+          id: transactionId ?? `iap_${product.id}_${Date.now()}`,
+          productId: product.id,
+          type: product.type,
+          createdAt: Date.now(),
+        },
+        ...purchaseHistory,
+      ].slice(0, 60),
+    },
+    product,
+  };
+};
+
+export const grantIapPurchase = (state, productId, transactionId = null) => {
+  if (productId === NO_ADS_PRODUCT_ID) {
+    return grantNoAdsPurchase(state, productId, transactionId);
+  }
+  return grantGemPackPurchase(state, productId, transactionId);
+};
+
+export const grantAdReward = (state, offerId, placement = 'shop') => {
+  const offer = getAdRewardOfferById(offerId);
+  if (!offer) return { state, error: 'Récompense pub introuvable.' };
+
+  const ads = normalizeAdState(state);
+  const claimed = ads.daily.rewardCountByOfferId[offer.id] ?? 0;
+  const maxPerDay = offer.maxPerDay ?? 1;
+  if (claimed >= maxPerDay) {
+    return { state, offer, error: 'Récompense déjà récupérée pour aujourd’hui.' };
+  }
+
+  const reward = offer.reward ?? {};
+  let next = {
+    ...state,
+    ads: {
+      ...ads,
+      rewardedViewsTotal: (ads.rewardedViewsTotal ?? 0) + 1,
+      daily: {
+        ...ads.daily,
+        totalRewardedViews: (ads.daily.totalRewardedViews ?? 0) + 1,
+        rewardCountByOfferId: {
+          ...(ads.daily.rewardCountByOfferId ?? {}),
+          [offer.id]: claimed + 1,
+        },
+      },
+      history: [
+        {
+          id: `ad_${offer.id}_${Date.now()}`,
+          offerId: offer.id,
+          placement,
+          week: state.week ?? 1,
+          createdAt: Date.now(),
+        },
+        ...ads.history,
+      ].slice(0, 80),
+    },
+  };
+
+  if (reward.gems) next = { ...next, gems: (next.gems ?? 0) + reward.gems };
+  if (reward.money) next = { ...next, money: (next.money ?? 0) + reward.money };
+  if (reward.reputation) next = { ...next, reputation: Math.min(1000, (next.reputation ?? 0) + reward.reputation) };
+  if (reward.action === 'refresh_market') next = { ...next, _pendingMarketRefresh: true };
+
+  return { state: next, offer };
 };
 
 /** Grant free gems from gameplay milestones */

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Play, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
+import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Play, Save, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
 import Achievements from './components/Achievements';
@@ -57,8 +57,11 @@ import {
   updateAgencyProfile,
 } from './game/gameLogic';
 import {
-  clearLocalGameProgress,
+  clearLocalGameSlot,
+  exportLocalGameSlot,
   getLocalGameDatabaseView,
+  getLocalSaveSlots,
+  importLocalGameSlot,
   loadLocalGameProgress,
   saveLocalGameProgress,
   ensurePlayersHaveClubRole,
@@ -75,12 +78,13 @@ import { createPromiseFromMessage, normalizePromises } from './systems/promiseSy
 import { getActiveDossierPlayerIds, getOfferAcceptanceReadiness, getPendingMessageCounts, getPlayerLifecycleState } from './systems/dossierSystem';
 import { recordDossierEvent } from './systems/coherenceSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
-import { purchaseShopItem } from './systems/shopSystem';
+import { NO_ADS_PRODUCT_ID, grantAdReward, grantIapPurchase, purchaseShopItem } from './systems/shopSystem';
 import { syncProgressionSystems } from './systems/objectivesSystem';
 import { createManualNewsPost } from './systems/newsSystem';
 import { CLUBS } from './data/clubs';
 import { clamp, makeId, pick } from './utils/helpers';
 import { formatMoney } from './utils/format';
+import { assetPath } from './utils/assets';
 
 const getTransferReadiness = (state, player, phase) => {
   if (player.freeAgent || player.club === 'Libre') {
@@ -225,27 +229,27 @@ const mainNav = [
 ];
 
 const MAIN_NAV_ASSETS = {
-  dashboard: '/tycoon-assets/menu_home.png',
-  roster: '/tycoon-assets/menu_players.png',
-  market: '/tycoon-assets/menu_transfer.png',
-  messages: '/tycoon-assets/menu_messages.png',
-  more: '/tycoon-assets/menu_settings.png',
+  dashboard: assetPath('tycoon-assets/menu_home.png'),
+  roster: assetPath('tycoon-assets/menu_players.png'),
+  market: assetPath('tycoon-assets/menu_transfer.png'),
+  messages: assetPath('tycoon-assets/menu_messages.png'),
+  more: assetPath('tycoon-assets/menu_settings.png'),
 };
 
 const moreItems = [
-  { key: 'shop', label: 'Boutique', desc: 'Gemmes et bonus', icon: ShoppingBag, asset: '/tycoon-assets/v_shop.png' },
-  { key: 'achievements', label: 'Succès', desc: '120 exploits par catégories', icon: Trophy, asset: '/tycoon-assets/v_objectives.png' },
-  { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase, asset: '/tycoon-assets/v_staff.png' },
-  { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network, asset: '/tycoon-assets/v_messages.png' },
-  { key: 'dossiers', label: 'Dossiers', desc: 'Messages, tensions, mémoire', icon: FileText, asset: '/tycoon-assets/v_messages.png' },
-  { key: 'standings', label: 'Ligues', desc: 'Classements nationaux + Europe', icon: Trophy, asset: '/tycoon-assets/v_finances.png' },
-  { key: 'europe', label: 'Coupes Euro', desc: 'Bracket · Parcours KO · Stats', icon: Trophy, asset: '/tycoon-assets/badge_international.png' },
-  { key: 'calendar', label: 'Calendrier', desc: 'Affiches et résultats', icon: CalendarDays, asset: '/tycoon-assets/v_calendar.png' },
-  { key: 'deadline', label: 'Deadline Day', desc: 'Appels mercato', icon: Timer, asset: '/tycoon-assets/menu_transfer.png' },
-  { key: 'scouting', label: 'Scouting', desc: 'Missions et rapports', icon: Telescope, asset: '/tycoon-assets/shop_scout.png' },
-  { key: 'vestiaire', label: 'Vestiaire', desc: 'Chimie et tensions', icon: Users, asset: '/tycoon-assets/v_players.png' },
-  { key: 'office', label: 'Agence', desc: 'Staff et identité', icon: Briefcase, asset: '/tycoon-assets/reputation_shield.png' },
-  { key: 'profile', label: 'Profil', desc: "Bilan de l'agence", icon: UserCircle, asset: '/tycoon-assets/badge_legende.png' },
+  { key: 'shop', label: 'Boutique', desc: 'Gemmes et bonus', icon: ShoppingBag, asset: assetPath('tycoon-assets/v_shop.png') },
+  { key: 'achievements', label: 'Succès', desc: '120 exploits par catégories', icon: Trophy, asset: assetPath('tycoon-assets/v_objectives.png') },
+  { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase, asset: assetPath('tycoon-assets/v_staff.png') },
+  { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network, asset: assetPath('tycoon-assets/v_messages.png') },
+  { key: 'dossiers', label: 'Dossiers', desc: 'Messages, tensions, mémoire', icon: FileText, asset: assetPath('tycoon-assets/v_messages.png') },
+  { key: 'standings', label: 'Ligues', desc: 'Classements nationaux + Europe', icon: Trophy, asset: assetPath('tycoon-assets/v_finances.png') },
+  { key: 'europe', label: 'Coupes Euro', desc: 'Bracket · Parcours KO · Stats', icon: Trophy, asset: assetPath('tycoon-assets/badge_international.png') },
+  { key: 'calendar', label: 'Calendrier', desc: 'Affiches et résultats', icon: CalendarDays, asset: assetPath('tycoon-assets/v_calendar.png') },
+  { key: 'deadline', label: 'Deadline Day', desc: 'Appels mercato', icon: Timer, asset: assetPath('tycoon-assets/menu_transfer.png') },
+  { key: 'scouting', label: 'Scouting', desc: 'Missions et rapports', icon: Telescope, asset: assetPath('tycoon-assets/shop_scout.png') },
+  { key: 'vestiaire', label: 'Vestiaire', desc: 'Chimie et tensions', icon: Users, asset: assetPath('tycoon-assets/v_players.png') },
+  { key: 'office', label: 'Agence', desc: 'Staff et identité', icon: Briefcase, asset: assetPath('tycoon-assets/reputation_shield.png') },
+  { key: 'profile', label: 'Profil', desc: "Bilan de l'agence", icon: UserCircle, asset: assetPath('tycoon-assets/badge_legende.png') },
 ];
 
 const playerFromDatabaseRow = (row = {}) => {
@@ -428,7 +432,9 @@ export default function FootballAgentGame() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [toast, setToast] = useState(null);
   const [saveMenuOpen, setSaveMenuOpen] = useState(true);
-  const [hasSave, setHasSave] = useState(false);
+  const [saveSlots, setSaveSlots] = useState([]);
+  const [selectedSaveSlot, setSelectedSaveSlot] = useState(1);
+  const [activeSaveSlot, setActiveSaveSlot] = useState(1);
   const [savePreview, setSavePreview] = useState(null);
   const [activeMessageThreadKey, setActiveMessageThreadKey] = useState(null);
   const [weekTickerData, setWeekTickerData] = useState(null);
@@ -436,7 +442,48 @@ export default function FootballAgentGame() {
   const [lastWeekError, setLastWeekError] = useState(null);
   const [forceOnboarding, setForceOnboarding] = useState(false);
   const [databaseView, setDatabaseView] = useState(null);
+  const [iapPendingProductId, setIapPendingProductId] = useState(null);
+  const [iapProducts, setIapProducts] = useState({});
   const startupActionLockRef = useRef(false);
+  const importInputRef = useRef(null);
+
+  const buildPreviewFromState = (stateValue, fallback = null) => ({
+    agencyName: stateValue?.agencyProfile?.name ?? fallback?.agencyName ?? 'Agent FC',
+    ownerName: stateValue?.agencyProfile?.ownerName ?? fallback?.ownerName ?? '',
+    season: getPhase(stateValue?.week ?? 1).season,
+    seasonWeek: getPhase(stateValue?.week ?? 1).seasonWeek,
+    rosterCount: stateValue?.roster?.length ?? fallback?.rosterCount ?? 0,
+    reputation: stateValue?.reputation ?? fallback?.reputation ?? 0,
+    money: stateValue?.money ?? fallback?.money ?? 0,
+  });
+
+  const refreshSaveSlots = async () => {
+    const slots = await getLocalSaveSlots();
+    setSaveSlots(slots);
+    return slots;
+  };
+
+  const loadSlotIntoSession = async (slot, { closeMenu = false } = {}) => {
+    const saved = await loadLocalGameProgress(slot);
+    if (!saved?.state) return false;
+    const parsed = migrateState(saved.state);
+    setState(parsed);
+    setActiveSaveSlot(slot);
+    setSelectedSaveSlot(slot);
+    setSavePreview(buildPreviewFromState(parsed, saved.preview));
+    try {
+      const view = await getLocalGameDatabaseView();
+      setDatabaseView(view);
+    } catch {
+      setDatabaseView(null);
+    }
+    await refreshSaveSlots();
+    if (closeMenu) {
+      setSaveMenuOpen(false);
+      setView('dashboard');
+    }
+    return true;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -445,19 +492,13 @@ export default function FootballAgentGame() {
         .then((saved) => {
           if (cancelled) return;
           if (startupActionLockRef.current) return;
-          setHasSave(Boolean(saved?.state));
           if (saved?.state) {
             const parsed = migrateState(saved.state);
+            const slot = Number(saved.slot ?? 1);
             setState(parsed);
-            setSavePreview({
-              agencyName: parsed.agencyProfile?.name ?? saved.preview?.agencyName ?? 'Agent FC',
-              ownerName: parsed.agencyProfile?.ownerName ?? saved.preview?.ownerName ?? '',
-              season: getPhase(parsed.week).season,
-              seasonWeek: getPhase(parsed.week).seasonWeek,
-              rosterCount: parsed.roster?.length ?? saved.preview?.rosterCount ?? 0,
-              reputation: parsed.reputation ?? saved.preview?.reputation ?? 0,
-              money: parsed.money ?? saved.preview?.money ?? 0,
-            });
+            setActiveSaveSlot(slot);
+            setSelectedSaveSlot(slot);
+            setSavePreview(buildPreviewFromState(parsed, saved.preview));
             getLocalGameDatabaseView()
               .then((view) => {
                 if (!cancelled) setDatabaseView(view);
@@ -470,6 +511,7 @@ export default function FootballAgentGame() {
             setSavePreview(null);
             setDatabaseView(null);
           }
+          refreshSaveSlots().catch(() => {});
           setSaveMenuOpen(true);
         })
         .catch(() => {
@@ -478,18 +520,14 @@ export default function FootballAgentGame() {
           setState(null);
           setSavePreview(null);
           setDatabaseView(null);
+          refreshSaveSlots().catch(() => {});
           setSaveMenuOpen(true);
         })
-        .finally(async () => {
-          if (!cancelled) {
-            // Migrate players to add clubRole if missing
-            try {
-              await ensurePlayersHaveClubRole();
-            } catch (err) {
-              console.warn('Club role migration failed:', err);
-            }
-            setLoaded(true);
-          }
+        .finally(() => {
+          if (!cancelled) setLoaded(true);
+          ensurePlayersHaveClubRole().catch((err) => {
+            console.warn('Club role migration failed:', err);
+          });
         });
     } catch {
       if (!cancelled) {
@@ -514,24 +552,16 @@ export default function FootballAgentGame() {
   useEffect(() => {
     if (!loaded || !state) return;
     let cancelled = false;
-    saveLocalGameProgress(state).then(async (record) => {
+    saveLocalGameProgress(state, activeSaveSlot).then(async (record) => {
       if (cancelled) return;
-      setSavePreview(record?.preview ?? {
-        agencyName: state.agencyProfile?.name ?? 'Agent FC',
-        ownerName: state.agencyProfile?.ownerName ?? '',
-        season: getPhase(state.week).season,
-        seasonWeek: getPhase(state.week).seasonWeek,
-        rosterCount: state.roster?.length ?? 0,
-        reputation: state.reputation ?? 0,
-        money: state.money ?? 0,
-      });
+      setSavePreview(record?.preview ?? buildPreviewFromState(state));
       try {
         const view = await getLocalGameDatabaseView();
         if (!cancelled) setDatabaseView(view);
       } catch {
         if (!cancelled) setDatabaseView(null);
       }
-      setHasSave(true);
+      refreshSaveSlots().catch(() => {});
       setSaveFlash(true);
       const t = setTimeout(() => setSaveFlash(false), 1200);
       return () => clearTimeout(t);
@@ -539,12 +569,81 @@ export default function FootballAgentGame() {
     return () => {
       cancelled = true;
     };
-  }, [state, loaded]);
+  }, [state, loaded, activeSaveSlot]);
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 2500);
   };
+
+  useEffect(() => {
+    window.AgentFootIAP = {
+      completePurchase: ({ productId, transactionId } = {}) => {
+        if (!productId) return;
+        setState((current) => {
+          if (!current) return current;
+          const result = grantIapPurchase(current, productId, transactionId);
+          if (result.error) {
+            showToast(result.error, 'error');
+            return current;
+          }
+          if (result.skipped) {
+            return current;
+          }
+          if (productId === NO_ADS_PRODUCT_ID) {
+            showToast('Pack Sans Pubs activé', 'success');
+          } else {
+            showToast(`${result.pack.label}: +${result.pack.gems} gemmes`, 'success');
+          }
+          return result.state;
+        });
+        setIapPendingProductId(null);
+      },
+      failPurchase: ({ message } = {}) => {
+        setIapPendingProductId(null);
+        showToast(message || 'Achat annulé ou impossible', 'error');
+      },
+      productsLoaded: ({ products = [] } = {}) => {
+        if (!products.length) return;
+        setIapProducts(Object.fromEntries(products.map((product) => [product.id, product])));
+        console.info('[AgentFoot] Produits IAP chargés', products);
+      },
+    };
+
+    return () => {
+      if (window.AgentFootIAP) delete window.AgentFootIAP;
+    };
+  }, []);
+
+  useEffect(() => {
+    const billing = window.Capacitor?.Plugins?.AgentFootBilling;
+    if (!billing) return undefined;
+
+    let cancelled = false;
+    const normalizeProducts = (payload = {}) => {
+      const products = payload.products ?? [];
+      if (!cancelled && products.length) {
+        setIapProducts(Object.fromEntries(products.map((product) => [product.id, product])));
+        console.info('[AgentFoot] Produits Google Play chargés', products);
+      }
+    };
+    const completePurchase = (payload = {}) => {
+      if (!payload.productId || cancelled) return;
+      window.AgentFootIAP?.completePurchase(payload);
+    };
+
+    const productListener = billing.addListener?.('productsLoaded', normalizeProducts);
+    const purchaseListener = billing.addListener?.('purchaseCompleted', completePurchase);
+    billing.loadProducts?.().then(normalizeProducts).catch((error) => {
+      console.warn('[AgentFoot] Produits Google Play indisponibles', error);
+    });
+
+    return () => {
+      cancelled = true;
+      productListener?.then?.((listener) => listener.remove?.());
+      purchaseListener?.then?.((listener) => listener.remove?.());
+    };
+  }, []);
 
   const progressionSyncRef = useRef(false);
   useEffect(() => {
@@ -676,6 +775,85 @@ export default function FootballAgentGame() {
       ? ` · fidélité +${result.meta.loyaltyReward.gems} gemmes`
       : '';
     showToast(`Boutique: ${result.item.label}${discountText}${firstBonusText}${loyaltyText}`, 'success');
+  };
+
+  const handleBuyGemPack = (productId) => {
+    const iapBridge = window.webkit?.messageHandlers?.iap;
+    const androidBilling = window.Capacitor?.Plugins?.AgentFootBilling;
+    if (!iapBridge && !androidBilling?.purchase) {
+      showToast('Achats intégrés disponibles dans l’app mobile uniquement', 'error');
+      return;
+    }
+    setIapPendingProductId(productId);
+    if (iapBridge) {
+      try {
+        iapBridge.postMessage({ productId });
+      } catch {
+        setIapPendingProductId(null);
+        showToast('Achat intégré impossible', 'error');
+      }
+      return;
+    }
+
+    androidBilling.purchase({ productId })
+      .then((payload) => {
+        window.AgentFootIAP?.completePurchase(payload);
+      })
+      .catch((error) => {
+        setIapPendingProductId(null);
+        showToast(error?.message || 'Achat Google Play annulé ou impossible', 'error');
+      });
+  };
+
+  const handleWatchRewardedAd = (offerId) => {
+    const finishReward = () => {
+      const result = grantAdReward(getDatabaseBackedState(), offerId, 'shop');
+      if (result.error) {
+        showToast(result.error, 'error');
+        return;
+      }
+
+      let nextState = result.state;
+      if (nextState._pendingMarketRefresh) {
+        const refreshed = refreshMarket(nextState);
+        if (!refreshed.error) nextState = refreshed.state;
+        delete nextState._pendingMarketRefresh;
+      }
+
+      setState(nextState);
+      showToast(`Pub validée: ${result.offer.rewardLabel}`, 'success');
+    };
+
+    const adsBridge = window.webkit?.messageHandlers?.ads;
+    const androidAds = window.Capacitor?.Plugins?.AgentFootAds;
+    const isLocalPreview = ['http:', 'https:', 'file:'].includes(window.location.protocol);
+
+    if (adsBridge) {
+      window.AgentFootAds = {
+        completeReward: finishReward,
+        failReward: ({ message } = {}) => showToast(message || 'Pub indisponible', 'error'),
+      };
+      try {
+        adsBridge.postMessage({ offerId, placement: 'shop_reward' });
+      } catch {
+        showToast('Pub indisponible pour le moment', 'error');
+      }
+      return;
+    }
+
+    if (androidAds?.showRewardedAd) {
+      androidAds.showRewardedAd({ offerId, placement: 'shop_reward' })
+        .then(finishReward)
+        .catch((error) => showToast(error?.message || 'Pub indisponible pour le moment', 'error'));
+      return;
+    }
+
+    if (isLocalPreview) {
+      finishReward();
+      return;
+    }
+
+    showToast('Les pubs récompensées seront actives après branchement AdMob', 'error');
   };
 
   const handleUpgradeOffice = (type) => {
@@ -1311,56 +1489,160 @@ export default function FootballAgentGame() {
     showToast(satisfied ? 'Shortlist validée' : 'Shortlist discutée', satisfied ? 'success' : 'info');
   };
 
-  const handleResetGame = () => {
-    setConfirmDialog({
-      title: 'Réinitialiser la partie ?',
-      body: 'Cette action remet l’agence à zéro et efface la sauvegarde locale. Tu repars au départ de carrière.',
-      confirmLabel: 'Réinitialiser',
-      tone: 'danger',
-      onConfirm: async () => {
-        setState(createFreshState());
-        setSavePreview(null);
-        setDatabaseView(null);
-        setView('dashboard');
-        setSaveMenuOpen(false);
-        setHasSave(false);
-        setConfirmDialog(null);
-        showToast('Nouvelle partie', 'success');
-        try {
-          await clearLocalGameProgress();
-        } catch {
-          // If local storage cleanup fails, the visible reset still completed.
-        }
-      },
-    });
+  const getSlotMeta = (slot = selectedSaveSlot) => saveSlots.find((item) => item.slot === slot) ?? null;
+
+  const handleReturnToMenu = async () => {
+    await refreshSaveSlots().catch(() => {});
+    setSelectedSaveSlot(activeSaveSlot ?? selectedSaveSlot);
+    setSaveMenuOpen(true);
   };
 
-  const launchNewGame = async (clearExistingSave = false) => {
+  const handleManualSave = async () => {
+    if (!state) return;
+    try {
+      await saveLocalGameProgress(state, activeSaveSlot);
+      await refreshSaveSlots();
+      setSaveFlash(true);
+      setTimeout(() => setSaveFlash(false), 1200);
+      showToast(`Sauvegarde slot ${activeSaveSlot} mise à jour`, 'success');
+    } catch {
+      showToast('Sauvegarde impossible', 'error');
+    }
+  };
+
+  const launchNewGame = async ({ slot = selectedSaveSlot, clearExistingSave = false } = {}) => {
+    const normalizedSlot = Math.max(1, Math.min(3, Number(slot) || 1));
     startupActionLockRef.current = true;
     const freshState = createFreshState();
     setLoaded(true);
     setConfirmDialog(null);
-    setHasSave(false);
-    setSavePreview(null);
     setDatabaseView(null);
     setState(freshState);
+    setActiveSaveSlot(normalizedSlot);
+    setSelectedSaveSlot(normalizedSlot);
+    setSavePreview(buildPreviewFromState(freshState));
     setForceOnboarding(true);
     setView('dashboard');
     setSaveMenuOpen(false);
-    showToast('Nouvelle partie', 'success');
+    showToast(`Nouvelle partie sur slot ${normalizedSlot}`, 'success');
     if (clearExistingSave) {
       try {
-        await clearLocalGameProgress();
+        await clearLocalGameSlot(normalizedSlot);
       } catch {
         // Keep UI responsive even if local DB cleanup is blocked.
       }
     }
+    await refreshSaveSlots().catch(() => {});
   };
 
-  const handleHardResetGame = () => launchNewGame(true);
+  const handleResetSlot = () => {
+    const slotMeta = getSlotMeta(selectedSaveSlot);
+    if (!slotMeta?.hasSave) {
+      showToast('Ce slot est déjà vide', 'info');
+      return;
+    }
+    setConfirmDialog({
+      title: `Supprimer le slot ${selectedSaveSlot} ?`,
+      body: 'La sauvegarde de ce slot sera effacée. Les autres slots resteront intacts.',
+      confirmLabel: 'Supprimer',
+      tone: 'danger',
+      onConfirm: async () => {
+        const removingActive = activeSaveSlot === selectedSaveSlot;
+        await clearLocalGameSlot(selectedSaveSlot, { clearRuntime: removingActive });
+        setConfirmDialog(null);
+        if (removingActive) {
+          setState(null);
+          setSavePreview(null);
+          setDatabaseView(null);
+          setSaveMenuOpen(true);
+        }
+        await refreshSaveSlots().catch(() => {});
+        showToast(`Slot ${selectedSaveSlot} supprimé`, 'success');
+      },
+    });
+  };
 
   const handleNewGame = () => {
-    launchNewGame(false);
+    const slotMeta = getSlotMeta(selectedSaveSlot);
+    if (!slotMeta?.hasSave) {
+      launchNewGame({ slot: selectedSaveSlot, clearExistingSave: false });
+      return;
+    }
+    setConfirmDialog({
+      title: `Écraser le slot ${selectedSaveSlot} ?`,
+      body: 'La configuration va repartir de zéro sur ce slot. Tu pourras créer une nouvelle agence.',
+      confirmLabel: 'Créer nouvelle partie',
+      tone: 'danger',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        await launchNewGame({ slot: selectedSaveSlot, clearExistingSave: true });
+      },
+    });
+  };
+
+  const handleContinue = async () => {
+    const ok = await loadSlotIntoSession(selectedSaveSlot, { closeMenu: true });
+    if (!ok) showToast(`Aucune sauvegarde dans le slot ${selectedSaveSlot}`, 'error');
+  };
+
+  const handleExportSlot = async () => {
+    try {
+      const payload = await exportLocalGameSlot(selectedSaveSlot);
+      if (!payload) {
+        showToast(`Aucune sauvegarde à exporter sur le slot ${selectedSaveSlot}`, 'error');
+        return;
+      }
+      const phase = getPhase(payload.record?.state?.week ?? 1);
+      const fileName = `agent-foot-slot-${selectedSaveSlot}-S${phase.season}-W${phase.seasonWeek}.json`;
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast(`Export du slot ${selectedSaveSlot} prêt`, 'success');
+    } catch {
+      showToast('Export impossible', 'error');
+    }
+  };
+
+  const handleTriggerImport = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportSlot = async (event) => {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+    const runImport = async () => {
+      try {
+        const raw = await file.text();
+        const payload = JSON.parse(raw);
+        await importLocalGameSlot(selectedSaveSlot, payload, { activate: true });
+        await loadSlotIntoSession(selectedSaveSlot, { closeMenu: true });
+        showToast(`Import réussi sur le slot ${selectedSaveSlot}`, 'success');
+      } catch {
+        showToast('Fichier de sauvegarde invalide', 'error');
+      }
+    };
+    const slotMeta = getSlotMeta(selectedSaveSlot);
+    if (!slotMeta?.hasSave) {
+      await runImport();
+      return;
+    }
+    setConfirmDialog({
+      title: `Importer sur slot ${selectedSaveSlot} ?`,
+      body: 'La sauvegarde actuelle de ce slot sera remplacée.',
+      confirmLabel: 'Importer',
+      tone: 'danger',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        await runImport();
+      },
+    });
   };
 
   const startNegotiation = (player, type) => {
@@ -1524,14 +1806,26 @@ export default function FootballAgentGame() {
       <>
         <style>{CSS}</style>
         <SaveMenu
-          hasSave={hasSave}
-          savePreview={savePreview}
-          onContinue={() => {
+          saveSlots={saveSlots}
+          selectedSlot={selectedSaveSlot}
+          canReturnToGame={Boolean(state)}
+          onSelectSlot={setSelectedSaveSlot}
+          onContinue={handleContinue}
+          onNewGame={handleNewGame}
+          onReset={handleResetSlot}
+          onExport={handleExportSlot}
+          onImport={handleTriggerImport}
+          onReturnToGame={() => {
             setSaveMenuOpen(false);
             setView('dashboard');
           }}
-          onNewGame={handleNewGame}
-          onReset={handleHardResetGame}
+        />
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json,.json"
+          onChange={handleImportSlot}
+          style={{ display: 'none' }}
         />
         {confirmDialog && (
           <ConfirmModal
@@ -1557,6 +1851,7 @@ export default function FootballAgentGame() {
     return comp && isEuropeanMatchWeek(phase.seasonWeek, comp);
   });
   const agencyProfile = state.agencyProfile;
+  const agencyEmblemSrc = agencyProfile.emblemSrc || assetPath('branding/agent-foot-logo.png');
 
   if (forceOnboarding || !agencyProfile.onboarded) {
     return (
@@ -1574,7 +1869,9 @@ export default function FootballAgentGame() {
       <header style={S.header}>
         <div style={S.brandRow}>
           <div style={S.logo}>
-            <div style={{ ...S.logoMark, background: agencyProfile.color }}>{agencyProfile.emblem ?? '⚡'}</div>
+            <div style={{ ...S.logoMark, background: agencyProfile.color || 'var(--af-grass)' }}>
+              <img src={agencyEmblemSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
             <div>
               <div style={S.brandName}>{agencyProfile.name}</div>
               <div style={S.brandSub}>{agencyProfile.city} · {agencyProfile.ownerName}</div>
@@ -1584,17 +1881,20 @@ export default function FootballAgentGame() {
             {hasEuroMatchThisWeek && (
               <button
                 onClick={() => setView('europe')}
-                style={{ fontSize: 10, fontWeight: 800, color: '#1a1a6e', background: '#eef0ff', border: '1px solid #c5caff', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', cursor: 'pointer', animation: 'pulse 2s infinite' }}
+                style={{ fontSize: 10, fontWeight: 900, color: 'var(--af-blue)', background: 'oklch(62% 0.17 245 / .12)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', cursor: 'pointer', animation: 'pulse 2s infinite' }}
               >
-                ⭐ Match euro ce soir
+                Match euro ce soir
               </button>
             )}
             {saveFlash && (
-              <span style={{ fontSize: 10, fontWeight: 800, color: '#00a676', background: '#f0fdf8', border: '1px solid #cfeee3', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', transition: 'opacity .3s' }}>
-                💾 Sauvegardé
+              <span style={{ fontSize: 10, fontWeight: 900, color: 'var(--af-grass)', background: 'oklch(70% 0.19 155 / .10)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', transition: 'opacity .3s' }}>
+                Sauvegardé
               </span>
             )}
-            <button onClick={handleResetGame} style={S.iconBtn}>
+            <button onClick={handleManualSave} style={S.iconBtn}>
+              <Save size={16} />
+            </button>
+            <button onClick={handleReturnToMenu} style={S.iconBtn}>
               <LogOut size={16} />
             </button>
           </div>
@@ -1606,8 +1906,8 @@ export default function FootballAgentGame() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {state.activePeriod && (
-              <span style={{ fontSize: 11, fontWeight: 800, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif' }}>
-                {state.activePeriod.emoji} {state.activePeriod.label}
+              <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--af-gold)', background: 'oklch(82% 0.16 83 / .10)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif' }}>
+                {state.activePeriod.label}
               </span>
             )}
             <div style={S.seasonPhase}>{phase.phase.toUpperCase()}</div>
@@ -1615,16 +1915,16 @@ export default function FootballAgentGame() {
         </div>
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {[
-            { asset: '/tycoon-assets/resource_cash.png', label: 'Capital', value: formatMoney(databaseState.money), accent: '#00a676' },
-            { asset: '/tycoon-assets/reputation_shield.png', label: 'Rép.', value: `${databaseState.reputation}`, accent: '#2f80ed' },
-            { asset: '/tycoon-assets/v_players.png', label: 'Joueurs', value: `${databaseState.roster.length}/${getAgencyCapacity(databaseState.agencyLevel)}`, accent: '#3f5663' },
-            { asset: '/tycoon-assets/menu_messages.png', label: 'Msg', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#b42318' : '#64727d' },
+            { asset: assetPath('tycoon-assets/resource_cash.png'), label: 'Capital', value: formatMoney(databaseState.money), accent: '#00a676' },
+            { asset: assetPath('tycoon-assets/reputation_shield.png'), label: 'Rép.', value: `${databaseState.reputation}`, accent: '#2f80ed' },
+            { asset: assetPath('tycoon-assets/v_players.png'), label: 'Joueurs', value: `${databaseState.roster.length}/${getAgencyCapacity(databaseState.agencyLevel)}`, accent: '#3f5663' },
+            { asset: assetPath('tycoon-assets/menu_messages.png'), label: 'Msg', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#b42318' : '#64727d' },
           ].map((chip) => (
-            <div key={chip.label} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '6px 10px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div key={chip.label} style={{ background: 'oklch(18% 0.035 258 / .92)', border: '1px solid var(--af-border)', borderRadius: 8, padding: '6px 10px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
               <img src={chip.asset} alt={chip.label} style={{ width: 14, height: 14, objectFit: 'contain', flexShrink: 0 }} />
               <div>
-                <div style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 800, letterSpacing: '.1em', lineHeight: 1 }}>{chip.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 850, color: '#172026', lineHeight: 1.2 }}>{chip.value}</div>
+                <div style={{ fontSize: 9, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 800, letterSpacing: '.1em', lineHeight: 1 }}>{chip.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 850, color: 'var(--af-text)', lineHeight: 1.2 }}>{chip.value}</div>
               </div>
             </div>
           ))}
@@ -1637,7 +1937,17 @@ export default function FootballAgentGame() {
         {view === 'messages' && <Messages messages={databaseState.messages} messageQueue={databaseState.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
         {view === 'achievements' && <Achievements state={databaseState} />}
-        {view === 'shop' && <Shop state={databaseState} phase={phase} onBuy={handleBuyShopItem} />}
+        {view === 'shop' && (
+          <Shop
+            state={databaseState}
+            phase={phase}
+            onBuy={handleBuyShopItem}
+            onBuyGemPack={handleBuyGemPack}
+            onWatchRewardedAd={handleWatchRewardedAd}
+            iapPendingProductId={iapPendingProductId}
+            iapProducts={iapProducts}
+          />
+        )}
         {view === 'calendar' && <Calendar state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
         {view === 'standings' && <Standings state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
         {view === 'europe' && <EuropeanBracket state={databaseState} databaseView={databaseView} />}
@@ -1896,7 +2206,7 @@ export default function FootballAgentGame() {
           title="Jouer la semaine"
           style={{
             position: 'fixed',
-            bottom: 72,
+            bottom: 'calc(72px + var(--agent-safe-bottom))',
             right: 20,
             width: 56,
             height: 56,
@@ -1933,7 +2243,7 @@ export default function FootballAgentGame() {
           position: 'fixed',
           left: 12,
           right: 12,
-          bottom: 72,
+          bottom: 'calc(72px + var(--agent-safe-bottom))',
           zIndex: 65,
           background: '#fff7f7',
           border: '1px solid #f5c2c7',

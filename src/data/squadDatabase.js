@@ -36,6 +36,8 @@ const HIDDEN_TRAIT_KEYS = [
 const GABRIEL_FIXIO_SEED = 0x9f3a7b1d;
 export const GABRIEL_FIXIO_ID = 'sig_gabriel_fixio';
 const GABRIEL_FIXIO_CLUB = 'Marseille';
+const UGO_MOXWMO_SEED = 0x8b17e2c4;
+export const UGO_MOXWMO_ID = 'sig_ugo_moxwmo';
 
 const getMarseilleClub = () =>
   CLUBS.find((club) => club.name === GABRIEL_FIXIO_CLUB) ?? CLUBS[0];
@@ -120,6 +122,91 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     signaturePlayer: false,
     hiddenPotential: true,
     attributes: generatePlayerAttributes({ rating, potential, position: 'MIL' }, roleObj),
+    clubRole: 'Projet jeune',
+  };
+};
+
+const buildUgoMoxwmo = (club = getMarseilleClub(), season = 1) => {
+  const ugoClub = club?.name === GABRIEL_FIXIO_CLUB ? club : getMarseilleClub();
+  const roleObj = POSITION_ROLES.ATT?.find((role) => role.id === 'winger_forward')
+    ?? POSITION_ROLES.ATT?.[0]
+    ?? POSITION_ROLES.MIL?.find((role) => role.id === 'right_winger')
+    ?? POSITION_ROLES.MIL?.[0];
+  const baseAge = 20;
+  const baseRating = 128;
+  const potential = 192; // Un peu moins de plafond que Gabriel
+  const rating = evolveRating(baseRating, baseAge, potential, season);
+  const age = baseAge + (season - 1);
+  const countryData = COUNTRIES.find((c) => c.code === 'FR') ?? COUNTRIES[0];
+  const value = estimateValue(rating, potential, age, 1);
+  const weeklySalary = Math.max(2200, Math.floor(value / 145));
+
+  return {
+    id: UGO_MOXWMO_ID,
+    firstName: 'Ugo',
+    lastName: 'Moxwmo',
+    birthDate: '2006-09-17',
+    birthDateLabel: '17 septembre 2006',
+    birthPlace: 'Marseille',
+    position: 'ATT',
+    roleId: roleObj.id,
+    roleLabel: 'Attaquant droit',
+    roleShort: 'AD',
+    countryCode: countryData.code,
+    countryLabel: countryData.label,
+    countryFlag: countryData.flag,
+    personality: 'professionnel',
+    age,
+    rating,
+    potential,
+    value,
+    weeklySalary,
+    signingCost: 26000,
+    club: ugoClub.name,
+    clubTier: ugoClub.tier ?? 1,
+    clubCountry: (COUNTRIES.find((c) => c.code === ugoClub.countryCode) ?? COUNTRIES[0]).flag,
+    clubCountryCode: ugoClub.countryCode,
+    clubCity: ugoClub.city ?? 'Marseille',
+    form: 94,
+    brandValue: 88,
+    fatigue: 6,
+    injured: 0,
+    moral: 97,
+    trust: 83,
+    pressureTolerance: 92,
+    dreamClub: 'Real Madrid',
+    contractWeeksLeft: 62,
+    contractStartWeek: 0,
+    commission: 0.08,
+    agentContract: null,
+    timeline: [
+      { week: season * 38 - 37, type: 'origin', label: 'Attaquant droit formé à Marseille' },
+    ],
+    careerGoal: null,
+    scoutReport: null,
+    hiddenTrait: 'late_bloomer',
+    traitRevealed: false,
+    lastInteractionWeek: 0,
+    europeanCompetition: null,
+    seasonStats: {
+      appearances: 0, goals: 0, assists: 0, saves: 0,
+      tackles: 0, keyPasses: 0, xg: 0, injuries: 0,
+      ratings: [], averageRating: null,
+    },
+    publicRep: null,
+    pressure: 6,
+    recentResults: [],
+    previousRating: null,
+    matchHistory: [],
+    activeActions: [],
+    physique: 'technique',
+    playStyle: 'créateur',
+    foot: 'D',
+    developmentBoost: 0.048,
+    developmentCurve: 'superstar_gem',
+    signaturePlayer: false,
+    hiddenPotential: true,
+    attributes: generatePlayerAttributes({ rating, potential, position: 'ATT' }, roleObj),
     clubRole: 'Projet jeune',
   };
 };
@@ -415,6 +502,9 @@ const pickNationality = (club, seed, slotN) => {
 const buildSquadPlayer = (club, slotIdx, season) => {
   if (club?.name === GABRIEL_FIXIO_CLUB && slotIdx === 10) {
     return buildGabrielFixio(club, season);
+  }
+  if (club?.name === GABRIEL_FIXIO_CLUB && slotIdx === 13) {
+    return buildUgoMoxwmo(club, season);
   }
   // Seed STABLE (sans saison) → même joueur d'une saison à l'autre
   const baseSeed = hashStr(`${club.name}:${slotIdx}`);
@@ -793,18 +883,20 @@ export const drawMarketPlayers = ({
   const rep = getMarketReputationScore(reputation);
   const targetRating = clamp(108 + rep * 0.28 + scoutLevel * 1.6, 100, 182);
   const maxRating = getMarketRatingCeiling(reputation, scoutLevel);
-  const specialGabriel = catalog.find((player) => player.id === GABRIEL_FIXIO_ID);
+  const signaturePlayers = [GABRIEL_FIXIO_ID, UGO_MOXWMO_ID]
+    .map((id) => catalog.find((player) => player.id === id))
+    .filter(Boolean);
 
   for (const position of positionQuota) {
-    if (
-      position === specialGabriel?.position
-      && !usedIds.has(specialGabriel.id)
-      && !usedClubsThisBatch.has(specialGabriel.club)
-      && marketCountrySet.has(specialGabriel.countryCode ?? specialGabriel.clubCountryCode)
-    ) {
-      result.push({ ...specialGabriel });
-      usedIds.add(specialGabriel.id);
-      usedClubsThisBatch.add(specialGabriel.club);
+    const signaturePlayer = signaturePlayers.find((player) =>
+      position === player.position
+      && !usedIds.has(player.id)
+      && marketCountrySet.has(player.countryCode ?? player.clubCountryCode)
+    );
+    if (signaturePlayer) {
+      result.push({ ...signaturePlayer });
+      usedIds.add(signaturePlayer.id);
+      if (!signaturePlayer.id.startsWith('sig_')) usedClubsThisBatch.add(signaturePlayer.club);
       continue;
     }
 

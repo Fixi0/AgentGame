@@ -11,6 +11,7 @@ import { getPlayerProfileSummary } from '../../systems/playerProfileSystem';
 import { formatMoney } from '../../utils/format';
 import { getPlayerLevelLabel, getPlayerStarsText } from '../../utils/playerStars';
 import { S } from '../styles';
+import PlayerDossier from '../PlayerDossier';
 import PlayerAttributesPanel from '../PlayerAttributesPanel';
 import { assignIntelligentClubRole } from '../../data/localDatabase';
 
@@ -96,6 +97,18 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
 
   return (
     <div style={S.overlay}>
+      <div style={{ ...S.modal, maxWidth: 980, background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
+        <PlayerDossier
+          player={playerWithRole}
+          onBack={onClose}
+          actions={[
+            <button key="meeting" type="button" onClick={() => onMeeting?.(playerWithRole)} className="af-btn-secondary" style={{ padding: 12 }}>Point joueur</button>,
+            <button key="extend" type="button" onClick={() => onNego?.('extend')} className="af-btn-primary" style={{ padding: 12 }}>Prolonger</button>,
+            <button key="transfer" type="button" onClick={() => onNego?.('transfer')} className="af-btn-secondary" style={{ padding: 12 }}>Transfert</button>,
+          ]}
+        />
+      </div>
+      {false && (
       <div style={S.modal}>
         <div style={S.mHead}>
           <span>FICHE JOUEUR</span>
@@ -287,6 +300,7 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -312,4 +326,3 @@ function Meter({ label, value, inverted = false }) {
     </div>
   );
 }
-

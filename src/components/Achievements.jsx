@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { CheckCircle2, Coins, Filter, Gem, Lock, Sparkles } from 'lucide-react';
 import { ACHIEVEMENT_CATEGORY_LABELS, ACHIEVEMENT_CATEGORY_ORDER, TOTAL_ACHIEVEMENTS } from '../systems/objectivesSystem';
 import { formatMoney } from '../utils/format';
+import { assetPath } from '../utils/assets';
 import { S } from './styles';
 
 const CATEGORY_STYLE = {
@@ -16,21 +17,21 @@ const CATEGORY_STYLE = {
 };
 
 const CATEGORY_ASSET = {
-  recruitment: '/tycoon-assets/v_players.png',
-  transfers: '/tycoon-assets/v_transfer.png',
-  finance: '/tycoon-assets/resource_cash.png',
-  reputation: '/tycoon-assets/reputation_shield.png',
-  longevity: '/tycoon-assets/v_calendar.png',
-  premium: '/tycoon-assets/v_shop.png',
-  prestige: '/tycoon-assets/badge_legende.png',
+  recruitment: assetPath('tycoon-assets/v_players.png'),
+  transfers: assetPath('tycoon-assets/v_transfer.png'),
+  finance: assetPath('tycoon-assets/resource_cash.png'),
+  reputation: assetPath('tycoon-assets/reputation_shield.png'),
+  longevity: assetPath('tycoon-assets/v_calendar.png'),
+  premium: assetPath('tycoon-assets/v_shop.png'),
+  prestige: assetPath('tycoon-assets/badge_legende.png'),
 };
 
 const REP_TIER_ASSETS = [
-  '/tycoon-assets/badge_local.png',
-  '/tycoon-assets/badge_national.png',
-  '/tycoon-assets/badge_international.png',
-  '/tycoon-assets/badge_elite.png',
-  '/tycoon-assets/badge_legende.png',
+  assetPath('tycoon-assets/badge_local.png'),
+  assetPath('tycoon-assets/badge_national.png'),
+  assetPath('tycoon-assets/badge_international.png'),
+  assetPath('tycoon-assets/badge_elite.png'),
+  assetPath('tycoon-assets/badge_legende.png'),
 ];
 
 const FILTERS = [
@@ -85,7 +86,7 @@ export default function Achievements({ state }) {
         border: '1px solid #1f2a3d',
         padding: 16,
         marginBottom: 14,
-        backgroundImage: 'linear-gradient(135deg,rgba(7,15,28,.92),rgba(20,35,57,.84)), url(/tycoon-style-reference.png)',
+        backgroundImage: `linear-gradient(135deg,rgba(7,15,28,.92),rgba(20,35,57,.84)), url(${assetPath('tycoon-style-reference.png')})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         boxShadow: '0 18px 38px rgba(15,23,42,.24)',
@@ -99,7 +100,7 @@ export default function Achievements({ state }) {
               {unlocked}/{achievements.length || TOTAL_ACHIEVEMENTS} débloqués
             </div>
           </div>
-          <img src="/tycoon-assets/badge_legende.png" alt="Badge légende" style={{ width: 56, height: 56, objectFit: 'contain' }} />
+          <img src={assetPath('tycoon-assets/badge_legende.png')} alt="Badge légende" style={{ width: 56, height: 56, objectFit: 'contain' }} />
         </div>
 
         <div style={{ ...S.progBar, height: 7, background: 'rgba(255,255,255,.2)', marginBottom: 8 }}>
@@ -113,7 +114,7 @@ export default function Achievements({ state }) {
           <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.08)', padding: '8px 10px' }}>
             <div style={{ fontSize: 9, color: 'rgba(255,255,255,.74)', letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', fontWeight: 800, marginBottom: 2 }}>RÉPUTATION</div>
             <div style={{ fontSize: 13, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <img src="/tycoon-assets/reputation_shield.png" alt="Réputation" style={{ width: 16, height: 16, objectFit: 'contain' }} />
+              <img src={assetPath('tycoon-assets/reputation_shield.png')} alt="Réputation" style={{ width: 16, height: 16, objectFit: 'contain' }} />
               {(state?.reputation ?? 0)}/1000
             </div>
           </div>

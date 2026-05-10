@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import './styles.css';
 
 // Temporarily disable service worker registration to avoid stale chunk/index mismatches
 // that cause "importing a module script failed" on mobile browsers.
@@ -31,6 +32,7 @@ window.addEventListener('unhandledrejection', (event) => {
       import('./App.jsx'),
       import('./components/ErrorBoundary.jsx'),
     ]);
+    const { installAutoTranslator } = await import('./utils/i18n.js');
     createRoot(rootEl).render(
       <React.StrictMode>
         <ErrorBoundary>
@@ -38,6 +40,7 @@ window.addEventListener('unhandledrejection', (event) => {
         </ErrorBoundary>
       </React.StrictMode>,
     );
+    installAutoTranslator();
     if (bootFallback) bootFallback.remove();
   } catch (error) {
     console.error('[AgentFoot] boot failed', error);

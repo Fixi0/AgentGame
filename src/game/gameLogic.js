@@ -1,6 +1,6 @@
 import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
 import { COUNTRY_NAME_POOLS, FIRST_NAMES, HIDDEN_TRAITS, LAST_NAMES, LEGENDARY_PLAYERS, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
-import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA, createPlayerCatalog, getMarketRatingCeiling, getMarketCountryCodes, GABRIEL_FIXIO_ID, reconcilePlayerWithCatalog } from '../data/squadDatabase';
+import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA, createPlayerCatalog, getMarketRatingCeiling, getMarketCountryCodes, GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, reconcilePlayerWithCatalog } from '../data/squadDatabase';
 import { createDefaultAgencyRecord } from '../data/gameDatabase';
 import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
@@ -62,7 +62,7 @@ import { formatMoney } from '../utils/format';
 import { normalizePromises } from '../systems/promiseSystem';
 
 export const STORAGE_KEY = 'agent_fc_v4';
-export const MARKET_DATA_VERSION = '2026-04-21-fixio-project-v1';
+export const MARKET_DATA_VERSION = '2026-05-07-fixio-moxwmo-start-v1';
 const MAX_OPEN_RESPONSE_MESSAGES_PER_PLAYER = 4;
 
 const createClubSeasonHistory = (season = 1) =>
@@ -726,24 +726,25 @@ export const migrateState = (state) => {
   const normalizeMarketShelf = (list, count = 8) => {
     const current = asArray(list);
     const marketCap = getMarketRatingCeiling(reputation, marketScoutLevel);
+    const signatureMarketIds = new Set([GABRIEL_FIXIO_ID, UGO_MOXWMO_ID]);
     const sanitized = current
       .map(reconcileCatalogPlayer)
-      .filter((player) => (player?.rating ?? 0) <= marketCap || player?.id === GABRIEL_FIXIO_ID)
+      .filter((player) => (player?.rating ?? 0) <= marketCap || signatureMarketIds.has(player?.id))
       .filter(isMarketCountryAllowed);
-    // Garantir que Gabriel Fixio est toujours présent dans le marché
-    // (sauf s'il est déjà dans le roster ou les agents libres)
+    // Garantir que Gabriel Fixio et Ugo Moxwmo sont toujours présents dans le marché
+    // (sauf s'ils sont déjà dans le roster ou les agents libres).
     const rosterIds = new Set(asArray(state.roster).map((player) => player?.id).filter(Boolean));
     const freeAgentIds = new Set(asArray(state.freeAgents).map((player) => player?.id).filter(Boolean));
-    const gabrielAlreadySigned = rosterIds.has(GABRIEL_FIXIO_ID) || freeAgentIds.has(GABRIEL_FIXIO_ID);
-    const gabrielInMarket = sanitized.some((player) => player?.id === GABRIEL_FIXIO_ID);
     let finalList = sanitized;
-    if (!gabrielAlreadySigned && !gabrielInMarket) {
-      const gabrielFromCatalog = playerCatalog.find((player) => player.id === GABRIEL_FIXIO_ID);
-      if (gabrielFromCatalog) {
-        // Remplace le dernier joueur du marché pour faire de la place, ou ajoute en fin
-        finalList = sanitized.length >= count
-          ? [...sanitized.slice(0, count - 1), { ...gabrielFromCatalog }]
-          : [...sanitized, { ...gabrielFromCatalog }];
+    for (const signatureId of signatureMarketIds) {
+      const alreadySigned = rosterIds.has(signatureId) || freeAgentIds.has(signatureId);
+      const alreadyInMarket = finalList.some((player) => player?.id === signatureId);
+      if (alreadySigned || alreadyInMarket) continue;
+      const signatureFromCatalog = playerCatalog.find((player) => player.id === signatureId);
+      if (signatureFromCatalog && isMarketCountryAllowed(signatureFromCatalog)) {
+        finalList = finalList.length >= count
+          ? [...finalList.slice(0, count - 1), { ...signatureFromCatalog }]
+          : [...finalList, { ...signatureFromCatalog }];
       }
     }
     const targetCount = Math.max(count, finalList.length);
