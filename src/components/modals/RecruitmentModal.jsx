@@ -87,15 +87,15 @@ export default function RecruitmentModal({ state, player, onConfirm, onClose }) 
                     style={{
                       ...S.quickCard,
                       textAlign: 'left',
-                      border: selected ? '1px solid #00a676' : '1px solid #e5eaf0',
-                      background: selected ? '#f0fdf8' : '#ffffff',
+                      border: selected ? '1px solid #00a676' : '1px solid var(--af-border)',
+                      background: selected ? 'oklch(28% 0.10 155 / .35)' : 'var(--af-surface)',
                       boxShadow: selected ? '0 14px 32px rgba(0,166,118,.14)' : '0 10px 24px rgba(15,23,32,.06)',
                     }}
                   >
                     <div style={S.qLabel}>{pitch.label}</div>
                     <div style={S.qSub}>{pitch.desc}</div>
                     <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                      <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>{pitch.short}</span>
+                      <span style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>{pitch.short}</span>
                       <span style={{ fontSize: 10, letterSpacing: '.12em', fontWeight: 900, color: gaugeColor(sample.fit, sample.threshold), fontFamily: 'system-ui,sans-serif' }}>
                         FIT {sample.fit}/100
                       </span>
@@ -108,9 +108,9 @@ export default function RecruitmentModal({ state, player, onConfirm, onClose }) 
 
           <div style={S.objCard}>
             <div style={S.secTitle}>CHANCES DE CONVAINCRE</div>
-            <div style={{ background: '#f7f9fb', border: `1px solid ${statusColor}26`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
+            <div style={{ background: 'oklch(16% 0.035 258 / .78)', border: `1px solid ${statusColor}26`, borderRadius: 8, padding: 12, marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontSize: 10, letterSpacing: '.18em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 850 }}>SCORE</span>
+                <span style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 850 }}>SCORE</span>
                 <strong style={{ color: statusColor }}>{preview.fit}/100</strong>
               </div>
               <div style={S.progBar}>
@@ -138,7 +138,7 @@ export default function RecruitmentModal({ state, player, onConfirm, onClose }) 
           {feedback && (
             <div style={{
               background: '#fef2f2',
-              border: '1px solid #f3c7c2',
+              border: '1px solid var(--af-border)',
               borderRadius: 8,
               padding: 12,
               color: '#8a1f16',

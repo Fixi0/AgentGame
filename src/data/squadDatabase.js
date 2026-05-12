@@ -266,32 +266,42 @@ export const getMarketRatingCeiling = (reputation = 12, scoutLevel = 0) => {
 export const MARKET_POSITION_QUOTA = ['GK','DEF','DEF','MIL','MIL','ATT'];
 export const FREE_AGENT_POSITION_QUOTA = ['GK','DEF','MIL','ATT'];
 
-// ── Template effectif senior : 16 joueurs ────────────────────────────────────
+// ── Template effectif senior : 22 joueurs ────────────────────────────────────
 const SQUAD_SLOTS = [
   { position: 'GK',  roleId: 'goalkeeper',     starter: true  },
   { position: 'GK',  roleId: 'sweeper_keeper',  starter: false },
+  { position: 'GK',  roleId: 'goalkeeper',     starter: false },
   { position: 'DEF', roleId: 'center_back',     starter: true  },
   { position: 'DEF', roleId: 'center_back',     starter: true  },
   { position: 'DEF', roleId: 'right_back',      starter: true  },
   { position: 'DEF', roleId: 'left_back',       starter: true  },
   { position: 'DEF', roleId: 'libero',          starter: false },
+  { position: 'DEF', roleId: 'center_back',     starter: false },
+  { position: 'DEF', roleId: 'right_wing_back', starter: false },
   { position: 'MIL', roleId: 'defensive_mid',   starter: true  },
   { position: 'MIL', roleId: 'box_to_box',      starter: true  },
   { position: 'MIL', roleId: 'right_winger',    starter: true  },
   { position: 'MIL', roleId: 'attacking_mid',   starter: true  },
   { position: 'MIL', roleId: 'central_mid',     starter: false },
+  { position: 'MIL', roleId: 'left_winger',     starter: false },
+  { position: 'MIL', roleId: 'box_to_box',      starter: false },
   { position: 'ATT', roleId: 'striker',         starter: true  },
   { position: 'ATT', roleId: 'winger_forward',  starter: true  },
   { position: 'ATT', roleId: 'second_striker',  starter: false },
   { position: 'ATT', roleId: 'false_9',         starter: false },
+  { position: 'ATT', roleId: 'striker',         starter: false },
 ];
 
-// ── Template prospects U21 : 4 joueurs ───────────────────────────────────────
+// ── Template prospects U21 : 8 joueurs (2 par ligne) ────────────────────────
 const YOUTH_SLOTS = [
-  { position: 'GK',  roleId: 'goalkeeper',    ageMin: 16, ageMax: 20 },
-  { position: 'DEF', roleId: 'center_back',   ageMin: 17, ageMax: 21 },
-  { position: 'MIL', roleId: 'attacking_mid', ageMin: 17, ageMax: 21 },
-  { position: 'ATT', roleId: 'striker',       ageMin: 16, ageMax: 20 },
+  { position: 'GK',  roleId: 'goalkeeper',     ageMin: 16, ageMax: 20 },
+  { position: 'DEF', roleId: 'center_back',    ageMin: 17, ageMax: 21 },
+  { position: 'DEF', roleId: 'right_back',     ageMin: 16, ageMax: 20 },
+  { position: 'DEF', roleId: 'left_back',      ageMin: 16, ageMax: 20 },
+  { position: 'MIL', roleId: 'attacking_mid',  ageMin: 17, ageMax: 21 },
+  { position: 'MIL', roleId: 'box_to_box',     ageMin: 16, ageMax: 20 },
+  { position: 'ATT', roleId: 'striker',        ageMin: 16, ageMax: 20 },
+  { position: 'ATT', roleId: 'winger_forward', ageMin: 17, ageMax: 21 },
 ];
 
 // ── RNG déterministe ──────────────────────────────────────────────────────────

@@ -1,4 +1,8 @@
 import { CLUBS } from '../data/clubs';
+import { getClubSquad } from '../data/squadDatabase';
+import { getSupercupMatch, getClubWorldCupFixtures, EURO_CUP_LABELS } from './europeanCupSystem';
+
+const findClub = (name) => CLUBS.find((c) => c.name === name) ?? null;
 
 const clubKey = (club) => `${club.countryCode}:${club.name}`;
 
@@ -437,9 +441,23 @@ const toPlayerResult = ({ player, fixture, budget }) => {
 
   return {
     fixtureId: fixture.fixtureId,
+    week: fixture.week,
+    season: fixture.season,
+    seasonWeek: fixture.seasonWeek,
+    competition: fixture.competition ?? 'LEAGUE',
+    competitionLabel: fixture.competitionLabel ?? 'Championnat',
+    competitionCountryCode: fixture.countryCode ?? player.clubCountryCode,
     playerId: player.id,
     playerName: `${player.firstName} ${player.lastName}`,
+    firstName: player.firstName,
+    lastName: player.lastName,
+    position: player.position,
+    roleId: player.roleId,
+    countryCode: player.countryCode,
+    countryFlag: player.countryFlag,
+    rating: player.rating,
     club: player.club,
+    clubCountryCode: player.clubCountryCode,
     opponent: opponent.name,
     opponentCity: opponent.city,
     homeAway: isHome ? 'Domicile' : 'Extérieur',
@@ -450,6 +468,42 @@ const toPlayerResult = ({ player, fixture, budget }) => {
     ...playerOutput,
   };
 };
+
+const mergeKnownPlayersIntoSquad = (club, season, roster = []) => {
+  const squad = getClubSquad(club, season);
+  const rosterPlayers = roster.filter((player) =>
+    player.club === club.name && player.clubCountryCode === club.countryCode,
+  );
+  const byId = new Map(squad.map((player) => [player.id, player]));
+
+  rosterPlayers.forEach((player) => {
+    byId.set(player.id, {
+      ...player,
+      club: club.name,
+      clubTier: club.tier ?? player.clubTier,
+      clubCountryCode: club.countryCode,
+      clubCity: club.city ?? player.clubCity,
+    });
+  });
+
+  return [...byId.values()];
+};
+
+export const simulateFixtureSquadResults = (fixture, roster = []) => {
+  if (!fixture?.homeClub || !fixture?.awayClub) return [];
+  const season = fixture.season ?? Math.floor(((fixture.week ?? 1) - 1) / 38) + 1;
+  const homeSquad = mergeKnownPlayersIntoSquad(fixture.homeClub, season, roster);
+  const awaySquad = mergeKnownPlayersIntoSquad(fixture.awayClub, season, roster);
+  const budget = new Map([
+    [clubKey(fixture.homeClub), { goals: fixture.homeGoals, assists: fixture.homeGoals }],
+    [clubKey(fixture.awayClub), { goals: fixture.awayGoals, assists: fixture.awayGoals }],
+  ]);
+
+  return [...homeSquad, ...awaySquad].map((player) => toPlayerResult({ player, fixture, budget }));
+};
+
+export const simulateFixturePlayerResults = (fixtures = [], roster = []) =>
+  fixtures.flatMap((fixture) => simulateFixtureSquadResults(fixture, roster));
 
 export const buildWeeklyFixtures = (roster = [], week = 1) => {
   const playersByClub = roster.reduce((map, player) => {
@@ -477,6 +531,44 @@ export const buildWeeklyFixtures = (roster = [], week = 1) => {
       fixtures.push(createFixture({ homeClub, awayClub, playersByClub, isFriendly: isFriendlyWeek, week, season, seasonWeek }));
     });
   });
+
+  // ── Supercoupe UEFA (semaine 2) ────────────────────────────────────────────
+  if (seasonWeek === 2) {
+    const sc = getSupercupMatch(season);
+    const home = sc && findClub(sc.homeClub);
+    const away = sc && findClub(sc.awayClub);
+    if (home && away) {
+      const fx = createFixture({ homeClub: home, awayClub: away, playersByClub, isFriendly: false, week, season, seasonWeek });
+      fixtures.push({
+        ...fx,
+        fixtureId: `sc_${season}_${home.name}_${away.name}`,
+        competition: 'SC',
+        competitionLabel: EURO_CUP_LABELS.SC.name,
+        countryCode: '__SC__', // marqueur : ne pas peupler le classement domestique
+        phase: sc.phase,
+        venue: sc.venue,
+      });
+    }
+  }
+
+  // ── Mondial des Clubs (semaines 35-37) ─────────────────────────────────────
+  if (seasonWeek >= 35 && seasonWeek <= 37) {
+    const cwcAll = getClubWorldCupFixtures(season);
+    cwcAll.filter((m) => m.week === seasonWeek).forEach((m) => {
+      const home = findClub(m.homeClub);
+      const away = findClub(m.awayClub);
+      if (!home || !away) return;
+      const fx = createFixture({ homeClub: home, awayClub: away, playersByClub, isFriendly: false, week, season, seasonWeek });
+      fixtures.push({
+        ...fx,
+        fixtureId: `cwc_${season}_${seasonWeek}_${home.name}_${away.name}`,
+        competition: 'CWC',
+        competitionLabel: EURO_CUP_LABELS.CWC.name,
+        countryCode: '__CWC__',
+        phase: m.phase,
+      });
+    });
+  }
 
   return fixtures;
 };

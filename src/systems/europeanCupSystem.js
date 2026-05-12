@@ -14,8 +14,11 @@
 import { CLUBS } from '../data/clubs';
 import { rand, makeId } from '../utils/helpers';
 
-// Pays dont les clubs accèdent à la CL (top leagues européennes + variantes de code UK)
-const TOP_LEAGUE_COUNTRIES = new Set(['FR', 'ES', 'EN', 'GB', 'DE', 'IT', 'PT', 'NL']);
+// Pays dont les clubs accèdent aux coupes UEFA (top leagues européennes + secondes nations)
+const TOP_LEAGUE_COUNTRIES = new Set([
+  'FR', 'ES', 'EN', 'GB', 'DE', 'IT', 'PT', 'NL',
+  'BE', 'TR', 'SC', 'GR', 'AT', 'CH', 'CZ', 'DK', 'NO', 'SE',
+]);
 
 // ── Utilitaires de seed déterministe ──────────────────────────────────────────
 /** FNV-1a hash 32-bit */
@@ -27,11 +30,39 @@ const hashStr = (str = '') => {
 /** LCG suivant : retourne un nombre entier 32 bits non signé */
 const lcgNext = (s) => (Math.imul(s, 1664525) + 1013904223) >>> 0;
 
-// ── Pool de clubs par compétition ─────────────────────────────────────────────
-const getCompetitionPool = (competition) => {
-  if (competition === 'CL') return CLUBS.filter((c) => c.tier === 1 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
-  if (competition === 'EL') return CLUBS.filter((c) => c.tier <= 2 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
-  return CLUBS.filter((c) => c.tier <= 3 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
+// ── Format UEFA officiel : 36 équipes par compétition en phase de ligue ───────
+// CL : 8 journées · EL : 8 journées · ECL : 6 journées
+// Top 8 → 1/8 directs · 9-24 → barrages · 25-36 éliminés
+const EURO_LEAGUE_PHASE_SIZE = 36;
+
+// Construit la répartition des clubs entre CL/EL/ECL pour une saison donnée.
+// Tri déterministe : tier croissant puis hash (club, saison). Les 36 meilleurs → CL,
+// les 36 suivants → EL, les 36 suivants → ECL. Le reste : pas d'Europe.
+const _participantsCache = new Map();
+export const getEuropeanParticipantsMap = (season = 1) => {
+  const cacheKey = `s${season}`;
+  if (_participantsCache.has(cacheKey)) return _participantsCache.get(cacheKey);
+
+  const eligible = CLUBS.filter((c) => TOP_LEAGUE_COUNTRIES.has(c.countryCode));
+  const ranked = [...eligible].sort((a, b) => {
+    if ((a.tier ?? 4) !== (b.tier ?? 4)) return (a.tier ?? 4) - (b.tier ?? 4);
+    const ha = hashStr(`${a.name}:${season}:euro-rank`);
+    const hb = hashStr(`${b.name}:${season}:euro-rank`);
+    return ha - hb;
+  });
+
+  const map = new Map();
+  ranked.slice(0, EURO_LEAGUE_PHASE_SIZE).forEach((c) => map.set(c.name, 'CL'));
+  ranked.slice(EURO_LEAGUE_PHASE_SIZE, EURO_LEAGUE_PHASE_SIZE * 2).forEach((c) => map.set(c.name, 'EL'));
+  ranked.slice(EURO_LEAGUE_PHASE_SIZE * 2, EURO_LEAGUE_PHASE_SIZE * 3).forEach((c) => map.set(c.name, 'ECL'));
+
+  _participantsCache.set(cacheKey, map);
+  return map;
+};
+
+const getCompetitionPool = (competition, season = 1) => {
+  const map = getEuropeanParticipantsMap(season);
+  return CLUBS.filter((c) => map.get(c.name) === competition);
 };
 
 const EURO_SCHEDULE = {
@@ -65,6 +96,14 @@ export const EURO_CUP_LABELS = {
   CL: { name: 'Ligue des Champions', short: 'UCL', color: '#1a1a6e', icon: '⭐' },
   EL: { name: 'Europa League', short: 'UEL', color: '#f97316', icon: '🟠' },
   ECL: { name: 'Conference League', short: 'ECL', color: '#16a34a', icon: '🟢' },
+  SC: { name: 'Supercoupe UEFA', short: 'SUC', color: '#7dd3fc', icon: '🏅' },
+  CWC: { name: 'Mondial des Clubs', short: 'CWC', color: '#f5c842', icon: '🌍' },
+};
+
+// Compétitions hors-championnat / hors-coupe européenne classique
+export const EXTRA_TOURNAMENT_WEEKS = {
+  SC: new Set([2]),               // Supercoupe UEFA — début de saison (1 match)
+  CWC: new Set([35, 36, 37]),     // Mondial des Clubs — fin de saison (groupe → finale)
 };
 
 /**
@@ -89,19 +128,9 @@ const seasonHash = (clubName = '', season = 1) => clubQualHash(`${clubName}:${se
  * @returns 'CL' | 'EL' | 'ECL' | null
  */
 export const getClubEuropeanCompetition = (club = {}, season = 1) => {
-  const tier = club.tier ?? 4;
-  const country = club.countryCode ?? '';
-  const isTopLeague = TOP_LEAGUE_COUNTRIES.has(country);
-  const h = seasonHash(club.name ?? '', season);
-
-  if (tier === 1 && isTopLeague) return 'CL';
-  if (tier === 2 && isTopLeague) return h < 0.62 ? 'EL' : 'ECL';
-  if (tier === 3 && isTopLeague) return h < 0.18 ? 'EL' : h < 0.86 ? 'ECL' : null;
-  if (tier === 4 && isTopLeague) return h < 0.12 ? 'ECL' : null;
-  if (tier === 1 && !isTopLeague) return h < 0.52 ? 'EL' : 'ECL';
-  if (tier === 2 && !isTopLeague) return h < 0.76 ? 'ECL' : null;
-  if (tier === 3 && !isTopLeague) return h < 0.28 ? 'ECL' : null;
-  return null;
+  if (!club?.name) return null;
+  const map = getEuropeanParticipantsMap(season);
+  return map.get(club.name) ?? null;
 };
 
 /**
@@ -239,7 +268,7 @@ export const getEuropeanMatchdayIndex = (seasonWeek, competition) => {
  * Filtre les adversaires déjà affrontés (phase de ligue).
  */
 export const pickSeededOpponent = (clubName, competition, matchdayIdx, season, usedOpponents = []) => {
-  const pool = getCompetitionPool(competition);
+  const pool = getCompetitionPool(competition, season);
   const candidates = pool.filter((c) => c.name !== clubName && !usedOpponents.includes(c.name));
   const source = candidates.length ? candidates : pool.filter((c) => c.name !== clubName);
   if (!source.length) return { name: 'Club Européen', country: '🌍' };
@@ -253,7 +282,7 @@ export const pickSeededOpponent = (clubName, competition, matchdayIdx, season, u
  * Les clubs agents sont toujours inclus.
  */
 export const generateKOBracketClubs = (competition, season, agentClubNames = []) => {
-  const pool = getCompetitionPool(competition);
+  const pool = getCompetitionPool(competition, season);
   const agentSet = new Set(agentClubNames);
   let seed = hashStr(`${competition}:${season}:bracket`);
 
@@ -635,4 +664,108 @@ export const normalizeEuropeanMatch = (match = {}) => {
     matchRating: Number.isFinite(match.matchRating) ? match.matchRating : null,
     matchReport: match.matchReport ?? `Note ${match.matchRating ?? '—'}/10 · ${match.goals ?? 0} but${(match.goals ?? 0) > 1 ? 's' : ''}${(match.assists ?? 0) ? ` · ${match.assists} passe${(match.assists ?? 0) > 1 ? 's' : ''}` : ''}${(match.keyPasses ?? 0) ? ` · ${match.keyPasses} passes clés` : ''}`,
   };
+};
+
+// ─── Compétitions hors-UEFA classiques ────────────────────────────────────────
+// Supercoupe UEFA : un seul match en début de saison entre le vainqueur de la C1
+// et le vainqueur de la C3 de la saison précédente.
+// Mondial des Clubs : tournoi élargi en fin de saison (32 clubs simplifié à 16).
+
+const seedRandom = (seed) => {
+  let s = hashStr(String(seed));
+  return () => {
+    s = lcgNext(s);
+    return (s & 0x7fffffff) / 0x7fffffff;
+  };
+};
+
+/**
+ * Retourne le match de Supercoupe UEFA pour la saison donnée.
+ * Sélectionne 2 clubs tier-1 du top des grandes ligues, déterministe par saison.
+ */
+export const getSupercupMatch = (season = 1) => {
+  const elite = CLUBS.filter((c) => c.tier === 1 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
+  if (elite.length < 2) return null;
+  const rnd = seedRandom(`uefa-supercup-${season}`);
+  const sorted = [...elite].sort(() => rnd() - 0.5);
+  return {
+    competition: 'SC',
+    competitionLabel: EURO_CUP_LABELS.SC.name,
+    week: 2,
+    season,
+    homeClub: sorted[0].name,
+    awayClub: sorted[1].name,
+    phase: 'Finale unique',
+    venue: 'Lieu neutre UEFA',
+  };
+};
+
+/**
+ * Retourne la liste des clubs participants au Mondial des Clubs pour la saison.
+ * Sélection : top 16 clubs tier-1/2 du monde (incluant clubs hors-UEFA).
+ */
+export const getClubWorldCupParticipants = (season = 1) => {
+  const eligibleEuro = CLUBS.filter((c) => c.tier <= 2 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
+  const eligibleWorld = CLUBS.filter((c) => c.tier <= 3 && (c.countryCode === 'BR' || c.countryCode === 'AR'));
+  const pool = [...eligibleEuro, ...eligibleWorld];
+  const rnd = seedRandom(`fifa-cwc-${season}`);
+  const shuffled = [...pool].sort(() => rnd() - 0.5).slice(0, 16);
+  return shuffled.map((club) => ({ club: club.name, countryCode: club.countryCode, tier: club.tier }));
+};
+
+/**
+ * Génère les fixtures du Mondial des Clubs pour une saison (groupes simples → finale).
+ * Renvoie un tableau de { week, phase, homeClub, awayClub }.
+ */
+export const getClubWorldCupFixtures = (season = 1) => {
+  const teams = getClubWorldCupParticipants(season);
+  if (teams.length < 8) return [];
+  const fixtures = [];
+  // Phase 1 (semaine 35) — 8 confrontations directes
+  for (let i = 0; i < 8 && i * 2 + 1 < teams.length; i++) {
+    fixtures.push({
+      competition: 'CWC', competitionLabel: EURO_CUP_LABELS.CWC.name,
+      week: 35, season, phase: 'Huitièmes',
+      homeClub: teams[i * 2].club, awayClub: teams[i * 2 + 1].club,
+    });
+  }
+  // Quarts (semaine 36) — 4 matches
+  for (let i = 0; i < 4; i++) {
+    fixtures.push({
+      competition: 'CWC', competitionLabel: EURO_CUP_LABELS.CWC.name,
+      week: 36, season, phase: 'Quarts',
+      homeClub: teams[i].club, awayClub: teams[teams.length - 1 - i].club,
+    });
+  }
+  // Demis + finale (semaine 37) — 3 matches
+  for (let i = 0; i < 2; i++) {
+    fixtures.push({
+      competition: 'CWC', competitionLabel: EURO_CUP_LABELS.CWC.name,
+      week: 37, season, phase: 'Demi-finale',
+      homeClub: teams[i].club, awayClub: teams[3 - i].club,
+    });
+  }
+  fixtures.push({
+    competition: 'CWC', competitionLabel: EURO_CUP_LABELS.CWC.name,
+    week: 37, season, phase: 'Finale',
+    homeClub: teams[0].club, awayClub: teams[1].club,
+  });
+  return fixtures;
+};
+
+/**
+ * Détermine si un club est concerné par une compétition extra cette semaine de saison.
+ */
+export const getExtraTournamentForWeek = (club, seasonWeek, season) => {
+  if (!club) return null;
+  if (EXTRA_TOURNAMENT_WEEKS.SC.has(seasonWeek)) {
+    const sc = getSupercupMatch(season);
+    if (sc && (sc.homeClub === club.name || sc.awayClub === club.name)) return sc;
+  }
+  if (EXTRA_TOURNAMENT_WEEKS.CWC.has(seasonWeek)) {
+    const fixtures = getClubWorldCupFixtures(season);
+    const match = fixtures.find((f) => f.week === seasonWeek && (f.homeClub === club.name || f.awayClub === club.name));
+    if (match) return match;
+  }
+  return null;
 };

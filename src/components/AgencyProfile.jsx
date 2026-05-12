@@ -48,7 +48,7 @@ export default function AgencyProfile({ state }) {
           <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(portfolioValue)}</strong></div>
         </div>
         <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>NIVEAUX D'AGENCE</div>
+          <div style={{ fontSize: 10, letterSpacing: '.14em', color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>NIVEAUX D'AGENCE</div>
           {progression.levelRewards.map((level) => (
             <div key={level.level} style={{ ...S.promiseRow, opacity: level.reached ? 1 : 0.5 }}>
               <span>Niveau {level.level}</span>
@@ -57,7 +57,7 @@ export default function AgencyProfile({ state }) {
           ))}
         </div>
         <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>PALIERS</div>
+          <div style={{ fontSize: 10, letterSpacing: '.14em', color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>PALIERS</div>
           {progression.rewards.map((stage) => (
             <div key={stage.label} style={{ ...S.promiseRow, opacity: stage.reached ? 1 : 0.5 }}>
               <span>{stage.label}</span>

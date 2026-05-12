@@ -112,10 +112,17 @@ export const applyPassiveEventToPlayer = (player, event) => ({
 export const chooseInteractiveEvent = (roster, context = {}) => {
   if (!roster.length) return null;
 
-  const player = context.pressConference
+  // Bias: si on a un topMatch ou flopMatch, prioriser le joueur concerné
+  // pour que les événements interactifs soient connectés aux résultats récents.
+  const matchPick = context.pressConference
     ? (context.topMatch?.playerId && roster.find((item) => item.id === context.topMatch.playerId))
       || pickFragileDossierPlayer(roster, context)
-    : pick(roster);
+    : null;
+  const performerId = context.topMatch?.playerId ?? context.flopMatch?.playerId;
+  const performer = performerId ? roster.find((item) => item.id === performerId) : null;
+  // 55% du temps: joueur lié au match marquant; sinon: pick aléatoire
+  const player = matchPick
+    ?? (performer && Math.random() < 0.55 ? performer : pick(roster));
   const availableEvents = [...INTERACTIVE_EVENTS, ...LOCKER_ROOM_EVENTS];
   const contextualEvents = availableEvents.filter((event) => {
     if (event.id === 'press_conference_week' && !context.pressConference) return false;
@@ -123,6 +130,8 @@ export const chooseInteractiveEvent = (roster, context = {}) => {
     if (event.id === 'retirement_decision' && player.age < 31) return false;
     if (event.id === 'youth_mentor' && player.age < 28) return false;
     if (event.types?.includes('vestiaire') && !(context.vestiaireTension ?? 0)) return false;
+    // Events liés à la Coupe du Monde — uniquement quand la CdM est active
+    if (event.wcOnly && !context.worldCupActive) return false;
     if (!event.personalities?.length) return true;
     return event.personalities.includes(player.personality);
   });
@@ -140,7 +149,18 @@ export const chooseInteractiveEvent = (roster, context = {}) => {
     return { event: lockerRoomEvent, player };
   }
 
-  return { event: pick(contextualEvents), player };
+  // Pondération par rareté — sélection pondérée pour mieux distribuer la diversité.
+  // Les events communs apparaissent souvent, les légendaires restent exceptionnels.
+  if (!contextualEvents.length) return { event: null, player };
+  const weights = contextualEvents.map((event) => getRarityMultiplier(event.rarity));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  if (total <= 0) return { event: pick(contextualEvents), player };
+  let roll = Math.random() * total;
+  for (let i = 0; i < contextualEvents.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return { event: contextualEvents[i], player };
+  }
+  return { event: contextualEvents[contextualEvents.length - 1], player };
 };
 
 export const getContractEventForRoster = (roster, currentWeek = 0) => {

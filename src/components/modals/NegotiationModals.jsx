@@ -167,7 +167,7 @@ export function NegotiationTransfer({ player, rep, lawyer, fixedSuitor, initialO
       {situationChips.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
           {situationChips.map((chip) => (
-            <span key={chip} style={{ fontSize: 10, background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '3px 7px', color: '#3f5663', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>{chip}</span>
+            <span key={chip} style={{ fontSize: 10, background: 'oklch(16% 0.035 258 / .78)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '3px 7px', color: '#3f5663', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>{chip}</span>
           ))}
         </div>
       )}
@@ -325,7 +325,7 @@ export function NegotiationExtend({ player, rep, lawyer, onFinish, onClose }) {
       {extSituationChips.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
           {extSituationChips.map((chip) => (
-            <span key={chip} style={{ fontSize: 10, background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 6, padding: '3px 7px', color: '#3f5663', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>{chip}</span>
+            <span key={chip} style={{ fontSize: 10, background: 'oklch(16% 0.035 258 / .78)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '3px 7px', color: '#3f5663', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>{chip}</span>
           ))}
         </div>
       )}
@@ -402,7 +402,7 @@ function ContractTerms({ player, role, contractYears, signingBonus, releaseClaus
         </label>
         <div style={S.fieldLabel}>
           Multiplicateur salaire
-          <div style={{ ...S.textInput, fontWeight: 900, background: '#f0fdf8', color: '#00a676' }}>×{clampNumber(salaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER).toFixed(2)}</div>
+          <div style={{ ...S.textInput, fontWeight: 900, background: 'oklch(28% 0.08 158 / .22)', color: '#00a676' }}>×{clampNumber(salaryMultiplier, 0.9, MAX_SALARY_MULTIPLIER).toFixed(2)}</div>
         </div>
       </div>
 
@@ -572,7 +572,7 @@ function NegotiationActions({ done, turn, maxTurns, allowConclude, acceptLabel, 
       <button
         type="button"
         onClick={() => (onFinishSuccess ? onFinishSuccess() : onAct('accept'))}
-        style={{ ...S.choiceBtn, borderColor: '#00a676', background: '#f0fdf8' }}
+        style={{ ...S.choiceBtn, borderColor: '#00a676', background: 'oklch(28% 0.08 158 / .22)' }}
       >
         <div style={{ textAlign: 'left' }}>
           <div style={{ ...S.chLabel, color: '#00a676' }}>✅ {acceptLabel}</div>

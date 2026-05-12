@@ -70,7 +70,7 @@ function formDotColor(result) {
 export default function TacticalBoard({ roster, state, onSelectPlayer }) {
   if (!roster || roster.length === 0) {
     return (
-      <div style={{ ...S.tacBoard, textAlign: 'center', color: '#64727d', padding: 20, fontSize: 13, fontFamily: 'system-ui,sans-serif' }}>
+      <div style={{ ...S.tacBoard, textAlign: 'center', color: 'var(--af-muted)', padding: 20, fontSize: 13, fontFamily: 'system-ui,sans-serif' }}>
         Aucun joueur dans le roster
       </div>
     );

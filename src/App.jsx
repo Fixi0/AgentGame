@@ -19,11 +19,13 @@ import Office from './components/Office';
 import Vestiaire from './components/Vestiaire';
 import Roster from './components/Roster';
 import Shop from './components/Shop';
+import Social from './components/Social';
 import SaveMenu from './components/SaveMenu';
 import Scouting from './components/Scouting';
 import Standings from './components/Standings';
 import EuropeanBracket from './components/EuropeanBracket';
 import InteractiveModal from './components/modals/InteractiveModal';
+import PressConferenceModal from './components/modals/PressConferenceModal';
 import ClubModal from './components/modals/ClubModal';
 import MediaCrisisModal from './components/modals/MediaCrisisModal';
 import OfferCompareModal from './components/modals/OfferCompareModal';
@@ -78,12 +80,13 @@ import { createPromiseFromMessage, normalizePromises } from './systems/promiseSy
 import { getActiveDossierPlayerIds, getOfferAcceptanceReadiness, getPendingMessageCounts, getPlayerLifecycleState } from './systems/dossierSystem';
 import { recordDossierEvent } from './systems/coherenceSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
-import { NO_ADS_PRODUCT_ID, grantAdReward, grantIapPurchase, purchaseShopItem } from './systems/shopSystem';
+import { NO_ADS_PRODUCT_ID, grantAdReward, grantIapPurchase, purchaseShopItem, recordInterstitialAdView, shouldShowInterstitialAd } from './systems/shopSystem';
+import { showInterstitialAd, showRewardedAd } from './services/adService';
 import { syncProgressionSystems } from './systems/objectivesSystem';
 import { createManualNewsPost } from './systems/newsSystem';
 import { CLUBS } from './data/clubs';
 import { clamp, makeId, pick } from './utils/helpers';
-import { formatMoney } from './utils/format';
+import { formatMoney, formatMoneyCompact } from './utils/format';
 import { assetPath } from './utils/assets';
 
 const getTransferReadiness = (state, player, phase) => {
@@ -236,20 +239,21 @@ const MAIN_NAV_ASSETS = {
   more: assetPath('tycoon-assets/menu_settings.png'),
 };
 
+// Menu Plus simplifié : un seul bouton par fonctionnalité (pas de doublon).
+// - "Agence" couvre identité + staff + profil (Office.jsx contient déjà tout).
+// - "Compétitions" regroupe ligues, coupes Euro et calendrier (Standings.jsx).
 const moreItems = [
-  { key: 'shop', label: 'Boutique', desc: 'Gemmes et bonus', icon: ShoppingBag, asset: assetPath('tycoon-assets/v_shop.png') },
-  { key: 'achievements', label: 'Succès', desc: '120 exploits par catégories', icon: Trophy, asset: assetPath('tycoon-assets/v_objectives.png') },
-  { key: 'contracts', label: 'Contrats', desc: 'Vue d\'ensemble des contrats', icon: Briefcase, asset: assetPath('tycoon-assets/v_staff.png') },
-  { key: 'contacts', label: 'Réseau', desc: 'Contacts et infos exclusives', icon: Network, asset: assetPath('tycoon-assets/v_messages.png') },
-  { key: 'dossiers', label: 'Dossiers', desc: 'Messages, tensions, mémoire', icon: FileText, asset: assetPath('tycoon-assets/v_messages.png') },
-  { key: 'standings', label: 'Ligues', desc: 'Classements nationaux + Europe', icon: Trophy, asset: assetPath('tycoon-assets/v_finances.png') },
-  { key: 'europe', label: 'Coupes Euro', desc: 'Bracket · Parcours KO · Stats', icon: Trophy, asset: assetPath('tycoon-assets/badge_international.png') },
-  { key: 'calendar', label: 'Calendrier', desc: 'Affiches et résultats', icon: CalendarDays, asset: assetPath('tycoon-assets/v_calendar.png') },
-  { key: 'deadline', label: 'Deadline Day', desc: 'Appels mercato', icon: Timer, asset: assetPath('tycoon-assets/menu_transfer.png') },
-  { key: 'scouting', label: 'Scouting', desc: 'Missions et rapports', icon: Telescope, asset: assetPath('tycoon-assets/shop_scout.png') },
-  { key: 'vestiaire', label: 'Vestiaire', desc: 'Chimie et tensions', icon: Users, asset: assetPath('tycoon-assets/v_players.png') },
-  { key: 'office', label: 'Agence', desc: 'Staff et identité', icon: Briefcase, asset: assetPath('tycoon-assets/reputation_shield.png') },
-  { key: 'profile', label: 'Profil', desc: "Bilan de l'agence", icon: UserCircle, asset: assetPath('tycoon-assets/badge_legende.png') },
+  { key: 'office',       label: 'Agence',       desc: 'Identité, staff et bilan',     icon: Briefcase },
+  { key: 'standings',    label: 'Compétitions', desc: 'Ligues, Europe et calendrier', icon: Trophy },
+  { key: 'shop',         label: 'Boutique',     desc: 'Gemmes et bonus',              icon: ShoppingBag },
+  { key: 'achievements', label: 'Succès',       desc: '120 exploits à débloquer',     icon: Trophy },
+  { key: 'social',       label: 'Hub Social',   desc: 'InstaPro · WhatsCall · Chirp', icon: Network },
+  { key: 'contacts',     label: 'Réseau',       desc: 'Contacts et infos exclusives', icon: Network },
+  { key: 'scouting',     label: 'Scouting',     desc: 'Missions et rapports',         icon: Telescope },
+  { key: 'vestiaire',    label: 'Vestiaire',    desc: 'Chimie et tensions',           icon: Users },
+  { key: 'contracts',    label: 'Contrats',     desc: "Vue d'ensemble des contrats",  icon: Briefcase },
+  { key: 'dossiers',     label: 'Dossiers',     desc: 'Messages, tensions, mémoire',  icon: FileText },
+  { key: 'deadline',     label: 'Deadline Day', desc: 'Appels mercato',               icon: Timer },
 ];
 
 const playerFromDatabaseRow = (row = {}) => {
@@ -824,36 +828,9 @@ export default function FootballAgentGame() {
       showToast(`Pub validée: ${result.offer.rewardLabel}`, 'success');
     };
 
-    const adsBridge = window.webkit?.messageHandlers?.ads;
-    const androidAds = window.Capacitor?.Plugins?.AgentFootAds;
-    const isLocalPreview = ['http:', 'https:', 'file:'].includes(window.location.protocol);
-
-    if (adsBridge) {
-      window.AgentFootAds = {
-        completeReward: finishReward,
-        failReward: ({ message } = {}) => showToast(message || 'Pub indisponible', 'error'),
-      };
-      try {
-        adsBridge.postMessage({ offerId, placement: 'shop_reward' });
-      } catch {
-        showToast('Pub indisponible pour le moment', 'error');
-      }
-      return;
-    }
-
-    if (androidAds?.showRewardedAd) {
-      androidAds.showRewardedAd({ offerId, placement: 'shop_reward' })
-        .then(finishReward)
-        .catch((error) => showToast(error?.message || 'Pub indisponible pour le moment', 'error'));
-      return;
-    }
-
-    if (isLocalPreview) {
-      finishReward();
-      return;
-    }
-
-    showToast('Les pubs récompensées seront actives après branchement AdMob', 'error');
+    showRewardedAd({ offerId, placement: 'shop_reward' })
+      .then(finishReward)
+      .catch((error) => showToast(error?.message || 'Pub indisponible pour le moment', 'error'));
   };
 
   const handleUpgradeOffice = (type) => {
@@ -938,12 +915,21 @@ export default function FootballAgentGame() {
       if (!result?.state || !result?.report) {
         throw new Error('playWeek() a renvoyé un résultat incomplet');
       }
-      setState(result.state);
+      const interstitialDue = shouldShowInterstitialAd(result.state);
+      const nextState = interstitialDue
+        ? recordInterstitialAdView(result.state, 'week_transition')
+        : result.state;
+      setState(nextState);
+      if (interstitialDue) {
+        showInterstitialAd({ placement: 'week_transition' }).catch((error) => {
+          console.warn('[AgentFoot] Interstitial unavailable', error);
+        });
+      }
       // Reputation milestone detection
       const REP_MILESTONES = [50, 100, 200, 350, 500, 750, 1000];
       const REP_MILESTONE_LABELS = { 50: 'Agent connu', 100: 'Agent solide', 200: 'Agent respecté', 350: 'Agent réputé', 500: 'Agent élite', 750: 'Agent légendaire', 1000: '🏆 Sommet atteint !' };
       const prevRep = playableState.reputation;
-      const nextRep = result.state.reputation;
+      const nextRep = nextState.reputation;
       const crossedMilestone = REP_MILESTONES.find((m) => prevRep < m && nextRep >= m);
       if (crossedMilestone) {
         setTimeout(() => showToast(`⭐ Palier réputation ${crossedMilestone} — ${REP_MILESTONE_LABELS[crossedMilestone]}`, 'success'), 800);
@@ -1760,6 +1746,39 @@ export default function FootballAgentGame() {
     showToast(effects.label, 'success');
   };
 
+  const handleSocialAction = ({ type, playerId, tone }) => {
+    setState((current) => {
+      if (!current) return current;
+      let next = { ...current };
+      const bump = (field, delta) => { next[field] = clamp((next[field] ?? 0) + delta, 0, 9999); };
+      const updatePlayer = (id, patch) => {
+        next.roster = (next.roster ?? []).map((p) => p.id === id ? { ...p, ...patch(p) } : p);
+      };
+      if (type === 'like_post' && playerId) {
+        updatePlayer(playerId, (p) => ({ trust: clamp((p.trust ?? 50) + 1), moral: clamp((p.moral ?? 50) + 1) }));
+      } else if (type === 'comment_post' && playerId) {
+        updatePlayer(playerId, (p) => ({ trust: clamp((p.trust ?? 50) + 2) }));
+      } else if (type === 'like_pulse') {
+        bump('reputation', 1);
+      } else if (type === 'publish_sponsored') {
+        const cost = 25000;
+        if ((next.money ?? 0) >= cost) {
+          next.money = (next.money ?? 0) - cost;
+          next.brandValue = clamp((next.brandValue ?? 50) + 3);
+          bump('reputation', 2);
+        }
+      } else if (type === 'reply_dm' && playerId) {
+        const eff = tone === 'support'
+          ? { moral: 8, trust: 4 }
+          : tone === 'firm'
+          ? { moral: -3, trust: 2 }
+          : { moral: 3, trust: 6 };
+        updatePlayer(playerId, (p) => ({ moral: clamp((p.moral ?? 50) + eff.moral), trust: clamp((p.trust ?? 50) + eff.trust) }));
+      }
+      return next;
+    });
+  };
+
   const handlePlayerMarketAction = (playerId, action) => {
     const result = createPlayerMarketAction(state, playerId, action);
     if (!commitResult(result, result.message)) return;
@@ -1913,29 +1932,27 @@ export default function FootballAgentGame() {
             <div style={S.seasonPhase}>{phase.phase.toUpperCase()}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'stretch', background: 'oklch(14% 0.03 258 / .85)', border: '1px solid var(--af-border)', borderRadius: 10, padding: '4px', overflow: 'hidden' }}>
           {[
-            { asset: assetPath('tycoon-assets/resource_cash.png'), label: 'Capital', value: formatMoney(databaseState.money), accent: '#00a676' },
-            { asset: assetPath('tycoon-assets/reputation_shield.png'), label: 'Rép.', value: `${databaseState.reputation}`, accent: '#2f80ed' },
-            { asset: assetPath('tycoon-assets/v_players.png'), label: 'Joueurs', value: `${databaseState.roster.length}/${getAgencyCapacity(databaseState.agencyLevel)}`, accent: '#3f5663' },
-            { asset: assetPath('tycoon-assets/menu_messages.png'), label: 'Msg', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#b42318' : '#64727d' },
-          ].map((chip) => (
-            <div key={chip.label} style={{ background: 'oklch(18% 0.035 258 / .92)', border: '1px solid var(--af-border)', borderRadius: 8, padding: '6px 10px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <img src={chip.asset} alt={chip.label} style={{ width: 14, height: 14, objectFit: 'contain', flexShrink: 0 }} />
-              <div>
-                <div style={{ fontSize: 9, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 800, letterSpacing: '.1em', lineHeight: 1 }}>{chip.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 850, color: 'var(--af-text)', lineHeight: 1.2 }}>{chip.value}</div>
-              </div>
+            { label: 'Capital', value: formatMoneyCompact(databaseState.money), accent: 'var(--af-grass)' },
+            { label: 'Réputation', value: `${databaseState.reputation}`, accent: 'var(--af-gold)' },
+            { label: 'Effectif', value: `${databaseState.roster.length}/${getAgencyCapacity(databaseState.agencyLevel)}`, accent: 'var(--af-cyan)' },
+            { label: 'Messages', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#f59e7a' : 'var(--af-muted)' },
+          ].map((chip, i, arr) => (
+            <div key={chip.label} style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRight: i < arr.length - 1 ? '1px solid var(--af-border)' : 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ fontSize: 9, color: 'var(--af-dim)', fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', lineHeight: 1, fontFamily: 'system-ui,sans-serif' }}>{chip.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 900, color: chip.accent, lineHeight: 1.2, letterSpacing: '-.02em', whiteSpace: 'nowrap' }}>{chip.value}</div>
             </div>
           ))}
         </div>
       </header>
       <main style={S.main}>
-        {view === 'dashboard' && <Dashboard state={databaseState} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} />}
+        {view === 'dashboard' && <Dashboard state={databaseState} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} onOpenPlayer={showPlayerDetails} />}
         {view === 'market' && <Market state={databaseState} market={databaseState.market} freeAgents={databaseState.freeAgents} money={databaseState.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
         {view === 'roster' && <Roster state={databaseState} roster={databaseState.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
-        {view === 'messages' && <Messages messages={databaseState.messages} messageQueue={databaseState.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
+        {view === 'messages' && <Social state={databaseState} onSocialAction={handleSocialAction} onToast={showToast} initialTab="chats" messages={databaseState.messages} messageQueue={databaseState.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
+        {view === 'social' && <Social state={databaseState} onSocialAction={handleSocialAction} onToast={showToast} messages={databaseState.messages} messageQueue={databaseState.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'achievements' && <Achievements state={databaseState} />}
         {view === 'shop' && (
           <Shop
@@ -1974,7 +1991,6 @@ export default function FootballAgentGame() {
       <nav style={S.nav}>
         {mainNav.map(([key, item]) => {
           const Icon = item.icon;
-          const navAsset = MAIN_NAV_ASSETS[key];
           const active = key === 'more'
             ? !['dashboard', 'roster', 'market', 'messages'].includes(view)
             : view === key;
@@ -1984,20 +2000,19 @@ export default function FootballAgentGame() {
             onClick={() => setView(key === 'more' ? 'more' : key)}
             style={{
               ...S.navBtn,
-              color: active ? '#172026' : '#64727d',
-              borderBottom: active ? '2px solid #00a676' : '2px solid transparent',
+              color: active ? 'var(--af-grass)' : 'rgba(255,255,255,.62)',
+              borderBottom: active ? '2px solid var(--af-grass)' : '2px solid transparent',
             }}
           >
-            {navAsset ? (
-              <img
-                src={navAsset}
-                alt={item.label}
-                style={{ width: 17, height: 17, objectFit: 'contain', opacity: active ? 1 : 0.72 }}
-              />
-            ) : (
-              <Icon size={16} />
-            )}
-            <span>{item.label}</span>
+            <span style={{
+              width: 36, height: 36, borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: active ? 'oklch(70% 0.19 155 / .18)' : 'transparent',
+              transition: 'background .2s',
+            }}>
+              <Icon size={20} strokeWidth={2.4} fill={active ? 'currentColor' : 'none'} color="currentColor" />
+            </span>
+            <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.06em', marginTop: -2 }}>{item.label}</span>
             {key === 'messages' && pendingCounts.total > 0 && <span style={S.navBadge}>{pendingCounts.total}</span>}
           </button>
           );
@@ -2017,7 +2032,10 @@ export default function FootballAgentGame() {
           onInteractive={(event, player) => setModal({ type: 'interactive', data: { event, player } })}
         />
       )}
-      {modal?.type === 'interactive' && (
+      {modal?.type === 'interactive' && modal.data.event?.id === 'press_conference_week' && (
+        <PressConferenceModal event={modal.data.event} player={modal.data.player} week={state.week} onChoose={handleChoice} onClose={() => setModal(null)} />
+      )}
+      {modal?.type === 'interactive' && modal.data.event?.id !== 'press_conference_week' && (
         <InteractiveModal event={modal.data.event} player={modal.data.player} money={state.money} onChoose={handleChoice} onClose={() => setModal(null)} />
       )}
       {modal?.type === 'shortlist' && (
@@ -2098,6 +2116,8 @@ export default function FootballAgentGame() {
             currentWeek={state.week}
             worldCupState={state.worldCupState}
             databaseView={databaseView}
+            playerBonds={state.playerBonds ?? {}}
+            roster={state.roster ?? []}
             onClose={() => setModal(null)}
             onNego={(type) => startNegotiation(modal.data.player, type)}
             onMeeting={handlePlayerMeeting}

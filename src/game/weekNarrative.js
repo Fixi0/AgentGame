@@ -9,6 +9,13 @@ const getSeasonAwardMemory = (seasonAwards, season) => ({
   ...(seasonAwards?.[season] ?? {}),
 });
 
+const getBallonDorWinner = (roster) => {
+  if (!roster?.length) return null;
+  const eligible = roster.filter((p) => (p.rating ?? 0) >= 160);
+  if (!eligible.length) return null;
+  return [...eligible].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0];
+};
+
 const getChampionsLeagueWinner = (leagueTables) => {
   const rows = Object.values(leagueTables ?? {}).flat();
   const topClubs = rows
@@ -286,9 +293,11 @@ export const buildWeeklyTimeline = ({
       tone: 'warn',
       major: true,
       kind: 'interactive',
-      title: interactiveEvent.title ?? 'Événement',
-      text: interactiveEvent.text ?? 'Un dossier réclame une réponse nette.',
-      chips: interactiveEvent.chips ?? [],
+      eventId: interactiveEvent.event?.id ?? interactiveEvent.id ?? null,
+      eventType: interactiveEvent.event?.types?.[0] ?? interactiveEvent.event?.type ?? interactiveEvent.type ?? null,
+      title: interactiveEvent.event?.title ?? interactiveEvent.title ?? 'Événement',
+      text: interactiveEvent.event?.description ?? interactiveEvent.text ?? 'Un dossier réclame une réponse nette.',
+      chips: interactiveEvent.chips ?? (interactiveEvent.player ? [`${interactiveEvent.player.firstName ?? ''} ${interactiveEvent.player.lastName ?? ''}`.trim()] : []),
     } : null,
     contractEvent ? {
       day: 'Vendredi',
@@ -296,9 +305,11 @@ export const buildWeeklyTimeline = ({
       tone: 'info',
       major: false,
       kind: 'contract',
-      title: contractEvent.title ?? 'Contrat',
-      text: contractEvent.text ?? 'Un contrat avance cette semaine.',
-      chips: contractEvent.chips ?? [],
+      eventId: contractEvent.event?.id ?? 'contract_exp',
+      eventType: 'transfer',
+      title: contractEvent.event?.title ?? contractEvent.title ?? 'Contrat à renouveler',
+      text: contractEvent.event?.description ?? contractEvent.text ?? 'Un contrat avance cette semaine.',
+      chips: contractEvent.chips ?? (contractEvent.player ? [`${contractEvent.player.firstName ?? ''} ${contractEvent.player.lastName ?? ''}`.trim()] : []),
     } : null,
     topMatch ? {
       day: 'Samedi',

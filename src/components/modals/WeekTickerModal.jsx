@@ -1,5 +1,32 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Zap } from 'lucide-react';
+import { getEventImage } from '../../utils/eventImages';
+
+// Map kind de timeline -> type pour récupérer une image thématique
+const KIND_TO_IMAGE_TYPE = {
+  contract: 'transfer',
+  interactive: 'media',
+  messages: 'media',
+};
+function pickKindImage(item, used) {
+  // Match cards → rotate the match pool by a seed unique to each card + result
+  if (item?.kind === 'match' || item?.kind === 'flop' || item?.kind === 'euroResult') {
+    const result = item.match?.result ?? (item.tone === 'good' ? 'win' : item.tone === 'danger' ? 'loss' : 'draw');
+    const seed = `${item.kind}-${item.match?.playerId ?? ''}-${item.match?.opponent ?? ''}-${item.match?.score ?? ''}-${result}`;
+    return getEventImage({ kind: item.kind, seed, used });
+  }
+  if (item?.eventId || item?.eventType) {
+    return getEventImage({
+      eventId: item.eventId,
+      type: item.eventType,
+      seed: `${item.eventId ?? ''}-${item.title ?? ''}-${item.day ?? ''}`,
+      used,
+    });
+  }
+  const fallbackType = KIND_TO_IMAGE_TYPE[item?.kind];
+  if (fallbackType) return getEventImage({ type: fallbackType, seed: `${item?.kind}-${item.title ?? ''}`, used });
+  return null;
+}
 
 /**
  * WeekTickerModal
@@ -10,11 +37,11 @@ import { ChevronRight, Zap } from 'lucide-react';
 const TICK_INTERVAL = 560;
 
 const TONE_STYLES = {
-  info: { accent: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-  good: { accent: '#00a676', bg: '#f0fdf8', border: '#cfeee3' },
-  warn: { accent: '#b45309', bg: '#fffbeb', border: '#fde68a' },
-  danger: { accent: '#b42318', bg: '#fff7f7', border: '#fecaca' },
-  calm: { accent: '#64727d', bg: '#f7f9fb', border: '#e5eaf0' },
+  info: { accent: 'oklch(78% 0.14 245)', bg: 'oklch(28% 0.10 245 / .22)', border: 'var(--af-border)' },
+  good: { accent: 'oklch(78% 0.18 158)', bg: 'oklch(28% 0.08 158 / .22)', border: 'var(--af-border)' },
+  warn: { accent: 'oklch(82% 0.16 70)', bg: 'oklch(28% 0.08 70 / .22)', border: 'var(--af-border)' },
+  danger: { accent: 'oklch(72% 0.18 25)', bg: 'oklch(28% 0.10 25 / .22)', border: 'var(--af-border)' },
+  calm: { accent: 'var(--af-muted)', bg: 'oklch(16% 0.035 258 / .78)', border: 'var(--af-border)' },
 };
 
 function buildLegacyItems(report, activePeriod) {
@@ -55,6 +82,8 @@ function buildLegacyItems(report, activePeriod) {
       title: event.player ?? 'Joueur',
       text: event.label ?? '',
       chips: [event.good === false ? 'Negatif' : 'Positif'],
+      eventId: event.id ?? event.eventId ?? null,
+      eventType: event.type ?? null,
     });
   });
 
@@ -101,23 +130,23 @@ function buildTimeline(report, activePeriod) {
   return buildLegacyItems(report, activePeriod);
 }
 
-function WeekDayCard({ item, visible }) {
+function WeekDayCard({ item, visible, used }) {
   const style = TONE_STYLES[item.tone] ?? TONE_STYLES.calm;
   const isMajor = Boolean(item.major);
   const isWorldCupMatch = item.kind === 'worldCupMatch';
   const cardStyle = isWorldCupMatch
     ? {
-        background: 'linear-gradient(135deg,#0f172a,#1d4f7a)',
+        background: 'linear-gradient(135deg, oklch(20% 0.05 245), oklch(28% 0.10 245))',
         border: '1px solid rgba(125,211,252,.32)',
         boxShadow: '0 18px 40px rgba(15,23,32,.24)',
         color: '#ffffff',
       }
     : isMajor
       ? {
-          background: 'linear-gradient(135deg,#172026,#2c3a42)',
-          border: '1px solid #172026',
-          boxShadow: '0 16px 34px rgba(15,23,32,.18)',
-          color: '#ffffff',
+          background: 'var(--af-surface)',
+          border: '1px solid var(--af-border-strong)',
+          boxShadow: 'var(--af-shadow-card)',
+          color: 'var(--af-text)',
         }
       : {
           background: style.bg,
@@ -144,7 +173,7 @@ function WeekDayCard({ item, visible }) {
             width: 30,
             height: 30,
             borderRadius: 8,
-            background: isWorldCupMatch ? 'rgba(255,255,255,.14)' : '#ffffff',
+            background: isWorldCupMatch ? 'rgba(255,255,255,.14)' : 'var(--af-surface)',
             border: `1px solid ${isWorldCupMatch ? 'rgba(125,211,252,.35)' : style.border}`,
             display: 'flex',
             alignItems: 'center',
@@ -175,9 +204,37 @@ function WeekDayCard({ item, visible }) {
             </span>
           )}
         </div>
-        <div style={{ fontSize: 14, fontWeight: 900, color: isMajor ? '#ffffff' : '#172026', marginBottom: 3, lineHeight: 1.25 }}>
+        <div style={{ fontSize: 14, fontWeight: 900, color: isMajor ? '#ffffff' : 'var(--af-text)', marginBottom: 3, lineHeight: 1.25 }}>
           {item.title ?? ''}
         </div>
+        {!isWorldCupMatch && (() => {
+          const eventImg = pickKindImage(item, used);
+          if (!eventImg) return null;
+          return (
+            <div style={{
+              marginTop: 8,
+              marginBottom: 8,
+              height: 110,
+              borderRadius: 10,
+              overflow: 'hidden',
+              border: `1px solid ${isMajor ? 'rgba(255,255,255,.18)' : style.border}`,
+              boxShadow: '0 10px 22px rgba(0,0,0,.28)',
+              position: 'relative',
+            }}>
+              <img
+                src={eventImg}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: `linear-gradient(180deg, transparent 40%, ${style.bg ?? 'rgba(8,17,31,.55)'} 100%)`,
+                pointerEvents: 'none',
+              }} />
+            </div>
+          );
+        })()}
         {isWorldCupMatch && item.match && (
           <div style={{
             marginTop: 8,
@@ -227,7 +284,7 @@ function WeekDayCard({ item, visible }) {
             </div>
           </div>
         )}
-        <div style={{ fontSize: 12, color: isMajor ? 'rgba(255,255,255,.82)' : '#3f5663', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: isMajor ? 'rgba(255,255,255,.82)' : 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
           {item.text ?? ''}
         </div>
         {item.match && (
@@ -235,30 +292,30 @@ function WeekDayCard({ item, visible }) {
             marginTop: 10,
             padding: '8px 10px',
             borderRadius: 8,
-            background: isMajor ? 'rgba(255,255,255,.10)' : '#ffffff',
+            background: isMajor ? 'rgba(255,255,255,.10)' : 'var(--af-surface)',
             border: `1px solid ${isMajor ? 'rgba(255,255,255,.16)' : style.border}`,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <strong style={{ fontSize: 12, color: isMajor ? '#ffffff' : '#172026', fontFamily: 'system-ui,sans-serif' }}>
+              <strong style={{ fontSize: 12, color: isMajor ? '#ffffff' : 'var(--af-text)', fontFamily: 'system-ui,sans-serif' }}>
                 {item.match.countryFlag ?? '🌍'} {item.match.countryName ?? item.match.playerName}
               </strong>
-              <span style={{ fontSize: 10, color: isMajor ? 'rgba(255,255,255,.75)' : '#64727d', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 900 }}>
+              <span style={{ fontSize: 10, color: isMajor ? 'rgba(255,255,255,.75)' : 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 900 }}>
                 {item.match.phase ?? item.day}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: 11, color: isMajor ? 'rgba(255,255,255,.76)' : '#64727d', fontFamily: 'system-ui,sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 11, color: isMajor ? 'rgba(255,255,255,.76)' : 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {item.match.opponent}
               </span>
               <div style={{
                 fontSize: 16,
                 fontWeight: 950,
-                color: isMajor ? '#ffffff' : '#172026',
+                color: isMajor ? '#ffffff' : 'var(--af-text)',
                 padding: '0 6px',
               }}>
                 {item.match.score}
               </div>
-              <span style={{ fontSize: 11, color: isMajor ? 'rgba(255,255,255,.76)' : '#64727d', fontFamily: 'system-ui,sans-serif', textAlign: 'right' }}>
+              <span style={{ fontSize: 11, color: isMajor ? 'rgba(255,255,255,.76)' : 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', textAlign: 'right' }}>
                 note {item.match.matchRating}
               </span>
             </div>
@@ -274,9 +331,9 @@ function WeekDayCard({ item, visible }) {
                   alignItems: 'center',
                   padding: '4px 8px',
                   borderRadius: 8,
-                  background: isMajor ? 'rgba(255,255,255,.12)' : '#ffffff',
+                  background: isMajor ? 'rgba(255,255,255,.12)' : 'var(--af-surface)',
                   border: `1px solid ${isMajor ? 'rgba(255,255,255,.18)' : style.border}`,
-                  color: isMajor ? '#ffffff' : '#64727d',
+                  color: isMajor ? '#ffffff' : 'var(--af-muted)',
                   fontSize: 10,
                   fontWeight: 850,
                   letterSpacing: '.04em',
@@ -349,7 +406,7 @@ export default function WeekTickerModal({ report, activePeriod, onDone }) {
       <div style={{
         width: '100%',
         maxWidth: 520,
-        background: '#ffffff',
+        background: 'oklch(18% 0.035 258 / .92)',
         borderRadius: '16px 16px 0 0',
         padding: 20,
         maxHeight: '88vh',
@@ -363,7 +420,7 @@ export default function WeekTickerModal({ report, activePeriod, onDone }) {
               <Zap size={10} style={{ display: 'inline', marginRight: 4 }} />
               {weekLabel}
             </div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: '#172026', marginTop: 2 }}>
+            <div style={{ fontSize: 17, fontWeight: 900, color: 'var(--af-text)', marginTop: 2 }}>
               Fil jour par jour
             </div>
           </div>
@@ -371,9 +428,9 @@ export default function WeekTickerModal({ report, activePeriod, onDone }) {
             <button
               onClick={skipAll}
               style={{
-                background: '#f7f9fb',
-                border: '1px solid #e5eaf0',
-                color: '#64727d',
+                background: 'oklch(16% 0.035 258 / .78)',
+                border: '1px solid var(--af-border)',
+                color: 'var(--af-muted)',
                 padding: '6px 12px',
                 borderRadius: 8,
                 fontSize: 11,
@@ -400,9 +457,12 @@ export default function WeekTickerModal({ report, activePeriod, onDone }) {
         </div>
 
         <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
-          {timeline.slice(0, revealed).map((item) => (
-            <WeekDayCard key={item.id ?? `${item.day}-${item.title}`} item={item} visible />
-          ))}
+          {(() => {
+            const used = new Set();
+            return timeline.slice(0, revealed).map((item) => (
+              <WeekDayCard key={item.id ?? `${item.day}-${item.title}`} item={item} visible used={used} />
+            ));
+          })()}
           {!done && revealed < timeline.length && (
             <div style={{ display: 'flex', gap: 4, padding: '8px 10px', alignItems: 'center' }}>
               {[0, 1, 2].map((index) => (
@@ -418,7 +478,7 @@ export default function WeekTickerModal({ report, activePeriod, onDone }) {
                   }}
                 />
               ))}
-              <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginLeft: 6 }}>
+              <span style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', marginLeft: 6 }}>
                 La semaine avance...
               </span>
             </div>
@@ -431,7 +491,7 @@ export default function WeekTickerModal({ report, activePeriod, onDone }) {
             style={{
               marginTop: 14,
               width: '100%',
-              background: 'linear-gradient(135deg,#172026,#2c3a42)',
+              background: 'linear-gradient(135deg, oklch(28% 0.06 245 / .9), oklch(18% 0.04 252 / .95))',
               color: '#ffffff',
               border: 'none',
               padding: 16,

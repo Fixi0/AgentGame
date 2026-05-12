@@ -9,7 +9,7 @@ const STATUS_COLORS = {
   good: '#00a676',
   warn: '#b45309',
   danger: '#b42318',
-  neutral: '#64727d',
+  neutral: 'var(--af-muted)',
 };
 
 export default function Dossiers({ state, databaseView = null, onOpenPlayer, onClubDetails, onNav }) {
@@ -72,7 +72,7 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
         <MiniKpi icon={<AlertTriangle size={16} />} label="Urgent" value={counts.urgent} accent="#b42318" />
         <MiniKpi icon={<FileText size={16} />} label="Normal" value={counts.normal} accent="#2f80ed" />
         <MiniKpi icon={<Clock3 size={16} />} label="À traiter" value={counts.toProcess} accent="#b45309" />
-        <MiniKpi icon={<Users size={16} />} label="Total" value={counts.total} accent="#172026" />
+        <MiniKpi icon={<Users size={16} />} label="Total" value={counts.total} accent="var(--af-text)" />
       </div>
 
       <div style={S.objCard}>
@@ -96,17 +96,17 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
         {marketQueue.length ? marketQueue.map((offer) => (
           <div key={offer.id} style={{
             ...S.offerRow,
-            background: offer.queueStatus?.key === 'bloquee' ? '#fff7f7' : offer.queueStatus?.key === 'conclue' ? '#f0fdf8' : offer.queueStatus?.key === 'en_cours' ? '#f8fbff' : '#f7f9fb',
-            borderColor: offer.queueStatus?.key === 'bloquee' ? '#fca5a5' : offer.queueStatus?.key === 'conclue' ? '#cfeee3' : offer.queueStatus?.key === 'en_cours' ? '#cfe1ff' : '#e5eaf0',
+            background: offer.queueStatus?.key === 'bloquee' ? 'oklch(28% 0.12 25 / .35)' : offer.queueStatus?.key === 'conclue' ? 'oklch(28% 0.10 155 / .35)' : offer.queueStatus?.key === 'en_cours' ? 'oklch(22% 0.05 245 / .55)' : 'var(--af-surface-soft)',
+            borderColor: offer.queueStatus?.key === 'bloquee' ? '#fca5a5' : offer.queueStatus?.key === 'conclue' ? 'var(--af-border)' : offer.queueStatus?.key === 'en_cours' ? 'var(--af-border)' : 'var(--af-border)',
             alignItems: 'flex-start',
           }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <strong style={{ color: '#172026' }}>{offer.playerName}</strong>
+                <strong style={{ color: 'var(--af-text)' }}>{offer.playerName}</strong>
                 <span style={{
                   ...S.preAccordBadge,
-                  background: offer.queueStatus?.key === 'bloquee' ? '#fee2e2' : offer.queueStatus?.key === 'conclue' ? '#dcfce7' : offer.queueStatus?.key === 'en_cours' ? '#dbeafe' : '#fff4d6',
-                  color: offer.queueStatus?.tone === 'danger' ? '#b42318' : offer.queueStatus?.tone === 'good' ? '#246555' : offer.queueStatus?.tone === 'warn' ? '#1d4ed8' : '#8a6f1f',
+                  background: offer.queueStatus?.key === 'bloquee' ? 'oklch(30% 0.14 25 / .55)' : offer.queueStatus?.key === 'conclue' ? 'oklch(30% 0.14 155 / .55)' : offer.queueStatus?.key === 'en_cours' ? 'oklch(30% 0.14 245 / .55)' : 'oklch(30% 0.10 80 / .45)',
+                  color: offer.queueStatus?.tone === 'danger' ? '#b42318' : offer.queueStatus?.tone === 'good' ? 'var(--af-grass)' : offer.queueStatus?.tone === 'warn' ? 'var(--af-cyan)' : '#8a6f1f',
                 }}>
                   {offer.queueStatus?.label ?? 'Nouvelle'}
                 </span>
@@ -143,7 +143,7 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
               {player.firstName} {player.lastName}
               <div style={S.fixtureMeta}>{player.club} · {status.detail}</div>
             </span>
-            <strong style={{ color: STATUS_COLORS[status.tone] ?? '#172026' }}>
+            <strong style={{ color: STATUS_COLORS[status.tone] ?? 'var(--af-text)' }}>
               {status.label}
               {status.weeksUntilReopen > 0 ? ` · ${status.weeksUntilReopen} sem.` : ''}
               {relevantDecisions.length > 0 ? ` · ${relevantDecisions.length}` : ''}
@@ -164,7 +164,7 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
                   {player.club} · {context ? `${context.position ?? '-'}e/${context.totalClubs ?? '-'} · ${context.points ?? 0} pts` : 'classement à venir'}
                 </div>
               </span>
-              <strong style={{ color: STATUS_COLORS[status.tone] ?? '#172026' }}>
+              <strong style={{ color: STATUS_COLORS[status.tone] ?? 'var(--af-text)' }}>
                 {context?.objective ?? 'saison stable'}
               </strong>
             </button>

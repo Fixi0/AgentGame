@@ -166,8 +166,8 @@ export default function Messages({ messages, onRespond, onAction, focusThreadKey
             onClick={() => setFilter(key)}
             style={{
               ...S.chipBtn,
-              background: filter === key ? '#172026' : '#ffffff',
-              color: filter === key ? '#ffffff' : '#172026',
+              background: filter === key ? 'var(--af-grass)' : 'oklch(18% 0.035 258 / .92)',
+              color: filter === key ? 'oklch(13% 0.025 258)' : 'var(--af-text)',
             }}
           >
             {label}
@@ -193,8 +193,8 @@ export default function Messages({ messages, onRespond, onAction, focusThreadKey
                   }}
                   style={{
                     ...S.threadContact,
-                    borderColor: active ? '#00a676' : '#e5eaf0',
-                    boxShadow: active ? '0 12px 28px rgba(0,166,118,.14)' : '0 10px 24px rgba(15,23,32,.06)',
+                    borderColor: active ? 'var(--af-grass)' : 'var(--af-border)',
+                    boxShadow: active ? '0 12px 28px oklch(70% 0.19 155 / .22)' : '0 10px 24px rgba(0,0,0,.28)',
                   }}
                 >
                   <div style={S.threadContactTop}>

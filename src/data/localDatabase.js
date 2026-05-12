@@ -212,6 +212,9 @@ const legacyPreviewFromState = (state) => ({
   rosterCount: state?.roster?.length ?? 0,
   reputation: state?.reputation ?? 0,
   money: state?.money ?? 0,
+  emblem: state?.agencyProfile?.emblem ?? null,
+  emblemSrc: state?.agencyProfile?.emblemSrc ?? null,
+  signatureColor: state?.agencyProfile?.color ?? null,
 });
 
 const ensureIndex = (store, index) => {

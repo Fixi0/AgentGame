@@ -578,6 +578,111 @@ export const INTERACTIVE_EVENTS = [
       { label: 'Accepter la décision — rentrée anticipée', cost: 0, effects: { rep: 2, moral: -25, trust: -12 }, desc: 'Professionnel mais dévastateur pour lui' },
     ],
   },
+
+  // ─── NOUVEAUX SCÉNARIOS — variété & sujets actuels ────────────────
+  {
+    id: 'mental_health_break',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Santé mentale — il demande une pause',
+    description: "Ton joueur t'envoie un message à 2h du matin : il n'y arrive plus. Pression, sommeil, anxiété. Il évoque une pause de plusieurs semaines. Personne n'est au courant.",
+    choices: [
+      { label: 'Le soutenir publiquement et organiser la pause', cost: 5000, effects: { rep: 8, moral: 22, trust: 18, val: 0.95 }, desc: 'Coûteux sportivement, mais immense capital humain', art: 'support' },
+      { label: 'Mettre un psy de haut niveau à dispo', cost: 8000, effects: { rep: 4, moral: 16, trust: 14 }, desc: 'Solution discrète et professionnelle', art: 'support' },
+      { label: 'Le pousser à serrer les dents', cost: 0, effects: { rep: 1, moral: -18, trust: -16, val: 0.92 }, desc: 'Le club te remerciera, lui non', art: 'confront' },
+      { label: 'Communiquer avec le club pour aménager', cost: 0, effects: { rep: 5, moral: 10, trust: 10 }, desc: 'Diplomatique — tout le monde gagne un peu', art: 'communicate' },
+    ],
+  },
+  {
+    id: 'ultras_pression',
+    rarity: 'uncommon',
+    types: ['scandal'],
+    title: 'Ultras — banderoles hostiles dans le virage',
+    description: "Trois matchs de baisse de forme et les ultras sortent une banderole : 'Mercenaire, dégage'. Ton joueur l'a vue. Il veut une réaction forte de l'agence.",
+    choices: [
+      { label: 'Rencontre privée avec les leaders ultras', cost: 3000, effects: { rep: 6, moral: 12, trust: 10 }, desc: 'Geste rare et respecté', art: 'negotiate' },
+      { label: 'Communiqué — défendre publiquement le joueur', cost: 0, effects: { rep: 3, moral: 14, trust: 12, pressure: -3 }, desc: 'Risqué : ça peut envenimer', art: 'protect' },
+      { label: 'Lancer une opération caritative locale', cost: 6000, effects: { rep: 7, moral: 8, trust: 6, val: 1.03 }, desc: 'Reconquérir le cœur des supporters', art: 'communicate' },
+      { label: 'Demander un transfert dès l\'hiver', cost: 0, effects: { rep: -2, moral: 6, trust: 4 }, flag: 'transfer_offer', desc: 'Sortir par le bas', art: 'transfer' },
+    ],
+  },
+  {
+    id: 'streaming_offer',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Plateforme de streaming — émission perso',
+    description: "Une grande plateforme propose à ton joueur une mini-série documentaire. Gros chèque mais accès intime — vestiaire, famille, doutes. Le club est sceptique.",
+    choices: [
+      { label: 'Signer — exposition maximum', cost: 0, effects: { rep: 8, moral: 8, trust: 4, money: 28000, val: 1.05 }, desc: 'Argent et notoriété — risque vie privée', art: 'contract' },
+      { label: 'Négocier des clauses de contrôle', cost: 4000, effects: { rep: 5, moral: 6, trust: 6, money: 15000 }, desc: 'Compromis intelligent', art: 'negotiate' },
+      { label: 'Refuser — rester focus terrain', cost: 0, effects: { rep: 2, moral: 4, trust: 5 }, desc: 'Sportif d\'abord — il appréciera', art: 'refuse' },
+    ],
+  },
+  {
+    id: 'whistleblower_call',
+    rarity: 'rare',
+    types: ['scandal'],
+    title: 'Lanceur d\'alerte — irrégularités au club',
+    description: "Un journaliste t'appelle : il enquête sur des paiements douteux dans le club de ton joueur. Si ça sort, le club tombe. Il te propose un deal : info contre protection de ton joueur.",
+    choices: [
+      { label: 'Coopérer en off — protéger le joueur', cost: 0, effects: { rep: 4, moral: 5, trust: 7, val: 1.04 }, desc: 'Risqué mais éthique', art: 'communicate' },
+      { label: 'Refuser et prévenir le club', cost: 0, effects: { rep: 6, moral: -2, trust: 3 }, desc: 'Loyal envers le club, douteux moralement', art: 'refuse' },
+      { label: 'Acheter le silence', cost: 25000, effects: { rep: -6, moral: 0, trust: 0 }, desc: 'Très dangereux si ça fuite', art: 'pay' },
+      { label: 'Anticiper un transfert immédiat', cost: 0, effects: { rep: 2, moral: 4, trust: 2 }, flag: 'transfer_offer', desc: 'Sortir avant l\'orage', art: 'transfer' },
+    ],
+  },
+  {
+    id: 'boot_deal_battle',
+    rarity: 'common',
+    types: ['transfer'],
+    title: 'Guerre des équipementiers',
+    description: "Trois marques se battent pour l'équiper. Chacune a un angle : prestige, argent, ou liberté créative. Décision dans 48h.",
+    choices: [
+      { label: 'Marque historique — prestige max', cost: 0, effects: { rep: 6, moral: 8, trust: 6, money: 18000 }, desc: 'Image légendaire', art: 'contract' },
+      { label: 'Marque montante — chèque le plus gros', cost: 0, effects: { rep: 2, moral: 5, trust: 3, money: 32000 }, desc: 'Cash maximum, prestige moyen', art: 'pay' },
+      { label: 'Marque éthique — liberté créative', cost: 0, effects: { rep: 8, moral: 12, trust: 10, money: 8000, val: 1.04 }, desc: 'Capital sympathie énorme', art: 'gift' },
+    ],
+  },
+  {
+    id: 'academy_legacy',
+    rarity: 'uncommon',
+    types: ['fans'],
+    personalities: ['loyal', 'leader'],
+    title: 'Héritage — créer son académie',
+    description: "Ton joueur veut lancer une académie de jeunes dans son quartier d'origine. Projet ambitieux, gros impact image, mais ça monopolise du temps et de l'argent.",
+    choices: [
+      { label: 'Le soutenir à fond — partenariat agence', cost: 15000, effects: { rep: 14, moral: 22, trust: 16, val: 1.05 }, desc: 'Capital sympathie inégalé', art: 'team' },
+      { label: 'L\'aider à trouver des sponsors', cost: 2000, effects: { rep: 6, moral: 12, trust: 10 }, desc: 'Soutien intelligent et léger', art: 'communicate' },
+      { label: 'Conseiller d\'attendre la fin de carrière', cost: 0, effects: { rep: 1, moral: -10, trust: -6 }, desc: 'Raisonnable mais frustrant pour lui', art: 'wait' },
+    ],
+  },
+  {
+    id: 'double_agent_scheme',
+    rarity: 'rare',
+    types: ['scandal'],
+    personalities: ['mercenaire', 'instable'],
+    title: 'Double-jeu — un autre joueur veut l\'aider à partir',
+    description: "Un joueur d'un club rival contacte le tien pour le recruter en sous-main. Promesses d'argent et de gloire. Tu l'apprends par hasard via un contact presse.",
+    choices: [
+      { label: 'Confronter ton joueur — vérité brute', cost: 0, effects: { rep: 2, moral: -10, trust: 4 }, desc: 'Tendu mais clair', art: 'confront' },
+      { label: 'Contacter discrètement le club rival', cost: 4000, effects: { rep: 5, moral: 4, trust: 6 }, desc: 'Désamorcer pro à pro', art: 'negotiate' },
+      { label: 'Surenchérir — proposer un meilleur transfert', cost: 0, effects: { rep: 4, moral: 10, trust: 6, val: 1.06 }, flag: 'transfer_offer', desc: 'Prendre les devants', art: 'transfer' },
+      { label: 'Ignorer — tester sa loyauté', cost: 0, effects: { rep: 0, moral: -2, trust: -4 }, desc: 'Tu joues avec le feu', art: 'risk' },
+    ],
+  },
+  {
+    id: 'family_pressure',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Pression familiale — un parent veut s\'impliquer',
+    description: "Le père de ton joueur exige de participer à toutes les négos. Il a une vision divergente de la tienne. Ton joueur est tiraillé entre vous deux.",
+    choices: [
+      { label: 'Réunion à trois — clarifier les rôles', cost: 0, effects: { rep: 3, moral: 8, trust: 10 }, desc: 'Diplomatique et solide', art: 'negotiate' },
+      { label: 'Rester ferme — c\'est ton job', cost: 0, effects: { rep: 4, moral: -6, trust: 2 }, desc: 'Pro mais tendu', art: 'confront' },
+      { label: 'Lui proposer un rôle de conseiller', cost: 3000, effects: { rep: 1, moral: 12, trust: 12 }, desc: 'Geste apaisant — coûte un peu', art: 'support' },
+      { label: 'Menacer de couper la relation', cost: 0, effects: { rep: -3, moral: -14, trust: -10 }, desc: 'Risque de tout perdre', art: 'risk' },
+    ],
+  },
 ];
 
 export const CHAINED_EVENTS = {

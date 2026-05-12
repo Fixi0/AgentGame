@@ -32,7 +32,7 @@ const weekToLabel = (week) => {
 
 const formatForm = (form = []) => form.length ? form.map((item) => String(item).slice(0, 1).toUpperCase()).join(' ') : 'Pas assez de matchs';
 
-export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, clubSeasonHistory = {}, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, worldCupState = null, databaseView = null, onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
+export default function PlayerDetailModal({ player, messages, messageQueue = [], promises, clubRelations, clubMemory, clubSeasonHistory = {}, dossierMemory, decisionHistory = [], pendingTransfers = [], clubOffers = [], negotiationCooldowns = {}, currentWeek, worldCupState = null, databaseView = null, playerBonds = {}, roster = [], onClose, onNego, onMeeting, onMarketAction, onCallPlayer, onContactClubStaff }) {
   const [tab, setTab] = useState('overview');
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 780 : false));
 
@@ -97,12 +97,14 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
 
   return (
     <div style={S.overlay}>
-      <div style={{ ...S.modal, maxWidth: 980, background: 'transparent', border: 'none', boxShadow: 'none', padding: 0 }}>
+      <div style={{ ...S.modal, maxWidth: 980, background: 'transparent', border: 'none', boxShadow: 'none', padding: 0, display: 'block', overflow: 'auto', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
         <PlayerDossier
           player={playerWithRole}
+          bonds={playerBonds}
+          roster={roster}
           onBack={onClose}
           actions={[
-            <button key="meeting" type="button" onClick={() => onMeeting?.(playerWithRole)} className="af-btn-secondary" style={{ padding: 12 }}>Point joueur</button>,
+            <button key="meeting" type="button" onClick={() => onMeeting?.(playerWithRole.id, 'career')} className="af-btn-secondary" style={{ padding: 12 }}>Point joueur</button>,
             <button key="extend" type="button" onClick={() => onNego?.('extend')} className="af-btn-primary" style={{ padding: 12 }}>Prolonger</button>,
             <button key="transfer" type="button" onClick={() => onNego?.('transfer')} className="af-btn-secondary" style={{ padding: 12 }}>Transfert</button>,
           ]}
@@ -120,7 +122,7 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
             <div>
               <h2 style={{ ...S.mTitle, marginBottom: 2, fontSize: 16 }}>{playerWithRole.firstName} {playerWithRole.lastName}</h2>
               <div style={{ ...S.mPlayer, fontSize: 12, marginBottom: 4 }}>{playerWithRole.position} · {playerWithRole.countryFlag} · {playerWithRole.roleLabel ?? playerWithRole.position}</div>
-              <div style={{ fontSize: 11, color: '#64727d' }}>rôle club <strong style={{ color: playerWithRole.clubRole === 'Star' ? '#d97706' : '#172026' }}>{playerWithRole.clubRole ?? 'non défini'}</strong></div>
+              <div style={{ fontSize: 11, color: 'var(--af-muted)' }}>rôle club <strong style={{ color: playerWithRole.clubRole === 'Star' ? '#d97706' : '#172026' }}>{playerWithRole.clubRole ?? 'non défini'}</strong></div>
             </div>
           </div>
           <div style={{ ...S.tabRow, gap: 4, marginTop: 8 }}>
@@ -206,10 +208,10 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
               <div style={S.objCard}>
                 <div style={S.secTitle}>HISTORIQUE ACTIONS</div>
                 {recentActions.length ? recentActions.map((decision) => (
-                  <div key={decision.id} style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+                  <div key={decision.id} style={{ background: 'oklch(16% 0.035 258 / .78)', border: '1px solid var(--af-border)', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 850, color: '#172026' }}>{decision.label}</div>
+                        <div style={{ fontSize: 13, fontWeight: 850, color: 'var(--af-text)' }}>{decision.label}</div>
                         <div style={S.fixtureMeta}>{decision.type ?? 'action'} · S{decision.week}</div>
                       </div>
                       <strong style={{ fontSize: 11, color: '#00a676', whiteSpace: 'nowrap' }}>
@@ -246,15 +248,15 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
                   return (
                     <div style={{ background: bannerBg, border: `1px solid ${bannerColor}30`, borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>Expire</span>
+                        <span style={{ fontSize: 11, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>Expire</span>
                         <strong style={{ fontSize: 13, color: bannerColor }}>
                           {weeksLeft > 0 ? `${weeksLeft} sem. · ${weekToLabel(endWeek)}` : 'EXPIRÉ'}
                         </strong>
                       </div>
                       {player.contractStartWeek && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                          <span style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>Signé</span>
-                          <span style={{ fontSize: 12, color: '#64727d' }}>{weekToLabel(player.contractStartWeek)}</span>
+                          <span style={{ fontSize: 11, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>Signé</span>
+                          <span style={{ fontSize: 12, color: 'var(--af-muted)' }}>{weekToLabel(player.contractStartWeek)}</span>
                         </div>
                       )}
                     </div>
@@ -279,7 +281,7 @@ export default function PlayerDetailModal({ player, messages, messageQueue = [],
 
 
           {/* Action Buttons - Only show if player is recruited */}
-          <div style={{ marginTop: 16, padding: '12px', background: '#f7f9fb', borderRadius: 8, border: '1px solid #e2e8ef', display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 6 }}>
+          <div style={{ marginTop: 16, padding: '12px', background: 'oklch(16% 0.035 258 / .78)', borderRadius: 8, border: '1px solid #e2e8ef', display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr', gap: 6 }}>
             {isPlayerRecruited ? (
               <>
                 <button onClick={() => onNego('extend')} style={{ ...S.actBtn, padding: '8px 12px', fontSize: 11 }}>PROLONGER</button>

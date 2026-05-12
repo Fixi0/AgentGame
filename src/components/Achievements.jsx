@@ -1,29 +1,47 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Coins, Filter, Gem, Lock, Sparkles } from 'lucide-react';
+import { Award, CheckCircle2, Coins, Crown, Filter, Gem, Hourglass, Lock, ShieldCheck, ShoppingBag, Sparkles, TrendingUp, UserPlus } from 'lucide-react';
 import { ACHIEVEMENT_CATEGORY_LABELS, ACHIEVEMENT_CATEGORY_ORDER, TOTAL_ACHIEVEMENTS } from '../systems/objectivesSystem';
 import { formatMoney } from '../utils/format';
 import { assetPath } from '../utils/assets';
 import { S } from './styles';
+import achievementsHero from '../assets/events/achievements-hero.jpg';
+import achRecruitment from '../assets/events/ach-recruitment.jpg';
+import achTransfers from '../assets/events/ach-transfers.jpg';
+import achFinance from '../assets/events/ach-finance.jpg';
+import achReputation from '../assets/events/ach-reputation.jpg';
+import achLongevity from '../assets/events/ach-longevity.jpg';
+import achPremium from '../assets/events/ach-premium.jpg';
+import achPrestige from '../assets/events/ach-prestige.jpg';
 
 const CATEGORY_STYLE = {
-  recruitment: { border: '#bfdbfe', bg: '#eff6ff', accent: '#1d4ed8' },
-  transfers: { border: '#bbf7d0', bg: '#f0fdf4', accent: '#166534' },
-  finance: { border: '#a7f3d0', bg: '#ecfdf5', accent: '#047857' },
-  reputation: { border: '#ddd6fe', bg: '#f5f3ff', accent: '#6d28d9' },
-  longevity: { border: '#fed7aa', bg: '#fff7ed', accent: '#c2410c' },
-  premium: { border: '#fde68a', bg: '#fffbeb', accent: '#a16207' },
-  prestige: { border: '#fbcfe8', bg: '#fdf2f8', accent: '#be185d' },
-  default: { border: '#e5eaf0', bg: '#f8fafc', accent: '#334155' },
+  recruitment: { border: 'oklch(35% 0.12 245 / .55)', bg: 'oklch(28% 0.12 245 / .35)', accent: '#60a5fa' },
+  transfers:   { border: 'oklch(35% 0.10 158 / .55)', bg: 'oklch(28% 0.10 158 / .35)', accent: '#34d399' },
+  finance:     { border: 'oklch(35% 0.10 158 / .55)', bg: 'oklch(26% 0.10 158 / .35)', accent: '#10b981' },
+  reputation:  { border: 'oklch(35% 0.14 290 / .55)', bg: 'oklch(28% 0.14 290 / .30)', accent: '#a78bfa' },
+  longevity:   { border: 'oklch(35% 0.12 50  / .55)', bg: 'oklch(28% 0.12 50  / .30)', accent: '#fb923c' },
+  premium:     { border: 'oklch(35% 0.12 80  / .55)', bg: 'oklch(28% 0.12 80  / .30)', accent: '#facc15' },
+  prestige:    { border: 'oklch(35% 0.14 350 / .55)', bg: 'oklch(28% 0.14 350 / .30)', accent: '#f472b6' },
+  default:     { border: 'var(--af-border)', bg: 'var(--af-surface-soft)', accent: '#94a3b8' },
 };
 
-const CATEGORY_ASSET = {
-  recruitment: assetPath('tycoon-assets/v_players.png'),
-  transfers: assetPath('tycoon-assets/v_transfer.png'),
-  finance: assetPath('tycoon-assets/resource_cash.png'),
-  reputation: assetPath('tycoon-assets/reputation_shield.png'),
-  longevity: assetPath('tycoon-assets/v_calendar.png'),
-  premium: assetPath('tycoon-assets/v_shop.png'),
-  prestige: assetPath('tycoon-assets/badge_legende.png'),
+const CATEGORY_BANNER = {
+  recruitment: achRecruitment,
+  transfers: achTransfers,
+  finance: achFinance,
+  reputation: achReputation,
+  longevity: achLongevity,
+  premium: achPremium,
+  prestige: achPrestige,
+};
+
+const CATEGORY_ICON = {
+  recruitment: UserPlus,
+  transfers: TrendingUp,
+  finance: Coins,
+  reputation: ShieldCheck,
+  longevity: Hourglass,
+  premium: ShoppingBag,
+  prestige: Crown,
 };
 
 const REP_TIER_ASSETS = [
@@ -82,14 +100,14 @@ export default function Achievements({ state }) {
       </div>
 
       <div style={{
-        borderRadius: 8,
-        border: '1px solid #1f2a3d',
+        borderRadius: 10,
+        border: '1px solid var(--af-border)',
         padding: 16,
         marginBottom: 14,
-        backgroundImage: `linear-gradient(135deg,rgba(7,15,28,.92),rgba(20,35,57,.84)), url(${assetPath('tycoon-style-reference.png')})`,
+        backgroundImage: `linear-gradient(135deg,rgba(7,15,28,.78),rgba(20,35,57,.62)), url(${achievementsHero})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        boxShadow: '0 18px 38px rgba(15,23,42,.24)',
+        boxShadow: '0 18px 38px rgba(0,0,0,.45)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
           <div>
@@ -158,13 +176,14 @@ export default function Achievements({ state }) {
               onClick={() => setCategory(item)}
               style={{
                 ...S.chipBtn,
-                background: category === item ? '#172026' : '#ffffff',
-                color: category === item ? '#ffffff' : '#172026',
+                background: category === item ? 'var(--af-grass)' : 'var(--af-surface)',
+                color: category === item ? '#08111f' : 'var(--af-text)',
               }}
             >
-              {item !== 'all' && CATEGORY_ASSET[item] && (
-                <img src={CATEGORY_ASSET[item]} alt={item} style={{ width: 14, height: 14, objectFit: 'contain', marginRight: 5, verticalAlign: 'middle' }} />
-              )}
+              {item !== 'all' && CATEGORY_ICON[item] && (() => {
+                const Ic = CATEGORY_ICON[item];
+                return <Ic size={12} style={{ marginRight: 5, verticalAlign: 'middle' }} />;
+              })()}
               {item === 'all' ? 'Toutes' : ACHIEVEMENT_CATEGORY_LABELS[item] ?? item}
             </button>
           ))}
@@ -176,9 +195,9 @@ export default function Achievements({ state }) {
               onClick={() => setStatus(item.id)}
               style={{
                 ...S.chipBtn,
-                background: status === item.id ? '#00a676' : '#ffffff',
-                color: status === item.id ? '#ffffff' : '#172026',
-                borderColor: status === item.id ? '#00a676' : '#d6dde3',
+                background: status === item.id ? '#00a676' : 'var(--af-surface)',
+                color: status === item.id ? '#08111f' : 'var(--af-text)',
+                borderColor: status === item.id ? '#00a676' : 'var(--af-border)',
               }}
             >
               {item.label}
@@ -195,40 +214,59 @@ export default function Achievements({ state }) {
         {filtered.map((achievement) => {
           const style = CATEGORY_STYLE[achievement.category] ?? CATEGORY_STYLE.default;
           const progress = pct(achievement.current, achievement.target);
+          const banner = CATEGORY_BANNER[achievement.category];
           return (
             <div
               key={achievement.id}
               style={{
-                borderRadius: 8,
+                borderRadius: 10,
                 border: `1px solid ${style.border}`,
                 background: achievement.unlocked
-                  ? `linear-gradient(135deg,${style.bg},#ffffff)`
-                  : '#ffffff',
-                padding: 13,
+                  ? `linear-gradient(135deg,${style.bg},oklch(18% 0.035 258 / .92))`
+                  : 'oklch(18% 0.035 258 / .92)',
+                overflow: 'hidden',
                 boxShadow: achievement.unlocked
-                  ? '0 14px 28px rgba(15,23,42,.1)'
-                  : '0 9px 20px rgba(15,23,32,.05)',
+                  ? `0 14px 30px ${style.accent}33`
+                  : '0 9px 20px rgba(0,0,0,.35)',
               }}
             >
+              {banner && (
+                <div style={{ position: 'relative', height: 64 }}>
+                  <img src={banner} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: achievement.unlocked ? 0.9 : 0.5, filter: achievement.unlocked ? 'none' : 'grayscale(0.5)' }} />
+                  <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(8,17,31,.10) 0%, oklch(18% 0.035 258 / .92) 100%)` }} />
+                  {!achievement.unlocked && (
+                    <div style={{ position: 'absolute', top: 8, right: 10, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 9, fontWeight: 900, letterSpacing: '.1em' }}>
+                      <Lock size={10} /> {progress}%
+                    </div>
+                  )}
+                  {achievement.unlocked && (
+                    <div style={{ position: 'absolute', top: 8, right: 10, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, background: style.accent, color: '#08111f', fontSize: 9, fontWeight: 900, letterSpacing: '.1em' }}>
+                      <CheckCircle2 size={10} /> DÉBLOQUÉ
+                    </div>
+                  )}
+                </div>
+              )}
+              <div style={{ padding: 13 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 8 }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 8, padding: '3px 8px', background: style.bg, border: `1px solid ${style.border}`, color: style.accent, fontSize: 9, letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>
-                    {CATEGORY_ASSET[achievement.category] && (
-                      <img src={CATEGORY_ASSET[achievement.category]} alt={achievement.category} style={{ width: 13, height: 13, objectFit: 'contain' }} />
-                    )}
-                    {ACHIEVEMENT_CATEGORY_LABELS[achievement.category] ?? 'Succès'}
-                  </div>
-                  <div style={{ fontSize: 14, color: '#172026', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {CATEGORY_ASSET[achievement.category] && (
-                      <img src={CATEGORY_ASSET[achievement.category]} alt={achievement.category} style={{ width: 16, height: 16, objectFit: 'contain' }} />
-                    )}
-                    <span>{achievement.icon ?? '🏅'} {achievement.label}</span>
-                  </div>
+                  {(() => {
+                    const Ic = CATEGORY_ICON[achievement.category] ?? Award;
+                    return (
+                      <>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 8, padding: '3px 8px', background: style.bg, border: `1px solid ${style.border}`, color: style.accent, fontSize: 9, letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>
+                          <Ic size={11} />
+                          {ACHIEVEMENT_CATEGORY_LABELS[achievement.category] ?? 'Succès'}
+                        </div>
+                        <div style={{ fontSize: 14, color: 'var(--af-text)', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: 6, background: style.bg, border: `1px solid ${style.border}`, color: style.accent }}>
+                            <Ic size={13} />
+                          </span>
+                          <span>{achievement.label}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                   <div style={{ ...S.fixtureMeta, marginTop: 4 }}>{achievement.desc}</div>
-                </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 8, padding: '4px 7px', background: achievement.unlocked ? '#f0fdf4' : '#f8fafc', border: achievement.unlocked ? '1px solid #bbf7d0' : '1px solid #dbe3ea', color: achievement.unlocked ? '#166534' : '#64727d', fontSize: 9, letterSpacing: '.08em', fontWeight: 900, fontFamily: 'system-ui,sans-serif', whiteSpace: 'nowrap' }}>
-                  {achievement.unlocked ? <CheckCircle2 size={11} /> : <Lock size={11} />}
-                  {achievement.unlocked ? 'DÉBLOQUÉ' : `${progress}%`}
                 </div>
               </div>
 
@@ -237,10 +275,10 @@ export default function Achievements({ state }) {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <div style={{ fontSize: 11, color: '#475569', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>
+                <div style={{ fontSize: 11, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>
                   {achievement.current}/{achievement.target}
                 </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 10, color: '#334155', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <Coins size={11} color="#0f766e" />
                     {formatMoney(achievement.reward?.money ?? 0)}
@@ -254,8 +292,9 @@ export default function Achievements({ state }) {
                     +{achievement.reward?.rep ?? 0}
                   </span>
                 </div>
+                </div>
               </div>
-            </div>
+              </div>
           );
         })}
       </div>

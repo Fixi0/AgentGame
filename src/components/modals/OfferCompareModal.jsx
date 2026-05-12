@@ -8,7 +8,7 @@ function WindowBadge({ window: win }) {
     summer:  { label: 'ÉTÉ',     bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' },
     winter:  { label: 'HIVER',    bg: '#f0f9ff', color: '#0284c7', border: '#bae6fd' },
     free:    { label: 'LIBRE',    bg: '#f0fdf8', color: '#00a676', border: '#b6f0da' },
-    unknown: { label: win?.toUpperCase() ?? '—', bg: '#f7f9fb', color: '#64727d', border: '#e5eaf0' },
+    unknown: { label: win?.toUpperCase() ?? '—', bg: '#f7f9fb', color: 'var(--af-muted)', border: '#e5eaf0' },
   };
   const style = map[win] ?? map.unknown;
   return (
@@ -38,7 +38,7 @@ function OfferCard({ offer, isBest, onAccept, onReject }) {
 
   return (
     <div style={{
-      background: '#ffffff',
+      background: 'oklch(18% 0.035 258 / .92)',
       border: `1px solid ${borderColor}`,
       borderRadius: 10,
       padding: 16,
@@ -78,14 +78,14 @@ function OfferCard({ offer, isBest, onAccept, onReject }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, marginTop: isBest ? 4 : 0 }}>
         <div>
           <div style={{ fontSize: 18, marginBottom: 2 }}>{offer.clubCountry ?? '🌍'}</div>
-          <div style={{ fontSize: 14, fontWeight: 850, color: '#172026', lineHeight: 1.2 }}>{offer.club}</div>
+          <div style={{ fontSize: 14, fontWeight: 850, color: 'var(--af-text)', lineHeight: 1.2 }}>{offer.club}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
           {offer.preWindow && (
             <span style={{
-              background: '#eff6ff',
+              background: 'oklch(28% 0.10 245 / .22)',
               color: '#2563eb',
-              border: '1px solid #bfdbfe',
+              border: '1px solid var(--af-border)',
               borderRadius: 6,
               fontSize: 9,
               fontWeight: 900,
@@ -120,16 +120,16 @@ function OfferCard({ offer, isBest, onAccept, onReject }) {
       </div>
 
       {/* Stats */}
-      <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '2px 12px', marginBottom: 12 }}>
-        <div style={{ ...S.sumRow, borderBottom: '1px solid #eef2f5' }}>
+      <div style={{ background: 'oklch(16% 0.035 258 / .78)', border: '1px solid var(--af-border)', borderRadius: 8, padding: '2px 12px', marginBottom: 12 }}>
+        <div style={{ ...S.sumRow, borderBottom: '1px solid var(--af-border)' }}>
           <span style={S.sumK}>Prix de transfert</span>
-          <span style={{ fontWeight: 800, color: '#172026', fontSize: 14 }}>{formatMoney(offer.price ?? 0)}</span>
+          <span style={{ fontWeight: 800, color: 'var(--af-text)', fontSize: 14 }}>{formatMoney(offer.price ?? 0)}</span>
         </div>
-        <div style={{ ...S.sumRow, borderBottom: '1px solid #eef2f5' }}>
+        <div style={{ ...S.sumRow, borderBottom: '1px solid var(--af-border)' }}>
           <span style={S.sumK}>Salaire</span>
-          <span style={{ fontWeight: 700, color: '#172026', fontSize: 13 }}>×{(offer.salMult ?? 1).toFixed(1)}</span>
+          <span style={{ fontWeight: 700, color: 'var(--af-text)', fontSize: 13 }}>×{(offer.salMult ?? 1).toFixed(1)}</span>
         </div>
-        <div style={{ ...S.sumRow, borderBottom: '1px solid #eef2f5' }}>
+        <div style={{ ...S.sumRow, borderBottom: '1px solid var(--af-border)' }}>
           <span style={S.sumK}>Fenêtre</span>
           <WindowBadge window={offer.window} />
         </div>
@@ -211,7 +211,7 @@ export default function OfferCompareModal({ offers = [], players = [], onAccept,
             <div style={S.empty}>Aucune offre à comparer.</div>
           ) : (
             <>
-              <div style={{ fontSize: 12, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginBottom: 16, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 12, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', marginBottom: 16, lineHeight: 1.5 }}>
                 {offers.length} offre{offers.length > 1 ? 's' : ''} reçue{offers.length > 1 ? 's' : ''}. Compare les conditions avant de décider.
               </div>
 

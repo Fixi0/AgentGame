@@ -6,6 +6,16 @@ export const COUNTRIES = [
   { code: 'IT', label: 'Italie', flag: '🇮🇹', minReputation: 26, marketWeight: 12 },
   { code: 'NL', label: 'Pays-Bas', flag: '🇳🇱', minReputation: 30, marketWeight: 8 },
   { code: 'PT', label: 'Portugal', flag: '🇵🇹', minReputation: 32, marketWeight: 8 },
+  { code: 'BE', label: 'Belgique', flag: '🇧🇪', minReputation: 34, marketWeight: 6 },
+  { code: 'TR', label: 'Turquie', flag: '🇹🇷', minReputation: 36, marketWeight: 6 },
+  { code: 'SC', label: 'Écosse', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', minReputation: 38, marketWeight: 5 },
+  { code: 'GR', label: 'Grèce', flag: '🇬🇷', minReputation: 40, marketWeight: 5 },
+  { code: 'AT', label: 'Autriche', flag: '🇦🇹', minReputation: 40, marketWeight: 5 },
+  { code: 'CH', label: 'Suisse', flag: '🇨🇭', minReputation: 42, marketWeight: 5 },
+  { code: 'CZ', label: 'Tchéquie', flag: '🇨🇿', minReputation: 42, marketWeight: 4 },
+  { code: 'DK', label: 'Danemark', flag: '🇩🇰', minReputation: 42, marketWeight: 4 },
+  { code: 'NO', label: 'Norvège', flag: '🇳🇴', minReputation: 44, marketWeight: 4 },
+  { code: 'SE', label: 'Suède', flag: '🇸🇪', minReputation: 44, marketWeight: 4 },
   { code: 'BR', label: 'Brésil', flag: '🇧🇷', minReputation: 45, marketWeight: 7 },
   { code: 'AR', label: 'Argentine', flag: '🇦🇷', minReputation: 50, marketWeight: 5 },
 ];
@@ -107,9 +117,78 @@ export const CLUBS = [
   { name: 'Ajax', tier: 2, countryCode: 'NL', city: 'Amsterdam' },
   { name: 'PSV', tier: 2, countryCode: 'NL', city: 'Eindhoven' },
   { name: 'Feyenoord', tier: 2, countryCode: 'NL', city: 'Rotterdam' },
+  { name: 'AZ Alkmaar', tier: 3, countryCode: 'NL', city: 'Alkmaar' },
+  { name: 'Twente', tier: 3, countryCode: 'NL', city: 'Enschede' },
+  { name: 'Utrecht', tier: 4, countryCode: 'NL', city: 'Utrecht' },
+
   { name: 'Porto', tier: 2, countryCode: 'PT', city: 'Porto' },
   { name: 'Benfica', tier: 2, countryCode: 'PT', city: 'Lisbonne' },
   { name: 'Sporting CP', tier: 2, countryCode: 'PT', city: 'Lisbonne' },
+  { name: 'Braga', tier: 3, countryCode: 'PT', city: 'Braga' },
+  { name: 'Vitoria SC', tier: 3, countryCode: 'PT', city: 'Guimarães' },
+  { name: 'Boavista', tier: 4, countryCode: 'PT', city: 'Porto' },
+
+  // ── Belgique (Jupiler Pro League) ──────────────────────────────
+  { name: 'Club Brugge', tier: 2, countryCode: 'BE', city: 'Bruges' },
+  { name: 'Anderlecht', tier: 3, countryCode: 'BE', city: 'Bruxelles' },
+  { name: 'Genk', tier: 3, countryCode: 'BE', city: 'Genk' },
+  { name: 'Standard Liège', tier: 3, countryCode: 'BE', city: 'Liège' },
+  { name: 'Antwerp', tier: 3, countryCode: 'BE', city: 'Anvers' },
+  { name: 'Gent', tier: 4, countryCode: 'BE', city: 'Gand' },
+  { name: 'Union SG', tier: 3, countryCode: 'BE', city: 'Bruxelles' },
+
+  // ── Turquie (Süper Lig) ────────────────────────────────────────
+  { name: 'Galatasaray', tier: 2, countryCode: 'TR', city: 'Istanbul' },
+  { name: 'Fenerbahce', tier: 2, countryCode: 'TR', city: 'Istanbul' },
+  { name: 'Besiktas', tier: 2, countryCode: 'TR', city: 'Istanbul' },
+  { name: 'Trabzonspor', tier: 3, countryCode: 'TR', city: 'Trabzon' },
+  { name: 'Basaksehir', tier: 4, countryCode: 'TR', city: 'Istanbul' },
+
+  // ── Écosse (Premiership) ───────────────────────────────────────
+  { name: 'Celtic', tier: 2, countryCode: 'SC', city: 'Glasgow' },
+  { name: 'Rangers', tier: 2, countryCode: 'SC', city: 'Glasgow' },
+  { name: 'Hearts', tier: 4, countryCode: 'SC', city: 'Édimbourg' },
+  { name: 'Hibernian', tier: 4, countryCode: 'SC', city: 'Édimbourg' },
+  { name: 'Aberdeen', tier: 4, countryCode: 'SC', city: 'Aberdeen' },
+
+  // ── Grèce (Super League) ───────────────────────────────────────
+  { name: 'Olympiakos', tier: 2, countryCode: 'GR', city: 'Le Pirée' },
+  { name: 'Panathinaikos', tier: 3, countryCode: 'GR', city: 'Athènes' },
+  { name: 'AEK Athens', tier: 3, countryCode: 'GR', city: 'Athènes' },
+  { name: 'PAOK', tier: 3, countryCode: 'GR', city: 'Thessalonique' },
+
+  // ── Autriche (Bundesliga) ──────────────────────────────────────
+  { name: 'RB Salzburg', tier: 2, countryCode: 'AT', city: 'Salzbourg' },
+  { name: 'Sturm Graz', tier: 3, countryCode: 'AT', city: 'Graz' },
+  { name: 'Rapid Vienne', tier: 4, countryCode: 'AT', city: 'Vienne' },
+  { name: 'LASK', tier: 4, countryCode: 'AT', city: 'Linz' },
+
+  // ── Suisse (Super League) ──────────────────────────────────────
+  { name: 'Young Boys', tier: 3, countryCode: 'CH', city: 'Berne' },
+  { name: 'Bâle', tier: 3, countryCode: 'CH', city: 'Bâle' },
+  { name: 'Servette', tier: 4, countryCode: 'CH', city: 'Genève' },
+  { name: 'Zurich', tier: 4, countryCode: 'CH', city: 'Zurich' },
+
+  // ── Tchéquie (Fortuna Liga) ────────────────────────────────────
+  { name: 'Sparta Prague', tier: 3, countryCode: 'CZ', city: 'Prague' },
+  { name: 'Slavia Prague', tier: 3, countryCode: 'CZ', city: 'Prague' },
+  { name: 'Viktoria Plzen', tier: 4, countryCode: 'CZ', city: 'Plzen' },
+
+  // ── Danemark (Superliga) ───────────────────────────────────────
+  { name: 'Copenhague', tier: 3, countryCode: 'DK', city: 'Copenhague' },
+  { name: 'Midtjylland', tier: 3, countryCode: 'DK', city: 'Herning' },
+  { name: 'Brondby', tier: 4, countryCode: 'DK', city: 'Brondby' },
+
+  // ── Norvège (Eliteserien) ──────────────────────────────────────
+  { name: 'Bodo/Glimt', tier: 3, countryCode: 'NO', city: 'Bodø' },
+  { name: 'Molde', tier: 4, countryCode: 'NO', city: 'Molde' },
+  { name: 'Rosenborg', tier: 4, countryCode: 'NO', city: 'Trondheim' },
+
+  // ── Suède (Allsvenskan) ────────────────────────────────────────
+  { name: 'Malmö FF', tier: 3, countryCode: 'SE', city: 'Malmö' },
+  { name: 'AIK', tier: 4, countryCode: 'SE', city: 'Stockholm' },
+  { name: 'Djurgardens', tier: 4, countryCode: 'SE', city: 'Stockholm' },
+
   { name: 'Flamengo', tier: 3, countryCode: 'BR', city: 'Rio de Janeiro' },
   { name: 'Palmeiras', tier: 3, countryCode: 'BR', city: 'Sao Paulo' },
   { name: 'Santos', tier: 4, countryCode: 'BR', city: 'Santos' },

@@ -14,13 +14,15 @@ export const GEM_PACKS = [
 export const getGemPackById = (packId) => GEM_PACKS.find((pack) => pack.id === packId) ?? null;
 
 export const NO_ADS_PRODUCT_ID = 'remove_ads';
+export const AD_INTERSTITIAL_MIN_WEEKS = 2;
+export const AD_INTERSTITIAL_MAX_WEEKS = 3;
 
 export const PREMIUM_PRODUCTS = [
   {
     id: NO_ADS_PRODUCT_ID,
     label: 'Pack Sans Pubs',
-    price: '2,99 €',
-    desc: 'Retire les pubs automatiques et garde les pubs récompensées optionnelles.',
+    price: '5,99 €',
+    desc: 'Retire les pubs automatiques. Les pubs récompensées restent optionnelles.',
     type: 'non_consumable',
   },
 ];
@@ -246,6 +248,11 @@ export const DEFAULT_SHOP_STATS = {
 
 const dailyDateKey = (date = new Date()) => date.toLocaleDateString('sv-SE');
 
+const getNextInterstitialWeek = (week = 1, viewsTotal = 0) => {
+  const interval = AD_INTERSTITIAL_MIN_WEEKS + (Math.max(0, viewsTotal) % 2);
+  return Math.max(1, Math.floor(week)) + Math.min(interval, AD_INTERSTITIAL_MAX_WEEKS);
+};
+
 const normalizeAdState = (state = {}) => {
   const current = state.ads ?? {};
   const today = dailyDateKey();
@@ -253,10 +260,17 @@ const normalizeAdState = (state = {}) => {
     ? current.daily
     : { dateKey: today, rewardCountByOfferId: {}, totalRewardedViews: 0 };
 
+  const interstitialViewsTotal = current.interstitialViewsTotal ?? 0;
+  const lastInterstitialWeek = current.lastInterstitialWeek ?? 0;
+
   return {
     removed: Boolean(current.removed),
     rewardedViewsTotal: current.rewardedViewsTotal ?? 0,
-    interstitialViewsTotal: current.interstitialViewsTotal ?? 0,
+    interstitialViewsTotal,
+    lastInterstitialWeek,
+    nextInterstitialWeek: Number.isFinite(current.nextInterstitialWeek)
+      ? current.nextInterstitialWeek
+      : getNextInterstitialWeek(lastInterstitialWeek || 1, interstitialViewsTotal),
     daily: {
       dateKey: today,
       rewardCountByOfferId: daily.rewardCountByOfferId ?? {},
@@ -325,6 +339,10 @@ export const getShopRuntimeView = (state = {}) => {
       removed: ads.removed,
       dailyRewardViews: ads.daily.totalRewardedViews,
       rewardedViewsTotal: ads.rewardedViewsTotal,
+      interstitialViewsTotal: ads.interstitialViewsTotal,
+      lastInterstitialWeek: ads.lastInterstitialWeek,
+      nextInterstitialWeek: ads.nextInterstitialWeek,
+      interstitialCadenceLabel: '2-3 semaines',
       canShowInterstitial: !ads.removed,
       rewardOffers: AD_REWARD_OFFERS.map((offer) => {
         const claimed = ads.daily.rewardCountByOfferId[offer.id] ?? 0;
@@ -523,6 +541,41 @@ export const grantIapPurchase = (state, productId, transactionId = null) => {
     return grantNoAdsPurchase(state, productId, transactionId);
   }
   return grantGemPackPurchase(state, productId, transactionId);
+};
+
+export const shouldShowInterstitialAd = (state = {}) => {
+  const ads = normalizeAdState(state);
+  if (ads.removed) return false;
+  const week = Math.max(1, Number(state.week ?? 1));
+  if (week < 3) return false;
+  return week >= (ads.nextInterstitialWeek ?? getNextInterstitialWeek(week, ads.interstitialViewsTotal));
+};
+
+export const recordInterstitialAdView = (state = {}, placement = 'week_transition') => {
+  const ads = normalizeAdState(state);
+  if (ads.removed) return state;
+  const week = Math.max(1, Number(state.week ?? 1));
+  const interstitialViewsTotal = (ads.interstitialViewsTotal ?? 0) + 1;
+
+  return {
+    ...state,
+    ads: {
+      ...ads,
+      interstitialViewsTotal,
+      lastInterstitialWeek: week,
+      nextInterstitialWeek: getNextInterstitialWeek(week, interstitialViewsTotal),
+      history: [
+        {
+          id: `ad_interstitial_${Date.now()}`,
+          type: 'interstitial',
+          placement,
+          week,
+          createdAt: Date.now(),
+        },
+        ...ads.history,
+      ].slice(0, 80),
+    },
+  };
 };
 
 export const grantAdReward = (state, offerId, placement = 'shop') => {

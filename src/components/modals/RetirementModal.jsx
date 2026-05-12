@@ -63,14 +63,14 @@ function StatBadge({ label, value, color = '#00a676' }) {
   return (
     <div style={{
       flex: 1,
-      background: '#f7f9fb',
-      border: '1px solid #e5eaf0',
+      background: 'oklch(16% 0.035 258 / .78)',
+      border: '1px solid var(--af-border)',
       borderRadius: 8,
       padding: '8px 6px',
       textAlign: 'center',
     }}>
       <div style={{ fontSize: 17, fontWeight: 900, color, lineHeight: 1, marginBottom: 3 }}>{value}</div>
-      <div style={{ fontSize: 9, letterSpacing: '.1em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>{label}</div>
+      <div style={{ fontSize: 9, letterSpacing: '.1em', color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>{label}</div>
     </div>
   );
 }
@@ -78,7 +78,7 @@ function StatBadge({ label, value, color = '#00a676' }) {
 function EffectRow({ emoji, label, value, positive }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f0f4f7' }}>
-      <span style={{ fontSize: 12, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>{emoji} {label}</span>
+      <span style={{ fontSize: 12, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>{emoji} {label}</span>
       <span style={{ fontSize: 12, fontWeight: 800, color: positive ? '#00a676' : '#dc2626', fontFamily: 'system-ui,sans-serif' }}>{value}</span>
     </div>
   );
@@ -89,7 +89,7 @@ function DecisionCard({ decision, onDecide }) {
 
   return (
     <div style={{
-      background: '#ffffff',
+      background: 'oklch(18% 0.035 258 / .92)',
       border: `1px solid ${accentColor}30`,
       borderLeft: `4px solid ${accentColor}`,
       borderRadius: 10,
@@ -112,7 +112,7 @@ function DecisionCard({ decision, onDecide }) {
           <Icon size={17} color={accentColor} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 850, color: '#172026', marginBottom: 2 }}>{label}</div>
+          <div style={{ fontSize: 14, fontWeight: 850, color: 'var(--af-text)', marginBottom: 2 }}>{label}</div>
           <div style={{ fontSize: 11, color: accentColor, fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>{subtitle}</div>
         </div>
       </div>
@@ -123,7 +123,7 @@ function DecisionCard({ decision, onDecide }) {
       </p>
 
       {/* Effects */}
-      <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '2px 12px', marginBottom: 12 }}>
+      <div style={{ background: 'oklch(16% 0.035 258 / .78)', border: '1px solid var(--af-border)', borderRadius: 8, padding: '2px 12px', marginBottom: 12 }}>
         {effects.map((ef, i) => (
           <div
             key={i}
@@ -135,7 +135,7 @@ function DecisionCard({ decision, onDecide }) {
               borderBottom: i < effects.length - 1 ? '1px solid #f0f4f7' : 'none',
             }}
           >
-            <span style={{ fontSize: 12, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
+            <span style={{ fontSize: 12, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>
               {ef.emoji} {ef.label}
             </span>
             <span style={{ fontSize: 12, fontWeight: 800, color: ef.positive ? '#00a676' : '#dc2626', fontFamily: 'system-ui,sans-serif' }}>
@@ -184,7 +184,7 @@ export default function RetirementModal({ player, week, onDecide, onClose }) {
         {/* Header */}
         <div style={{ ...S.mHead, borderTop: '3px solid #b45309' }}>
           <Award size={16} color="#b45309" />
-          <span style={{ color: '#b45309' }}>FIN DE CARRIÈRE</span>
+          <span style={{ color: 'oklch(78% 0.16 70)' }}>FIN DE CARRIÈRE</span>
           <button onClick={onClose} style={S.mClose}><X size={16} /></button>
         </div>
 

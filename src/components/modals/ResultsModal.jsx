@@ -3,6 +3,10 @@ import { Activity, AlertCircle, ChevronDown, ChevronRight, ChevronUp, LogOut, Tr
 import { formatMoney } from '../../utils/format';
 import { EURO_CUP_LABELS } from '../../systems/europeanCupSystem';
 import { S } from '../styles';
+import { getEventImage } from '../../utils/eventImages';
+import { isTrophyEvent } from '../../utils/trophyImages';
+import TrophyMoment from '../TrophyMoment';
+import EventVisualCard from '../EventVisualCard';
 
 const safeText = (value, fallback) => {
   if (typeof value !== 'string') return fallback;
@@ -87,7 +91,7 @@ function getBigHeadline(data) {
     return { emoji: '🗓️', title: `Saison ${data.seasonRecap.season} terminée`, sub: `${data.seasonRecap.transfers} transferts · ${formatMoney(data.seasonRecap.earned)} gagnés` };
   }
   const goodEvent = (data.events ?? []).find((e) => e.good);
-  if (goodEvent) return { emoji: '✨', title: goodEvent.label, sub: goodEvent.player };
+  if (goodEvent) return { emoji: '✨', title: goodEvent.label, sub: goodEvent.player, sourceEvent: goodEvent };
   if ((data.net ?? 0) > 10000) return { emoji: '💰', title: 'Très bonne semaine financière', sub: `+${formatMoney(data.net)} de bénéfice net` };
   if ((data.net ?? 0) >= 0) return { emoji: '📊', title: 'Semaine bouclée', sub: `Bénéfice +${formatMoney(data.net)}` };
   return { emoji: '📉', title: 'Semaine difficile', sub: `Déficit ${formatMoney(Math.abs(data.net))}` };
@@ -129,11 +133,21 @@ function MatchScorecard({ match, highlight = false }) {
           subText: 'rgba(255,255,255,.82)',
           scoreBg: 'rgba(255,255,255,.12)',
         }
-        : { color: resultColor, bg: null, chipBg: '#f0f4f7', chipColor: '#64727d' };
-  const resultBg = competitionTheme.cardBg
-    ?? (highlight
-      ? `linear-gradient(135deg, ${match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff'} 0%, #ffffff 100%)`
-      : (match.result === 'win' ? '#f0fdf4' : match.result === 'loss' ? '#fef2f2' : '#eff6ff'));
+        : {
+          accent: resultColor,
+          cardBg: match.result === 'win'
+            ? 'linear-gradient(135deg, oklch(24% 0.10 155 / .55), var(--af-surface))'
+            : match.result === 'loss'
+              ? 'linear-gradient(135deg, oklch(24% 0.12 25 / .55), var(--af-surface))'
+              : 'linear-gradient(135deg, oklch(24% 0.10 245 / .55), var(--af-surface))',
+          border: 'var(--af-border-strong)',
+          chipBg: 'oklch(28% 0.06 245 / .35)',
+          chipColor: 'var(--af-muted)',
+          text: 'var(--af-text)',
+          subText: 'var(--af-muted)',
+          scoreBg: 'oklch(16% 0.035 258 / .7)',
+        };
+  const resultBg = competitionTheme.cardBg;
   const resultLabel = match.result === 'win' ? 'V' : match.result === 'loss' ? 'D' : 'N';
   const competitionLabel = safeText(match.competitionLabel, safeText(EURO_CUP_LABELS[match.competition]?.name, null));
 
@@ -216,6 +230,7 @@ function MatchScorecard({ match, highlight = false }) {
 
 export default function ResultsModal({ data, onClose, onInteractive }) {
   const [step, setStep] = useState('results');
+  const visualUsed = React.useMemo(() => new Set(), [data]);
   const [showDetails, setShowDetails] = useState(false);
   const matchResults = (data.matchResults ?? []).filter(Boolean);
   const euroMatches = (data.euroMatchResults ?? []).filter(Boolean);
@@ -235,6 +250,37 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
             <span>EVENEMENT</span>
           </div>
           <div style={S.mBody}>
+            {isTrophyEvent(event) ? (
+              <TrophyMoment event={event} playerName={`${player.firstName} ${player.lastName}${player.club ? ` · ${player.club}` : ''}`} />
+            ) : (
+              <div style={{
+                margin: '-4px -4px 12px',
+                borderRadius: 10,
+                overflow: 'hidden',
+                aspectRatio: '16 / 9',
+                background: '#0a0f14',
+                position: 'relative',
+              }}>
+                <img
+                  src={getEventImage({ eventId: event.id, type: event.type ?? event.types?.[0] })}
+                  alt=""
+                  loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.6))',
+                }} />
+                <div style={{
+                  position: 'absolute', left: 12, bottom: 10, right: 12,
+                  color: '#fff', fontSize: 10, fontWeight: 900, letterSpacing: '.16em',
+                  textTransform: 'uppercase', textShadow: '0 2px 8px rgba(0,0,0,.8)',
+                  fontFamily: 'system-ui,sans-serif',
+                }}>
+                  {player.firstName} {player.lastName}{player.club ? ` · ${player.club}` : ''}
+                </div>
+              </div>
+            )}
             <h2 style={S.mTitle}>{event.title}</h2>
             <div style={S.mPlayer}>{player.firstName} {player.lastName}</div>
             <p style={S.mText}>{event.description}</p>
@@ -251,6 +297,20 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
   }
 
   const bigHeadline = getBigHeadline(data);
+  let trophyEvent = (data.events ?? []).find((e) => isTrophyEvent(e));
+  // Synthétise un trophy moment pour les buts européens (pas dans events).
+  if (!trophyEvent) {
+    const topEuro = (data.euroMatchResults ?? []).filter(Boolean).reduce((best, m) => (
+      !best || (m.goals ?? 0) > (best.goals ?? 0) ? m : best
+    ), null);
+    if (topEuro && (topEuro.goals ?? 0) >= 1) {
+      trophyEvent = {
+        id: 'european_goal',
+        label: bigHeadline.title,
+        player: `${topEuro.playerName ?? 'Joueur'}${topEuro.club ? ` · ${topEuro.club}` : ''}`,
+      };
+    }
+  }
   const totalGoals = matchResults.reduce((s, m) => s + (m.goals ?? 0), 0);
   const totalAssists = matchResults.reduce((s, m) => s + (m.assists ?? 0), 0);
   const wins = matchResults.filter((m) => m.result === 'win').length;
@@ -258,10 +318,10 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
   const hasDetails = (data.events?.length > 0) || (matchResults.length > 0) || (euroMatches.length > 0) || (worldCupMatches.length > 0) || (data.lockerRoom?.length > 0) || (data.worldSummary?.length > 0) || (data.clubOffers?.length > 0) || (data.leavingPlayers?.length > 0);
   const euroTheme = (() => {
     const comps = euroMatches.map((match) => match.competition).filter(Boolean);
-    if (comps.includes('CL')) return { border: '#3b82f6', bg: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 45%, #f8fbff 100%)', title: '#1d4ed8', glow: 'rgba(59,130,246,.12)' };
-    if (comps.includes('EL')) return { border: '#f97316', bg: 'linear-gradient(135deg, #fff7ed 0%, #ffffff 45%, #fffdf9 100%)', title: '#c2410c', glow: 'rgba(249,115,22,.12)' };
-    if (comps.includes('ECL')) return { border: '#22c55e', bg: 'linear-gradient(135deg, #f0fdf4 0%, #ffffff 45%, #fbfffc 100%)', title: '#15803d', glow: 'rgba(34,197,94,.12)' };
-    return { border: '#b9d98a', bg: 'linear-gradient(135deg, #fff9ef 0%, #fff4dd 28%, #eef9ea 60%, #ffffff 100%)', title: '#5f7f33', glow: 'rgba(34,197,94,.12)' };
+    if (comps.includes('CL')) return { border: 'rgba(59,130,246,.45)', bg: 'linear-gradient(135deg, oklch(22% 0.06 250 / .95) 0%, oklch(16% 0.05 252 / .95) 100%)', title: '#7dafff', glow: 'rgba(59,130,246,.25)' };
+    if (comps.includes('EL')) return { border: 'rgba(249,115,22,.45)', bg: 'linear-gradient(135deg, oklch(24% 0.08 55 / .95) 0%, oklch(16% 0.05 252 / .95) 100%)', title: '#fdba74', glow: 'rgba(249,115,22,.25)' };
+    if (comps.includes('ECL')) return { border: 'rgba(34,197,94,.45)', bg: 'linear-gradient(135deg, oklch(24% 0.08 150 / .95) 0%, oklch(16% 0.05 252 / .95) 100%)', title: '#86efac', glow: 'rgba(34,197,94,.25)' };
+    return { border: 'rgba(185,217,138,.4)', bg: 'linear-gradient(135deg, oklch(22% 0.05 145 / .95) 0%, oklch(16% 0.04 252 / .95) 100%)', title: '#cfe88f', glow: 'rgba(34,197,94,.2)' };
   })();
   const worldCupTheme = {
     border: '#7dd3fc',
@@ -283,12 +343,19 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           </button>
         </div>
         <div style={S.mBody}>
-          {/* Big Headline */}
-          <div style={S.resultsBigHeadline}>
-            <span style={S.resultsBigEmoji}>{bigHeadline.emoji}</span>
-            <div style={S.resultsBigTitle}>{bigHeadline.title}</div>
-            <div style={S.resultsBigSub}>{bigHeadline.sub}</div>
-          </div>
+          {/* 🏆 Trophy moment (avant le big headline) */}
+          {trophyEvent && (
+            <TrophyMoment event={trophyEvent} playerName={trophyEvent.player} />
+          )}
+
+          {/* Big Headline (caché si un trophée occupe déjà la zone héro) */}
+          {!trophyEvent && (
+            <div style={S.resultsBigHeadline}>
+              <span style={S.resultsBigEmoji}>{bigHeadline.emoji}</span>
+              <div style={S.resultsBigTitle}>{bigHeadline.title}</div>
+              <div style={S.resultsBigSub}>{bigHeadline.sub}</div>
+            </div>
+          )}
 
           {/* End of Season / New Season celebration */}
           {data.newSeason && (
@@ -375,13 +442,15 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
             </div>
           </div>
 
-          {/* Urgent events — always visible */}
-          {(data.events ?? []).filter((e) => !e.good).slice(0, 2).map((event) => (
-            <div key={`${event.playerId}-${event.id}`} style={{ ...S.evRow, borderLeft: '3px solid #b42318', marginBottom: 6 }}>
-              <div style={S.evPlayer}>⚠️ {event.player}</div>
-              <div style={S.evLabel}>{event.label}</div>
-            </div>
-          ))}
+          {/* Used image tracker — guarantees no duplicate visuals in the same week */}
+          {(() => { return null; })()}
+          {/* Urgent events — always visible, with premium visual */}
+          {(data.events ?? [])
+            .filter((e) => !e.good && e !== bigHeadline.sourceEvent)
+            .slice(0, 2)
+            .map((event) => (
+              <EventVisualCard key={`${event.playerId}-${event.id}`} event={event} used={visualUsed} />
+            ))}
           {data.leavingPlayers?.length > 0 && (
             <div style={{ ...S.leavingCard, marginBottom: 12 }}>
               <div style={S.secTitle}>
@@ -420,14 +489,11 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
 
           {showDetails && (
             <>
-              {(data.events ?? []).filter((e) => e.good).length > 0 && (
+              {(data.events ?? []).filter((e) => e.good && e !== bigHeadline.sourceEvent).length > 0 && (
                 <div style={{ marginBottom: 16 }}>
                   <div style={S.secTitle}><AlertCircle size={14} /><span>ÉVÉNEMENTS</span></div>
-                  {(data.events ?? []).filter((e) => e.good).map((event) => (
-                    <div key={`${event.playerId}-${event.id}`} style={{ ...S.evRow, borderLeft: '3px solid #00a676', marginBottom: 4 }}>
-                      <div style={S.evPlayer}>{event.player}</div>
-                      <div style={S.evLabel}>{event.label}{event.match?.matchRating ? ` · note ${event.match.matchRating}` : ''}</div>
-                    </div>
+                  {(data.events ?? []).filter((e) => e.good && e !== bigHeadline.sourceEvent).map((event) => (
+                    <EventVisualCard key={`${event.playerId}-${event.id}`} event={event} compact used={visualUsed} />
                   ))}
                 </div>
               )}

@@ -48,13 +48,13 @@ export default class ErrorBoundary extends React.Component {
         background: 'linear-gradient(180deg,#f7f9fb,#eef2f5)',
         padding: '24px 20px',
         fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-        color: '#172026',
+        color: 'var(--af-text)',
       }}>
         <div style={{ fontSize: 52, marginBottom: 16, textAlign: 'center' }}>⚠️</div>
         <h1 style={{ fontSize: 22, fontWeight: 900, margin: '0 0 8px', textAlign: 'center', lineHeight: 1.2 }}>
           Oups, quelque chose a planté
         </h1>
-        <p style={{ fontSize: 14, color: '#64727d', textAlign: 'center', lineHeight: 1.6, maxWidth: 340, margin: '0 0 24px' }}>
+        <p style={{ fontSize: 14, color: 'var(--af-muted)', textAlign: 'center', lineHeight: 1.6, maxWidth: 340, margin: '0 0 24px' }}>
           Ton agence est sauvegardée automatiquement. Recharge la page pour reprendre exactement où tu en étais.
         </p>
         <button
@@ -79,8 +79,8 @@ export default class ErrorBoundary extends React.Component {
         <button
           onClick={this.handleReset}
           style={{
-            background: '#f7f9fb',
-            color: '#64727d',
+            background: 'oklch(16% 0.035 258 / .78)',
+            color: 'var(--af-muted)',
             border: '1px solid #d6dde3',
             padding: '10px 24px',
             borderRadius: 10,
@@ -101,7 +101,7 @@ export default class ErrorBoundary extends React.Component {
             background: '#f0f4f7',
             borderRadius: 6,
             fontSize: 10,
-            color: '#64727d',
+            color: 'var(--af-muted)',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-all',
             maxHeight: 160,

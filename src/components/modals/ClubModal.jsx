@@ -36,7 +36,7 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
         </div>
         <div style={S.mBody}>
           <div style={S.profileHero}>
-            <div style={{ ...S.agencyAvatar, background: '#172026', width: 72, height: 72 }}>{club.name.slice(0, 2).toUpperCase()}</div>
+            <div style={{ ...S.agencyAvatar, background: 'oklch(22% 0.045 252 / .85)', width: 72, height: 72 }}>{club.name.slice(0, 2).toUpperCase()}</div>
             <div>
               <h2 style={S.mTitle}>{club.name}</h2>
               <div style={S.mPlayer}>{country.flag} {country.label} · {club.city}</div>

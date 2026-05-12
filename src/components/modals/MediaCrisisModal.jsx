@@ -5,7 +5,7 @@ import { S } from '../styles';
 
 const CRISIS_LABELS = {
   scandal:     { label: 'SCANDALE',     color: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
-  controversy: { label: 'CONTROVERSE',  color: '#b45309', bg: '#fffbeb', border: '#fcd34d' },
+  controversy: { label: 'CONTROVERSE',  color: 'oklch(78% 0.16 70)', bg: '#fffbeb', border: '#fcd34d' },
   leak:        { label: 'FUITE',        color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
 };
 
@@ -142,7 +142,7 @@ function OutcomeScreen({ player, crisis, choice, onResolve, onClose }) {
         <div style={S.mBody}>
           {/* Verdict */}
           <div style={{
-            background: '#f0fdf8',
+            background: 'oklch(28% 0.08 158 / .22)',
             border: '1px solid #b6f0da',
             borderRadius: 8,
             padding: '12px 14px',
@@ -156,8 +156,8 @@ function OutcomeScreen({ player, crisis, choice, onResolve, onClose }) {
               <div style={{ fontSize: 10, letterSpacing: '.22em', color: '#00a676', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 3 }}>
                 DÉCISION PRISE
               </div>
-              <div style={{ fontSize: 14, color: '#172026', fontWeight: 800 }}>{choice.label}</div>
-              <div style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 2 }}>{choice.desc}</div>
+              <div style={{ fontSize: 14, color: 'var(--af-text)', fontWeight: 800 }}>{choice.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', marginTop: 2 }}>{choice.desc}</div>
             </div>
           </div>
 
@@ -166,7 +166,7 @@ function OutcomeScreen({ player, crisis, choice, onResolve, onClose }) {
             <div style={S.secTitle}>
               EFFETS SUR {player?.firstName?.toUpperCase()} {player?.lastName?.toUpperCase()}
             </div>
-            <div style={{ background: '#f7f9fb', border: '1px solid #e5eaf0', borderRadius: 8, padding: '2px 12px' }}>
+            <div style={{ background: 'oklch(16% 0.035 258 / .78)', border: '1px solid var(--af-border)', borderRadius: 8, padding: '2px 12px' }}>
               {effects.rep != null && effects.rep !== 0 && (
                 <div style={{ ...S.sumRow }}>
                   <span style={S.sumK}>⭐ Réputation</span>
@@ -291,7 +291,7 @@ export default function MediaCrisisModal({ player, crisis, money, onResolve, onC
                 {crisisStyle.label}
                 <SeverityFlames severity={sev} />
               </div>
-              <div style={{ fontSize: 15, fontWeight: 850, color: '#172026' }}>{crisis?.title ?? 'Incident médiatique'}</div>
+              <div style={{ fontSize: 15, fontWeight: 850, color: 'var(--af-text)' }}>{crisis?.title ?? 'Incident médiatique'}</div>
             </div>
           </div>
 

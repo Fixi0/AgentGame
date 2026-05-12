@@ -30,7 +30,7 @@ function SummaryPill({ count, label, color, icon: Icon }) {
   return (
     <div style={{
       flex: 1,
-      background: '#ffffff',
+      background: 'oklch(18% 0.035 258 / .92)',
       border: `1px solid ${color}40`,
       borderRadius: 8,
       padding: '10px 8px',
@@ -41,7 +41,7 @@ function SummaryPill({ count, label, color, icon: Icon }) {
         <Icon size={14} color={color} />
       </div>
       <div style={{ fontSize: 22, fontWeight: 900, color, lineHeight: 1 }}>{count}</div>
-      <div style={{ fontSize: 9, letterSpacing: '.12em', color: '#64727d', fontFamily: 'system-ui,sans-serif', fontWeight: 800, marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 9, letterSpacing: '.12em', color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 800, marginTop: 4 }}>{label}</div>
     </div>
   );
 }
@@ -55,7 +55,7 @@ function PlayerContractCard({ player, state, onNego }) {
 
   return (
     <div style={{
-      background: '#ffffff',
+      background: 'oklch(18% 0.035 258 / .92)',
       border: `1px solid ${weeksLeft < 8 ? '#fca5a5' : weeksLeft < 26 ? '#fcd34d' : '#e5eaf0'}`,
       borderLeft: `4px solid ${color}`,
       borderRadius: 8,
@@ -66,10 +66,10 @@ function PlayerContractCard({ player, state, onNego }) {
       {/* Top row: name + badge */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#172026', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--af-text)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {player.firstName} {player.lastName}
           </div>
-          <div style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
+          <div style={{ fontSize: 11, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>
             {player.club} · {player.position}
           </div>
         </div>
@@ -94,7 +94,7 @@ function PlayerContractCard({ player, state, onNego }) {
       <div style={{ marginBottom: 6 }}>
         <ContractBar weeksLeft={weeksLeft} />
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-          <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
+          <span style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>
             {weeksLeft > 0 ? `${weeksLeft} sem. restantes` : 'Contrat expiré'}
           </span>
           <span style={{ fontSize: 10, fontWeight: 800, color, fontFamily: 'system-ui,sans-serif' }}>
@@ -145,7 +145,7 @@ export default function ContractDashboard({ state, currentWeek, onOpenPlayer, on
       <div style={S.et}>
         <div style={S.el}>GESTION</div>
         <h1 style={S.eh}>CONTRATS</h1>
-        <div style={{ fontSize: 13, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 6 }}>
+        <div style={{ fontSize: 13, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', marginTop: 6 }}>
           Vue d'ensemble de ton effectif
         </div>
       </div>
@@ -183,7 +183,7 @@ export default function ContractDashboard({ state, currentWeek, onOpenPlayer, on
           {/* Warning section */}
           {warning.length > 0 && (
             <div>
-              <div style={{ ...S.secTitle, color: '#b45309', marginBottom: 8 }}>
+              <div style={{ ...S.secTitle, color: 'oklch(78% 0.16 70)', marginBottom: 8 }}>
                 <Clock size={12} />
                 EXPIRENT DANS 8–26 SEMAINES
               </div>

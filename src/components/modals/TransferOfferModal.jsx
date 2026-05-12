@@ -30,7 +30,7 @@ export default function TransferOfferModal({ offer, player, readiness, onClose, 
             <div style={{ fontSize: 10, letterSpacing: '.16em', color: toneColor, fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 4 }}>
               STATUT
             </div>
-            <div style={{ fontSize: 13, color: '#172026', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, color: 'var(--af-text)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
               {readiness?.reason ?? 'Offre prête.'}
             </div>
           </div>

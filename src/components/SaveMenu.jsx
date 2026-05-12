@@ -1,7 +1,8 @@
 import { Download, Play, PlusCircle, RotateCcw, Save, Upload } from 'lucide-react';
 import React, { useRef } from 'react';
-import { S } from './styles';
 import { assetPath } from '../utils/assets';
+import { getAgencyLogo } from '../utils/agencyLogos';
+import tunnelHero from '../assets/hero/broadcast-tunnel.jpg';
 
 export default function SaveMenu({
   saveSlots = [],
@@ -17,136 +18,200 @@ export default function SaveMenu({
 }) {
   const lockRef = useRef(false);
   const trigger = (handler) => (event) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
+    if (event) { event.preventDefault(); event.stopPropagation(); }
     if (!handler || lockRef.current) return;
     lockRef.current = true;
-    try {
-      handler();
-    } finally {
-      setTimeout(() => { lockRef.current = false; }, 120);
-    }
+    try { handler(); } finally { setTimeout(() => { lockRef.current = false; }, 120); }
   };
 
   const slots = saveSlots.length
     ? saveSlots
     : Array.from({ length: 3 }, (_, idx) => ({ slot: idx + 1, hasSave: false, preview: null, isActive: false }));
-  const activeSlot = slots.find((slot) => slot.slot === selectedSlot) ?? slots[0];
+  const activeSlot = slots.find((s) => s.slot === selectedSlot) ?? slots[0];
   const savePreview = activeSlot?.preview ?? null;
   const hasSave = Boolean(activeSlot?.hasSave);
   const continueLabel = savePreview
-    ? `Continuer S${savePreview.season} · S${savePreview.seasonWeek}/38`
+    ? `Reprendre · S${savePreview.season} S${savePreview.seasonWeek}/38`
     : 'Continuer';
-  const newLabel = hasSave ? 'Nouvelle partie (écrase ce slot)' : 'Nouvelle partie';
-  const resetLabel = hasSave ? 'Supprimer la sauvegarde du slot' : 'Slot vide';
+  const newLabel = hasSave ? 'Nouvelle partie (écrase)' : 'Nouvelle partie';
+  const resetLabel = hasSave ? 'Supprimer la sauvegarde' : 'Slot vide';
 
   return (
-    <div style={S.onboardingWrap}>
-      <div style={S.onboardingCard}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
-          <img
-            src={assetPath('branding/agent-foot-logo.png')}
-            alt="Logo Agent FC"
-            style={{
-              width: 74,
-              height: 74,
-              borderRadius: 16,
-              objectFit: 'cover',
-              border: '1px solid #e5eaf0',
-              boxShadow: '0 10px 24px rgba(15,23,32,.14)',
-            }}
-          />
-        </div>
-        <div style={S.el}>AGENT FOOT</div>
-        <h1 style={S.eh}>Carrière</h1>
-        <p style={S.onboardingText}>Choisis un slot, puis continue, crée une nouvelle partie, ou importe une sauvegarde.</p>
-        <div style={{
-          marginBottom: 14,
-          padding: '10px 12px',
-          background: '#f7f9fb',
-          border: '1px solid #e5eaf0',
-          borderRadius: 8,
-          color: '#3f5663',
-          fontSize: 12,
-          lineHeight: 1.45,
-          fontFamily: 'system-ui,sans-serif',
-          fontWeight: 650,
-        }}>
-          Quitter une partie ne supprime rien. Seul le bouton suppression efface un slot.
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
-          {slots.map((slot) => (
-            <button
-              key={slot.slot}
-              type="button"
-              onPointerUp={trigger(() => onSelectSlot?.(slot.slot))}
-              onClick={trigger(() => onSelectSlot?.(slot.slot))}
-              style={{
-                borderRadius: 8,
-                border: selectedSlot === slot.slot ? '2px solid #00a676' : '1px solid #d6dde3',
-                background: selectedSlot === slot.slot ? '#f0fdf8' : '#ffffff',
-                color: selectedSlot === slot.slot ? '#246555' : '#3f5663',
-                padding: '10px 8px',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase' }}>
-                Slot {slot.slot}
-              </div>
-              <div style={{ fontSize: 11, marginTop: 3, fontWeight: 700 }}>
-                {slot.hasSave ? `S${slot.preview?.season ?? '?'} · S${slot.preview?.seasonWeek ?? '?'}` : 'Vide'}
-              </div>
-            </button>
-          ))}
-        </div>
-        <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
-          <button type="button" onPointerUp={trigger(onContinue)} onClick={trigger(onContinue)} disabled={!hasSave} style={{ ...S.primaryBtn, opacity: hasSave ? 1 : 0.45 }}>
-            <Play size={14} />
+    <div style={{ width: '100%', height: '100dvh', maxHeight: '100dvh', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+      <div style={{ maxWidth: 1080, margin: '0 auto', padding: '18px 14px 56px', display: 'grid', gap: 22 }}>
+
+        {/* HERO BROADCAST */}
+        <section
+          className="af-hero-broadcast af-anim-fade-in"
+          style={{ minHeight: 'min(70vh, 540px)', backgroundImage: `url(${tunnelHero})`, padding: '28px 22px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }} className="af-anim-fade-up">
+            <span className="af-cyan-line" />
+            <img
+              src={assetPath('branding/agent-foot-logo.png')}
+              alt=""
+              style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'cover' }}
+            />
+            <span style={{ color: 'var(--af-cyan)', fontSize: 11, fontWeight: 900, letterSpacing: '.32em', textTransform: 'uppercase' }}>
+              Carrière · Saison 1
+            </span>
+          </div>
+          <h1 className="af-titan af-anim-fade-up af-anim-d1" style={{ color: '#fff' }}>
+            Agent<br />FC
+          </h1>
+          <p className="af-anim-fade-up af-anim-d2" style={{ color: 'rgba(255,255,255,.78)', maxWidth: 480, fontSize: 14, lineHeight: 1.55, margin: '14px 0 0' }}>
+            Construis ton écurie. Négocie. Écris la légende.
+          </p>
+        </section>
+        {/* SLOTS XL */}
+        <section className="af-anim-fade-up af-anim-d3" style={{ display: 'grid', gap: 14 }}>
+          <div className="af-kicker" style={{ color: 'var(--af-cyan)' }}>Slots de sauvegarde</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
+            {slots.map((slot) => {
+              const p = slot.preview;
+              const isSelected = selectedSlot === slot.slot;
+              const logo = p?.emblem ? getAgencyLogo(p.emblem) : null;
+              const accent = p?.signatureColor || 'var(--af-grass)';
+              return (
+                <button
+                  key={slot.slot}
+                  type="button"
+                  onPointerUp={trigger(() => onSelectSlot?.(slot.slot))}
+                  onClick={trigger(() => onSelectSlot?.(slot.slot))}
+                  className="af-panel"
+                  style={{
+                    textAlign: 'left', cursor: 'pointer', padding: 18,
+                    border: isSelected ? `2px solid ${accent}` : '1px solid var(--af-border)',
+                    boxShadow: isSelected ? `0 0 0 4px color-mix(in oklch, ${accent} 22%, transparent), var(--af-shadow-card)` : 'var(--af-shadow-card)',
+                    transition: 'transform .15s ease, box-shadow .2s ease',
+                    transform: isSelected ? 'translateY(-2px)' : 'none',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div
+                      className="af-logo-disc"
+                      style={{
+                        width: 64, height: 64, flexShrink: 0,
+                        background: `linear-gradient(135deg, color-mix(in oklch, ${accent} 30%, transparent), oklch(18% 0.04 252))`,
+                        border: '1px solid var(--af-border)',
+                      }}
+                    >
+                      {logo
+                        ? <img src={logo.src} alt="" />
+                        : <span style={{ position: 'relative', zIndex: 2, fontSize: 24, fontWeight: 950, color: 'var(--af-dim)' }}>{slot.slot}</span>}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ color: 'var(--af-dim)', fontSize: 10, fontWeight: 900, letterSpacing: '.16em', textTransform: 'uppercase' }}>
+                        Slot {slot.slot}
+                      </div>
+                      <div style={{ color: 'var(--af-text)', fontSize: 18, fontWeight: 950, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p?.agencyName || 'Slot vide'}
+                      </div>
+                      <div style={{ color: 'var(--af-muted)', fontSize: 12, marginTop: 3 }}>
+                        {p ? `S${p.season} · S${p.seasonWeek}/38` : 'Lance une nouvelle partie'}
+                      </div>
+                    </div>
+                  </div>
+                  {p && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--af-border)' }}>
+                      <div>
+                        <div style={{ color: 'var(--af-dim)', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>Joueurs</div>
+                        <div style={{ color: 'var(--af-text)', fontSize: 15, fontWeight: 900, marginTop: 2 }}>{p.rosterCount}</div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--af-dim)', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>Capital</div>
+                        <div style={{ color: 'var(--af-text)', fontSize: 15, fontWeight: 900, marginTop: 2 }}>{(p.money / 1000).toFixed(0)}k €</div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--af-dim)', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>Rép.</div>
+                        <div style={{ color: 'var(--af-text)', fontSize: 15, fontWeight: 900, marginTop: 2 }}>{p.reputation}</div>
+                      </div>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ACTIONS */}
+        <section style={{ display: 'grid', gap: 12 }}>
+          <button
+            type="button"
+            onPointerUp={trigger(onContinue)}
+            onClick={trigger(onContinue)}
+            disabled={!hasSave}
+            className="af-btn-primary"
+            style={{ padding: '18px 20px', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: hasSave ? 1 : .4, cursor: hasSave ? 'pointer' : 'not-allowed' }}
+          >
+            <Play size={18} fill="currentColor" />
             {continueLabel}
           </button>
-          <button type="button" onPointerUp={trigger(onNewGame)} onClick={trigger(onNewGame)} style={{ ...S.secBtn, marginBottom: 0 }}>
-            <PlusCircle size={14} />
+          <button
+            type="button"
+            onPointerUp={trigger(onNewGame)}
+            onClick={trigger(onNewGame)}
+            className="af-btn-secondary"
+            style={{ padding: '15px 18px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+          >
+            <PlusCircle size={16} />
             {newLabel}
           </button>
-          <button type="button" onPointerUp={trigger(onReset)} onClick={trigger(onReset)} disabled={!hasSave} style={{ ...S.secBtn, color: '#b42318', marginBottom: 0, background: '#fff6f6', borderColor: '#f3c7c2', opacity: hasSave ? 1 : 0.6 }}>
-            <RotateCcw size={14} />
-            {resetLabel}
-          </button>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <button type="button" onPointerUp={trigger(onExport)} onClick={trigger(onExport)} disabled={!hasSave} style={{ ...S.secBtn, marginBottom: 0, opacity: hasSave ? 1 : 0.6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+            <button
+              type="button"
+              onPointerUp={trigger(onExport)}
+              onClick={trigger(onExport)}
+              disabled={!hasSave}
+              className="af-btn-secondary"
+              style={{ padding: '13px 12px', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: hasSave ? 1 : .5 }}
+            >
               <Download size={14} />
               Exporter
             </button>
-            <button type="button" onPointerUp={trigger(onImport)} onClick={trigger(onImport)} style={{ ...S.secBtn, marginBottom: 0 }}>
+            <button
+              type="button"
+              onPointerUp={trigger(onImport)}
+              onClick={trigger(onImport)}
+              className="af-btn-secondary"
+              style={{ padding: '13px 12px', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            >
               <Upload size={14} />
               Importer
             </button>
+            <button
+              type="button"
+              onPointerUp={trigger(onReset)}
+              onClick={trigger(onReset)}
+              disabled={!hasSave}
+              style={{
+                padding: '13px 12px', fontSize: 11, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase',
+                borderRadius: 'var(--af-radius-sm)', cursor: hasSave ? 'pointer' : 'not-allowed',
+                border: '1px solid oklch(60% 0.18 25 / .5)', background: 'oklch(28% 0.08 25 / .35)', color: 'oklch(82% 0.16 25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: hasSave ? 1 : .5,
+              }}
+            >
+              <RotateCcw size={14} />
+              {resetLabel}
+            </button>
           </div>
           {canReturnToGame && (
-            <button type="button" onPointerUp={trigger(onReturnToGame)} onClick={trigger(onReturnToGame)} style={{ ...S.secBtn, marginBottom: 0 }}>
+            <button
+              type="button"
+              onPointerUp={trigger(onReturnToGame)}
+              onClick={trigger(onReturnToGame)}
+              className="af-btn-secondary"
+              style={{ padding: '13px 18px', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            >
               <Save size={14} />
               Retour au jeu
             </button>
           )}
-        </div>
-        {savePreview ? (
-          <div style={S.objCard}>
-            <div style={S.secTitle}>SLOT {selectedSlot} · PARTIE EN COURS</div>
-            <div style={S.sumRow}><span style={S.sumK}>Agence</span><strong>{savePreview.agencyName}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Dirigée par</span><strong>{savePreview.ownerName}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Date</span><strong>S{savePreview.season} · S{savePreview.seasonWeek}/38</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Joueurs</span><strong>{savePreview.rosterCount}</strong></div>
-            <div style={S.sumRow}><span style={S.sumK}>Capital</span><strong>{savePreview.money.toLocaleString('fr-FR')} €</strong></div>
-            <div style={{ ...S.sumRow, borderBottom: 'none' }}><span style={S.sumK}>Réputation</span><strong>{savePreview.reputation}</strong></div>
-          </div>
-        ) : (
-          <div style={{ ...S.objCard, textAlign: 'center', color: '#64727d', fontSize: 13, fontFamily: 'system-ui,sans-serif' }}>
-            Ce slot est vide. Lance une nouvelle partie ou importe une sauvegarde.
-          </div>
-        )}
+        </section>
+
+        <p style={{ color: 'var(--af-dim)', fontSize: 11, textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
+          Quitter une partie ne supprime rien — seul le bouton suppression efface un slot.
+        </p>
       </div>
     </div>
   );

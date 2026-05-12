@@ -5,6 +5,35 @@ import { GEM_PACKS, NO_ADS_PRODUCT_ID, PREMIUM_PRODUCTS, SHOP_CATEGORIES, SHOP_I
 import { formatMoney } from '../utils/format';
 import { assetPath } from '../utils/assets';
 import { S } from './styles';
+import shopHero from '../assets/events/shop-hero.jpg';
+import shopFinance from '../assets/events/shop-finance.jpg';
+import shopBoost from '../assets/events/shop-boost.jpg';
+import shopScouting from '../assets/events/shop-scouting.jpg';
+import shopContacts from '../assets/events/shop-contacts.jpg';
+import shopTransfer from '../assets/events/shop-transfer.jpg';
+import packStarter from '../assets/events/pack-starter.jpg';
+import packPlayer from '../assets/events/pack-player.jpg';
+import packPro from '../assets/events/pack-pro.jpg';
+import packElite from '../assets/events/pack-elite.jpg';
+import packLegend from '../assets/events/pack-legend.jpg';
+import packNoAds from '../assets/events/pack-noads.jpg';
+
+const PACK_BANNER = {
+  gems_starter: packStarter,
+  gems_player: packPlayer,
+  gems_pro: packPro,
+  gems_elite: packElite,
+  gems_legend: packLegend,
+  remove_ads: packNoAds,
+};
+
+const CATEGORY_BANNER = {
+  finances: shopFinance,
+  boost: shopBoost,
+  scouting: shopScouting,
+  contacts: shopContacts,
+  transfer: shopTransfer,
+};
 
 const CATEGORY_THEME = {
   finances: {
@@ -16,9 +45,9 @@ const CATEGORY_THEME = {
   },
   boost: {
     chip: '#2563eb',
-    chipBg: '#eff6ff',
+    chipBg: 'oklch(28% 0.12 245 / .35)',
     border: '#bfdbfe',
-    gradient: 'linear-gradient(135deg,#1d4ed8,#3b82f6)',
+    gradient: 'linear-gradient(135deg,var(--af-cyan),#3b82f6)',
     label: 'Accélération',
   },
   scouting: {
@@ -36,15 +65,15 @@ const CATEGORY_THEME = {
     label: 'Réseau',
   },
   transfer: {
-    chip: '#166534',
-    chipBg: '#f0fdf4',
-    border: '#bbf7d0',
-    gradient: 'linear-gradient(135deg,#166534,#22c55e)',
+    chip: 'var(--af-grass)',
+    chipBg: 'oklch(28% 0.10 155 / .35)',
+    border: 'var(--af-grass)',
+    gradient: 'linear-gradient(135deg,var(--af-grass),#22c55e)',
     label: 'Mercato',
   },
   default: {
     chip: '#334155',
-    chipBg: '#f8fafc',
+    chipBg: 'var(--af-surface-soft)',
     border: '#cbd5e1',
     gradient: 'linear-gradient(135deg,#1e293b,#334155)',
     label: 'Bonus',
@@ -53,7 +82,7 @@ const CATEGORY_THEME = {
 
 const PACK_THEME = {
   gems_starter: { gradient: 'linear-gradient(135deg,#0f172a,#1f2937)', halo: 'rgba(15,23,42,.28)', tag: 'Nouveau' },
-  gems_player: { gradient: 'linear-gradient(135deg,#1d4ed8,#2563eb)', halo: 'rgba(37,99,235,.26)', tag: 'Populaire' },
+  gems_player: { gradient: 'linear-gradient(135deg,var(--af-cyan),#2563eb)', halo: 'rgba(37,99,235,.26)', tag: 'Populaire' },
   gems_pro: { gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', halo: 'rgba(124,58,237,.26)', tag: 'Pro' },
   gems_elite: { gradient: 'linear-gradient(135deg,#c2410c,#f97316)', halo: 'rgba(194,65,12,.26)', tag: 'Élite' },
   gems_legend: { gradient: 'linear-gradient(135deg,#14532d,#22c55e)', halo: 'rgba(20,83,45,.26)', tag: 'Légende' },
@@ -114,52 +143,36 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
       </div>
 
       <div style={{
+        position: 'relative',
         borderRadius: 8,
-        border: '1px solid #dbe3ea',
-        padding: 16,
+        overflow: 'hidden',
         marginBottom: 14,
-        background: 'linear-gradient(135deg,#0f172a,#1e293b)',
-        boxShadow: '0 18px 36px rgba(15,23,42,.2)',
+        border: '1px solid var(--af-border)',
+        boxShadow: '0 18px 36px rgba(15,23,42,.35)',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
+        <img src={shopHero} alt="Boutique" loading="lazy" style={{ width: '100%', height: 170, objectFit: 'cover', display: 'block' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(8,17,31,.20) 0%, rgba(8,17,31,.88) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, padding: 16, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 10, letterSpacing: '.16em', color: 'rgba(255,255,255,.75)', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>
+            <div style={{ fontSize: 10, letterSpacing: '.18em', color: 'rgba(255,255,255,.78)', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 4 }}>
               SALLE DU CONSEIL
             </div>
-            <div style={{ fontSize: 22, fontWeight: 950, color: '#ffffff', lineHeight: 1.1 }}>
+            <div style={{ fontSize: 22, fontWeight: 950, color: '#fff', lineHeight: 1.1, textShadow: '0 2px 14px rgba(0,0,0,.5)' }}>
               Fais grandir ton empire
             </div>
-            <div style={{ marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,.75)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45 }}>
-              Des boosts concrets pour accélérer ton agence sans casser ton rythme de jeu.
-            </div>
           </div>
-          <img
-            src={assetPath('tycoon-assets/v_shop.png')}
-            alt="Boutique"
-            style={{ width: 56, height: 56, objectFit: 'contain', filter: 'drop-shadow(0 8px 18px rgba(255,214,10,.26))' }}
-          />
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 8 }}>
-          <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>CAPITAL</div>
-            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <img src={assetPath('tycoon-assets/resource_cash.png')} alt="Capital" style={{ width: 14, height: 14, objectFit: 'contain' }} />
-              {formatMoney(money)}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 6 }}>
+            <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(8,17,31,.55)', backdropFilter: 'blur(6px)', padding: 8 }}>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,.7)', letterSpacing: '.12em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>CAPITAL</div>
+              <div style={{ marginTop: 3, fontSize: 12, color: '#fff', fontWeight: 900 }}>{formatMoney(money)}</div>
             </div>
-          </div>
-          <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>GEMMES</div>
-            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <img src={assetPath('tycoon-assets/resource_coin.png')} alt="Gemmes" style={{ width: 14, height: 14, objectFit: 'contain' }} />
-              {gems}
+            <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(8,17,31,.55)', backdropFilter: 'blur(6px)', padding: 8 }}>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,.7)', letterSpacing: '.12em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>GEMMES</div>
+              <div style={{ marginTop: 3, fontSize: 12, color: '#fff', fontWeight: 900 }}>{gems}</div>
             </div>
-          </div>
-          <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.06)', padding: 10 }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.75)', letterSpacing: '.14em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>RÉPUTATION</div>
-            <div style={{ marginTop: 4, fontSize: 14, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <img src={assetPath('tycoon-assets/reputation_shield.png')} alt="Réputation" style={{ width: 14, height: 14, objectFit: 'contain' }} />
-              {reputation}/1000
+            <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.18)', background: 'rgba(8,17,31,.55)', backdropFilter: 'blur(6px)', padding: 8 }}>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,.7)', letterSpacing: '.12em', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>RÉPU.</div>
+              <div style={{ marginTop: 3, fontSize: 12, color: '#fff', fontWeight: 900 }}>{reputation}/1000</div>
             </div>
           </div>
         </div>
@@ -175,7 +188,7 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
         <div style={S.sumRow}><span style={S.sumK}>Cycle fidélité</span><strong>{shopRuntime.loyalty.progress}/{shopRuntime.loyalty.target}</strong></div>
         <div style={S.sumRow}><span style={S.sumK}>Récompense cycle</span><strong>{shopRuntime.loyalty.reward.gems} gemmes + {formatMoney(shopRuntime.loyalty.reward.money)}</strong></div>
         {shopRuntime.firstPurchaseBonusPending && (
-          <div style={{ marginTop: 8, borderRadius: 8, background: '#f0fdf8', border: '1px solid #b7ebd6', padding: '9px 10px', fontSize: 11, color: '#0f766e', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>
+          <div style={{ marginTop: 8, borderRadius: 8, background: 'oklch(28% 0.08 158 / .22)', border: '1px solid #b7ebd6', padding: '9px 10px', fontSize: 11, color: '#0f766e', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>
             Premier achat du jour: bonus immédiat +12 gemmes.
           </div>
         )}
@@ -183,12 +196,15 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
 
       <div style={{
         ...S.objCard,
-        border: '1px solid #bae6fd',
-        background: 'linear-gradient(135deg,#f0f9ff,#f0fdf8)',
+        border: '1px solid oklch(28% 0.10 200 / .55)',
+        background: 'linear-gradient(135deg, oklch(20% 0.06 220 / .92), oklch(18% 0.05 200 / .92))',
       }}>
         <div style={S.secTitle}>
           <Crown size={14} />
           <span>PUBS & RÉCOMPENSES</span>
+        </div>
+        <div style={{ marginBottom: 10, borderRadius: 8, border: '1px solid rgba(125,211,252,.22)', background: 'rgba(8,17,31,.55)', color: 'rgba(255,255,255,.82)', padding: '9px 10px', fontSize: 10, lineHeight: 1.45, fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>
+          Pubs automatiques toutes les {shopRuntime.ads.interstitialCadenceLabel}. Le pack premium les retire définitivement.
         </div>
 
         {PREMIUM_PRODUCTS.map((product) => {
@@ -202,33 +218,39 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
               disabled={owned || pending}
               style={{
                 width: '100%',
-                border: '1px solid rgba(15,118,110,.25)',
-                borderRadius: 8,
-                padding: 13,
+                border: '1px solid rgba(125,211,252,.25)',
+                borderRadius: 10,
+                padding: 0,
                 marginBottom: 10,
+                overflow: 'hidden',
                 background: PACK_THEME[NO_ADS_PRODUCT_ID].gradient,
                 boxShadow: `0 14px 30px ${PACK_THEME[NO_ADS_PRODUCT_ID].halo}`,
                 cursor: owned ? 'default' : pending ? 'wait' : 'pointer',
                 opacity: pending ? 0.76 : 1,
                 textAlign: 'left',
+                position: 'relative',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                <div>
-                  <div style={{ display: 'inline-flex', padding: '3px 7px', borderRadius: 8, background: 'rgba(255,255,255,.18)', color: '#ffffff', fontSize: 9, letterSpacing: '.12em', fontWeight: 900, fontFamily: 'system-ui,sans-serif', marginBottom: 8 }}>
-                    {owned ? 'Activé' : 'Premium'}
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 950, color: '#ffffff' }}>{product.label}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.82)', fontFamily: 'system-ui,sans-serif', marginTop: 3, lineHeight: 1.4 }}>
+              <div style={{ position: 'relative', height: 78 }}>
+                <img src={packNoAds} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.85 }} />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,.10) 0%, rgba(8,17,31,.75) 100%)' }} />
+                <div style={{ position: 'absolute', top: 8, left: 10, display: 'inline-flex', padding: '3px 8px', borderRadius: 8, background: 'rgba(0,0,0,.5)', color: '#fff', fontSize: 9, letterSpacing: '.14em', fontWeight: 900, fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
+                  {owned ? 'Activé' : 'Premium'}
+                </div>
+                <ShieldCheck size={22} color="#7dd3fc" style={{ position: 'absolute', top: 8, right: 10, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.6))' }} />
+              </div>
+              <div style={{ padding: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 950, color: '#ffffff', textShadow: '0 2px 8px rgba(0,0,0,.45)' }}>{product.label}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.86)', fontFamily: 'system-ui,sans-serif', marginTop: 3, lineHeight: 1.4 }}>
                     {product.desc}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <ShieldCheck size={22} color="#ffffff" style={{ marginBottom: 4 }} />
-                  <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: '#ffffff', textShadow: '0 2px 8px rgba(0,0,0,.45)' }}>
                     {owned ? 'OK' : (iapProducts[product.id]?.displayPrice ?? product.price)}
                   </div>
-                  <div style={{ fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,255,255,.8)', fontFamily: 'system-ui,sans-serif' }}>
+                  <div style={{ fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,255,255,.85)', fontFamily: 'system-ui,sans-serif' }}>
                     {pending ? 'achat...' : owned ? 'sans pubs' : 'achat in-app'}
                   </div>
                 </div>
@@ -245,10 +267,10 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
               onClick={() => offer.available && onWatchRewardedAd?.(offer.id)}
               disabled={!offer.available}
               style={{
-                border: '1px solid #d7efe5',
+                border: '1px solid var(--af-border)',
                 borderRadius: 8,
                 padding: '10px 11px',
-                background: offer.available ? '#ffffff' : '#f8fafc',
+                background: offer.available ? 'oklch(18% 0.035 258 / .92)' : 'oklch(16% 0.03 258 / .65)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -259,19 +281,19 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
               }}
             >
               <div style={{ display: 'flex', gap: 9, alignItems: 'center', minWidth: 0 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: '#ecfeff', border: '1px solid #bae6fd', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                  <PlayCircle size={18} color="#0284c7" />
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: 'oklch(28% 0.10 220 / .35)', border: '1px solid oklch(35% 0.10 220 / .55)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <PlayCircle size={18} color="#7dd3fc" />
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: '#172026' }}>{offer.label}</div>
-                  <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', lineHeight: 1.35 }}>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: 'var(--af-text)' }}>{offer.label}</div>
+                  <div style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.35 }}>
                     {offer.desc}
                   </div>
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 950, color: '#00a676' }}>{offer.rewardLabel}</div>
-                <div style={{ marginTop: 2, fontSize: 9, color: '#64727d', letterSpacing: '.08em', fontWeight: 850, fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
+                <div style={{ marginTop: 2, fontSize: 9, color: 'var(--af-muted)', letterSpacing: '.08em', fontWeight: 850, fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
                   {offer.remaining}/{offer.maxPerDay} aujourd’hui
                 </div>
               </div>
@@ -287,7 +309,7 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
         </div>
         <div style={{ display: 'grid', gap: 8 }}>
           {shopRuntime.featuredOffers.map((offer) => (
-            <div key={offer.id} style={{ border: '1px solid #d7efe5', background: '#f0fdf8', borderRadius: 8, padding: '9px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <div key={offer.id} style={{ border: '1px solid #d7efe5', background: 'oklch(28% 0.08 158 / .22)', borderRadius: 8, padding: '9px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <img
                   src={CATEGORY_ASSET[offer.category] ?? assetPath('tycoon-assets/v_shop.png')}
@@ -295,8 +317,8 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
                   style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }}
                 />
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: '#172026' }}>{offer.label}</div>
-                  <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: 'var(--af-text)' }}>{offer.label}</div>
+                  <div style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>
                     <span style={{ textDecoration: 'line-through', marginRight: 6 }}>{offer.baseCost}</span>
                     <strong style={{ color: '#00a676' }}>{offer.price} gemmes</strong>
                   </div>
@@ -316,39 +338,50 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
           <span>COFFRES GEMMES</span>
         </div>
         <div style={S.cardList}>
-          {GEM_PACKS.map((pack) => (
+          {GEM_PACKS.map((pack) => {
+            const banner = PACK_BANNER[pack.id];
+            return (
             <button key={pack.id} type="button" onClick={() => onBuyGemPack?.(pack.id)} disabled={iapPendingProductId === pack.id} style={{
               background: PACK_THEME[pack.id]?.gradient ?? 'linear-gradient(135deg,#1f2937,#334155)',
               border: '1px solid rgba(255,255,255,.18)',
-              borderRadius: 8,
-              padding: 14,
+              borderRadius: 10,
+              padding: 0,
+              overflow: 'hidden',
               boxShadow: `0 14px 30px ${PACK_THEME[pack.id]?.halo ?? 'rgba(51,65,85,.24)'}`,
               cursor: iapPendingProductId === pack.id ? 'wait' : 'pointer',
               opacity: iapPendingProductId && iapPendingProductId !== pack.id ? 0.72 : 1,
               textAlign: 'left',
+              position: 'relative',
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-                <div>
-                  <div style={{ display: 'inline-flex', padding: '3px 7px', borderRadius: 8, background: 'rgba(255,255,255,.18)', color: '#ffffff', fontSize: 9, letterSpacing: '.12em', fontWeight: 900, fontFamily: 'system-ui,sans-serif', marginBottom: 8 }}>
+              {banner && (
+                <div style={{ position: 'relative', height: 88 }}>
+                  <img src={banner} alt={pack.label} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.85 }} />
+                  <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(0,0,0,.10) 0%, ${PACK_THEME[pack.id]?.halo ?? 'rgba(0,0,0,.6)'} 100%)` }} />
+                  <div style={{ position: 'absolute', top: 8, left: 10, display: 'inline-flex', padding: '3px 8px', borderRadius: 8, background: 'rgba(0,0,0,.5)', color: '#fff', fontSize: 9, letterSpacing: '.14em', fontWeight: 900, fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
                     {PACK_THEME[pack.id]?.tag ?? 'Pack'}
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: '#ffffff' }}>{pack.label}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.86)', fontFamily: 'system-ui,sans-serif', marginTop: 3 }}>{pack.gems} gemmes · {pack.bonus || 'Sans bonus'}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
                   <img
                     src={GEM_PACK_ASSET[pack.id] ?? assetPath('tycoon-assets/icon_gem_blue.png')}
-                    alt={pack.label}
-                    style={{ width: 20, height: 20, objectFit: 'contain', marginLeft: 'auto', marginBottom: 4 }}
+                    alt=""
+                    style={{ position: 'absolute', top: 8, right: 10, width: 26, height: 26, objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.6))' }}
                   />
-                  <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>{iapProducts[pack.id]?.displayPrice ?? pack.price}</div>
-                  <div style={{ fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,255,255,.8)', fontFamily: 'system-ui,sans-serif' }}>
+                </div>
+              )}
+              <div style={{ padding: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 950, color: '#ffffff', textShadow: '0 2px 8px rgba(0,0,0,.45)' }}>{pack.label}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.92)', fontFamily: 'system-ui,sans-serif', marginTop: 3 }}>{pack.gems} gemmes · {pack.bonus || 'Sans bonus'}</div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: '#ffffff', textShadow: '0 2px 8px rgba(0,0,0,.45)' }}>{iapProducts[pack.id]?.displayPrice ?? pack.price}</div>
+                  <div style={{ fontSize: 9, letterSpacing: '.14em', color: 'rgba(255,255,255,.85)', fontFamily: 'system-ui,sans-serif' }}>
                     {iapPendingProductId === pack.id ? 'achat...' : 'achat in-app'}
                   </div>
                 </div>
               </div>
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -359,8 +392,8 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
             onClick={() => setCategory(item.id)}
             style={{
               ...S.chipBtn,
-              background: category === item.id ? '#172026' : '#ffffff',
-              color: category === item.id ? '#ffffff' : '#172026',
+              background: category === item.id ? 'var(--af-grass)' : 'var(--af-surface)',
+              color: category === item.id ? '#08111f' : 'var(--af-text)',
             }}
           >
             {CATEGORY_ASSET[item.id] && (
@@ -378,37 +411,34 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
           const discountPercent = shopRuntime.discountByItemId[item.id] ?? 0;
           const canBuy = isGem ? gems >= effectiveCost : (state.money ?? 0) >= effectiveCost;
           const theme = CATEGORY_THEME[item.category] ?? CATEGORY_THEME.default;
+          const banner = CATEGORY_BANNER[item.category];
           return (
             <div
               key={item.id}
               style={{
-                background: '#ffffff',
-                border: item.highlight ? `1px solid ${theme.border}` : '1px solid #e5eaf0',
+                background: 'oklch(18% 0.035 258 / .92)',
+                border: item.highlight ? `1px solid ${theme.border}` : '1px solid var(--af-border)',
                 borderRadius: 8,
-                padding: 14,
-                boxShadow: item.highlight ? '0 14px 32px rgba(15,23,42,.12)' : '0 10px 24px rgba(15,23,32,.06)',
+                overflow: 'hidden',
+                boxShadow: item.highlight ? '0 14px 32px rgba(15,23,42,.18)' : '0 10px 24px rgba(15,23,32,.10)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 10,
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                <div>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 8, padding: '4px 8px', background: theme.chipBg, border: `1px solid ${theme.border}`, fontSize: 9, letterSpacing: '.12em', fontWeight: 900, color: theme.chip, fontFamily: 'system-ui,sans-serif', marginBottom: 7 }}>
-                    {CATEGORY_ASSET[item.category] && (
-                      <img src={CATEGORY_ASSET[item.category]} alt={item.category} style={{ width: 13, height: 13, objectFit: 'contain' }} />
-                    )}
+              {banner && (
+                <div style={{ position: 'relative', height: 90 }}>
+                  <img src={banner} alt={item.label} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(8,17,31,.10) 0%, rgba(8,17,31,.78) 100%)' }} />
+                  <div style={{ position: 'absolute', left: 10, bottom: 8, display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 8, padding: '3px 8px', background: 'rgba(0,0,0,.55)', fontSize: 9, letterSpacing: '.12em', fontWeight: 900, color: '#fff', fontFamily: 'system-ui,sans-serif' }}>
                     {theme.label}
                   </div>
-                  <div style={{ marginBottom: 4 }}>
-                    <img
-                      src={CATEGORY_ASSET[item.category] ?? assetPath('tycoon-assets/v_shop.png')}
-                      alt={item.label}
-                      style={{ width: 22, height: 22, objectFit: 'contain' }}
-                    />
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: '#172026' }}>{item.label}</div>
-                  <div style={{ fontSize: 11, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginTop: 4, lineHeight: 1.45 }}>{item.desc}</div>
+                </div>
+              )}
+              <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: 'var(--af-text)' }}>{item.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', marginTop: 4, lineHeight: 1.45 }}>{item.desc}</div>
                 </div>
                 <div style={{
                   display: 'inline-flex',
@@ -420,7 +450,7 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
                   letterSpacing: '.12em',
                   fontFamily: 'system-ui,sans-serif',
                   color: isGem ? '#00a676' : '#2563eb',
-                  background: isGem ? '#f0fdf8' : '#eff6ff',
+                  background: isGem ? 'oklch(28% 0.10 155 / .35)' : 'oklch(28% 0.12 245 / .35)',
                   border: `1px solid ${isGem ? '#b6f0da' : '#bfdbfe'}`,
                   padding: '3px 8px',
                   borderRadius: 8,
@@ -430,7 +460,7 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
                     ? `${effectiveCost} gemmes`
                     : formatMoney(effectiveCost)}
                   {discountPercent > 0 && (
-                    <span style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif', marginLeft: 4, textDecoration: 'line-through' }}>
+                    <span style={{ fontSize: 9, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', marginLeft: 4, textDecoration: 'line-through' }}>
                       {item.cost}
                     </span>
                   )}
@@ -439,11 +469,11 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
 
               <div style={{
                 borderRadius: 8,
-                border: '1px solid #e5eaf0',
+                border: '1px solid var(--af-border)',
                 padding: '8px 10px',
-                background: '#f8fafc',
+                background: 'oklch(16% 0.035 258 / .78)',
                 fontSize: 11,
-                color: '#334155',
+                color: 'var(--af-muted)',
                 fontFamily: 'system-ui,sans-serif',
                 fontWeight: 700,
               }}>
@@ -466,25 +496,26 @@ export default function Shop({ state, phase, onBuy, onBuyGemPack, onWatchRewarde
                 {canBuy ? <ShoppingBag size={14} /> : <Lock size={14} />}
                 <span>{canBuy ? (discountPercent > 0 ? `ACHETER -${discountPercent}%` : 'ACHETER') : 'SOLDE INSUFFISANT'}</span>
               </button>
+              </div>
             </div>
           );
         })}
       </div>
 
-      <div style={{ ...S.objCard, marginBottom: 0, background: 'linear-gradient(135deg,#f8fafc,#f1f5f9)' }}>
+      <div style={{ ...S.objCard, marginBottom: 0, background: 'linear-gradient(135deg, oklch(20% 0.04 200 / .92), oklch(18% 0.04 158 / .92))', border: '1px solid oklch(28% 0.08 200 / .55)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <ShieldCheck size={15} color="#0f766e" />
-          <div style={{ fontSize: 12, fontWeight: 900, color: '#172026' }}>Progression équilibrée</div>
+          <ShieldCheck size={15} color="#5eead4" />
+          <div style={{ fontSize: 12, fontWeight: 900, color: 'var(--af-text)' }}>Progression équilibrée</div>
         </div>
-        <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.5, fontFamily: 'system-ui,sans-serif' }}>
+        <div style={{ fontSize: 11, color: 'var(--af-muted)', lineHeight: 1.5, fontFamily: 'system-ui,sans-serif' }}>
           Tu peux monter ton agence sans payer. Les achats servent à accélérer les cycles clés: cashflow, réseau et mercato.
         </div>
         <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <div style={{ borderRadius: 8, border: '1px solid #dbe3ea', background: '#ffffff', padding: '8px 10px', fontSize: 10, color: '#334155', fontFamily: 'system-ui,sans-serif', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ borderRadius: 8, border: '1px solid var(--af-border)', background: 'oklch(18% 0.035 258 / .92)', padding: '8px 10px', fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Rocket size={12} color="#2563eb" />
             Plus de rythme
           </div>
-          <div style={{ borderRadius: 8, border: '1px solid #dbe3ea', background: '#ffffff', padding: '8px 10px', fontSize: 10, color: '#334155', fontFamily: 'system-ui,sans-serif', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ borderRadius: 8, border: '1px solid var(--af-border)', background: 'oklch(18% 0.035 258 / .92)', padding: '8px 10px', fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Star size={12} color="#ca8a04" />
             Plus d'impact
           </div>

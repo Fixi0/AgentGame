@@ -46,7 +46,7 @@ export default function ConfirmModal({
         </div>
         <div style={S.mBody}>
           <div style={{ background: accentBg, border: `1px solid ${accent}30`, borderRadius: 8, padding: 14, marginBottom: 14 }}>
-            <div style={{ fontSize: 13, color: '#172026', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, color: 'var(--af-text)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
               {body}
             </div>
           </div>

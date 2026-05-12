@@ -34,7 +34,7 @@ export default function Contacts({ state, onCall }) {
       <div style={S.et}>
         <div style={S.el}>RÉSEAU</div>
         <h1 style={S.eh}>Contacts</h1>
-        <p style={{ fontSize: 12, color: '#64727d', margin: '4px 0 0', fontFamily: 'system-ui,sans-serif' }}>
+        <p style={{ fontSize: 12, color: 'var(--af-muted)', margin: '4px 0 0', fontFamily: 'system-ui,sans-serif' }}>
           Appelle tes contacts pour obtenir des infos et des avantages exclusifs.
         </p>
       </div>
@@ -63,7 +63,7 @@ export default function Contacts({ state, onCall }) {
                 </span>
               </div>
               {contact.type === 'journaliste' && (
-                <div style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+                <div style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 4 }}>
                   Profil {contact.stance ?? 'neutre'}
                 </div>
               )}
@@ -72,7 +72,7 @@ export default function Contacts({ state, onCall }) {
 
               {/* Trust bar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 6 }}>
-                <span style={{ fontSize: 9, color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>Relation</span>
+                <span style={{ fontSize: 9, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>Relation</span>
                 <div style={{ flex: 1, height: 4, background: '#e5eaf0', borderRadius: 2 }}>
                   <div style={{ height: 4, width: `${contact.trust}%`, background: color, borderRadius: 2 }} />
                 </div>

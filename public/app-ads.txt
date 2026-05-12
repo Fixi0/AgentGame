@@ -1,0 +1,4 @@
+# AdMob app-ads.txt for Football Agent Simulator.
+# Host this exact file at the root of the developer website:
+# https://<developer-domain>/app-ads.txt
+google.com, pub-6706373152254937, DIRECT, f08c47fec0942fa0

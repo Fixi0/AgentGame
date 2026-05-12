@@ -18,7 +18,7 @@ import { rollCompetitorThreat } from '../systems/competitorSystem';
 import { createLongTermAgencyGoals } from '../systems/agencyGoalsSystem';
 import { createCareerGoal, createScoutReport, updateSeasonStats } from '../systems/playerDevelopmentSystem';
 import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } from '../systems/promiseSystem';
-import { MATCH_INCIDENT_EVENTS, buildWeeklyFixtures, simulateWeeklyClubResults } from '../systems/matchSystem';
+import { MATCH_INCIDENT_EVENTS, buildWeeklyFixtures, simulateFixturePlayerResults, simulateWeeklyClubResults } from '../systems/matchSystem';
 import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext } from '../systems/seasonSystem';
 import { getClubEuropeanCompetition, getEuropeanCompetition, isEuropeanMatchWeek, getEuropeanStage, getEuropeanMatchdayIndex, pickSeededOpponent, generateKOBracketClubs, initEuroCupCompData, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS, normalizeEuropeanMatch, ensureEuropeanCompetitionProgress, getEuropeanClubRoundMatch, isEuropeanClubAlive } from '../systems/europeanCupSystem';
 import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview, getWorldCupInterestClubs } from '../systems/worldCupSystem';
@@ -32,6 +32,9 @@ import { getActiveDossierPlayerIds, getMarketLockedPlayerIds, getMessagePriority
 import { applyLockerRoomDynamics, buildLockerRoomSnapshot } from '../systems/lockerRoomSystem';
 import { createPublicRep, tickPublicRep, getPublicRepOfferBonus } from '../systems/publicReputationSystem';
 import { createDefaultDossierMemory, recordDossierEvent } from '../systems/coherenceSystem';
+import { buildInitialBonds, tickBonds, applyBondEffectsToMatchResults } from '../systems/playerBondsSystem';
+import { isInternationalBreakWeek, simulateInternationalBreak } from '../systems/internationalBreakSystem';
+import { updateCompetitionTopStats } from '../systems/topScorersSystem';
 import {
   addDecisionHistory,
   applyCredibilityChange,
@@ -619,6 +622,7 @@ export const createFreshState = () => syncProgressionSystems({
   freeAgents: generateFreeAgents(20, 6, [], 1, DEFAULT_AGENCY_PROFILE.countryCode, 0).map((player) => ({ ...player, marketCatalogVersion: MARKET_DATA_VERSION })),
   marketCatalogVersion: MARKET_DATA_VERSION,
   leagueTables: createInitialLeagueTables(),
+  competitionTopStats: { league: {}, europe: {} },
   leagueSeasonData: {},
   leagueReputation: createDefaultLeagueReputation(DEFAULT_AGENCY_PROFILE.countryCode),
   clubRelations: createDefaultClubRelations(),
@@ -643,6 +647,7 @@ export const createFreshState = () => syncProgressionSystems({
   ],
   messages: [],
   stats: { totalEarned: 0, playersSigned: 0, transfersDone: 0, seasonsPlayed: 0 },
+  playerBonds: buildInitialBonds(),
 }).state;
 
 export const migrateState = (state) => {
@@ -800,6 +805,7 @@ export const migrateState = (state) => {
     seasonAwards: state.seasonAwards ?? {},
     worldState: state.worldState ?? generateWorldState(1),
     leagueTables: mergeWithInitialLeagueTables(state.leagueTables),
+    competitionTopStats: state.competitionTopStats ?? { league: {}, europe: {} },
     leagueSeasonData: state.leagueSeasonData ?? {},
     leagueReputation: state.leagueReputation ?? createDefaultLeagueReputation(agencyCountryCode),
     clubRelations: state.clubRelations ?? createDefaultClubRelations(),
@@ -1700,6 +1706,7 @@ export const playWeek = (state) => {
   let clubSeasonHistory = normalizeClubSeasonHistory(state.clubSeasonHistory ?? {}, currentSeason);
   const pendingWorldCupTrigger = phase.seasonWeek === 38 && shouldTriggerWorldCup(phase.season, state.worldCupState);
   const isWorldCupActive = Boolean((state.worldCupState && state.worldCupState.phase !== 'done') || pendingWorldCupTrigger);
+  const isIntlBreak = isInternationalBreakWeek(phase.seasonWeek) && !isWorldCupActive && !(phase.mercato && phase.window === 'été');
   const events = [];
   const generatedNews = [];
   const generatedMessages = [];
@@ -1719,16 +1726,26 @@ export const playWeek = (state) => {
   totalCost += WEEKLY_OVERHEAD[state.agencyLevel ?? 1] ?? 300;
 
   // Le championnat démarre dès la semaine 1 pour garder le classement synchronisé avec le fil.
-  // Semaine 38 = mercato été, pas de match.
+  // Semaine 38 = mercato été, pas de match. Trêve internationale = pas de match de club non plus.
   const isFriendlyWeek = false;
-  const clubFootballActive = !(phase.mercato && phase.window === 'été') && !isWorldCupActive;
+  const clubFootballActive = !(phase.mercato && phase.window === 'été') && !isWorldCupActive && !isIntlBreak;
   const weeklySimulation = clubFootballActive
     ? simulateWeeklyClubResults(state.roster, state.week)
     : { fixtures: [], matchResults: [] };
   const weeklyFixtures = weeklySimulation.fixtures;
   // Fixtures compétitives uniquement (hors matchs amicaux) pour le classement
   const competitiveFixtures = weeklyFixtures.filter((f) => !f.isFriendly);
-  const weeklyMatchResults = weeklySimulation.matchResults;
+  const leaguePlayerResults = clubFootballActive
+    ? simulateFixturePlayerResults(
+        competitiveFixtures.filter((fixture) => !fixture.competition || fixture.competition === 'LEAGUE'),
+        state.roster,
+      )
+    : [];
+  const weeklyMatchResults = applyBondEffectsToMatchResults(
+    weeklySimulation.matchResults,
+    state.roster,
+    state.playerBonds ?? {},
+  );
   const matchByPlayerId = new Map(weeklyMatchResults.map((match) => [match.playerId, match]));
   const playedMatches = weeklyMatchResults.filter((match) => (match.minutes ?? 0) > 0 && Number.isFinite(match.matchRating));
   const topMatch = playedMatches.length
@@ -2046,7 +2063,7 @@ export const playWeek = (state) => {
   // Reset au début d'une nouvelle saison
   if (phase.seasonWeek === 1 && state.week > 1) nextEuroData = {};
 
-  if (!isWorldCupActive) {
+  if (!isWorldCupActive && !isIntlBreak) {
     const euroGroups = new Map();
     for (const player of caredRoster) {
       const comp = getPlayerEuropeanCompetition(player, currentSeason);
@@ -2065,9 +2082,13 @@ export const playWeek = (state) => {
       euroGroups.get(key).players.push(player);
     }
 
+    // Snapshot des blessures AVANT le tick hebdomadaire (sinon un joueur "blessé" en championnat
+    // pourrait être considéré comme valide en Europe parce que injured a été décrémenté).
+    const injuryAtWeekStart = new Map(state.roster.map((p) => [p.id, p.injured ?? 0]));
+
     for (const group of euroGroups.values()) {
       const { comp, clubName, clubCountryCode, clubCity, players } = group;
-      const healthyPlayers = players.filter((player) => (player.injured ?? 0) <= 0);
+      const healthyPlayers = players.filter((player) => (injuryAtWeekStart.get(player.id) ?? 0) <= 0 && (player.injured ?? 0) <= 0);
       if (!healthyPlayers.length) continue;
 
       // ── Initialiser les données euro pour ce club/comp/saison ──────────
@@ -2138,9 +2159,22 @@ export const playWeek = (state) => {
         };
       }
 
+      // Budget partagé : la somme des buts/passes des joueurs ne peut pas dépasser le score de l'équipe.
+      let goalsBudget = clubMatchBase.goalsFor ?? 0;
+      let assistsBudget = clubMatchBase.goalsFor ?? 0;
       for (const player of healthyPlayers) {
-        const euroMatch = simulateEuropeanMatch(player, comp, phase.seasonWeek, clubMatchBase);
-        if (!euroMatch || !euroMatch.matchRating) continue;
+        const rawEuroMatch = simulateEuropeanMatch(player, comp, phase.seasonWeek, clubMatchBase);
+        if (!rawEuroMatch || !rawEuroMatch.matchRating) continue;
+        // Clip aux budgets restants
+        const clippedGoals = Math.max(0, Math.min(rawEuroMatch.goals ?? 0, goalsBudget));
+        const clippedAssists = Math.max(0, Math.min(rawEuroMatch.assists ?? 0, assistsBudget - clippedGoals < 0 ? 0 : assistsBudget));
+        goalsBudget = Math.max(0, goalsBudget - clippedGoals);
+        assistsBudget = Math.max(0, assistsBudget - clippedAssists);
+        // Ré-ajuste la note si on lui a retiré des buts/passes
+        const lostGoals = (rawEuroMatch.goals ?? 0) - clippedGoals;
+        const lostAssists = (rawEuroMatch.assists ?? 0) - clippedAssists;
+        const adjustedRating = Math.max(4.5, Math.min(10, Number((rawEuroMatch.matchRating - lostGoals * 0.9 - lostAssists * 0.55).toFixed(1))));
+        const euroMatch = { ...rawEuroMatch, goals: clippedGoals, assists: clippedAssists, matchRating: adjustedRating };
         euroMatchResults.push({
           ...euroMatch,
           playerName: euroMatch.playerName ?? `${player.firstName} ${player.lastName}`,
@@ -2218,6 +2252,29 @@ export const playWeek = (state) => {
           totalIncome += Math.floor(20000 * EVENT_INCOME_MULT);
           reputationChange += scaleReputationDelta(12);
         }
+      }
+    }
+  }
+
+  // ── Trêve internationale ────────────────────────────────────────────────────
+  let internationalBreakSummary = null;
+  if (isIntlBreak) {
+    const intl = simulateInternationalBreak(caredRoster, { seasonWeek: phase.seasonWeek, week: state.week });
+    internationalBreakSummary = { kind: intl.kind, label: intl.meta.label, count: intl.selectedMatches.length, matches: intl.selectedMatches };
+    intl.events.forEach((evt) => {
+      events.push(evt);
+      totalIncome += Math.max(0, evt.money ?? 0);
+      reputationChange += evt.rep ?? 0;
+    });
+    if (intl.selectedMatches.length) {
+      const playerForNews = caredRoster.find((p) => p.id === intl.selectedMatches[0].playerId);
+      if (playerForNews) {
+        generatedNews.push(createManualNewsPost({
+          type: 'performance',
+          player: playerForNews,
+          week: state.week + 1,
+          text: `🌍 Trêve internationale (${intl.meta.label}) — ${intl.selectedMatches.length} de tes joueurs en sélection cette semaine.`,
+        }));
       }
     }
   }
@@ -2524,6 +2581,7 @@ export const playWeek = (state) => {
       topMatch,
       vestiaireTension: lockerRoomTension,
       pressConference: pressConferenceDue || nextPhase.mercato,
+      worldCupActive: isWorldCupActive,
     });
   }
 
@@ -3008,6 +3066,14 @@ export const playWeek = (state) => {
       leader: Object.values(table ?? {}).sort((a, b) => (b.points ?? 0) - (a.points ?? 0))[0]?.club ?? null,
     },
   }), {});
+  const nextCompetitionTopStats = updateCompetitionTopStats(
+    isNewSeasonStart ? { league: {}, europe: {} } : state.competitionTopStats,
+    {
+      leagueMatches: leaguePlayerResults,
+      europeanMatches: euroMatchResults,
+      roster: finalRoster,
+    },
+  );
   const finalRosterWithClubContext = finalRoster.map((player) =>
     attachClubSeasonContext(player, nextLeagueTables, nextLeagueSeasonData),
   );
@@ -3049,6 +3115,7 @@ export const playWeek = (state) => {
     lastFixtures: weeklyFixtures,
     nextFixtures,
     leagueTables: nextLeagueTables,
+    competitionTopStats: nextCompetitionTopStats,
     leagueSeasonData: nextLeagueSeasonData,
     competitorThreats: competitorThreat ? [competitorThreat, ...(state.competitorThreats ?? [])].slice(0, 12) : state.competitorThreats ?? [],
     scoutingMissions,
@@ -3075,6 +3142,11 @@ export const playWeek = (state) => {
       totalEarned: state.stats.totalEarned + Math.max(0, net),
       seasonsPlayed: nextPhase.seasonWeek === 1 && state.week > 1 ? state.stats.seasonsPlayed + 1 : state.stats.seasonsPlayed,
     },
+    playerBonds: tickBonds(
+      { ...buildInitialBonds(), ...(state.playerBonds ?? {}) },
+      finalRosterWithClubContext,
+      { week: state.week + 1 },
+    ),
   };
 
   if (completedOfferIds.length) {

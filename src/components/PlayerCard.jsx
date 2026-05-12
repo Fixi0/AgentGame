@@ -48,7 +48,7 @@ function MoraleBar({ label, value }) {
   const barColor = value >= 60 ? '#16a34a' : value >= 40 ? '#d97706' : '#e83a3a';
   return (
     <div style={S.moraleBar}>
-      <span style={{ fontSize: 10, color: '#64727d', fontFamily: 'system-ui,sans-serif', width: 56, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', width: 56, flexShrink: 0 }}>{label}</span>
       <div style={S.moraleBarTrack}>
         <div style={{ ...S.moraleBarFill, width: `${value}%`, background: barColor }} />
       </div>
@@ -147,7 +147,7 @@ export default function PlayerCard({ player, state, mode, money, onSign, onRelea
           {/* Last match form */}
           {player.matchHistory?.[0]?.matchRating && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.08em', color: '#64727d', fontFamily: 'system-ui,sans-serif' }}>DERNIER MATCH</span>
+              <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.08em', color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>DERNIER MATCH</span>
               <span style={{
                 fontSize: 11,
                 fontWeight: 900,
