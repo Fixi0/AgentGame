@@ -247,29 +247,113 @@ const buildUefaTeamOfWeekPost = ({ state, week, season, agentPlayerIds }) => {
   };
 };
 
-/** Posts officiels de clubs majeurs (transferts, victoires) hors clubs du roster. */
+const getClubName = (club) => club?.name ?? club ?? '';
+
+const buildFixtureResultPost = (fixture, week) => {
+  const homeClub = getClubName(fixture?.homeClub);
+  const awayClub = getClubName(fixture?.awayClub);
+  if (!homeClub || !awayClub) return null;
+  const homeGoals = fixture?.homeGoals;
+  const awayGoals = fixture?.awayGoals;
+  if (!Number.isFinite(homeGoals) || !Number.isFinite(awayGoals)) return null;
+  const club = homeGoals >= awayGoals ? homeClub : awayClub;
+  const scored = homeGoals >= awayGoals ? homeGoals : awayGoals;
+  const conceded = homeGoals >= awayGoals ? awayGoals : homeGoals;
+  const opponent = club === homeClub ? awayClub : homeClub;
+  const resultTag = scored > conceded ? 'WIN' : 'DRAW';
+  const headline = scored > conceded
+    ? `✅ Terminé : ${club} s'impose ${scored}-${conceded} face à ${opponent}.`
+    : `🤝 Terminé : ${club} et ${opponent} se quittent sur un score de ${scored}-${conceded}.`;
+
+  return {
+    id: `club-result-${fixture.fixtureId ?? `${club}-${week}`}`,
+    kind: 'club',
+    player: null,
+    authorName: club,
+    handle: '@' + club.toLowerCase().replace(/[^a-z0-9]/g, '') + '_off',
+    tag: resultTag,
+    text: `${headline}\n${fixture.competitionLabel ?? 'Championnat'} · semaine ${fixture.seasonWeek ?? ((week - 1) % 38) + 1}`,
+    image: null,
+    likes: 1800 + num(`club-result-${club}-${week}l`, 22000),
+    comments: 60 + num(`club-result-${club}-${week}c`, 700),
+    timeLabel: 'à l\'instant',
+    commentsList: [
+      { handle: '@matchpulse', text: scored > conceded ? 'Résultat logique sur le contenu.' : 'Un point qui peut compter.' },
+      { handle: '@ultras', text: scored > conceded ? 'On prend les 3 points 🔥' : 'Il fallait mieux finir les actions.' },
+    ],
+  };
+};
+
+const buildFixturePreviewPost = (fixture, week) => {
+  const homeClub = getClubName(fixture?.homeClub);
+  const awayClub = getClubName(fixture?.awayClub);
+  if (!homeClub || !awayClub) return null;
+  const club = pick([homeClub, awayClub], `fixture-preview-author-${fixture.fixtureId ?? `${homeClub}-${awayClub}-${week}`}`);
+  const opponent = club === homeClub ? awayClub : homeClub;
+
+  return {
+    id: `club-preview-${fixture.fixtureId ?? `${club}-${week}`}`,
+    kind: 'club',
+    player: null,
+    authorName: club,
+    handle: '@' + club.toLowerCase().replace(/[^a-z0-9]/g, '') + '_off',
+    tag: 'MATCHDAY',
+    text: `📣 Matchday : ${club} vs ${opponent}.\n${fixture.competitionLabel ?? 'Championnat'} · coup d'envoi cette semaine.`,
+    image: null,
+    likes: 1200 + num(`club-preview-${club}-${week}l`, 18000),
+    comments: 35 + num(`club-preview-${club}-${week}c`, 500),
+    timeLabel: 'à venir',
+    commentsList: [
+      { handle: '@tactic_corner', text: `Curieux de voir le plan de jeu contre ${opponent}.` },
+      { handle: '@fanszone', text: 'Gros rendez-vous, il faut répondre présent.' },
+    ],
+  };
+};
+
+/** Posts officiels de clubs majeurs branchés sur les vrais fixtures. */
 const buildClubOfficialPosts = ({ state, week, agentClubs }) => {
   const topClubs = ['Real Madrid', 'Manchester City', 'Bayern Munich', 'PSG', 'Liverpool', 'Barcelona', 'Inter', 'Arsenal'];
-  const templates = [
-    (club) => ({ tag: 'WIN', text: `🏆 Victoire ${num(`${club}-${week}-g1`, 4) + 1}-${num(`${club}-${week}-g2`, 2)}. Allez les nôtres ! #${club.replace(/\s/g, '')}` }),
-    (club) => ({ tag: 'TRANSFER', text: `✍️ Officiel : prolongation jusqu'en 203${num(club + week, 10)}. Bienvenue à la maison ❤️` }),
-    (club) => ({ tag: 'INJURY', text: `🚑 Communiqué médical : un joueur sera absent ${2 + num(club + week + 'i', 5)} semaines. Bon rétablissement.` }),
-    (club) => ({ tag: 'TRAINING', text: `🟢 Entraînement bouclé. Cap sur le prochain match. #${club.replace(/\s/g, '')}` }),
-  ];
   const out = [];
+  const recentFixtures = (state?.lastFixtures ?? []).filter((fixture) => {
+    const home = getClubName(fixture?.homeClub);
+    const away = getClubName(fixture?.awayClub);
+    return topClubs.includes(home) || topClubs.includes(away);
+  });
+  const upcomingFixtures = (state?.nextFixtures ?? []).filter((fixture) => {
+    const home = getClubName(fixture?.homeClub);
+    const away = getClubName(fixture?.awayClub);
+    return topClubs.includes(home) || topClubs.includes(away);
+  });
+
+  recentFixtures.slice(0, 4).forEach((fixture) => {
+    const club = [getClubName(fixture?.homeClub), getClubName(fixture?.awayClub)].find((name) => topClubs.includes(name) && !agentClubs.has(name));
+    if (!club) return;
+    const post = buildFixtureResultPost(fixture, week);
+    if (post) out.push(post);
+  });
+
+  upcomingFixtures.slice(0, 4).forEach((fixture) => {
+    const club = [getClubName(fixture?.homeClub), getClubName(fixture?.awayClub)].find((name) => topClubs.includes(name) && !agentClubs.has(name));
+    if (!club) return;
+    const alreadyCovered = out.some((post) => post.authorName === club);
+    if (alreadyCovered) return;
+    const post = buildFixturePreviewPost(fixture, week);
+    if (post) out.push(post);
+  });
+
   topClubs.forEach((club, idx) => {
     if (agentClubs.has(club)) return; // évite doublon avec posts club déjà gérés ailleurs
-    if ((idx + week) % 2 !== 0) return; // alterne d'une semaine à l'autre
+    if (out.some((post) => post.authorName === club)) return;
+    if ((idx + week) % 2 !== 0) return;
     const seed = `cluboff-${club}-${week}`;
-    const tpl = pick(templates, seed)(club);
     out.push({
       id: seed,
       kind: 'club',
       player: null,
       authorName: club,
       handle: '@' + club.toLowerCase().replace(/[^a-z0-9]/g, '') + '_off',
-      tag: tpl.tag,
-      text: tpl.text,
+      tag: 'TRAINING',
+      text: `🟢 Séance terminée à ${club}. Le groupe prépare le prochain rendez-vous officiel.`,
       image: null,
       likes: 1500 + num(seed + 'l', 25000),
       comments: 40 + num(seed + 'c', 500),
