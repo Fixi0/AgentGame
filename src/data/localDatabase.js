@@ -11,7 +11,7 @@ const SAVE_SLOT_MAX = 3;
 const ACTIVE_SAVE_META_KEY = 'active_save';
 // Bumper cette valeur à chaque modification de la base de données de joueurs
 // pour forcer un re-seed automatique sans perdre la sauvegarde en cours.
-const CATALOG_DATA_VERSION = '2026-05-07-fixio-moxwmo-start-v1';
+const CATALOG_DATA_VERSION = '2026-05-12-signature-marseille-trio-v1';
 
 const STATIC_TABLES = [
   'countries',

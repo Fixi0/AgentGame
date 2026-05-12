@@ -868,17 +868,38 @@ export const clearDatabasePlayerCatalog = () => {
 
 export const getPlayerCatalogSource = () => (databasePlayerCatalog?.length ? 'indexeddb' : 'code');
 
+const getCodePlayerCatalog = (season = 1) => CLUBS.flatMap((club) => [
+  ...getClubSquad(club, season),
+  ...getClubYouthPlayers(club, season),
+]);
+
+const withRequiredSignaturePlayers = (players = [], season = 1) => {
+  const byId = new Map((Array.isArray(players) ? players : []).filter((player) => player?.id).map((player) => [player.id, player]));
+  [buildGabrielFixio(getMarseilleClub(), season), buildUgoMoxwmo(getMarseilleClub(), season), buildYohanZenoxx(getMarseilleClub(), season)]
+    .forEach((player) => {
+      const current = byId.get(player.id);
+      byId.set(player.id, {
+        ...player,
+        ...(current ?? {}),
+        id: player.id,
+        firstName: player.firstName,
+        lastName: player.lastName,
+        club: GABRIEL_FIXIO_CLUB,
+        clubCountryCode: 'FR',
+        databaseBacked: current?.databaseBacked ?? true,
+      });
+    });
+  return [...byId.values()];
+};
+
 export const createPlayerCatalog = (season = 1) => {
   const cacheKey = `${getPlayerCatalogSource()}:${season}`;
   const cached = playerCatalogCache.get(cacheKey);
   if (cached) return cached;
 
   const rawCatalog = databasePlayerCatalog?.length
-    ? databasePlayerCatalog.map((player) => evolveDatabaseCatalogPlayer(player, season))
-    : CLUBS.flatMap((club) => [
-      ...getClubSquad(club, season),
-      ...getClubYouthPlayers(club, season),
-    ]);
+    ? withRequiredSignaturePlayers(databasePlayerCatalog.map((player) => evolveDatabaseCatalogPlayer(player, season)), season)
+    : getCodePlayerCatalog(season);
 
   const catalog = limitEliteRatings(rawCatalog);
 
