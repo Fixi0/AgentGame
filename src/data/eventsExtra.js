@@ -1,0 +1,1141 @@
+// 200+ événements additionnels — performance, vestiaire, médias, conf de presse,
+// vie privée, sponsoring, sélection, vestiaire, etc.
+// Conçus pour s'intégrer aux pools existants (PASSIVE_EVENTS, INTERACTIVE_EVENTS,
+// LOCKER_ROOM_EVENTS). Les images sont résolues automatiquement via type/label
+// dans src/utils/eventImages.js.
+
+export const EXTRA_PASSIVE_EVENTS = [
+  // ─── Performance — bons (communs) ─────────────────────────────────
+  { id: 'pass_master', rarity: 'common', type: 'performance', label: 'Maître à jouer du match', good: true, money: 2800, rep: 3, val: 1.04, moral: 6, trust: 1, chance: 0.07 },
+  { id: 'derby_winner', rarity: 'common', type: 'performance', label: 'But décisif dans le derby', good: true, money: 5200, rep: 5, val: 1.08, moral: 11, trust: 2, chance: 0.05 },
+  { id: 'clean_sheet_hero', rarity: 'common', type: 'performance', label: 'Cage inviolée — performance défensive', good: true, money: 2400, rep: 3, val: 1.04, moral: 5, trust: 1, chance: 0.08 },
+  { id: 'tackle_machine', rarity: 'common', type: 'performance', label: 'Récupérateur en feu — 12 tacles', good: true, money: 1800, rep: 2, val: 1.03, moral: 4, trust: 1, chance: 0.08 },
+  { id: 'heading_dominator', rarity: 'common', type: 'performance', label: 'Maître du jeu aérien', good: true, money: 1600, rep: 2, val: 1.03, moral: 4, trust: 1, chance: 0.08 },
+  { id: 'free_kick_wonder', rarity: 'common', type: 'performance', label: 'Coup franc magistral', good: true, money: 3600, rep: 4, val: 1.05, moral: 7, trust: 1, chance: 0.05 },
+  { id: 'penalty_clutch', rarity: 'common', type: 'performance', label: 'Penalty marqué dans le money time', good: true, money: 4200, rep: 4, val: 1.06, moral: 9, trust: 2, chance: 0.05 },
+  { id: 'goal_streak', rarity: 'common', type: 'performance', label: 'Série de buts — 4 matchs de suite', good: true, money: 5200, rep: 6, val: 1.09, moral: 10, trust: 2, chance: 0.04 },
+  { id: 'man_of_match_again', rarity: 'common', type: 'performance', label: 'MVP pour la 2e fois consécutive', good: true, money: 4800, rep: 5, val: 1.07, moral: 9, trust: 2, chance: 0.04 },
+  { id: 'super_sub', rarity: 'common', type: 'performance', label: 'Joker entré et décisif', good: true, money: 2200, rep: 2, val: 1.04, moral: 6, trust: 1, chance: 0.07 },
+  { id: 'press_resistant', rarity: 'common', type: 'performance', label: 'Insubmersible sous pressing', good: true, money: 1600, rep: 2, val: 1.03, moral: 4, trust: 1, chance: 0.08 },
+  { id: 'dribble_king', rarity: 'common', type: 'performance', label: 'Festival de dribbles', good: true, money: 2800, rep: 3, val: 1.05, moral: 7, trust: 1, chance: 0.06 },
+  { id: 'work_rate', rarity: 'common', type: 'performance', label: 'Activité hors normes — 12.4 km parcourus', good: true, money: 1200, rep: 2, val: 1.02, moral: 5, trust: 1, chance: 0.08 },
+  { id: 'positioning_smart', rarity: 'common', type: 'performance', label: 'Lecture du jeu exceptionnelle', good: true, money: 1400, rep: 2, val: 1.03, moral: 4, trust: 1, chance: 0.07 },
+  { id: 'goal_keeper_save', rarity: 'common', type: 'performance', label: 'Arrêt décisif en fin de match', good: true, money: 2800, rep: 3, val: 1.05, moral: 6, trust: 1, chance: 0.06 },
+  { id: 'late_winner', rarity: 'common', type: 'performance', label: 'But vainqueur dans les arrêts de jeu', good: true, money: 4800, rep: 5, val: 1.07, moral: 10, trust: 2, chance: 0.04 },
+  { id: 'curve_shot', rarity: 'common', type: 'performance', label: 'Lucarne enroulée splendide', good: true, money: 3200, rep: 4, val: 1.05, moral: 7, trust: 1, chance: 0.05 },
+  { id: 'two_assists', rarity: 'common', type: 'performance', label: 'Doublé de passes décisives', good: true, money: 2800, rep: 3, val: 1.04, moral: 6, trust: 1, chance: 0.07 },
+  { id: 'team_player_award', rarity: 'common', type: 'performance', label: 'Élu meilleur coéquipier de l’année', good: true, money: 2000, rep: 3, val: 1.03, moral: 8, trust: 2, chance: 0.04 },
+  { id: 'derby_assist', rarity: 'common', type: 'performance', label: 'Passe décisive dans le derby', good: true, money: 3600, rep: 4, val: 1.05, moral: 8, trust: 1, chance: 0.05 },
+
+  // ─── Performance — rares ─────────────────────────────────────────
+  { id: 'champions_league_goal', rarity: 'rare', type: 'performance', label: 'But en phase finale Champions League', good: true, money: 12000, rep: 9, val: 1.18, moral: 14, trust: 2, chance: 0.018 },
+  { id: 'europa_winner_goal', rarity: 'rare', type: 'performance', label: 'Buteur en finale Europa League', good: true, money: 9600, rep: 8, val: 1.15, moral: 13, trust: 2, chance: 0.02 },
+  { id: 'cup_final_mvp', rarity: 'rare', type: 'performance', label: 'MVP de la finale de coupe nationale', good: true, money: 8800, rep: 8, val: 1.14, moral: 14, trust: 2, chance: 0.018 },
+  { id: 'season_record_holder', rarity: 'rare', type: 'performance', label: 'Recordman de buts du club sur une saison', good: true, money: 11200, rep: 10, val: 1.16, moral: 16, trust: 3, chance: 0.012 },
+  { id: 'goal_century', rarity: 'rare', type: 'performance', label: '50e but pour son club — palmarès historique', good: true, money: 9600, rep: 8, val: 1.13, moral: 14, trust: 2, chance: 0.014 },
+  { id: 'team_of_year', rarity: 'rare', type: 'performance', label: 'Équipe-type du championnat', good: true, money: 9200, rep: 9, val: 1.14, moral: 12, trust: 2, chance: 0.016 },
+  { id: 'world_xi', rarity: 'rare', type: 'media', label: 'FIFA / FIFPro World XI', good: true, money: 14000, rep: 12, val: 1.2, moral: 16, trust: 3, chance: 0.008 },
+
+  // ─── Médias — bons ──────────────────────────────────────────────
+  { id: 'tv_show_appearance', rarity: 'common', type: 'media', label: 'Invité d’honneur sur un grand plateau TV', good: true, money: 3200, rep: 5, val: 1.04, moral: 6, trust: 1, chance: 0.05 },
+  { id: 'magazine_cover', rarity: 'common', type: 'media', label: 'Couverture du magazine du mois', good: true, money: 4400, rep: 6, val: 1.05, moral: 7, trust: 1, chance: 0.04 },
+  { id: 'documentary_release', rarity: 'rare', type: 'media', label: 'Documentaire personnel — succès critique', good: true, money: 12000, rep: 9, val: 1.1, moral: 12, trust: 2, chance: 0.012 },
+  { id: 'classy_handshake', rarity: 'common', type: 'media', label: 'Geste de fair-play remarqué — viral positif', good: true, money: 2000, rep: 5, val: 1.02, moral: 6, trust: 2, chance: 0.05 },
+  { id: 'kid_meet_greet', rarity: 'common', type: 'fans', label: 'Surprise un enfant malade à l’hôpital', good: true, money: 800, rep: 7, val: 1.02, moral: 9, trust: 2, chance: 0.04 },
+  { id: 'autograph_session', rarity: 'common', type: 'fans', label: 'Séance d’autographes record', good: true, money: 1200, rep: 4, val: 1.02, moral: 5, trust: 1, chance: 0.06 },
+  { id: 'fan_chant_named', rarity: 'common', type: 'fans', label: 'Chant à son nom dans tout le stade', good: true, money: 1600, rep: 6, val: 1.04, moral: 12, trust: 2, chance: 0.05 },
+  { id: 'social_milestone', rarity: 'common', type: 'media', label: '5M followers atteints — partenariats déclenchés', good: true, money: 8000, rep: 4, val: 1.05, moral: 5, trust: 1, chance: 0.04 },
+  { id: 'good_words_legend', rarity: 'rare', type: 'media', label: 'Une légende du foot fait son éloge publique', good: true, money: 4800, rep: 8, val: 1.08, moral: 12, trust: 2, chance: 0.018 },
+
+  // ─── Sponsors / business ────────────────────────────────────────
+  { id: 'boot_deal_signed', rarity: 'common', type: 'transfer', label: 'Contrat équipementier renouvelé', good: true, money: 14000, rep: 4, val: 1.05, moral: 6, trust: 1, chance: 0.04 },
+  { id: 'watch_brand_deal', rarity: 'common', type: 'transfer', label: 'Ambassadeur d’une marque horlogère', good: true, money: 18000, rep: 4, val: 1.06, moral: 6, trust: 1, chance: 0.03 },
+  { id: 'crypto_deal', rarity: 'uncommon', type: 'transfer', label: 'Deal token crypto — chèque massif, image risquée', good: true, money: 24000, rep: -3, val: 1.04, moral: 4, trust: 0, chance: 0.025 },
+  { id: 'banking_partner', rarity: 'common', type: 'transfer', label: 'Partenariat avec une grande banque', good: true, money: 12000, rep: 3, val: 1.03, moral: 4, trust: 1, chance: 0.04 },
+  { id: 'video_game_cover', rarity: 'rare', type: 'media', label: 'Cover du jeu vidéo officiel', good: true, money: 22000, rep: 10, val: 1.12, moral: 14, trust: 2, chance: 0.01 },
+  { id: 'fashion_collab', rarity: 'uncommon', type: 'transfer', label: 'Collab streetwear — sold out en 2h', good: true, money: 20000, rep: 5, val: 1.06, moral: 7, trust: 1, chance: 0.025 },
+
+  // ─── Mauvais — communs ──────────────────────────────────────────
+  { id: 'air_ball', rarity: 'common', type: 'performance', label: 'Occasion énorme manquée — nervosité', good: false, money: -1200, rep: -2, val: 0.97, moral: -6, trust: -1, chance: 0.07 },
+  { id: 'late_substituted', rarity: 'common', type: 'performance', label: 'Remplacé prématurément — 60e min', good: false, money: -1000, rep: -1, val: 0.97, moral: -6, trust: -1, chance: 0.08 },
+  { id: 'dressing_late', rarity: 'common', type: 'scandal', label: 'En retard pour la causerie d’avant-match', good: false, money: -1200, rep: -2, val: 0.98, moral: -4, trust: -2, chance: 0.06 },
+  { id: 'loose_ball', rarity: 'common', type: 'performance', label: 'Erreur technique grossière en zone défensive', good: false, money: -1800, rep: -3, val: 0.96, moral: -8, trust: -1, chance: 0.06 },
+  { id: 'misplaced_pass', rarity: 'common', type: 'performance', label: 'Mauvaise passe cause un but adverse', good: false, money: -2000, rep: -3, val: 0.95, moral: -8, trust: -1, chance: 0.05 },
+  { id: 'injury_minor_recurr', rarity: 'common', type: 'media', label: 'Petite gêne musculaire récurrente', good: false, money: -2000, rep: -1, val: 0.95, moral: -5, trust: -1, chance: 0.06, injury: 1 },
+  { id: 'celebration_yellow', rarity: 'common', type: 'scandal', label: 'Carton jaune pour célébration excessive', good: false, money: -800, rep: -1, val: 0.98, moral: -2, trust: 0, chance: 0.06 },
+  { id: 'snubs_journalist', rarity: 'common', type: 'media', label: 'Refuse une interview en zone mixte', good: false, money: -1500, rep: -3, val: 0.98, moral: -2, trust: -1, chance: 0.06 },
+  { id: 'social_blunder', rarity: 'common', type: 'media', label: 'Story Instagram mal interprétée', good: false, money: -1200, rep: -2, val: 0.98, moral: -3, trust: -1, chance: 0.06 },
+  { id: 'paparazzi_shot', rarity: 'common', type: 'scandal', label: 'Photographié en boîte la veille du match', good: false, money: -2200, rep: -4, val: 0.97, moral: -4, trust: -2, chance: 0.05 },
+  { id: 'training_low', rarity: 'common', type: 'performance', label: 'Entraînement bâclé selon le staff', good: false, money: -1000, rep: -1, val: 0.97, moral: -6, trust: -2, chance: 0.07 },
+  { id: 'dress_code', rarity: 'common', type: 'scandal', label: 'Code vestimentaire pas respecté', good: false, money: -800, rep: -1, val: 0.99, moral: -2, trust: -1, chance: 0.07 },
+  { id: 'penalty_giveaway', rarity: 'common', type: 'performance', label: 'Penalty concédé bêtement', good: false, money: -2400, rep: -3, val: 0.95, moral: -10, trust: -1, chance: 0.05 },
+
+  // ─── Mauvais — uncommon/rares ───────────────────────────────────
+  { id: 'driving_offense', rarity: 'uncommon', type: 'scandal', label: 'Excès de vitesse — image écornée', good: false, money: -4000, rep: -5, val: 0.96, moral: -6, trust: -2, chance: 0.025 },
+  { id: 'gambling_rumor', rarity: 'uncommon', type: 'scandal', label: 'Rumeurs de paris sportifs douteux', good: false, money: -3000, rep: -6, val: 0.96, moral: -5, trust: -2, chance: 0.022 },
+  { id: 'diet_breach', rarity: 'uncommon', type: 'scandal', label: 'Photo cheat-meal en pleine saison', good: false, money: -1500, rep: -3, val: 0.97, moral: -3, trust: -1, chance: 0.04 },
+  { id: 'family_dispute_public', rarity: 'uncommon', type: 'scandal', label: 'Dispute familiale rendue publique', good: false, money: -3500, rep: -4, val: 0.95, moral: -10, trust: -2, chance: 0.025 },
+  { id: 'agent_rumor', rarity: 'uncommon', type: 'media', label: 'Rumeurs de changement d’agent', good: false, money: -2000, rep: -2, val: 0.97, moral: -4, trust: -3, chance: 0.04 },
+  { id: 'dressing_isolated', rarity: 'uncommon', type: 'scandal', label: 'Isolé du groupe selon plusieurs sources', good: false, money: -2400, rep: -3, val: 0.96, moral: -10, trust: -3, chance: 0.03 },
+  { id: 'red_card_pro', rarity: 'uncommon', type: 'scandal', label: 'Rouge direct — geste anti-sportif', good: false, money: -3500, rep: -6, val: 0.93, moral: -12, trust: -2, chance: 0.03 },
+  { id: 'press_clash', rarity: 'uncommon', type: 'media', label: 'Clash avec un journaliste connu', good: false, money: -3000, rep: -5, val: 0.96, moral: -4, trust: -2, chance: 0.03 },
+  { id: 'national_sub', rarity: 'uncommon', type: 'media', label: 'Remplaçant en sélection — frustration', good: false, money: -1500, rep: -2, val: 0.97, moral: -10, trust: -2, chance: 0.04 },
+  { id: 'tax_inquiry_rumor', rarity: 'rare', type: 'scandal', label: 'Soupçons d’irrégularités fiscales', good: false, money: -8000, rep: -8, val: 0.9, moral: -12, trust: -3, chance: 0.012 },
+  { id: 'training_walkout', rarity: 'rare', type: 'scandal', label: 'Quitte l’entraînement — clash avec le coach', good: false, money: -5000, rep: -7, val: 0.92, moral: -14, trust: -3, chance: 0.012 },
+  { id: 'press_boycott', rarity: 'rare', type: 'media', label: 'Boycott médias — sanction interne', good: false, money: -3000, rep: -6, val: 0.95, moral: -8, trust: -3, chance: 0.012 },
+  { id: 'inj_long', rarity: 'rare', type: 'media', label: 'Blessure musculaire longue (8 sem.)', good: false, money: -16000, rep: -3, val: 0.7, moral: -16, trust: -2, chance: 0.014, injury: 8 },
+];
+
+// ── Helper visuels: tag explicite via art = nom d'archetype dans choiceImages.js
+const c = (label, opts) => ({ label, cost: 0, effects: {}, ...opts });
+
+export const EXTRA_INTERACTIVE_EVENTS = [
+  // ─── CONFÉRENCES DE PRESSE — variations contextuelles ────────────
+  {
+    id: 'press_conf_after_loss',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Conférence — lendemain de défaite',
+    description: "La presse veut un coupable après la défaite. Le coach est pointé du doigt. Que dit ton joueur au micro ?",
+    choices: [
+      c('Soutenir publiquement le coach', { effects: { rep: 4, moral: 5, trust: 6, pressure: -3 }, desc: 'Solidarité totale', art: 'support' }),
+      c('Assumer ses propres erreurs', { effects: { rep: 3, moral: -2, trust: 5 }, desc: 'Maturité bienvenue', art: 'communicate' }),
+      c('Pointer le manque d’effectif', { effects: { rep: -2, moral: 4, trust: 2 }, desc: 'Il met la pression au club', art: 'risk' }),
+      c('Couper court — silence', { effects: { rep: -3, moral: -2, trust: -2 }, desc: 'Mauvaise image', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'press_conf_after_win',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Conférence — après la victoire',
+    description: "Tout le monde veut sa réaction. Carte humilité ou carte ambition ?",
+    choices: [
+      c('Crédit au collectif', { effects: { rep: 5, moral: 4, trust: 5 }, desc: 'Image de leader', art: 'team' }),
+      c('Affirmer l’ambition titre', { effects: { rep: 3, moral: 6, trust: 3, pressure: 2 }, desc: 'Hype mais pression', art: 'risk' }),
+      c('Tacler le rival', { effects: { rep: -2, moral: 5, trust: 1 }, desc: 'Buzz garanti', art: 'confront' }),
+      c('Détendre — humour', { effects: { rep: 4, moral: 4, trust: 4 }, desc: 'Sympa pour tous', art: 'communicate' }),
+    ],
+  },
+  {
+    id: 'press_conf_contract_question',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Conférence — question piège sur son contrat',
+    description: "Un journaliste glisse une question sur son avenir. Réponse maladroite = bombe.",
+    choices: [
+      c('Botter en touche élégamment', { effects: { rep: 3, trust: 4 }, desc: 'Pro', art: 'communicate' }),
+      c('Affirmer son envie de rester', { effects: { rep: 4, moral: 4, trust: 8 }, desc: 'Le club appréciera', art: 'support' }),
+      c('Ouvrir la porte à un départ', { effects: { rep: -3, moral: 6, trust: -4 }, desc: 'Transferts en vue', art: 'transfer' }),
+      c('Refuser de répondre', { effects: { rep: -2, moral: 1, trust: 0 }, desc: 'Frustrant pour la presse', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'press_conf_rival_quote',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Conférence — citation polémique d’un rival',
+    description: "Un rival a déclaré que ton joueur 'n’a plus le niveau'. La presse veut ta réponse.",
+    choices: [
+      c('Réponse cinglante', { effects: { rep: 0, moral: 8, trust: 4 }, desc: 'Ego boosté', art: 'confront' }),
+      c('Réponse classe et brève', { effects: { rep: 5, moral: 4, trust: 5 }, desc: 'Au-dessus du débat', art: 'communicate' }),
+      c('Ignorer la question', { effects: { rep: 2, trust: 2 }, desc: 'Stoïque', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'press_conf_award',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Conférence — il vient d’être nommé Joueur du Mois',
+    description: "Trophée individuel, focus sur lui. Comment positionner le message ?",
+    choices: [
+      c('Dédier au staff', { effects: { rep: 5, moral: 4, trust: 7 }, desc: 'Image humble', art: 'team' }),
+      c('Viser plus haut publiquement', { effects: { rep: 4, moral: 8, trust: 3, val: 1.04 }, desc: 'Hype carrière', art: 'risk' }),
+      c('Hommage à sa famille', { effects: { rep: 6, moral: 8, trust: 6 }, desc: 'Touchant', art: 'support' }),
+    ],
+  },
+  {
+    id: 'press_conf_injury_return',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Conférence — premier retour de blessure',
+    description: "Tout le monde veut savoir s'il est à 100%. Sa réponse oriente la pression.",
+    choices: [
+      c('Optimisme total', { effects: { rep: 3, moral: 6, trust: 3 }, desc: 'Rassurant', art: 'support' }),
+      c('Prudence honnête', { effects: { rep: 4, moral: 4, trust: 6 }, desc: 'Mature', art: 'communicate' }),
+      c('Esquiver la question', { effects: { rep: -1, moral: 2, trust: 1 }, desc: 'Frustrant', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'press_conf_political',
+    rarity: 'rare',
+    types: ['media'],
+    title: 'Conférence — question politique inattendue',
+    description: "Un journaliste tente de l'attirer sur un terrain politique. Il regarde l'agent dans la salle.",
+    choices: [
+      c('Réponse engagée et assumée', { effects: { rep: -2, moral: 10, trust: 6, val: 1.02 }, desc: 'Clivant mais authentique', art: 'risk' }),
+      c('Botter en touche pro', { effects: { rep: 3, trust: 3 }, desc: 'Sage', art: 'communicate' }),
+      c('Dénoncer la question', { effects: { rep: 5, moral: 4, trust: 4 }, desc: 'Recadrer le journaliste', art: 'confront' }),
+    ],
+  },
+
+  // ─── VESTIAIRE / RIVALITÉS DURABLES ──────────────────────────────
+  {
+    id: 'vest_clique',
+    rarity: 'uncommon',
+    types: ['vestiaire', 'scandal'],
+    title: 'Clique vestiaire — il est exclu',
+    description: "Une partie du vestiaire l’ignore depuis 2 semaines. Aucune raison claire — juste de la mise à l’écart.",
+    choices: [
+      c('Discussion franche avec le capitaine', { effects: { rep: 3, moral: 8, trust: 8 }, desc: 'Démarche directe', art: 'communicate' }),
+      c('Mettre les pieds dans le plat — réunion entière', { effects: { rep: -2, moral: 5, trust: 4 }, desc: 'Risqué mais cathartique', art: 'confront' }),
+      c('Lui conseiller de prendre du recul', { effects: { rep: 1, moral: -4, trust: 2 }, desc: 'Patience', art: 'wait' }),
+      c('Préparer un transfert hivernal', { effects: { rep: 0, moral: 6, trust: 2 }, flag: 'transfer_offer', desc: 'Sortir de cette situation', art: 'transfer' }),
+    ],
+  },
+  {
+    id: 'vest_duo_breakdown',
+    rarity: 'uncommon',
+    types: ['vestiaire'],
+    title: 'Duo offensif cassé',
+    description: "Son partenaire offensif refuse de lui passer le ballon depuis 3 matchs. La presse l’a noté. Le coach veut une solution.",
+    choices: [
+      c('Médiation discrète à 3', { effects: { rep: 3, moral: 8, trust: 7 }, desc: 'Apaiser', art: 'negotiate' }),
+      c('Confrontation publique en vidéo', { effects: { rep: 5, moral: 4, trust: 2 }, desc: 'Geste fort, moqué ou salué', art: 'communicate' }),
+      c('Pousser pour un transfert d’un des deux', { effects: { rep: -1, moral: 4 }, flag: 'transfer_offer', desc: 'Solution radicale', art: 'transfer' }),
+    ],
+  },
+  {
+    id: 'vest_captaincy_lost',
+    rarity: 'rare',
+    types: ['vestiaire'],
+    title: 'Brassard de capitaine retiré',
+    description: "Ton joueur perd le brassard. Décision du coach après une dispute. Il est dévasté.",
+    choices: [
+      c('Soutien public — défendre ton joueur', { effects: { rep: 4, moral: 14, trust: 12 }, desc: 'Loyal', art: 'protect' }),
+      c('Lui dire d’assumer et travailler', { effects: { rep: 1, moral: -4, trust: 4 }, desc: 'Pro', art: 'confront' }),
+      c('Demander une réunion club', { effects: { rep: 3, moral: 8, trust: 8 }, desc: 'Diplomatie', art: 'negotiate' }),
+    ],
+  },
+  {
+    id: 'vest_new_signing_threat',
+    rarity: 'uncommon',
+    types: ['vestiaire', 'transfer'],
+    title: 'Recrue à son poste',
+    description: "Le club signe un joueur qui menace directement sa place. Il est inquiet.",
+    choices: [
+      c('Le rassurer — concurrence saine', { effects: { rep: 1, moral: 5, trust: 6 }, desc: 'Apaiser', art: 'support' }),
+      c('Demander des garanties au club', { effects: { rep: 3, moral: 8, trust: 8 }, desc: 'Démarche pro', art: 'negotiate' }),
+      c('Activer un plan B transfert', { effects: { rep: 0, moral: 6, trust: 4 }, flag: 'transfer_offer', desc: 'Sortie anticipée', art: 'transfer' }),
+    ],
+  },
+  {
+    id: 'vest_fight_brawl',
+    rarity: 'rare',
+    types: ['vestiaire', 'scandal'],
+    title: 'Bagarre vestiaire — vidéo fuitée',
+    description: "Une vidéo d’une altercation vestiaire entre ton joueur et un coéquipier fuit. Le club réfléchit aux sanctions.",
+    choices: [
+      c('Excuses publiques et amende personnelle', { cost: 8000, effects: { rep: 4, moral: -3, trust: 4 }, desc: 'Coûteux mais sauve l’image', art: 'pay' }),
+      c('Faire passer pour un coup monté', { effects: { rep: -5, moral: 4, trust: 0 }, desc: 'Très risqué', art: 'risk' }),
+      c('Demander un transfert immédiat', { effects: { rep: -2, moral: 6, trust: 2 }, flag: 'transfer_offer', desc: 'Casser le contexte', art: 'transfer' }),
+    ],
+  },
+
+  // ─── MÉDIA — CRISES ET OPPORTUNITÉS ──────────────────────────────
+  {
+    id: 'media_podcast_invite',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Invitation podcast culte',
+    description: "Un podcast suivi par des millions de fans veut une longue interview intimiste.",
+    choices: [
+      c('Accepter — préparation lourde', { cost: 2000, effects: { rep: 6, moral: 5, trust: 3 }, desc: 'Image humanisée', art: 'communicate' }),
+      c('Refuser — protéger sa vie privée', { effects: { rep: -1, moral: 4, trust: 4 }, desc: 'Mystère préservé', art: 'refuse' }),
+      c('Accepter format court contrôlé', { effects: { rep: 3, moral: 3, trust: 3 }, desc: 'Compromis safe', art: 'negotiate' }),
+    ],
+  },
+  {
+    id: 'media_doc_offer',
+    rarity: 'rare',
+    types: ['media'],
+    title: 'Documentaire — offre Netflix',
+    description: "Une plateforme veut faire un documentaire sur sa carrière. Accès complet vestiaire et famille.",
+    choices: [
+      c('Accepter avec contrôle éditorial', { cost: 4000, effects: { rep: 8, moral: 8, trust: 5, money: 18000 }, desc: 'Image et cash', art: 'contract' }),
+      c('Accepter — chèque max sans contrôle', { effects: { rep: 3, moral: 6, trust: 1, money: 30000 }, desc: 'Risque image', art: 'pay' }),
+      c('Refuser', { effects: { rep: 1, moral: 3, trust: 5 }, desc: 'Vie privée préservée', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'media_old_quote',
+    rarity: 'uncommon',
+    types: ['scandal'],
+    title: 'Vieux tweet ressorti',
+    description: "Un tweet de ses 17 ans refait surface. Maladroit mais pas dramatique. Les détracteurs s'en emparent.",
+    choices: [
+      c('Excuses sincères publiques', { effects: { rep: 3, moral: -3, trust: 4 }, desc: 'Maturité', art: 'communicate' }),
+      c('Contextualiser sans s’excuser', { effects: { rep: -1, moral: 5, trust: 3 }, desc: 'Cohérent mais clivant', art: 'risk' }),
+      c('Faire effacer en silence', { cost: 3000, effects: { rep: -2, moral: 1 }, desc: 'Discret mais détectable', art: 'pay' }),
+      c('Ignorer', { effects: { rep: -3, moral: 0, trust: -1 }, desc: 'Risque de pourrissement', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'media_documentary_haters',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Documentaire à charge en préparation',
+    description: "Un journaliste indépendant prépare un docu critique sur lui. Sources anonymes du club.",
+    choices: [
+      c('Proposer une interview cadrée', { cost: 4000, effects: { rep: 4, trust: 4 }, desc: 'Reprendre la main', art: 'communicate' }),
+      c('Réplique avec son propre format', { cost: 8000, effects: { rep: 6, moral: 8, trust: 5 }, desc: 'Contre-narratif', art: 'communicate' }),
+      c('Avocat — menace de procès', { cost: 12000, effects: { rep: -2, moral: 4, trust: 2 }, desc: 'Risque Streisand', art: 'risk' }),
+      c('Ignorer', { effects: { rep: -4, trust: -1 }, desc: 'Laisser faire', art: 'wait' }),
+    ],
+  },
+  {
+    id: 'media_charity_offer',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Une ONG demande son parrainage',
+    description: "Une ONG sérieuse propose à ton joueur d'incarner sa cause sur 12 mois.",
+    choices: [
+      c('Accepter — engagement sincère', { cost: 6000, effects: { rep: 9, moral: 12, trust: 8 }, desc: 'Capital sympathie fort', art: 'support' }),
+      c('Donation discrète sans implication', { cost: 8000, effects: { rep: 3, moral: 6, trust: 5 }, desc: 'Discret', art: 'gift' }),
+      c('Refuser — agenda chargé', { effects: { rep: -2, moral: 1, trust: 1 }, desc: 'Pragmatique', art: 'refuse' }),
+    ],
+  },
+
+  // ─── CARRIÈRE / TRANSFERTS ────────────────────────────────────────
+  {
+    id: 'transfer_loan_request',
+    rarity: 'common',
+    types: ['transfer'],
+    title: 'Demande de prêt formative',
+    description: "Un club de niveau inférieur veut le prêter pour qu'il ait du temps de jeu.",
+    choices: [
+      c('Accepter — il a besoin de minutes', { effects: { moral: 8, trust: 6, val: 1.04 }, desc: 'Bénéfique', flag: 'transfer_offer', art: 'transfer' }),
+      c('Refuser — rester se battre', { effects: { moral: -4, trust: 2 }, desc: 'Risqué', art: 'refuse' }),
+      c('Négocier prêt avec option d’achat', { effects: { moral: 6, trust: 4, money: 4000 }, desc: 'Sécurisé', flag: 'transfer_offer', art: 'negotiate' }),
+    ],
+  },
+  {
+    id: 'transfer_release_clause_triggered',
+    rarity: 'rare',
+    types: ['transfer'],
+    title: 'Clause libératoire activée',
+    description: "Un club paie sa clause cash. Le club actuel est forcé. Tu négocies les conditions personnelles.",
+    choices: [
+      c('Maximiser le salaire', { effects: { rep: 2, moral: 8, trust: 1, money: 25000, val: 1.08 }, desc: 'Cash', flag: 'transfer_offer', art: 'pay' }),
+      c('Privilégier le projet sportif', { effects: { rep: 6, moral: 14, trust: 8, val: 1.06 }, desc: 'Long terme', flag: 'transfer_offer', art: 'team' }),
+      c('Tenter une contre-offre du club actuel', { effects: { rep: 3, moral: 4, trust: 6 }, desc: 'Loyal', art: 'support' }),
+    ],
+  },
+  {
+    id: 'transfer_back_door',
+    rarity: 'uncommon',
+    types: ['transfer'],
+    title: 'Approche secrète d’un président',
+    description: "Le président d'un club rival lui parle directement, en marge d'un événement caritatif.",
+    choices: [
+      c('Saisir l’opportunité — démarches discrètes', { effects: { rep: 2, moral: 8, trust: 4 }, flag: 'transfer_offer', desc: 'Carte cachée', art: 'negotiate' }),
+      c('Prévenir le club actuel', { effects: { rep: 5, moral: 2, trust: 6 }, desc: 'Loyal', art: 'protect' }),
+      c('Refuser tout contact non officiel', { effects: { rep: 4, trust: 5 }, desc: 'Pro', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'transfer_loan_recall',
+    rarity: 'uncommon',
+    types: ['transfer'],
+    title: 'Rappel de prêt anticipé',
+    description: "Le club prêteur veut le rappeler à mi-saison suite à des blessures.",
+    choices: [
+      c('Accepter le rappel', { effects: { moral: 4, trust: 4 }, desc: 'Retour précipité', art: 'support' }),
+      c('Forcer la fin de prêt complète', { effects: { rep: -2, moral: 6, trust: 2 }, desc: 'Tendu mais courageux', art: 'confront' }),
+      c('Négocier un prêt plus long', { effects: { rep: 2, moral: 8, trust: 6 }, desc: 'Stabilité', art: 'negotiate' }),
+    ],
+  },
+  {
+    id: 'transfer_destination_choice',
+    rarity: 'rare',
+    types: ['transfer'],
+    title: 'Trois destinations sur la table',
+    description: "Trois offres concrètes : une en Premier League (cash), une en Liga (prestige), une en Serie A (jeu). Il hésite.",
+    choices: [
+      c('Premier League — chèque max', { effects: { money: 30000, moral: 8, val: 1.08 }, flag: 'transfer_offer', desc: 'Cash', art: 'pay' }),
+      c('Liga — prestige', { effects: { rep: 8, moral: 12, val: 1.1 }, flag: 'transfer_offer', desc: 'Image', art: 'team' }),
+      c('Serie A — jeu et tactique', { effects: { rep: 4, moral: 14, trust: 8, val: 1.05 }, flag: 'transfer_offer', desc: 'Développement', art: 'support' }),
+      c('Aucune — attendre l’été', { effects: { rep: -2, moral: -8, trust: -4 }, desc: 'Risqué', art: 'wait' }),
+    ],
+  },
+
+  // ─── SÉLECTION NATIONALE ──────────────────────────────────────────
+  {
+    id: 'national_callup_first',
+    rarity: 'rare',
+    types: ['media'],
+    title: 'Première convocation en sélection',
+    description: "Le sélectionneur l'appelle pour la première fois. Émotion, pression, exposition.",
+    choices: [
+      c('Réception médiatique organisée', { cost: 3000, effects: { rep: 6, moral: 14, trust: 8, val: 1.06 }, desc: 'Capital sympathie', art: 'communicate' }),
+      c('Profil bas — focus sportif', { effects: { rep: 2, moral: 12, trust: 8 }, desc: 'Pro', art: 'support' }),
+      c('Accepter une grosse interview exclusive', { effects: { rep: 4, moral: 10, trust: 4, money: 8000 }, desc: 'Médiatique', art: 'communicate' }),
+    ],
+  },
+  {
+    id: 'national_team_friction',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Friction avec le staff national',
+    description: "Tactique imposée qu'il déteste. Il en parle en off à un journaliste. Ça remonte au sélectionneur.",
+    choices: [
+      c('Excuses privées au sélectionneur', { effects: { rep: 3, moral: 4, trust: 5 }, desc: 'Professionnel', art: 'communicate' }),
+      c('Persister publiquement', { effects: { rep: -3, moral: 8, trust: 3 }, desc: 'Risqué', art: 'risk' }),
+      c('Demander une mise au point', { effects: { rep: 4, moral: 6, trust: 6 }, desc: 'Diplomatie', art: 'negotiate' }),
+    ],
+  },
+  {
+    id: 'national_position_dispute',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Concurrence directe en sélection',
+    description: "Un autre joueur de son poste est préféré. Il est sur le banc malgré ses stats.",
+    choices: [
+      c('Lobby presse pour faire pression', { effects: { rep: -2, moral: 6, trust: 3 }, desc: 'Risqué', art: 'risk' }),
+      c('Travailler en silence', { effects: { rep: 3, moral: 4, trust: 6 }, desc: 'Pro', art: 'wait' }),
+      c('Discussion franche avec le sélectionneur', { effects: { rep: 2, moral: 8, trust: 7 }, desc: 'Direct et mature', art: 'communicate' }),
+    ],
+  },
+  {
+    id: 'national_retire_offer',
+    rarity: 'rare',
+    types: ['media'],
+    title: 'Tentation de retraite internationale',
+    description: "Fatigué par les voyages et la pression, il évoque arrêter la sélection à 30 ans.",
+    choices: [
+      c('Le pousser à continuer', { effects: { rep: 4, moral: -4, trust: 3 }, desc: 'Carrière préservée', art: 'support' }),
+      c('Soutenir sa décision', { effects: { rep: 2, moral: 14, trust: 12 }, desc: 'Humain', art: 'support' }),
+      c('Lui proposer un break', { effects: { rep: 3, moral: 8, trust: 6 }, desc: 'Compromis', art: 'wait' }),
+    ],
+  },
+
+  // ─── SCANDALES & VIE PRIVÉE ────────────────────────────────────────
+  {
+    id: 'priv_relationship_leak',
+    rarity: 'uncommon',
+    types: ['scandal'],
+    title: 'Relation amoureuse exposée',
+    description: "Une romance avec une personnalité publique est révélée. Photos partout.",
+    choices: [
+      c('Communiqué romantique assumé', { effects: { rep: 4, moral: 8, trust: 5 }, desc: 'Authentique', art: 'communicate' }),
+      c('Demander vie privée — ferme', { effects: { rep: 2, moral: 4, trust: 6 }, desc: 'Pro', art: 'protect' }),
+      c('Profiter pour signer un sponsor lifestyle', { effects: { rep: 1, moral: 5, trust: 3, money: 12000 }, desc: 'Cynique mais lucratif', art: 'pay' }),
+    ],
+  },
+  {
+    id: 'priv_legal_dispute',
+    rarity: 'rare',
+    types: ['scandal'],
+    title: 'Litige juridique privé',
+    description: "Un litige civil banal devient public. Procès dans 3 semaines. Stress maximum.",
+    choices: [
+      c('Avocat haut de gamme — règlement amiable', { cost: 18000, effects: { rep: 1, moral: 6, trust: 6 }, desc: 'Pro', art: 'pay' }),
+      c('Mettre en avant un soutien caritatif', { cost: 6000, effects: { rep: 5, moral: 6, trust: 4 }, desc: 'Détourner l’attention', art: 'communicate' }),
+      c('Aller au tribunal — image préservée', { effects: { rep: -2, moral: -4, trust: 2 }, desc: 'Long', art: 'risk' }),
+    ],
+  },
+  {
+    id: 'priv_friend_scandal',
+    rarity: 'uncommon',
+    types: ['scandal'],
+    title: 'Un proche fait scandale',
+    description: "Un ami d'enfance proche est arrêté. Les médias font le lien avec lui.",
+    choices: [
+      c('Communiqué de désolidarisation', { effects: { rep: 3, moral: -8, trust: 2 }, desc: 'Pro', art: 'refuse' }),
+      c('Soutien public à son ami', { effects: { rep: -4, moral: 10, trust: 6 }, desc: 'Loyal', art: 'support' }),
+      c('Silence total', { effects: { rep: -1, moral: 0, trust: 1 }, desc: 'Neutre', art: 'wait' }),
+    ],
+  },
+  {
+    id: 'priv_real_estate',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Achat villa de luxe — backlash',
+    description: "Sa villa à 8M€ est étalée par un magazine. Critiques sur l'ostentation.",
+    choices: [
+      c('Action caritative pour rééquilibrer', { cost: 12000, effects: { rep: 6, moral: 4, trust: 3 }, desc: 'Image', art: 'support' }),
+      c('Assumer — vie privée', { effects: { rep: -2, moral: 4, trust: 3 }, desc: 'Liberté', art: 'risk' }),
+      c('Communiquer sur son histoire perso', { effects: { rep: 4, moral: 6, trust: 5 }, desc: 'Humanise', art: 'communicate' }),
+    ],
+  },
+
+  // ─── COACH & STAFF ───────────────────────────────────────────────
+  {
+    id: 'coach_change',
+    rarity: 'uncommon',
+    types: ['transfer'],
+    title: 'Le coach est limogé',
+    description: "Le coach qui le faisait jouer titulaire est viré. Le nouveau ne le connaît pas.",
+    choices: [
+      c('Aller voir le nouveau coach immédiatement', { effects: { rep: 3, moral: 6, trust: 6 }, desc: 'Initiative', art: 'communicate' }),
+      c('Activer plan transfert hivernal', { effects: { moral: 4, trust: 2 }, flag: 'transfer_offer', desc: 'Sécurité', art: 'transfer' }),
+      c('Prouver sur le terrain', { effects: { rep: 4, moral: 8, trust: 5 }, desc: 'Mentalité', art: 'support' }),
+    ],
+  },
+  {
+    id: 'coach_public_criticism',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Coach le critique en conférence',
+    description: "Le coach pointe ses erreurs publiquement. La presse en fait ses choux gras.",
+    choices: [
+      c('Appel privé au coach', { effects: { rep: 3, moral: 4, trust: 5 }, desc: 'Mature', art: 'communicate' }),
+      c('Réponse publique mesurée', { effects: { rep: 4, moral: 6, trust: 3 }, desc: 'Visible', art: 'protect' }),
+      c('Réponse cinglante via story Insta', { effects: { rep: -3, moral: 10, trust: 0 }, desc: 'Risqué', art: 'risk' }),
+    ],
+  },
+  {
+    id: 'coach_extension_question',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Le coach lui demande son avis sur sa prolongation',
+    description: "Geste rare — le coach demande son retour. Sa réponse peut basculer la décision du club.",
+    choices: [
+      c('Soutien total', { effects: { rep: 4, moral: 8, trust: 8 }, desc: 'Loyal', art: 'support' }),
+      c('Critique constructive honnête', { effects: { rep: 3, moral: 4, trust: 6 }, desc: 'Mature', art: 'communicate' }),
+      c('Recommander un changement', { effects: { rep: -2, moral: 6, trust: 2 }, desc: 'Cynique', art: 'confront' }),
+    ],
+  },
+
+  // ─── AGENT / CARRIÈRE / RELATION ──────────────────────────────────
+  {
+    id: 'agent_new_offer',
+    rarity: 'rare',
+    types: ['transfer'],
+    title: 'Une superstar veut le même agent',
+    description: "Un grand joueur d'un autre club veut signer chez ton agence — à condition que ton joueur l’accepte.",
+    choices: [
+      c('Accepter — empire bâti', { effects: { rep: 8, moral: 5, trust: 2, money: 20000 }, desc: 'Boost agence', art: 'team' }),
+      c('Refuser — rester focus sur ton joueur', { effects: { rep: 4, moral: 10, trust: 12 }, desc: 'Loyal', art: 'support' }),
+      c('Accepter à condition — clauses', { cost: 5000, effects: { rep: 6, moral: 8, trust: 8, money: 12000 }, desc: 'Pro', art: 'negotiate' }),
+    ],
+  },
+  {
+    id: 'agent_branding_request',
+    rarity: 'common',
+    types: ['transfer'],
+    title: 'Brand personnel — il veut son logo',
+    description: "Il veut investir dans une marque perso. Demande conseil et financement.",
+    choices: [
+      c('Investir avec lui', { cost: 18000, effects: { rep: 4, moral: 12, trust: 12, money: 4000 }, desc: 'Long terme', art: 'team' }),
+      c('Mettre en relation avec spécialistes', { cost: 2000, effects: { rep: 3, moral: 8, trust: 8 }, desc: 'Pragmatique', art: 'communicate' }),
+      c('Refuser — pas dans ton scope', { effects: { rep: 0, moral: -4, trust: -4 }, desc: 'Froid', art: 'refuse' }),
+    ],
+  },
+
+  // ─── CLUB / DIRECTION SPORTIVE ───────────────────────────────────
+  {
+    id: 'club_relegation_threat',
+    rarity: 'rare',
+    types: ['transfer'],
+    title: 'Le club menace de descendre',
+    description: "Saison catastrophique du club. La relégation est probable. Que fait-on ?",
+    choices: [
+      c('Activer une clause descente', { effects: { rep: 2, moral: 8, trust: 4 }, flag: 'transfer_offer', desc: 'Préventif', art: 'transfer' }),
+      c('Rester pour aider à la remontée', { effects: { rep: 8, moral: 14, trust: 14, val: 0.95 }, desc: 'Capitaine d\'équipe', art: 'support' }),
+      c('Demander un bonus maintien', { effects: { rep: 1, moral: 4, trust: 4, money: 6000 }, desc: 'Pragmatique', art: 'pay' }),
+    ],
+  },
+  {
+    id: 'club_finance_crisis',
+    rarity: 'uncommon',
+    types: ['transfer'],
+    title: 'Crise financière du club',
+    description: "Le club ne peut plus payer son salaire complet ce mois-ci. Proposition d’étalement.",
+    choices: [
+      c('Accepter avec compensation', { effects: { rep: 6, moral: 8, trust: 8, val: 1.04 }, desc: 'Diplomatique', art: 'negotiate' }),
+      c('Saisir la commission de salaire', { effects: { rep: -3, moral: 4, trust: 2 }, desc: 'Conflit', art: 'confront' }),
+      c('Profiter pour activer un transfert', { effects: { moral: 6, trust: 2 }, flag: 'transfer_offer', desc: 'Sortir', art: 'transfer' }),
+    ],
+  },
+  {
+    id: 'club_strategy_meeting',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Réunion stratégique avec le DS',
+    description: "Le directeur sportif demande une réunion pour planifier la saison à 3 ans.",
+    choices: [
+      c('Aligner agence et DS', { effects: { rep: 5, moral: 6, trust: 8 }, desc: 'Stratégique', art: 'team' }),
+      c('Imposer une vision agressive', { effects: { rep: 2, moral: 6, trust: 3 }, desc: 'Risqué', art: 'risk' }),
+      c('Rester évasif — garder cartes', { effects: { rep: 1, trust: 3 }, desc: 'Neutre', art: 'wait' }),
+    ],
+  },
+
+  // ─── ÉVÉNEMENTS DE FORME / SANTÉ ─────────────────────────────────
+  {
+    id: 'health_burnout_warning',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Signes de burnout détectés',
+    description: "Le préparateur mental t’alerte sur l’état psychologique de ton joueur. Pas critique encore.",
+    choices: [
+      c('Pause programmée — 2 semaines', { effects: { moral: 14, trust: 12, val: 0.97 }, desc: 'Préventif', art: 'support' }),
+      c('Coaching mental intensif', { cost: 8000, effects: { moral: 10, trust: 10 }, desc: 'Pro', art: 'communicate' }),
+      c('Continuer normalement', { effects: { moral: -10, trust: -8, val: 0.95 }, desc: 'Risqué', art: 'risk' }),
+    ],
+  },
+  {
+    id: 'health_diet_overhaul',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Refonte de la nutrition',
+    description: "Un nutritionniste de renom propose un plan complet. Coût important.",
+    choices: [
+      c('Investir', { cost: 6000, effects: { val: 1.05, moral: 6, trust: 4 }, desc: 'Long terme', art: 'support' }),
+      c('Refuser — il est pro', { effects: { moral: -2 }, desc: 'Mécontent', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'health_minor_surgery',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Petite chirurgie nécessaire',
+    description: "Une opération mineure réglerait des douleurs chroniques. 4 semaines d'arrêt.",
+    choices: [
+      c('Programmer rapidement', { effects: { moral: 6, trust: 6, val: 1.05 }, desc: 'Pro', injury: 4, art: 'support' }),
+      c('Reporter à l’intersaison', { effects: { moral: 4, trust: 4, val: 0.98 }, desc: 'Continuer', art: 'wait' }),
+      c('Traitement conservateur', { cost: 4000, effects: { moral: 2, trust: 2 }, desc: 'Demi-mesure', art: 'pay' }),
+    ],
+  },
+
+  // ─── ÉVÉNEMENTS LÉGERS — VIE QUOTIDIENNE ─────────────────────────
+  {
+    id: 'daily_fan_meet',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Rencontre fortuite avec un fan',
+    description: "Un fan croisé en ville lui demande une longue discussion et une photo. Caméra dans le coin.",
+    choices: [
+      c('Prendre tout le temps qu’il faut', { effects: { rep: 5, moral: 4, trust: 3 }, desc: 'Capital sympathie', art: 'support' }),
+      c('Photo rapide et partir', { effects: { rep: 1 }, desc: 'Pro', art: 'communicate' }),
+      c('Refuser — il est pressé', { effects: { rep: -3, moral: -2 }, desc: 'Mauvais timing', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'daily_neighbor_dispute',
+    rarity: 'common',
+    types: ['scandal'],
+    title: 'Conflit de voisinage',
+    description: "Un voisin se plaint de fêtes répétées. Plainte déposée. Petite presse local sur l’affaire.",
+    choices: [
+      c('Excuses + cadeau', { cost: 2000, effects: { rep: 2 }, desc: 'Apaiser', art: 'gift' }),
+      c('Engager un avocat', { cost: 5000, effects: { rep: -1, trust: 1 }, desc: 'Tendu', art: 'pay' }),
+      c('Déménager dans un quartier privé', { cost: 12000, effects: { rep: 1, moral: 6 }, desc: 'Solution radicale', art: 'pay' }),
+    ],
+  },
+  {
+    id: 'daily_pet_viral',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Son chien devient viral',
+    description: "Une vidéo de lui jouant avec son chien fait le tour du web.",
+    choices: [
+      c('Compte Insta dédié au chien', { effects: { rep: 4, moral: 5, money: 6000 }, desc: 'Capital sympathie', art: 'communicate' }),
+      c('Profiter pour parler de la SPA', { effects: { rep: 7, moral: 8, trust: 4 }, desc: 'Caritatif', art: 'support' }),
+      c('Ne rien faire', { effects: { rep: 1 }, desc: 'Discret', art: 'wait' }),
+    ],
+  },
+
+  // ─── BUSINESS / INVESTISSEMENTS ──────────────────────────────────
+  {
+    id: 'biz_restaurant',
+    rarity: 'common',
+    types: ['transfer'],
+    title: 'Investissement restaurant',
+    description: "Une opportunité d'investir dans un restaurant de chef étoilé.",
+    choices: [
+      c('Investir gros', { cost: 25000, effects: { rep: 3, moral: 6, money: 8000 }, desc: 'ROI lent', art: 'pay' }),
+      c('Investissement minoritaire', { cost: 8000, effects: { rep: 2, money: 2000 }, desc: 'Safe', art: 'negotiate' }),
+      c('Refuser', { effects: { trust: -1 }, desc: 'Cash préservé', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'biz_esports',
+    rarity: 'uncommon',
+    types: ['transfer'],
+    title: 'Création d’une équipe esport',
+    description: "Il veut monter une équipe esport à son nom. Tendance, jeune, mais risqué.",
+    choices: [
+      c('Lancer en grand', { cost: 30000, effects: { rep: 5, moral: 10, trust: 4 }, desc: 'Image moderne', art: 'team' }),
+      c('Soutenir une équipe existante', { cost: 8000, effects: { rep: 3, moral: 6 }, desc: 'Safe', art: 'support' }),
+      c('Refuser', { effects: { moral: -3 }, desc: 'Frustrant', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'biz_real_estate_invest',
+    rarity: 'common',
+    types: ['transfer'],
+    title: 'Portefeuille immobilier',
+    description: "Un conseiller propose un portefeuille immobilier locatif diversifié.",
+    choices: [
+      c('Investir', { cost: 22000, effects: { rep: 1, money: 5000 }, desc: 'Long terme', art: 'pay' }),
+      c('Refuser', { effects: {}, desc: 'Cash', art: 'refuse' }),
+    ],
+  },
+
+  // ─── COMPÉTITION EUROPÉENNE ──────────────────────────────────────
+  {
+    id: 'euro_qualif_pressure',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Pression qualification européenne',
+    description: "Le club joue sa qualif Champions League sur les 3 dernières journées. Il est central.",
+    choices: [
+      c('Discours mobilisateur dans le vestiaire', { effects: { rep: 5, moral: 10, trust: 8 }, desc: 'Leader', art: 'team' }),
+      c('Profil bas — focus individuel', { effects: { rep: 1, moral: 4, trust: 3 }, desc: 'Pro', art: 'wait' }),
+      c('Médias — viser la pression sur les rivaux', { effects: { rep: 3, moral: 6, trust: 2 }, desc: 'Risqué', art: 'risk' }),
+    ],
+  },
+  {
+    id: 'euro_quarter_final',
+    rarity: 'rare',
+    types: ['media'],
+    title: 'Quart de finale Champions League',
+    description: "Affiche colossale, pression mondiale. La presse veut un angle fort sur lui.",
+    choices: [
+      c('Conférence pré-match maîtrisée', { effects: { rep: 6, moral: 8, trust: 6 }, desc: 'Pro', art: 'communicate' }),
+      c('Promesse forte aux fans', { effects: { rep: 4, moral: 10, trust: 4, pressure: 4 }, desc: 'Hype + risque', art: 'risk' }),
+      c('Silence radio', { effects: { rep: 1, moral: 4, trust: 4 }, desc: 'Concentration', art: 'wait' }),
+    ],
+  },
+  {
+    id: 'euro_final_eve',
+    rarity: 'epic',
+    types: ['media'],
+    title: 'Veille de finale européenne',
+    description: "Demain c'est la finale. Toute la planète foot regarde. Tu as un dernier appel à passer.",
+    choices: [
+      c('Discours intime — pure motivation', { effects: { rep: 8, moral: 18, trust: 14, val: 1.06 }, desc: 'Lien fort', art: 'support' }),
+      c('Rappeler clauses bonus victoire', { effects: { rep: 1, moral: 4, money: 5000 }, desc: 'Pragmatique', art: 'pay' }),
+      c('Ne pas l’appeler — le laisser seul', { effects: { rep: -2, moral: -4, trust: -3 }, desc: 'Risqué', art: 'wait' }),
+    ],
+  },
+
+  // ─── FORMATION / JEUNESSE ────────────────────────────────────────
+  {
+    id: 'youth_protege_request',
+    rarity: 'uncommon',
+    types: ['fans'],
+    title: 'Un jeune talent demande son mentorat',
+    description: "Un jeune du centre de formation demande à être conseillé par lui.",
+    choices: [
+      c('Accepter — plein engagement', { effects: { rep: 6, moral: 10, trust: 8 }, desc: 'Beau geste', art: 'team' }),
+      c('Mentorat ponctuel', { effects: { rep: 3, moral: 6, trust: 5 }, desc: 'Mesuré', art: 'support' }),
+      c('Refuser — pas le temps', { effects: { rep: -2, moral: -2 }, desc: 'Froid', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'youth_camp_offer',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Camp jeunes à son nom',
+    description: "Une marque sportive propose un camp d'été à son nom. Bonne exposition.",
+    choices: [
+      c('Accepter avec implication', { cost: 4000, effects: { rep: 7, moral: 8, money: 10000 }, desc: 'Image + cash', art: 'team' }),
+      c('Prêter son nom seulement', { effects: { rep: 3, money: 6000 }, desc: 'Léger', art: 'contract' }),
+      c('Refuser', { effects: { rep: -1 }, desc: 'Cash perdu', art: 'refuse' }),
+    ],
+  },
+
+  // ─── ÉVÉNEMENTS FANS ─────────────────────────────────────────────
+  {
+    id: 'fans_poster_campaign',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Campagne d’affichage par les supporters',
+    description: "Les ultras lancent une campagne 'STAY' avec son visage partout en ville.",
+    choices: [
+      c('Geste public — promesse de loyauté', { effects: { rep: 8, moral: 12, trust: 8 }, desc: 'Capital fan énorme', art: 'support' }),
+      c('Remerciement discret', { effects: { rep: 4, moral: 6, trust: 5 }, desc: 'Pro', art: 'communicate' }),
+      c('Ignorer', { effects: { rep: -4, moral: -4, trust: -2 }, desc: 'Frustration fans', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'fans_jersey_record',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Record de ventes de maillot',
+    description: "Son maillot est le plus vendu du club ce trimestre.",
+    choices: [
+      c('Tournée fan signing', { cost: 3000, effects: { rep: 7, moral: 8, trust: 4 }, desc: 'Capital fan', art: 'communicate' }),
+      c('Soirée VIP avec 50 fans', { cost: 6000, effects: { rep: 5, moral: 6 }, desc: 'Élite', art: 'gift' }),
+      c('Just thank you sur Insta', { effects: { rep: 2 }, desc: 'Léger', art: 'wait' }),
+    ],
+  },
+  {
+    id: 'fans_protest',
+    rarity: 'uncommon',
+    types: ['fans'],
+    title: 'Manifestation supporters contre la direction',
+    description: "Les supporters manifestent contre les dirigeants. Ils veulent qu'il prenne position.",
+    choices: [
+      c('Soutien public aux fans', { effects: { rep: 6, moral: 10, trust: 5, val: 1.03 }, desc: 'Risqué côté club', art: 'protect' }),
+      c('Soutien public au club', { effects: { rep: -3, moral: -2, trust: 4 }, desc: 'Pro club', art: 'support' }),
+      c('Neutre publiquement', { effects: { rep: -2, moral: 0, trust: 1 }, desc: 'Politique', art: 'wait' }),
+    ],
+  },
+
+  // ─── LIVING WORLD ────────────────────────────────────────────────
+  {
+    id: 'world_legend_retirement',
+    rarity: 'rare',
+    types: ['media'],
+    title: 'Une légende du foot prend sa retraite',
+    description: "Une icône absolue annonce sa retraite. Ton joueur peut surfer sur l’émotion.",
+    choices: [
+      c('Hommage public sincère', { effects: { rep: 6, moral: 6, trust: 5 }, desc: 'Capital sympathie', art: 'support' }),
+      c('Lien personnel à raconter en interview', { effects: { rep: 8, moral: 8, trust: 4, money: 5000 }, desc: 'Médiatique', art: 'communicate' }),
+      c('Profil bas', { effects: { rep: 0 }, desc: 'Sobre', art: 'wait' }),
+    ],
+  },
+  {
+    id: 'world_corruption_investigation',
+    rarity: 'rare',
+    types: ['scandal'],
+    title: 'Enquête anti-corruption ligue',
+    description: "Une enquête éclate dans la ligue. Le club n'est pas concerné mais des journalistes appellent.",
+    choices: [
+      c('Communiqué club + joueur uni', { cost: 2000, effects: { rep: 5, trust: 4 }, desc: 'Pro', art: 'protect' }),
+      c('Silence', { effects: { rep: 0 }, desc: 'Neutre', art: 'wait' }),
+      c('Demander un transfert préventif', { effects: { rep: -2, moral: 4 }, flag: 'transfer_offer', desc: 'Précaution', art: 'transfer' }),
+    ],
+  },
+
+  // ─── BONUS NOUVEAUX SUJETS ───────────────────────────────────────
+  {
+    id: 'esport_charity',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Stream caritatif esport',
+    description: "Une opportunité de stream esport caritatif avec d'autres stars.",
+    choices: [
+      c('Participer 4h en live', { effects: { rep: 7, moral: 8, trust: 3 }, desc: 'Image jeune', art: 'communicate' }),
+      c('Soutien financier seul', { cost: 5000, effects: { rep: 3 }, desc: 'Discret', art: 'gift' }),
+      c('Refuser', { effects: { rep: -1 }, desc: 'Conservateur', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'green_initiative',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Initiative écologique',
+    description: "Une assoc’ environnementale veut le mettre en avant pour une campagne climat.",
+    choices: [
+      c('S’engager pleinement', { cost: 4000, effects: { rep: 8, moral: 6, trust: 4 }, desc: 'Cause forte', art: 'support' }),
+      c('Spot court — visibilité légère', { effects: { rep: 4, moral: 3 }, desc: 'Léger', art: 'communicate' }),
+      c('Refuser', { effects: { rep: -2 }, desc: 'Conservateur', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'investor_meeting',
+    rarity: 'uncommon',
+    types: ['transfer'],
+    title: 'Investisseur veut le rencontrer',
+    description: "Un investisseur étranger veut le rencontrer pour des opportunités hors foot.",
+    choices: [
+      c('Rencontre cadrée par l’agence', { cost: 2000, effects: { rep: 2, money: 8000 }, desc: 'Encadré', art: 'negotiate' }),
+      c('Refuser — éviter les distractions', { effects: { trust: 2 }, desc: 'Pro', art: 'refuse' }),
+      c('Inclure ton joueur dans un fonds dédié', { cost: 10000, effects: { rep: 4, money: 18000, moral: 4 }, desc: 'Long terme', art: 'pay' }),
+    ],
+  },
+  {
+    id: 'manager_book_offer',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Offre d’autobiographie',
+    description: "Un grand éditeur propose une autobiographie. Avance massive.",
+    choices: [
+      c('Accepter — ghostwriter pro', { cost: 4000, effects: { rep: 5, money: 24000, moral: 6 }, desc: 'Cash + image', art: 'contract' }),
+      c('Reporter en fin de carrière', { effects: { rep: 1 }, desc: 'Sage', art: 'wait' }),
+      c('Refuser', { effects: { rep: -1 }, desc: 'Mystère', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'agent_event_invite',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Soirée des agents — réseau pro',
+    description: "Une grosse soirée réseau a lieu. Ton joueur est invité comme ambassadeur.",
+    choices: [
+      c('Présence en grand', { cost: 1500, effects: { rep: 5, moral: 4, trust: 3 }, desc: 'Réseau', art: 'communicate' }),
+      c('Refuser — focus terrain', { effects: { trust: 2 }, desc: 'Pro', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'rival_friendship',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Amitié inattendue avec un rival',
+    description: "Photos avec un rival d’un autre club. Les fans des deux côtés réagissent fort.",
+    choices: [
+      c('Assumer publiquement — sport avant tout', { effects: { rep: 5, moral: 6, trust: 4 }, desc: 'Maturité', art: 'communicate' }),
+      c('Communiqué — limiter les apparitions', { effects: { rep: 2, moral: -2 }, desc: 'Conservateur', art: 'refuse' }),
+      c('Profiter pour un projet caritatif commun', { cost: 6000, effects: { rep: 9, moral: 8, trust: 4 }, desc: 'Capital sympathie', art: 'support' }),
+    ],
+  },
+  {
+    id: 'public_image_overhaul',
+    rarity: 'uncommon',
+    types: ['media'],
+    title: 'Refonte de l’image publique',
+    description: "Une agence de com propose un repositionnement complet : style, voix, valeurs.",
+    choices: [
+      c('Investir dans le rebranding', { cost: 15000, effects: { rep: 8, val: 1.06, moral: 4 }, desc: 'Long terme', art: 'pay' }),
+      c('Refonte légère — accent sur l’authenticité', { cost: 5000, effects: { rep: 5, moral: 6 }, desc: 'Mesuré', art: 'communicate' }),
+      c('Refuser', { effects: {}, desc: 'Statu quo', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'fan_tattoo',
+    rarity: 'common',
+    types: ['fans'],
+    title: 'Un fan se fait tatouer son nom',
+    description: "Un fan se fait tatouer son visage géant. Photo virale.",
+    choices: [
+      c('Réaction émue + cadeau personnel', { cost: 2000, effects: { rep: 8, moral: 6 }, desc: 'Capital fan', art: 'gift' }),
+      c('Repost simple', { effects: { rep: 3 }, desc: 'Léger', art: 'communicate' }),
+      c('Ignorer', { effects: { rep: -2 }, desc: 'Froid', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'mvp_speech',
+    rarity: 'rare',
+    types: ['media'],
+    title: 'Discours réception trophée',
+    description: "Il reçoit un trophée majeur. Discours en direct devant des millions.",
+    choices: [
+      c('Émotionnel et personnel', { effects: { rep: 8, moral: 12, trust: 8 }, desc: 'Mémorable', art: 'support' }),
+      c('Politique / message engagé', { effects: { rep: 2, moral: 10, trust: 5, val: 1.03 }, desc: 'Clivant', art: 'risk' }),
+      c('Bref et professionnel', { effects: { rep: 4, moral: 4 }, desc: 'Sobre', art: 'communicate' }),
+    ],
+  },
+  {
+    id: 'old_coach_call',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Appel d’un ancien coach',
+    description: "Son tout premier coach l’appelle pour un projet de fondation jeunes.",
+    choices: [
+      c('S’investir financièrement', { cost: 12000, effects: { rep: 9, moral: 14, trust: 10 }, desc: 'Histoire', art: 'team' }),
+      c('Soutien moral et visite', { effects: { rep: 5, moral: 8, trust: 6 }, desc: 'Symbolique', art: 'support' }),
+      c('Refuser poliment', { effects: { rep: -2, moral: -4 }, desc: 'Froid', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'derby_pre_match',
+    rarity: 'common',
+    types: ['media'],
+    title: 'Veille de derby — provocations rivales',
+    description: "Un joueur du club rival le tague dans un post moqueur.",
+    choices: [
+      c('Réponse ferme et classe', { effects: { rep: 4, moral: 8, trust: 4 }, desc: 'Maîtrise', art: 'communicate' }),
+      c('Réponse cinglante', { effects: { rep: 0, moral: 10, trust: 2 }, desc: 'Buzz', art: 'confront' }),
+      c('Ignorer — réponse sur le terrain', { effects: { rep: 5, moral: 6, trust: 5 }, desc: 'Classe', art: 'wait' }),
+    ],
+  },
+  {
+    id: 'tactic_disagreement',
+    rarity: 'common',
+    types: ['vestiaire'],
+    title: 'Désaccord tactique avec le coach',
+    description: "Il pense que le système ne le met pas en valeur. Tension à l’entraînement.",
+    choices: [
+      c('Réunion privée constructive', { effects: { rep: 3, moral: 6, trust: 6 }, desc: 'Pro', art: 'communicate' }),
+      c('Faire passer le message via la presse', { effects: { rep: -3, moral: 4, trust: 1 }, desc: 'Risqué', art: 'risk' }),
+      c('Se taire et exécuter', { effects: { rep: 1, moral: -4, trust: 4 }, desc: 'Discipliné', art: 'support' }),
+    ],
+  },
+];
+
+export const EXTRA_LOCKER_ROOM_EVENTS = [
+  {
+    id: 'locker_alpha_fight',
+    rarity: 'uncommon',
+    types: ['vestiaire'],
+    title: 'Lutte d’ego entre deux leaders',
+    description: "Deux gros caractères du vestiaire se disputent l’ascendant. Ton joueur est entre les deux.",
+    choices: [
+      c('Soutenir le plus utile sportivement', { effects: { moral: 4, trust: 6 }, desc: 'Pragmatique', art: 'team' }),
+      c('Médiation entre les deux', { effects: { rep: 4, moral: 6, trust: 6 }, desc: 'Diplomate', art: 'negotiate' }),
+      c('Laisser exploser', { effects: { rep: -2, moral: -4, trust: -4 }, desc: 'Risqué', art: 'risk' }),
+    ],
+  },
+  {
+    id: 'locker_silent_treatment',
+    rarity: 'uncommon',
+    types: ['vestiaire'],
+    title: 'Vestiaire qui boude un joueur',
+    description: "Un joueur est ostracisé après avoir critiqué le coach. Ton joueur veut prendre sa défense.",
+    choices: [
+      c('Le soutenir publiquement', { effects: { rep: 3, moral: 8, trust: 6 }, desc: 'Risqué', art: 'protect' }),
+      c('Conseiller le silence', { effects: { rep: 1, moral: -2, trust: 4 }, desc: 'Pro', art: 'wait' }),
+      c('Suivre le groupe', { effects: { rep: -1, moral: -2, trust: -4 }, desc: 'Conformiste', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'locker_prank_too_far',
+    rarity: 'common',
+    types: ['vestiaire'],
+    title: 'Blague de bizutage qui dérape',
+    description: "Une blague vestiaire blesse un jeune. Vidéo qui circule.",
+    choices: [
+      c('Excuses + médiation', { effects: { rep: 4, moral: 4, trust: 6 }, desc: 'Mature', art: 'communicate' }),
+      c('Minimiser publiquement', { effects: { rep: -3, moral: 2, trust: 1 }, desc: 'Risqué', art: 'risk' }),
+      c('Imposer une règle anti-bizutage', { effects: { rep: 6, moral: 4, trust: 8 }, desc: 'Leader', art: 'team' }),
+    ],
+  },
+  {
+    id: 'locker_bonus_split',
+    rarity: 'uncommon',
+    types: ['vestiaire'],
+    title: 'Répartition des primes contestée',
+    description: "Le vestiaire conteste la répartition des primes de coupe. Il est au centre du débat.",
+    choices: [
+      c('Proposer une refonte juste', { effects: { rep: 4, moral: 8, trust: 8 }, desc: 'Leader', art: 'team' }),
+      c('Profiter pour réclamer plus', { effects: { rep: -3, moral: 6, trust: 2, money: 6000 }, desc: 'Cynique', art: 'pay' }),
+      c('Rester en retrait', { effects: { trust: -2 }, desc: 'Neutre', art: 'wait' }),
+    ],
+  },
+  {
+    id: 'locker_song_choice',
+    rarity: 'common',
+    types: ['vestiaire'],
+    title: 'Bagarre playlist vestiaire',
+    description: "Conflit léger sur la playlist d’avant-match. Sujet anodin mais tensions.",
+    choices: [
+      c('Imposer un système de rotation', { effects: { rep: 2, moral: 4, trust: 4 }, desc: 'Diplomate', art: 'team' }),
+      c('Imposer son style', { effects: { rep: -1, moral: 4, trust: 0 }, desc: 'Ego', art: 'confront' }),
+      c('Ignorer', { effects: {}, desc: 'Neutre', art: 'wait' }),
+    ],
+  },
+  {
+    id: 'locker_jersey_number',
+    rarity: 'common',
+    types: ['vestiaire'],
+    title: 'Conflit sur le numéro de maillot',
+    description: "Un coéquipier veut son numéro fétiche. Symboliquement important.",
+    choices: [
+      c('Garder son numéro', { effects: { rep: 0, moral: 6, trust: 2 }, desc: 'Ferme', art: 'refuse' }),
+      c('Céder — geste fort', { effects: { rep: 4, moral: -2, trust: 8 }, desc: 'Capital sympathie vestiaire', art: 'support' }),
+      c('Échange contre une compensation', { effects: { rep: 1, moral: 2, trust: 4, money: 4000 }, desc: 'Pragmatique', art: 'negotiate' }),
+    ],
+  },
+  {
+    id: 'locker_fitness_competition',
+    rarity: 'common',
+    types: ['vestiaire'],
+    title: 'Défi physique inter-vestiaire',
+    description: "Un défi physique pour réveiller le groupe. Image de leader en jeu.",
+    choices: [
+      c('Tout donner — leader exemplaire', { effects: { rep: 4, moral: 8, trust: 6, val: 1.02 }, desc: 'Image', art: 'team' }),
+      c('Participer normalement', { effects: { rep: 1, moral: 3 }, desc: 'Neutre', art: 'support' }),
+      c('Se ménager', { effects: { rep: -2, moral: -2, trust: -3 }, desc: 'Mauvais signal', art: 'wait' }),
+    ],
+  },
+  {
+    id: 'locker_meal_team',
+    rarity: 'common',
+    types: ['vestiaire'],
+    title: 'Repas de groupe — il invite ?',
+    description: "Le vestiaire suggère qu’il offre un grand repas pour souder le groupe.",
+    choices: [
+      c('Restaurant haut de gamme', { cost: 8000, effects: { rep: 4, moral: 8, trust: 8 }, desc: 'Image leader', art: 'gift' }),
+      c('Repas convivial chez lui', { cost: 3000, effects: { rep: 2, moral: 10, trust: 8 }, desc: 'Authentique', art: 'team' }),
+      c('Refuser — pas son rôle', { effects: { rep: -3, moral: -4, trust: -4 }, desc: 'Froid', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'locker_motivation_speech',
+    rarity: 'uncommon',
+    types: ['vestiaire'],
+    title: 'Discours d’avant-match attendu',
+    description: "Le coach lui demande de prendre la parole. Moment clé.",
+    choices: [
+      c('Discours émotionnel et personnel', { effects: { rep: 5, moral: 12, trust: 10 }, desc: 'Leader', art: 'support' }),
+      c('Discours tactique', { effects: { rep: 3, moral: 6, trust: 8 }, desc: 'Pro', art: 'communicate' }),
+      c('Refuser — gêne', { effects: { rep: -2, moral: -2, trust: -4 }, desc: 'Anti-leader', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'locker_new_recruit_welcome',
+    rarity: 'common',
+    types: ['vestiaire'],
+    title: 'Accueil d’une recrue étrangère',
+    description: "Une recrue ne parle pas la langue. Le vestiaire l’ignore. Il peut changer la donne.",
+    choices: [
+      c('Le prendre sous son aile', { effects: { rep: 6, moral: 8, trust: 8 }, desc: 'Capital', art: 'team' }),
+      c('Présentations basiques', { effects: { rep: 2, moral: 2 }, desc: 'Neutre', art: 'communicate' }),
+      c('Ignorer', { effects: { rep: -3, trust: -4 }, desc: 'Froid', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'locker_veteran_advice',
+    rarity: 'common',
+    types: ['vestiaire'],
+    title: 'Vétéran demande son avis',
+    description: "Un vétéran respecté lui demande conseil sur sa fin de carrière.",
+    choices: [
+      c('Conseil personnel et profond', { effects: { rep: 4, moral: 8, trust: 10 }, desc: 'Lien fort', art: 'support' }),
+      c('Conseil pro standardisé', { effects: { rep: 2, moral: 4, trust: 5 }, desc: 'Mesuré', art: 'communicate' }),
+      c('Esquiver — pas son rôle', { effects: { trust: -3 }, desc: 'Froid', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'locker_doctor_dispute',
+    rarity: 'uncommon',
+    types: ['vestiaire'],
+    title: 'Désaccord avec le médecin du club',
+    description: "Le médecin lui demande du repos. Il veut jouer.",
+    choices: [
+      c('Suivre le médecin', { effects: { rep: 3, moral: -2, trust: 5, val: 1.02 }, desc: 'Pro', art: 'support' }),
+      c('Insister pour jouer', { effects: { rep: -2, moral: 6, trust: 2 }, desc: 'Risqué', injury: 2, art: 'risk' }),
+      c('Demander un second avis', { cost: 4000, effects: { rep: 2, moral: 4, trust: 6 }, desc: 'Mature', art: 'pay' }),
+    ],
+  },
+  {
+    id: 'locker_kit_man',
+    rarity: 'common',
+    types: ['vestiaire'],
+    title: 'Reconnaissance du staff opérationnel',
+    description: "L’intendant du vestiaire prend sa retraite. Personne n’a rien prévu.",
+    choices: [
+      c('Organiser une fête + cadeau perso', { cost: 4000, effects: { rep: 7, moral: 6, trust: 8 }, desc: 'Capital sympathie', art: 'gift' }),
+      c('Cadeau simple', { cost: 1500, effects: { rep: 3, moral: 4, trust: 4 }, desc: 'Geste', art: 'gift' }),
+      c('Rien', { effects: { rep: -3, trust: -4 }, desc: 'Insensible', art: 'refuse' }),
+    ],
+  },
+  {
+    id: 'locker_team_bus_incident',
+    rarity: 'uncommon',
+    types: ['vestiaire'],
+    title: 'Incident dans le bus de l’équipe',
+    description: "Bagarre verbale dans le bus retour après défaite. Ton joueur est concerné.",
+    choices: [
+      c('Désamorcer immédiatement', { effects: { rep: 5, moral: 6, trust: 8 }, desc: 'Leader', art: 'team' }),
+      c('Suivre la fureur du groupe', { effects: { rep: -2, moral: 4, trust: 0 }, desc: 'Conformiste', art: 'risk' }),
+      c('Se taire', { effects: { rep: 0, trust: -2 }, desc: 'Neutre', art: 'wait' }),
+    ],
+  },
+  {
+    id: 'locker_post_match_party',
+    rarity: 'common',
+    types: ['vestiaire'],
+    title: 'Soirée d’équipe après victoire',
+    description: "Soirée organisée. Risque dérapage paparazzi.",
+    choices: [
+      c('Cadre + sécurité privée', { cost: 5000, effects: { rep: 3, moral: 8, trust: 6 }, desc: 'Encadré', art: 'protect' }),
+      c('Soirée discrète intime', { effects: { rep: 2, moral: 6, trust: 6 }, desc: 'Safe', art: 'team' }),
+      c('Décliner — focus prochaine semaine', { effects: { rep: 2, moral: -2, trust: 0 }, desc: 'Pro', art: 'refuse' }),
+    ],
+  },
+];
