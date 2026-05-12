@@ -55,11 +55,14 @@ const EXACT_EN = new Map(Object.entries({
   'GESTION': 'MANAGEMENT',
   'BOUTIQUE': 'STORE',
   'SALLE DU CONSEIL': 'BOARDROOM',
+  'LANGUE': 'LANGUAGE',
   'Fais grandir ton empire': 'Grow your empire',
   'Des boosts concrets pour accélérer ton agence sans casser ton rythme de jeu.': 'Practical boosts to speed up your agency without breaking the rhythm.',
   'CAPITAL': 'CASH',
   'GEMMES': 'GEMS',
   'RÉPUTATION': 'REPUTATION',
+  'RÉPU.': 'REP.',
+  'Argent': 'Money',
   'PILOTAGE RAPIDE': 'QUICK CONTROL',
   'Date': 'Date',
   'Effectif géré': 'Managed players',
@@ -95,6 +98,11 @@ const EXACT_EN = new Map(Object.entries({
   'Saison': 'Season',
   'Pré-saison': 'Pre-season',
   '1ère partie': 'Game 1',
+  '2nde partie': 'Game 2',
+  'Mercato hiver': 'Winter window',
+  'Mercato été': 'Summer window',
+  'Mercato d’hiver': 'Winter transfer window',
+  'Mercato d’été': 'Summer transfer window',
   'En cours': 'Active',
   'À venir': 'Upcoming',
   'Hors tournoi': 'No tournament',
@@ -105,6 +113,8 @@ const EXACT_EN = new Map(Object.entries({
   'Tous les clubs jouent leur saison': 'All clubs play their season',
   'La sélection nationale ne prend pas toute la saison': 'National teams do not take the whole season',
   'Pré-accords possibles': 'Pre-agreements available',
+  'Agence créée': 'Agency created',
+  'Identité agence enregistrée': 'Agency identity saved',
   'Réponse au joueur': 'Reply to player',
   'Bienvenue dans l’agence.': 'Welcome to the agency.',
   "Bienvenue dans l'agence.": 'Welcome to the agency.',
@@ -182,6 +192,22 @@ const PHRASE_EN = new Map(Object.entries({
   'Scouting': 'Scouting',
   'Staff': 'Staff',
   'Plus': 'More',
+  'LANGUE': 'LANGUAGE',
+  'Français': 'French',
+  'Profil': 'Profile',
+  'Compétitions': 'Competitions',
+  'Hub Social': 'Social Hub',
+  'Deadline Day': 'Deadline Day',
+  'Identité, staff et bilan': 'Identity, staff and review',
+  'Ligues, Europe et calendrier': 'Leagues, Europe and calendar',
+  'Gemmes et bonus': 'Gems and boosts',
+  '120 exploits à débloquer': '120 achievements to unlock',
+  'Contacts et infos exclusives': 'Contacts and exclusive intel',
+  'Missions et rapports': 'Missions and reports',
+  'Chimie et tensions': 'Chemistry and tension',
+  "Vue d'ensemble des contrats": 'Contract overview',
+  'Messages, tensions, mémoire': 'Messages, tension, memory',
+  'Appels mercato': 'Transfer calls',
 
   // Common actions
   'Continuer': 'Continue',
@@ -214,6 +240,7 @@ const PHRASE_EN = new Map(Object.entries({
   'Quitter': 'Quit',
   'Continuer la partie': 'Continue game',
   'Créer une agence': 'Create an agency',
+  'Crée ton agence.': 'Create your agency.',
   'Créer l’agence': 'Create agency',
   "Créer l'agence": 'Create agency',
   'Choisir': 'Choose',
@@ -225,6 +252,13 @@ const PHRASE_EN = new Map(Object.entries({
   'Recevoir': 'Receive',
   'Regarder': 'Watch',
   'Partager': 'Share',
+  'Créer nouvelle partie': 'Create new game',
+  'Action irréversible': 'Irreversible action',
+  'Retour sans rien changer': 'Back without changing anything',
+  'Lancement en cours': 'Starting',
+  'Traitement…': 'Processing...',
+  'La configuration va repartir de zéro sur ce slot. Tu pourras créer une nouvelle agence.':
+    'This slot setup will restart from zero. You can create a new agency.',
 
   // Football/player terms
   'Joueur': 'Player',
@@ -235,6 +269,19 @@ const PHRASE_EN = new Map(Object.entries({
   'Agent': 'Agent',
   'agence': 'agency',
   'Agence': 'Agency',
+  'SAISON': 'SEASON',
+  '1ÈRE PARTIE': '1ST RUN',
+  '2NDE PARTIE': '2ND RUN',
+  'Directeur': 'Director',
+  'Sans nom': 'Unnamed',
+  'Base': 'Base',
+  'Positionnement': 'Positioning',
+  'Identité': 'Identity',
+  'Validation': 'Validation',
+  'Nom, base, embleme': 'Name, base, emblem',
+  'Style et difficulté': 'Style and difficulty',
+  'Tu valides ?': 'Ready?',
+  'Étape': 'Step',
   'Directeur sportif': 'Sporting director',
   'Contrat': 'Contract',
   'contrat': 'contract',
@@ -363,6 +410,33 @@ const PHRASE_EN = new Map(Object.entries({
   'Aucune offre': 'No offers',
   'Aucune priorité': 'No priority',
   'Aucun dossier': 'No file',
+  'Décide.': 'Decide.',
+  'Domine.': 'Dominate.',
+  'Recrute ton premier joueur pour ouvrir ta vitrine.': 'Sign your first player to open your showcase.',
+  'Star Du Bureau': 'Office Star',
+  "Star de l'agence": 'Agency star',
+  'Bénéfice net': 'Net profit',
+  'Ouvre la fiche': 'Open file',
+  'Cette semaine': 'This week',
+  'Prochains matchs': 'Upcoming matches',
+  'Tout voir': 'View all',
+  'Mon joueur': 'My player',
+  'À traiter': 'To handle',
+  'Bureau sous contrôle': 'Office under control',
+  'Lance la semaine quand tu es prêt': 'Play the week when you are ready',
+  'Contrat à sécuriser': 'Contract to secure',
+  'Conversation active': 'Active conversation',
+  'Dossier mercato': 'Transfer file',
+  'Masquer le détail bureau': 'Hide office details',
+  'Voir le détail bureau (chiffres, saison, agence)': 'View office details (numbers, season, agency)',
+  'Coupes européennes': 'European cups',
+  'Tournoi mondial': 'World tournament',
+  'Aucun engagé': 'None involved',
+  'Vision agence': 'Agency vision',
+  'Ce que tu construis': 'What you are building',
+  'Portée marché': 'Market reach',
+  'Valeur portefeuille': 'Portfolio value',
+  'Ouvrir les dossiers secondaires': 'Open secondary files',
   'Rien à traiter': 'Nothing to handle',
   'Tout est calme': 'Everything is quiet',
   'Signe des joueurs puis joue une semaine pour générer le calendrier.':
@@ -375,6 +449,19 @@ const PHRASE_EN = new Map(Object.entries({
   "Suis chaque semaine de ta carrière d'agent en temps réel.": 'Follow every week of your agent career in real time.',
   'Visualise ton effectif et construis ta stratégie.': 'See your squad and build your strategy.',
   'Tes joueurs te parlent. Réponds au bon moment.': 'Your players talk to you. Answer at the right time.',
+  'Carrière · Saison 1': 'Career · Season 1',
+  'Construis ton écurie. Négocie. Écris la légende.': 'Build your stable. Negotiate. Write the legend.',
+  'Slots de sauvegarde': 'Save slots',
+  'Slot vide': 'Empty slot',
+  'Lance une nouvelle partie': 'Start a new game',
+  'Reprendre': 'Resume',
+  'Nouvelle partie (écrase)': 'New game (overwrite)',
+  'Exporter': 'Export',
+  'Importer': 'Import',
+  'Supprimer la sauvegarde': 'Delete save',
+  'Retour au jeu': 'Back to game',
+  'Quitter une partie ne supprime rien — seul le bouton suppression efface un slot.':
+    'Leaving a game does not delete anything. Only the delete button clears a slot.',
 
   // Negotiation and contracts
   'Le club écoute sans valider.': 'The club is listening but has not approved yet.',
@@ -469,8 +556,6 @@ const PHRASE_EN = new Map(Object.entries({
   'Défaite': 'Loss',
   'Nul': 'Draw',
   'Note': 'Rating',
-  'but': 'goal',
-  'buts': 'goals',
   'passe décisive': 'assist',
   'passes décisives': 'assists',
   'passes clés': 'key passes',
@@ -519,7 +604,6 @@ const PHRASE_EN = new Map(Object.entries({
   'sans pubs': 'no ads',
   'offerts': 'bonus',
   'achat in-app': 'in-app purchase',
-  'Argent': 'Money',
   'Trésorerie': 'Treasury',
   'Progression équilibrée': 'Balanced progression',
   'Fais grandir ton empire': 'Grow your empire',
@@ -551,6 +635,85 @@ const PHRASE_EN = new Map(Object.entries({
   'Crédibilité élevée': 'High credibility',
   'Entrées plus fortes': 'Stronger opportunities',
   'Réseau premium': 'Premium network',
+  'Pubs automatiques toutes les': 'Automatic ads every',
+  'Le pack premium les retire définitivement.': 'The premium pack removes them forever.',
+  'Activé': 'Active',
+  'Premium': 'Premium',
+  'Pack premium': 'Premium pack',
+  'Retrait définitif des pubs automatiques': 'Permanently removes automatic ads',
+  'Gemmes + enveloppe cash': 'Gems + cash envelope',
+  'Cadeau quotidien': 'Daily gift',
+  'Récompense déjà récupérée pour aujourd’hui.': 'Reward already claimed today.',
+  'Récompense pub introuvable.': 'Ad reward not found.',
+  'Regarde une publicité récompensée': 'Watch a rewarded ad',
+  'Pub automatique': 'Automatic ad',
+  'Publicités retirées': 'Ads removed',
+  'Sans publicité': 'Ad-free',
+  'Sans pubs': 'No ads',
+  'Business agressif': 'Aggressive business',
+  'Image premium': 'Premium image',
+  'Plus fort sur les deals et les opportunités rapides.': 'Stronger on deals and quick opportunities.',
+  'Plus solide face aux médias, sponsors et gros clubs.': 'Stronger with media, sponsors and big clubs.',
+  'Facile': 'Easy',
+  'Réaliste': 'Realistic',
+  'Ancien joueur': 'Former player',
+  'Avocat sportif': 'Sports lawyer',
+  'Recruteur': 'Scout',
+  'Influenceur mercato': 'Transfer influencer',
+  'Les joueurs te respectent vite, les clubs attendent de voir.': 'Players respect you quickly, clubs wait to be convinced.',
+  'Contrats solides, clubs plus prudents.': 'Solid contracts, more cautious clubs.',
+  'Meilleur sur les jeunes et le scouting.': 'Better with youth prospects and scouting.',
+  'Très visible, mais les médias peuvent vite tourner.': 'Very visible, but the media can turn quickly.',
+  'Lancer ma carrière': 'Start my career',
+  "Carrière d'agent": 'Agent career',
+  "Identité forte, choix lisibles. C'est ton bureau, ta marque, tes joueurs.": 'Strong identity, clear choices. This is your office, your brand, your players.',
+  'Ton prénom': 'Your name',
+  'Nom de l’agence': 'Agency name',
+  "Nom de l'agence": 'Agency name',
+  "Embleme de l'agence": 'Agency emblem',
+  "Choisis le badge qui apparaitra partout dans ta carrière.": 'Choose the badge that will appear throughout your career.',
+  'Foudre': 'Lightning',
+  'Aigle': 'Eagle',
+  'Brasier': 'Blaze',
+  'Diamant': 'Diamond',
+  'Boussole': 'Compass',
+  'Ancre': 'Anchor',
+  'Couleur signature': 'Signature color',
+  'Personnalisée': 'Custom',
+  'Aperçu': 'Preview',
+  'Ton agence': 'Your agency',
+  'Dirigée par': 'Led by',
+  'toi': 'you',
+  'Ville': 'City',
+  'Pays': 'Country',
+  'France': 'France',
+  'Espagne': 'Spain',
+  'Angleterre': 'England',
+  'Allemagne': 'Germany',
+  'Italie': 'Italy',
+  'Pays-Bas': 'Netherlands',
+  'Portugal': 'Portugal',
+  'Belgique': 'Belgium',
+  'Turquie': 'Turkey',
+  'Écosse': 'Scotland',
+  'Grèce': 'Greece',
+  'Autriche': 'Austria',
+  'Suisse': 'Switzerland',
+  'Tchéquie': 'Czechia',
+  'Danemark': 'Denmark',
+  'Norvège': 'Norway',
+  'Suède': 'Sweden',
+  'Brésil': 'Brazil',
+  'Argentine': 'Argentina',
+  'Style agence': 'Agency style',
+  'Gestion équilibrée': 'Balanced management',
+  'Progression saine, relations stables, moins de risques.': 'Healthy growth, stable relationships, fewer risks.',
+  'Développement jeunes': 'Youth development',
+  'Meilleure lecture du potentiel, progression long terme.': 'Better potential reads, stronger long-term growth.',
+  'Profil de départ': 'Starting profile',
+  'Choisis ton emblème': 'Choose your emblem',
+  'Choisis ta couleur': 'Choose your color',
+  'Difficulté': 'Difficulty',
 
   // Player message subjects and bodies
   'Je veux parler de mon avenir': 'I want to talk about my future',
@@ -779,6 +942,159 @@ const PHRASE_EN = new Map(Object.entries({
   'Performance décevante': 'Disappointing performance',
   'Meilleur défenseur': 'Best defender',
   "Espoir de l'année": 'Young player of the year',
+
+  // Staff, contacts, scouting, office
+  "Directeur sportif d'un club de L1. Te donne des infos sur les joueurs qu'ils suivent.":
+    'Sporting director at a top French club. Gives you intel on players they are tracking.',
+  'Journaliste bienveillante. Défend souvent les joueurs et les dossiers bien gérés.':
+    'Supportive journalist. Often protects players and well-managed files.',
+  'Journaliste mercato équilibré. Réagit surtout à la qualité du dossier.':
+    'Balanced transfer journalist. Mostly reacts to the quality of the file.',
+  'Journaliste d’enquête. S’attaque facilement aux dossiers fragiles.':
+    'Investigative journalist. Quickly targets fragile files.',
+  'Scout indépendant en Afrique. Accès à des talents non repérés.':
+    'Independent scout in Africa. Access to overlooked talents.',
+  'Responsable partenariats sportifs. Peut signer des deals sponsors pour tes joueurs.':
+    'Sports partnerships lead. Can sign sponsorship deals for your players.',
+  'Avocat spécialisé droit sportif. Améliore tes négociations contractuelles.':
+    'Sports law specialist. Improves your contract negotiations.',
+  'Améliore la qualité du marché et accélère le déblocage Brésil/Argentine.':
+    'Improves market quality and speeds up Brazil/Argentina unlocks.',
+  'Réduit les mauvais recrutements et augmente la progression des jeunes.':
+    'Reduces bad signings and improves young player development.',
+  'Améliore les news positives et amortit les scandales.':
+    'Improves positive news and softens scandals.',
+  'Protège le moral et la confiance lors des semaines difficiles.':
+    'Protects morale and trust during difficult weeks.',
+  'Marché plus propre': 'Cleaner market',
+  'Plus de pays débloqués': 'More countries unlocked',
+  'Découvertes plus fortes': 'Stronger discoveries',
+  'Réseau international solide': 'Solid international network',
+  'Accès aux gros marchés': 'Access to major markets',
+  'Scouting d’élite total': 'Full elite scouting',
+  'Fit recrutement amélioré': 'Improved recruitment fit',
+  'Progression plus crédible': 'More credible development',
+  'Analyse avancée': 'Advanced analysis',
+  'Dossiers mieux ciblés': 'Better-targeted files',
+  'Data d’élite': 'Elite data',
+  'Presse un peu plus douce': 'Softer press',
+  'News positives fréquentes': 'Frequent positive news',
+  'Gestion des rumeurs': 'Rumor control',
+  'Réactions plus nettes': 'Sharper reactions',
+  'Image mieux protégée': 'Better protected image',
+  'Réseau média solide': 'Strong media network',
+  'Communication d’élite': 'Elite communication',
+  'Réactions plus calmes': 'Calmer reactions',
+  'Moral mieux protégé': 'Better protected morale',
+  'Contenir les tensions': 'Contain tensions',
+  'Rôle inconnu': 'Unknown role',
+  'Améliorez votre relation pour débloquer des infos exclusives.':
+    'Improve the relationship to unlock exclusive intel.',
+  'Elle peut relancer ton image avec un papier favorable.':
+    'She can boost your image with a favorable article.',
+  'Elle protège souvent les dossiers bien gérés.':
+    'She often protects well-managed files.',
+  'Il attaque les dossiers fragiles et amplifie les écarts.':
+    'He attacks fragile files and amplifies mistakes.',
+  'Un papier équilibré peut stabiliser ta réputation.':
+    'A balanced article can stabilize your reputation.',
+  'Il suit surtout l’évolution du dossier.':
+    'He mainly follows how the file evolves.',
+  'Un de vos joueurs est éligible à un deal commercial.':
+    'One of your players is eligible for a commercial deal.',
+  'Constituez un effectif pour attirer les sponsors.':
+    'Build a roster to attract sponsors.',
+  "Consultez-le avant une négociation difficile.":
+    'Consult him before a difficult negotiation.',
+  'Maintenez le contact pour débloquer des avantages.':
+    'Keep the relationship warm to unlock advantages.',
+
+  // Objectives and achievements
+  'Lancer la semaine': 'Play the week',
+  'Joue une semaine complète.': 'Complete a full week.',
+  "Gagner de l'argent": 'Earn money',
+  'Boucler des transferts': 'Complete transfers',
+  'Signer un joueur libre': 'Sign a free agent',
+  'Gagner en réputation': 'Gain reputation',
+  'Développer un joueur': 'Develop a player',
+  'Faire progresser ton agence': 'Grow your agency',
+  'Répondre à un message': 'Reply to a message',
+  'Résoudre un dossier': 'Resolve a file',
+  'Atteindre un palier': 'Reach a milestone',
+  'Objectif quotidien validé': 'Daily objective completed',
+  'Exploit débloqué': 'Achievement unlocked',
+  'Déjà réclamé': 'Already claimed',
+  'Réclamer la récompense': 'Claim reward',
+  'Progression objectif': 'Objective progress',
+  'Aucun objectif actif': 'No active objective',
+
+  // Week narrative and competitions
+  'Peu de mouvements majeurs dans le monde du foot. Les clubs observent, les agents préparent leurs dossiers.':
+    'Few major moves in football this week. Clubs are watching, agents are preparing files.',
+  'Choc européen': 'European clash',
+  'Un grand club européen perd un match important. Plusieurs cadres sont critiqués dans la presse.':
+    'A major European club loses an important match. Several senior players are criticized in the press.',
+  'Blessure star': 'Star injury',
+  'Une star du continent se blesse. Son club pourrait chercher une solution rapide au mercato.':
+    'A continental star gets injured. His club may look for a quick transfer fix.',
+  'Rumeur marché': 'Market rumor',
+  'Un insider annonce que plusieurs clubs préparent déjà leur prochain numéro 9.':
+    'An insider says several clubs are already preparing their next number 9.',
+  'Débat agents': 'Agent debate',
+  'Les médias débattent du rôle des agents dans les carrières des jeunes talents.':
+    'The media debate the role of agents in young talents careers.',
+  'Président sous pression': 'President under pressure',
+  'Un président promet de recruter après une série de mauvais résultats.':
+    'A president promises signings after a poor run of results.',
+  'Marché actif': 'Active market',
+  'Presse agressive': 'Aggressive press',
+  'Les journalistes cherchent les histoires sensibles. Les petites phrases peuvent devenir des crises.':
+    'Journalists are looking for sensitive stories. Small comments can become crises.',
+  "La liste du Ballon d'Or tombe, mais aucun joueur de l'agence n'est encore assez haut dans la hiérarchie.":
+    'The Golden Ball shortlist is out, but no agency player is high enough in the hierarchy yet.',
+  "Nominé Ballon d'Or": 'Golden Ball nominee',
+  "Remporte le Ballon d'Or": 'Wins the Golden Ball',
+  "Le Ballon d'Or est attribué hors de l'agence. Les standards mondiaux restent très élevés: niveau élite, grosse moyenne et impact décisif toute la saison.":
+    'The Golden Ball goes outside the agency. Global standards remain very high: elite level, strong average rating and decisive impact all season.',
+  'Mise à jour': 'Update',
+  'Messages du jour': "Today's messages",
+  'Un dossier réclame une réponse nette.': 'A file needs a clear answer.',
+  'Contrat à renouveler': 'Contract to renew',
+  'Un contrat avance cette semaine.': 'A contract moves forward this week.',
+  'Bilan de la semaine': 'Weekly review',
+  'départs': 'departures',
+  'délivrés': 'delivered',
+  'en file': 'queued',
+  'offres': 'offers',
+  'matches suivis': 'tracked matches',
+  'Rythme normal': 'Normal rhythm',
+
+  // Bonds and social flavor
+  "Frères d'armes": 'Brothers in arms',
+  'Duo très fort': 'Very strong duo',
+  'Rivalité ouverte': 'Open rivalry',
+  "Gabriel Fixio et Ugo Moxwmo se connaissent depuis le centre de formation. Sur le terrain, ils se cherchent à l'instinct.":
+    'Gabriel Fixio and Ugo Moxwmo have known each other since the academy. On the pitch, they find each other by instinct.',
+  "Sur le terrain ils se trouvent les yeux fermés.": 'On the pitch, they find each other with their eyes closed.',
+  "c'est de la pure complicité.": 'that is pure chemistry.',
+  "sont les meilleurs potes du vestiaire": 'are the best mates in the dressing room',
+  "Ça se voit.": 'You can see it.',
+  "Ambiance glaciale": 'Ice-cold atmosphere',
+  "Les caméras ont tout vu": 'The cameras saw everything',
+  "ne se parleraient plus depuis des semaines": 'have reportedly not spoken for weeks',
+  'Clash dans le vestiaire': 'Dressing room clash',
+
+  // Error / system states
+  "Le jeu n'a pas pu démarrer.": 'The game could not start.',
+  'Erreur inconnue': 'Unknown error',
+  'Chargement impossible': 'Unable to load',
+  'Produits App Store indisponibles': 'App Store products unavailable',
+  'Produit invalide': 'Invalid product',
+  'Achat annulé ou impossible': 'Purchase cancelled or unavailable',
+  'Pub indisponible pour le moment': 'Ad unavailable right now',
+  'Pub validée': 'Ad completed',
+  'Pont pub iOS non configuré': 'iOS ad bridge is not configured',
+  'AdMob iOS non configuré': 'iOS AdMob is not configured',
 }));
 
 const REGEX_EN = [
@@ -786,6 +1102,9 @@ const REGEX_EN = [
   [/Réinitialiser la version locale/g, 'Reset local version'],
   [/(\d+)\s*joueurs?/gi, '$1 players'],
   [/(\d+)\s*messages?/gi, '$1 messages'],
+  [/(\d+)\s*réponse(?:s)? à donner/gi, '$1 replies needed'],
+  [/(\d+)\s*offre(?:s)? à suivre/gi, '$1 offers to follow'],
+  [/(\d+)\s*sélectionnés/gi, '$1 selected'],
   [/(\d+)\s*matchs?/gi, '$1 matches'],
   [/(\d+)\s*buts?/gi, '$1 goals'],
   [/(\d+)\s*passes décisives?/gi, '$1 assists'],
@@ -795,11 +1114,14 @@ const REGEX_EN = [
   [/(\d+)\s*cartons? rouges?/gi, '$1 red cards'],
   [/(\d+)\s*semaines?/gi, '$1 weeks'],
   [/(\d+)\s*jours?/gi, '$1 days'],
-  [/(\d+)\s*a\b/g, '$1y'],
+  [/(\d+)\s*ans?\b/g, '$1y'],
   [/(\d+) gemmes/g, '$1 gems'],
   [/Sans bonus/g, 'No bonus'],
   [/\+(\d+) offerts/g, '+$1 bonus'],
   [/S(\d+) · S(\d+)\/(\d+)/g, 'S$1 · W$2/$3'],
+  [/Carrière · Saison (\d+)/g, 'Career · Season $1'],
+  [/Slot (\d+)/g, 'Slot $1'],
+  [/Écraser le slot (\d+) \?/g, 'Overwrite slot $1?'],
   [/Semaine (\d+)\/(\d+)/g, 'Week $1/$2'],
   [/Saison (\d+)/gi, 'Season $1'],
   [/sem\. restantes/g, 'weeks left'],
@@ -837,27 +1159,77 @@ const REGEX_EN = [
   [/Tous les pays ou régions sélectionnés/g, 'All countries or regions selected'],
   [/Date et heure de début/g, 'Start date and time'],
   [/Date et heure de fin/g, 'End date and time'],
+  [/vient d'arriver — encore (\d+) weeks de stabilité requises avant un transfert/g, 'just arrived. $1 more weeks of stability are required before a transfer'],
+  [/vient d'arriver — encore (\d+) semaine(?:s)? de stabilité requises avant un transfert/g, 'just arrived. $1 more weeks of stability are required before a transfer'],
+  [/Aucun club sérieux ne veut ouvrir de dossier maintenant\. Continue à faire monter sa valeur\./g, 'No serious club wants to open a file right now. Keep raising his value.'],
+  [/Impossible de prolonger sans club\. Trouve-lui d'abord une équipe\./g, 'Cannot extend without a club. Find him a team first.'],
+  [/Ce joueur a déjà un dossier actif\. Termine le pré-accord ou le transfert en cours avant de prolonger\./g, 'This player already has an active file. Finish the pre-agreement or current transfer before extending.'],
+  [/Ni le club ni le joueur ne veulent prolonger maintenant\./g, 'Neither the club nor the player wants to extend right now.'],
+  [/Le club ne veut pas ouvrir de prolongation pour l'instant\./g, 'The club does not want to open extension talks yet.'],
+  [/Le joueur n'a pas assez confiance pour prolonger\./g, 'The player does not trust you enough to extend.'],
+  [/Le club préfère attendre quelques weeks avant de discuter\./g, 'The club prefers to wait a few weeks before talking.'],
+  [/Le club préfère attendre quelques semaines avant de discuter\./g, 'The club prefers to wait a few weeks before talking.'],
+  [/Prochaine étape:\s*/g, 'Next step: '],
+  [/Je garde la direction dans la boucle\./g, 'I keep the board in the loop.'],
+  [/Je garde le coach dans la boucle\./g, 'I keep the coach in the loop.'],
+  [/Je garde le staff dans la boucle\./g, 'I keep the staff in the loop.'],
+  [/Je prends aussi en compte la saison du club:/g, 'I am also taking the club season into account:'],
+  [/est ([0-9?]+)e\/([0-9?]+) et vise/g, 'is $1/$2 and targets'],
+  [/une saison stable/g, 'a stable season'],
+  [/Pour le physique, tu es encore absent (\d+) weeks/g, 'Physically, you are still out for $1 weeks'],
+  [/Pour le physique, tu es encore absent (\d+) semaine(?:s)?/g, 'Physically, you are still out for $1 weeks'],
+  [/te signale un intérêt de/g, 'reports interest from'],
+  [/pour une future offre/g, 'for a future offer'],
+  [/publie un article favorable\. Reputation \+(\d+)\./g, 'publishes a positive article. Reputation +$1.'],
+  [/sort un papier dur\. Reputation (-?\d+)\./g, 'publishes a harsh article. Reputation $1.'],
+  [/t'envoie le profil de/g, 'sends you the profile of'],
+  [/ans, /g, ' years old, '],
+  [/propose un deal sponsor\. \+([0-9.,]+)k€ et un player regonflé à bloc\./g, 'offers a sponsor deal. +$1k€ and one player fully recharged.'],
+  [/prépare tes prochaines négociations\. Prochain contract plus facile à signer\./g, 'prepares your next negotiations. Next contract will be easier to sign.'],
+  [/n'a rien de particulier à signaler cette week\./g, 'has nothing special to report this week.'],
+  [/n'est pas available avant (\d+) week\(s\)\./g, 'is not available for $1 week(s).'],
+  [/cherche un midfielder/g, 'is looking for a midfielder'],
+  [/Match européen:/g, 'European match:'],
+  [/Résultat mondial:/g, 'World result:'],
+  [/a vécu un match mondial:/g, 'played a global match:'],
+  [/Champion du monde/g, 'World champion'],
+  [/Éliminé/g, 'Eliminated'],
+  [/variation reputation/g, 'reputation change'],
+  [/Bilan financier net/g, 'Net financial review'],
+  [/bonus/g, 'bonus'],
+  [/moyenne:/g, 'average:'],
+  [/note:/g, 'rating:'],
+  [/La campagne médiatique commence\./g, 'The media campaign begins.'],
+  [/L'agence change de dimension\./g, 'The agency moves to another level.'],
+  [/Une seule équipe soulève le trophée cette season\./g, 'Only one team lifts the trophy this season.'],
 ];
 
-const applyPhraseTranslations = (text) => {
-  let translated = text;
-  [...PHRASE_EN.entries()]
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const applySafePhraseTranslations = (text) => {
+  if (text.includes('#')) return text;
+  return [...PHRASE_EN.entries()]
+    .filter(([source]) => source.trim().length >= 4)
     .sort((a, b) => b[0].length - a[0].length)
-    .forEach(([source, target]) => {
-      if (translated.includes(source)) translated = translated.split(source).join(target);
-    });
-  return translated;
+    .reduce((translated, [source, target]) => {
+      const pattern = new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(source)}(?![\\p{L}\\p{N}_])`, 'gu');
+      return translated.replace(pattern, target);
+    }, text);
 };
 
 export const translateText = (value) => {
   if (!isEnglish() || typeof value !== 'string') return value;
+  const leading = value.match(/^\s*/)?.[0] ?? '';
+  const trailing = value.match(/\s*$/)?.[0] ?? '';
   const trimmed = value.trim();
   if (!trimmed) return value;
-  if (EXACT_EN.has(trimmed)) {
-    return value.replace(trimmed, EXACT_EN.get(trimmed));
+  const manual = EXACT_EN.get(trimmed) ?? PHRASE_EN.get(trimmed);
+  if (manual) {
+    return `${leading}${manual}${trailing}`;
   }
-  const withPhrases = applyPhraseTranslations(value);
-  return REGEX_EN.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), withPhrases);
+  const phrased = applySafePhraseTranslations(trimmed);
+  const regexed = REGEX_EN.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), phrased);
+  return regexed === trimmed ? value : `${leading}${regexed}${trailing}`;
 };
 
 export const t = (value) => translateText(value);

@@ -1,5 +1,6 @@
 import { CLUBS, getCountry } from '../data/clubs';
 import { makeId, pick, rand } from '../utils/helpers';
+import { isEnglish } from '../utils/i18n';
 import { getWorldStateOfferModifier } from './worldStateSystem';
 import { normalizeAgencyReputation } from './reputationSystem';
 
@@ -16,8 +17,9 @@ export const getCalendarSnapshot = (week) => {
   const date = getWeekDate(week);
   const weekEnd = new Date(date);
   weekEnd.setUTCDate(date.getUTCDate() + 6);
-  const fmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' });
-  const shortFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', timeZone: 'UTC' });
+  const locale = isEnglish() ? 'en-US' : 'fr-FR';
+  const fmt = new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const shortFmt = new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', timeZone: 'UTC' });
   return {
     dateLabel: fmt.format(date),
     weekRangeLabel: `${shortFmt.format(date)} - ${shortFmt.format(weekEnd)}`,

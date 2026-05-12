@@ -12,7 +12,7 @@
         try {
           const appLanguage = localStorage.getItem('agentFootLanguage') || ((navigator.languages?.[0] || navigator.language || 'fr').toLowerCase().startsWith('fr') ? 'fr' : 'en');
           document.documentElement.lang = appLanguage;
-          const bootVersion = '2026-05-11-remix-ads-en-v2';
+          const bootVersion = '2026-05-12-english-admob-audit-v1';
           const key = 'agent-fc-boot-version';
           const previous = localStorage.getItem(key);
           if (previous !== bootVersion) {

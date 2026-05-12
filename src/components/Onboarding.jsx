@@ -3,6 +3,7 @@ import { ArrowLeft, Check, ChevronRight, CircleDot, MapPin, Shield, Sparkles, Tr
 import { COUNTRIES, getCitiesForCountry } from '../data/clubs';
 import { DIFFICULTIES, STARTING_PROFILES } from '../systems/agencyReputationSystem';
 import { AGENCY_LOGOS, DEFAULT_LOGO, getAgencyLogo } from '../utils/agencyLogos';
+import { t } from '../utils/i18n';
 
 const STEPS = [
   { id: 1, label: 'Identité',       desc: 'Nom, base, embleme' },
@@ -15,9 +16,9 @@ const COLOR_SWATCHES = ['#21d07a', '#2563eb', '#ef4444', '#f59e0b', '#a855f7', '
 function Field({ label, hint, children }) {
   return (
     <label style={{ display: 'grid', gap: 8 }}>
-      <span style={{ color: 'var(--af-muted)', fontSize: 11, fontWeight: 900, letterSpacing: '.18em', textTransform: 'uppercase' }}>{label}</span>
+      <span style={{ color: 'var(--af-muted)', fontSize: 11, fontWeight: 900, letterSpacing: '.18em', textTransform: 'uppercase' }}>{t(label)}</span>
       {children}
-      {hint && <span style={{ color: 'var(--af-dim)', fontSize: 11 }}>{hint}</span>}
+      {hint && <span style={{ color: 'var(--af-dim)', fontSize: 11 }}>{t(hint)}</span>}
     </label>
   );
 }
@@ -79,7 +80,7 @@ function StepIdentity({ draft, update }) {
         </Field>
         <Field label="Pays">
           <select value={draft.countryCode} onChange={(e) => update('countryCode', e.target.value)} style={inputStyle}>
-            {COUNTRIES.map((country) => <option key={country.code} value={country.code}>{country.label}</option>)}
+            {COUNTRIES.map((country) => <option key={country.code} value={country.code}>{t(country.label)}</option>)}
           </select>
         </Field>
         <Field label="Ville">
@@ -124,7 +125,7 @@ function StepIdentity({ draft, update }) {
           ))}
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 12, background: 'oklch(22% 0.035 252 / .8)', border: '1px solid var(--af-border)', cursor: 'pointer' }}>
             <input type="color" value={draft.color || '#21d07a'} onChange={(e) => update('color', e.target.value)} style={{ width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'pointer' }} />
-            <span style={{ color: 'var(--af-muted)', fontSize: 12, fontWeight: 800 }}>Personnalisée</span>
+            <span style={{ color: 'var(--af-muted)', fontSize: 12, fontWeight: 800 }}>{t('Personnalisée')}</span>
           </label>
         </div>
       </Field>
@@ -167,8 +168,8 @@ function StepStyle({ draft, update }) {
                 <Icon size={20} color={active ? '#0a1320' : 'var(--af-text)'} />
               </span>
               <span>
-                <div style={{ color: 'var(--af-text)', fontSize: 16, fontWeight: 950 }}>{label}</div>
-                <div style={{ color: 'var(--af-muted)', fontSize: 13, lineHeight: 1.45, marginTop: 4 }}>{desc}</div>
+                <div style={{ color: 'var(--af-text)', fontSize: 16, fontWeight: 950 }}>{t(label)}</div>
+                <div style={{ color: 'var(--af-muted)', fontSize: 13, lineHeight: 1.45, marginTop: 4 }}>{t(desc)}</div>
               </span>
               {active ? <Check size={20} color="var(--af-grass)" /> : <CircleDot size={18} color="var(--af-dim)" />}
             </button>
@@ -179,12 +180,12 @@ function StepStyle({ draft, update }) {
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' }}>
         <Field label="Profil de départ">
           <select value={draft.startProfile ?? 'ancien_joueur'} onChange={(e) => update('startProfile', e.target.value)} style={inputStyle}>
-            {Object.entries(STARTING_PROFILES).map(([key, profile]) => <option key={key} value={key}>{profile.label}</option>)}
+            {Object.entries(STARTING_PROFILES).map(([key, profile]) => <option key={key} value={key}>{t(profile.label)}</option>)}
           </select>
         </Field>
         <Field label="Difficulté">
           <select value={draft.difficulty ?? 'realiste'} onChange={(e) => update('difficulty', e.target.value)} style={inputStyle}>
-            {Object.entries(DIFFICULTIES).map(([key, difficulty]) => <option key={key} value={key}>{difficulty.label}</option>)}
+            {Object.entries(DIFFICULTIES).map(([key, difficulty]) => <option key={key} value={key}>{t(difficulty.label)}</option>)}
           </select>
         </Field>
       </div>
@@ -194,19 +195,24 @@ function StepStyle({ draft, update }) {
 
 function StepConfirm({ draft }) {
   const rows = [
-    ['Agence', draft.name || 'Sans nom'],
-    ['Directeur', draft.ownerName || '—'],
+    ['Agence', draft.name || t('Sans nom')],
+    ['Directeur', draft.ownerName ? t(draft.ownerName) : '—'],
     ['Base', `${draft.city || '—'} · ${draft.countryCode || ''}`],
-    ['Positionnement', draft.style ?? 'equilibre'],
-    ['Profil', STARTING_PROFILES[draft.startProfile ?? 'ancien_joueur']?.label ?? '—'],
-    ['Difficulté', DIFFICULTIES[draft.difficulty ?? 'realiste']?.label ?? '—'],
+    ['Positionnement', t({
+      equilibre: 'Gestion équilibrée',
+      business: 'Business agressif',
+      formation: 'Développement jeunes',
+      prestige: 'Image premium',
+    }[draft.style] ?? 'Gestion équilibrée')],
+    ['Profil', t(STARTING_PROFILES[draft.startProfile ?? 'ancien_joueur']?.label ?? '—')],
+    ['Difficulté', t(DIFFICULTIES[draft.difficulty ?? 'realiste']?.label ?? '—')],
   ];
   return (
     <div style={{ display: 'grid', gap: 18 }}>
       <div className="af-soft" style={{ padding: 18, display: 'grid', gap: 10 }}>
         {rows.map(([k, v]) => (
           <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, paddingBottom: 8, borderBottom: '1px solid var(--af-border)' }}>
-            <span style={{ color: 'var(--af-muted)', fontSize: 12, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase' }}>{k}</span>
+            <span style={{ color: 'var(--af-muted)', fontSize: 12, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase' }}>{t(k)}</span>
             <strong style={{ color: 'var(--af-text)', fontSize: 14, textAlign: 'right' }}>{v}</strong>
           </div>
         ))}
@@ -227,8 +233,8 @@ function ProgressRail({ step }) {
         })}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--af-muted)', fontSize: 11, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase' }}>
-        <span style={{ color: 'var(--af-grass)' }}>Étape {step}/3 · {STEPS[step - 1].label}</span>
-        <span>{STEPS[step - 1].desc}</span>
+        <span style={{ color: 'var(--af-grass)' }}>{t('Étape')} {step}/3 · {t(STEPS[step - 1].label)}</span>
+        <span>{t(STEPS[step - 1].desc)}</span>
       </div>
     </div>
   );
@@ -236,9 +242,10 @@ function ProgressRail({ step }) {
 
 export default function Onboarding({ profile, onComplete }) {
   const initialEmblem = AGENCY_LOGOS.some((logo) => logo.id === profile?.emblem) ? profile.emblem : DEFAULT_LOGO.id;
+  const initialOwnerName = profile?.ownerName === 'Directeur sportif' ? t('Directeur sportif') : profile?.ownerName ?? '';
   const [draft, setDraft] = useState({
     name: profile?.name ?? 'Agent FC',
-    ownerName: profile?.ownerName ?? '',
+    ownerName: initialOwnerName,
     countryCode: profile?.countryCode ?? COUNTRIES[0].code,
     city: profile?.city ?? getCitiesForCountry(profile?.countryCode ?? COUNTRIES[0].code)[0],
     color: profile?.color ?? '#21d07a',
@@ -294,9 +301,9 @@ export default function Onboarding({ profile, onComplete }) {
         <aside className="af-panel" style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 22, minWidth: 0, position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(circle at 80% 20%, ${draft.color}33, transparent 55%)`, pointerEvents: 'none' }} />
           <div style={{ position: 'relative' }}>
-            <div className="af-kicker">Carrière d'agent</div>
-            <h1 className="af-title" style={{ marginTop: 6 }}>Crée ton agence.</h1>
-            <p className="af-subtitle">Identité forte, choix lisibles. C'est ton bureau, ta marque, tes joueurs.</p>
+            <div className="af-kicker">{t("Carrière d'agent")}</div>
+            <h1 className="af-title" style={{ marginTop: 6 }}>{t('Crée ton agence.')}</h1>
+            <p className="af-subtitle">{t("Identité forte, choix lisibles. C'est ton bureau, ta marque, tes joueurs.")}</p>
           </div>
           <div style={{ position: 'relative', display: 'grid', placeItems: 'center', padding: '20px 0' }}>
             <div className="af-logo-disc" style={{
@@ -309,9 +316,9 @@ export default function Onboarding({ profile, onComplete }) {
             </div>
           </div>
           <div style={{ position: 'relative', textAlign: 'center' }}>
-            <div style={{ color: 'var(--af-muted)', fontSize: 11, fontWeight: 900, letterSpacing: '.2em', textTransform: 'uppercase' }}>Aperçu</div>
-            <div style={{ color: 'var(--af-text)', fontSize: 28, fontWeight: 950, marginTop: 8, letterSpacing: '-.03em', overflowWrap: 'anywhere' }}>{draft.name || 'Ton agence'}</div>
-            <div style={{ color: 'var(--af-muted)', fontSize: 13, marginTop: 6 }}>{draft.city || 'Ville'} · Dirigée par {draft.ownerName || 'toi'}</div>
+            <div style={{ color: 'var(--af-muted)', fontSize: 11, fontWeight: 900, letterSpacing: '.2em', textTransform: 'uppercase' }}>{t('Aperçu')}</div>
+            <div style={{ color: 'var(--af-text)', fontSize: 28, fontWeight: 950, marginTop: 8, letterSpacing: '-.03em', overflowWrap: 'anywhere' }}>{draft.name || t('Ton agence')}</div>
+            <div style={{ color: 'var(--af-muted)', fontSize: 13, marginTop: 6 }}>{draft.city || t('Ville')} · {t('Dirigée par')} {draft.ownerName ? t(draft.ownerName) : t('toi')}</div>
           </div>
         </aside>
 
@@ -326,11 +333,11 @@ export default function Onboarding({ profile, onComplete }) {
             {step > 1 && (
               <button type="button" onClick={() => setStep((value) => value - 1)} className="af-btn-secondary" style={{ padding: '14px 18px', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <ArrowLeft size={16} />
-                Retour
+                {t('Retour')}
               </button>
             )}
             <button type="button" disabled={!canAdvance} onClick={advance} className="af-btn-primary" style={{ flex: 1, padding: '16px 18px', opacity: canAdvance ? 1 : .45, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 14 }}>
-              {step === 3 ? 'Lancer ma carrière' : 'Continuer'}
+              {step === 3 ? t('Lancer ma carrière') : t('Continuer')}
               <ChevronRight size={18} />
             </button>
           </div>

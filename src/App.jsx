@@ -77,6 +77,7 @@ import { getCalendarSnapshot } from './systems/seasonSystem';
 import { isEuropeanMatchWeek, EURO_CUP_LABELS } from './systems/europeanCupSystem';
 import { createMessage, createStaffConversationMessage, getConversationParticipant, getMessageContextOutcome, getMessageResponseAction, getResponseCopy, responseEffects } from './systems/messageSystem';
 import { createPromiseFromMessage, normalizePromises } from './systems/promiseSystem';
+import { t } from './utils/i18n';
 import { getActiveDossierPlayerIds, getOfferAcceptanceReadiness, getPendingMessageCounts, getPlayerLifecycleState } from './systems/dossierSystem';
 import { recordDossierEvent } from './systems/coherenceSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
@@ -576,7 +577,7 @@ export default function FootballAgentGame() {
   }, [state, loaded, activeSaveSlot]);
 
   const showToast = (message, type = 'info') => {
-    setToast({ message, type });
+    setToast({ message: t(message), type });
     setTimeout(() => setToast(null), 2500);
   };
 
@@ -1920,7 +1921,7 @@ export default function FootballAgentGame() {
         </div>
         <div style={S.seasonBar}>
           <div>
-            <div style={S.seasonLabel}>SAISON {phase.season} · S{phase.seasonWeek}/38</div>
+            <div style={S.seasonLabel}>{t('SAISON')} {phase.season} · S{phase.seasonWeek}/38</div>
             <div style={S.seasonDate}>{calendarSnapshot.dateLabel} · {calendarSnapshot.weekRangeLabel}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1929,7 +1930,7 @@ export default function FootballAgentGame() {
                 {state.activePeriod.label}
               </span>
             )}
-            <div style={S.seasonPhase}>{phase.phase.toUpperCase()}</div>
+            <div style={S.seasonPhase}>{t(phase.phase).toUpperCase()}</div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'stretch', background: 'oklch(14% 0.03 258 / .85)', border: '1px solid var(--af-border)', borderRadius: 10, padding: '4px', overflow: 'hidden' }}>

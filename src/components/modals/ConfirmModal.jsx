@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { S } from '../styles';
+import { t } from '../../utils/i18n';
 
 export default function ConfirmModal({
   title,
@@ -41,13 +42,13 @@ export default function ConfirmModal({
       <div style={S.modal}>
         <div style={S.mHead}>
           {isDanger ? <AlertTriangle size={16} color={accent} /> : <CheckCircle2 size={16} color={accent} />}
-          <span>{title}</span>
+          <span>{t(title)}</span>
           <button type="button" onClick={onCancel} style={S.mClose}><X size={16} /></button>
         </div>
         <div style={S.mBody}>
           <div style={{ background: accentBg, border: `1px solid ${accent}30`, borderRadius: 8, padding: 14, marginBottom: 14 }}>
             <div style={{ fontSize: 13, color: 'var(--af-text)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
-              {body}
+              {t(body)}
             </div>
           </div>
           <div style={{ display: 'grid', gap: 10, marginTop: 'auto', paddingTop: 4 }}>
@@ -65,14 +66,14 @@ export default function ConfirmModal({
               }}
             >
               <div>
-                <div style={S.chLabel}>{isSubmitting ? 'Traitement…' : confirmLabel}</div>
-                <div style={S.chDesc}>{isSubmitting ? 'Lancement en cours' : 'Action irréversible'}</div>
+                <div style={S.chLabel}>{isSubmitting ? t('Traitement…') : t(confirmLabel)}</div>
+                <div style={S.chDesc}>{isSubmitting ? t('Lancement en cours') : t('Action irréversible')}</div>
               </div>
             </button>
             <button type="button" onClick={triggerCancel} style={{ ...S.choiceBtn, borderColor: '#d6dde3' }} disabled={isSubmitting}>
               <div>
-                <div style={S.chLabel}>{cancelLabel}</div>
-                <div style={S.chDesc}>Retour sans rien changer</div>
+                <div style={S.chLabel}>{t(cancelLabel)}</div>
+                <div style={S.chDesc}>{t('Retour sans rien changer')}</div>
               </div>
             </button>
           </div>

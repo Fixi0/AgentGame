@@ -2,6 +2,7 @@ import { Download, Play, PlusCircle, RotateCcw, Save, Upload } from 'lucide-reac
 import React, { useRef } from 'react';
 import { assetPath } from '../utils/assets';
 import { getAgencyLogo } from '../utils/agencyLogos';
+import { getAppLanguage, setAppLanguage, t } from '../utils/i18n';
 import tunnelHero from '../assets/hero/broadcast-tunnel.jpg';
 
 export default function SaveMenu({
@@ -31,10 +32,11 @@ export default function SaveMenu({
   const savePreview = activeSlot?.preview ?? null;
   const hasSave = Boolean(activeSlot?.hasSave);
   const continueLabel = savePreview
-    ? `Reprendre · S${savePreview.season} S${savePreview.seasonWeek}/38`
-    : 'Continuer';
-  const newLabel = hasSave ? 'Nouvelle partie (écrase)' : 'Nouvelle partie';
-  const resetLabel = hasSave ? 'Supprimer la sauvegarde' : 'Slot vide';
+    ? `${t('Reprendre')} · S${savePreview.season} W${savePreview.seasonWeek}/38`
+    : t('Continuer');
+  const newLabel = hasSave ? t('Nouvelle partie (écrase)') : t('Nouvelle partie');
+  const resetLabel = hasSave ? t('Supprimer la sauvegarde') : t('Slot vide');
+  const language = getAppLanguage();
 
   return (
     <div style={{ width: '100%', height: '100dvh', maxHeight: '100dvh', overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
@@ -53,19 +55,19 @@ export default function SaveMenu({
               style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'cover' }}
             />
             <span style={{ color: 'var(--af-cyan)', fontSize: 11, fontWeight: 900, letterSpacing: '.32em', textTransform: 'uppercase' }}>
-              Carrière · Saison 1
+              {t('Carrière · Saison 1')}
             </span>
           </div>
           <h1 className="af-titan af-anim-fade-up af-anim-d1" style={{ color: '#fff' }}>
             Agent<br />FC
           </h1>
           <p className="af-anim-fade-up af-anim-d2" style={{ color: 'rgba(255,255,255,.78)', maxWidth: 480, fontSize: 14, lineHeight: 1.55, margin: '14px 0 0' }}>
-            Construis ton écurie. Négocie. Écris la légende.
+            {t('Construis ton écurie. Négocie. Écris la légende.')}
           </p>
         </section>
         {/* SLOTS XL */}
         <section className="af-anim-fade-up af-anim-d3" style={{ display: 'grid', gap: 14 }}>
-          <div className="af-kicker" style={{ color: 'var(--af-cyan)' }}>Slots de sauvegarde</div>
+          <div className="af-kicker" style={{ color: 'var(--af-cyan)' }}>{t('Slots de sauvegarde')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
             {slots.map((slot) => {
               const p = slot.preview;
@@ -102,28 +104,28 @@ export default function SaveMenu({
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ color: 'var(--af-dim)', fontSize: 10, fontWeight: 900, letterSpacing: '.16em', textTransform: 'uppercase' }}>
-                        Slot {slot.slot}
+                        {t('Slot')} {slot.slot}
                       </div>
                       <div style={{ color: 'var(--af-text)', fontSize: 18, fontWeight: 950, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p?.agencyName || 'Slot vide'}
+                        {p?.agencyName || t('Slot vide')}
                       </div>
                       <div style={{ color: 'var(--af-muted)', fontSize: 12, marginTop: 3 }}>
-                        {p ? `S${p.season} · S${p.seasonWeek}/38` : 'Lance une nouvelle partie'}
+                        {p ? `S${p.season} · W${p.seasonWeek}/38` : t('Lance une nouvelle partie')}
                       </div>
                     </div>
                   </div>
                   {p && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--af-border)' }}>
                       <div>
-                        <div style={{ color: 'var(--af-dim)', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>Joueurs</div>
+                        <div style={{ color: 'var(--af-dim)', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>{t('Joueurs')}</div>
                         <div style={{ color: 'var(--af-text)', fontSize: 15, fontWeight: 900, marginTop: 2 }}>{p.rosterCount}</div>
                       </div>
                       <div>
-                        <div style={{ color: 'var(--af-dim)', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>Capital</div>
+                        <div style={{ color: 'var(--af-dim)', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>{t('Capital')}</div>
                         <div style={{ color: 'var(--af-text)', fontSize: 15, fontWeight: 900, marginTop: 2 }}>{(p.money / 1000).toFixed(0)}k €</div>
                       </div>
                       <div>
-                        <div style={{ color: 'var(--af-dim)', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>Rép.</div>
+                        <div style={{ color: 'var(--af-dim)', fontSize: 9, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>{t('Rép.')}</div>
                         <div style={{ color: 'var(--af-text)', fontSize: 15, fontWeight: 900, marginTop: 2 }}>{p.reputation}</div>
                       </div>
                     </div>
@@ -167,7 +169,7 @@ export default function SaveMenu({
               style={{ padding: '13px 12px', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: hasSave ? 1 : .5 }}
             >
               <Download size={14} />
-              Exporter
+              {t('Exporter')}
             </button>
             <button
               type="button"
@@ -177,7 +179,7 @@ export default function SaveMenu({
               style={{ padding: '13px 12px', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
               <Upload size={14} />
-              Importer
+              {t('Importer')}
             </button>
             <button
               type="button"
@@ -204,13 +206,21 @@ export default function SaveMenu({
               style={{ padding: '13px 18px', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
               <Save size={14} />
-              Retour au jeu
+              {t('Retour au jeu')}
             </button>
           )}
         </section>
 
+        <section className="af-panel" style={{ padding: 14, display: 'grid', gap: 10 }}>
+          <div className="af-kicker" style={{ color: 'var(--af-cyan)' }}>{t('LANGUE')}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button type="button" onClick={() => setAppLanguage('fr')} className={`af-chip ${language === 'fr' ? 'is-active' : ''}`} style={{ padding: '10px 12px' }}>{t('Français')}</button>
+            <button type="button" onClick={() => setAppLanguage('en')} className={`af-chip ${language === 'en' ? 'is-active' : ''}`} style={{ padding: '10px 12px' }}>English</button>
+          </div>
+        </section>
+
         <p style={{ color: 'var(--af-dim)', fontSize: 11, textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
-          Quitter une partie ne supprime rien — seul le bouton suppression efface un slot.
+          {t('Quitter une partie ne supprime rien — seul le bouton suppression efface un slot.')}
         </p>
       </div>
     </div>

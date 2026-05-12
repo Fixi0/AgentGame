@@ -38,6 +38,7 @@ export const GABRIEL_FIXIO_ID = 'sig_gabriel_fixio';
 const GABRIEL_FIXIO_CLUB = 'Marseille';
 const UGO_MOXWMO_SEED = 0x8b17e2c4;
 export const UGO_MOXWMO_ID = 'sig_ugo_moxwmo';
+export const YOHAN_ZENOXX_ID = 'sig_yohan_zenoxx';
 
 const getMarseilleClub = () =>
   CLUBS.find((club) => club.name === GABRIEL_FIXIO_CLUB) ?? CLUBS[0];
@@ -202,6 +203,91 @@ const buildUgoMoxwmo = (club = getMarseilleClub(), season = 1) => {
     physique: 'technique',
     playStyle: 'créateur',
     foot: 'D',
+    developmentBoost: 0.048,
+    developmentCurve: 'superstar_gem',
+    signaturePlayer: false,
+    hiddenPotential: true,
+    attributes: generatePlayerAttributes({ rating, potential, position: 'ATT' }, roleObj),
+    clubRole: 'Projet jeune',
+  };
+};
+
+const buildYohanZenoxx = (club = getMarseilleClub(), season = 1) => {
+  const yohanClub = club?.name === GABRIEL_FIXIO_CLUB ? club : getMarseilleClub();
+  const roleObj = POSITION_ROLES.ATT?.find((role) => role.id === 'winger_forward')
+    ?? POSITION_ROLES.ATT?.[0]
+    ?? POSITION_ROLES.MIL?.find((role) => role.id === 'left_winger')
+    ?? POSITION_ROLES.MIL?.[0];
+  const baseAge = 20;
+  const baseRating = 128;
+  const potential = 192;
+  const rating = evolveRating(baseRating, baseAge, potential, season);
+  const age = baseAge + (season - 1);
+  const countryData = COUNTRIES.find((c) => c.code === 'FR') ?? COUNTRIES[0];
+  const value = estimateValue(rating, potential, age, 1);
+  const weeklySalary = Math.max(2200, Math.floor(value / 145));
+
+  return {
+    id: YOHAN_ZENOXX_ID,
+    firstName: 'Yohan',
+    lastName: 'Zenoxx',
+    birthDate: '2006-11-08',
+    birthDateLabel: '8 novembre 2006',
+    birthPlace: 'Marseille',
+    position: 'ATT',
+    roleId: roleObj.id,
+    roleLabel: 'Attaquant gauche',
+    roleShort: 'AG',
+    countryCode: countryData.code,
+    countryLabel: countryData.label,
+    countryFlag: countryData.flag,
+    personality: 'ambitieux',
+    age,
+    rating,
+    potential,
+    value,
+    weeklySalary,
+    signingCost: 26000,
+    club: yohanClub.name,
+    clubTier: yohanClub.tier ?? 1,
+    clubCountry: (COUNTRIES.find((c) => c.code === yohanClub.countryCode) ?? COUNTRIES[0]).flag,
+    clubCountryCode: yohanClub.countryCode,
+    clubCity: yohanClub.city ?? 'Marseille',
+    form: 94,
+    brandValue: 88,
+    fatigue: 6,
+    injured: 0,
+    moral: 97,
+    trust: 83,
+    pressureTolerance: 92,
+    dreamClub: 'Real Madrid',
+    contractWeeksLeft: 62,
+    contractStartWeek: 0,
+    commission: 0.08,
+    agentContract: null,
+    timeline: [
+      { week: season * 38 - 37, type: 'origin', label: 'Attaquant gauche formé à Marseille' },
+    ],
+    careerGoal: null,
+    scoutReport: null,
+    hiddenTrait: 'late_bloomer',
+    traitRevealed: false,
+    lastInteractionWeek: 0,
+    europeanCompetition: null,
+    seasonStats: {
+      appearances: 0, goals: 0, assists: 0, saves: 0,
+      tackles: 0, keyPasses: 0, xg: 0, injuries: 0,
+      ratings: [], averageRating: null,
+    },
+    publicRep: null,
+    pressure: 6,
+    recentResults: [],
+    previousRating: null,
+    matchHistory: [],
+    activeActions: [],
+    physique: 'technique',
+    playStyle: 'créateur',
+    foot: 'G',
     developmentBoost: 0.048,
     developmentCurve: 'superstar_gem',
     signaturePlayer: false,
@@ -515,6 +601,9 @@ const buildSquadPlayer = (club, slotIdx, season) => {
   }
   if (club?.name === GABRIEL_FIXIO_CLUB && slotIdx === 13) {
     return buildUgoMoxwmo(club, season);
+  }
+  if (club?.name === GABRIEL_FIXIO_CLUB && slotIdx === 14) {
+    return buildYohanZenoxx(club, season);
   }
   // Seed STABLE (sans saison) → même joueur d'une saison à l'autre
   const baseSeed = hashStr(`${club.name}:${slotIdx}`);

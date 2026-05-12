@@ -126,6 +126,7 @@ import p120 from '../assets/portraits/p120.jpg';
 
 const OVERRIDES = {
   sig_gabriel_fixio: gabrielFixio,
+  sig_yohan_zenoxx: p02,
 };
 
 const POOL = [
