@@ -177,8 +177,7 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
   const threshold = preview.threshold;
   const fit = preview.fit;
   const successChance = clamp(0.28 + (fit - threshold) / 120, 0.15, 0.92);
-  const guaranteedStarterTarget = player.id === 'sig_gabriel_fixio' && fit >= threshold;
-  const accepted = fit >= threshold && (guaranteedStarterTarget || Math.random() < successChance);
+  const accepted = fit >= threshold && Math.random() < successChance;
 
   if (!accepted) {
     const failedMemory = tagRecruitmentMemory(player, {
