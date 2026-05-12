@@ -687,6 +687,7 @@ const _INTERACTIVE_BASE = [
     ],
   },
 ];
+export const INTERACTIVE_EVENTS = [..._INTERACTIVE_BASE, ...EXTRA_INTERACTIVE_EVENTS];
 
 export const CHAINED_EVENTS = {
   inj_severe: [
