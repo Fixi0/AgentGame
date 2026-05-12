@@ -1,7 +1,9 @@
-import { Filter, Search, UserRound, Star, Flame, Sparkles, TrendingUp, Wallet, Shield } from 'lucide-react';
+import { Filter, Search, UserRound, Star, Flame, Sparkles, TrendingUp, Wallet, Shield, Globe } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { MARKET_REFRESH_COST } from '../game/economy';
 import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
+import { createPlayerCatalog } from '../data/squadDatabase';
+import { normalizeAgencyReputation } from '../systems/reputationSystem';
 import { formatMoney } from '../utils/format';
 import { getPlayerStarsText } from '../utils/playerStars';
 import { getPlayerPortrait } from '../utils/playerPortraits';
@@ -24,6 +26,7 @@ const computeBadges = (player) => {
   const rating = player.rating ?? 0;
   const value = player.value ?? 0;
   const cost = player.signingCost ?? 0;
+  if (player.fromSearch) b.push({ icon: Globe, label: player.reachable === false ? 'HORS PORTÉE' : 'DÉCOUVERT', color: player.reachable === false ? '#f97316' : '#a78bfa' });
   if (age <= 21 && rating >= 70) b.push({ icon: Sparkles, label: 'PÉPITE', color: '#22d3ee' });
   if (cost > 0 && value >= cost * 1.6) b.push({ icon: TrendingUp, label: 'BONNE AFFAIRE', color: '#10b981' });
   if (player.freeAgent) b.push({ icon: Shield, label: 'AGENT LIBRE', color: '#facc15' });
@@ -184,11 +187,37 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
   }, [allPlayers]);
 
   const quickFilter = QUICK_FILTERS.find((f) => f.key === filters.quick);
+  const search = query.trim().toLowerCase();
 
-  const filteredMarket = allPlayers
+  // Recherche globale style FIFA/FM : dès qu'on tape, on étend au catalogue complet
+  const season = state?.season ?? 1;
+  const repNorm = normalizeAgencyReputation(state?.reputation ?? 0);
+  const ratingCeiling = 130 + Math.floor(repNorm * 0.6) + ((state?.office?.scoutLevel ?? 0) * 6);
+  const knownIds = useMemo(() => new Set(allPlayers.map((p) => p.id)), [allPlayers]);
+  const discovered = useMemo(() => {
+    if (search.length < 2) return [];
+    const catalog = createPlayerCatalog(season);
+    return catalog
+      .filter((p) => !knownIds.has(p.id))
+      .filter((p) => `${p.firstName} ${p.lastName} ${p.club} ${p.position} ${p.countryLabel ?? ''}`.toLowerCase().includes(search))
+      .slice(0, 40)
+      .map((p) => {
+        const reachable = (p.rating ?? 0) <= ratingCeiling;
+        const repPenalty = Math.max(0, (p.rating ?? 0) - ratingCeiling) * 60;
+        return {
+          ...p,
+          fromSearch: true,
+          reachable,
+          signingCost: Math.max(2000, Math.floor((p.signingCost ?? p.value ?? 5000) * (reachable ? 1 : 1.4)) + repPenalty),
+        };
+      });
+  }, [search, season, knownIds, ratingCeiling]);
+
+  const pool = [...allPlayers, ...discovered];
+
+  const filteredMarket = pool
     .filter((player) => {
       const profile = player.playerProfile ?? getPlayerProfileSummary(player);
-      const search = query.trim().toLowerCase();
       if (search && !`${fullName(player)} ${player.club} ${player.position}`.toLowerCase().includes(search)) return false;
       if (filters.position !== 'all' && player.position !== filters.position) return false;
       if (filters.country !== 'all' && player.countryCode !== filters.country) return false;
@@ -203,7 +232,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
       return (b.rating ?? 0) - (a.rating ?? 0);
     });
 
-  const visibleMarket = filteredMarket.slice(0, 12);
+  const visibleMarket = search.length >= 2 ? filteredMarket.slice(0, 30) : filteredMarket.slice(0, 12);
   const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
   const isFirstRecruit = !state?.roster?.length;
 
@@ -243,7 +272,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Nom, club ou poste"
+            placeholder="Recherche mondiale : nom, club, pays, poste…"
             style={{ ...S.textInput, width: '100%', paddingLeft: 34 }}
           />
         </div>
@@ -317,7 +346,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
 
       {filteredMarket.length > visibleMarket.length && (
         <div className="af-panel" style={{ padding: 14, marginTop: 12, color: 'var(--af-muted)', fontSize: 12, lineHeight: 1.45 }}>
-          {visibleMarket.length} profils affichés sur {filteredMarket.length}. Affine les filtres pour cibler mieux.
+          {visibleMarket.length} profils affichés sur {filteredMarket.length}. {search.length >= 2 ? 'Recherche mondiale active — les joueurs hors portée coûteront plus cher selon ta réputation.' : 'Tape un nom pour fouiller le catalogue mondial.'}
         </div>
       )}
 

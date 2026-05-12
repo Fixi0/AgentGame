@@ -743,6 +743,14 @@ export default function FootballAgentGame() {
   };
 
   const handleSignPlayer = (player) => {
+    // Si le joueur vient d'une recherche catalogue (pas encore dans le marché),
+    // on l'injecte d'abord pour que recruitPlayer puisse le retrouver.
+    setState((current) => {
+      const inMarket = (current.market ?? []).some((p) => p.id === player.id);
+      const inFree = (current.freeAgents ?? []).some((p) => p.id === player.id);
+      if (inMarket || inFree) return current;
+      return { ...current, market: [{ ...player, fromSearch: true }, ...(current.market ?? [])] };
+    });
     setModal({ type: 'recruit_player', data: { player } });
   };
 

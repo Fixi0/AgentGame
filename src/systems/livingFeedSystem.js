@@ -14,6 +14,7 @@ import { CLUBS, COUNTRIES } from '../data/clubs';
 import { getClubSquad } from '../data/squadDatabase';
 import { getLeagueTopStats, getEuropeanTopStats } from './topScorersSystem';
 import { EURO_CUP_LABELS } from './europeanCupSystem';
+import { getCalendarSnapshot } from './seasonSystem';
 
 const hash = (s) => {
   let h = 2166136261 >>> 0;
@@ -104,7 +105,9 @@ const buildNationalSquad = (countryCode, season, weekSeed, agentPlayerIds = new 
 /** Construit un post de convocation pour la sélection nationale. */
 const buildSelectionPost = ({ team, season, week, agentPlayerIds }) => {
   const opponent = pick(FRIENDLY_OPPONENTS, `${team.code}-${week}`);
-  const date = `${10 + (week % 18)} ${pick(['mars', 'juin', 'septembre', 'octobre', 'novembre'], `${team.code}-d-${week}`)}`;
+  // Date réelle calculée depuis le calendrier (1er aout 2025 = saison 1, semaine 1)
+  const matchSnap = getCalendarSnapshot(week + 1);
+  const date = matchSnap.dateLabel;
   const squad = buildNationalSquad(team.code, season, week, agentPlayerIds);
   const myInside = squad.filter((p) => agentPlayerIds.has(p.id));
   const id = `nt-${team.code}-${week}`;
@@ -285,14 +288,15 @@ const buildClubOfficialPosts = ({ state, week, agentClubs }) => {
  */
 export const generateLivingFeedPosts = ({ state, week, season, agentPlayerIds, agentClubs }) => {
   const out = [];
-
-  // 1. Sélection nationale (toutes les ~6 semaines, on tourne entre les nations)
   const seasonWeek = ((week - 1) % 38) + 1;
-  if (seasonWeek % 6 === 1 || seasonWeek === 1) {
-    const teamIdx = Math.floor((week - 1) / 6) % NATIONAL_TEAMS.length;
+
+  // 1. Sélection nationale — uniquement pendant les vraies fenêtres FIFA
+  // Sept (sw 6), Oct (sw 11), Nov (sw 15), Mar (sw 27), Juin (sw 36)
+  const SELECTION_WEEKS = [6, 11, 15, 27, 36];
+  if (SELECTION_WEEKS.includes(seasonWeek)) {
+    const teamIdx = SELECTION_WEEKS.indexOf(seasonWeek) % NATIONAL_TEAMS.length;
     const team = NATIONAL_TEAMS[teamIdx];
     out.push(buildSelectionPost({ team, season, week, agentPlayerIds }));
-    // Sélection du pays de l'agence (toujours visible) si différente
     const agencyCountry = state?.agencyProfile?.countryCode ?? 'FR';
     const agencyTeam = NATIONAL_TEAMS.find((t) => t.code === agencyCountry);
     if (agencyTeam && agencyTeam.code !== team.code) {
@@ -300,14 +304,13 @@ export const generateLivingFeedPosts = ({ state, week, season, agentPlayerIds, a
     }
   }
 
-  // 2. Classements buteurs (toutes les ~3 semaines, on alterne les championnats)
-  if (seasonWeek > 4 && seasonWeek % 3 === 0) {
+  // 2. Classements buteurs — uniquement après ~8 journées (sinon c'est ridicule)
+  if (seasonWeek >= 9 && seasonWeek % 4 === 0) {
     const leagueCodes = Object.keys(LEAGUE_HANDLES);
-    const idx = Math.floor((week - 1) / 3) % leagueCodes.length;
+    const idx = Math.floor((week - 1) / 4) % leagueCodes.length;
     const code = leagueCodes[idx];
     const post = buildLeagueScorerPost({ countryCode: code, state, week });
     if (post) out.push(post);
-    // Bonus : championnat de l'agence si différent
     const agencyCountry = state?.agencyProfile?.countryCode ?? 'FR';
     if (agencyCountry !== code && LEAGUE_HANDLES[agencyCountry]) {
       const post2 = buildLeagueScorerPost({ countryCode: agencyCountry, state, week });
@@ -315,13 +318,13 @@ export const generateLivingFeedPosts = ({ state, week, season, agentPlayerIds, a
     }
   }
 
-  // 3. UEFA Team of the Week (en phase européenne, toutes les 2 semaines)
-  if (seasonWeek > 6 && seasonWeek % 2 === 0) {
+  // 3. UEFA Team of the Week — uniquement quand la phase de groupes a démarré
+  if (seasonWeek >= 8 && seasonWeek % 3 === 0) {
     const post = buildUefaTeamOfWeekPost({ state, week, season, agentPlayerIds });
     if (post) out.push(post);
   }
 
-  // 4. Posts clubs officiels (toujours quelques-uns)
+  // 4. Posts clubs officiels (toujours quelques-uns mais raisonnable)
   out.push(...buildClubOfficialPosts({ state, week, agentClubs }));
 
   return out;
