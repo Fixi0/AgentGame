@@ -437,9 +437,17 @@ export default function Social({ state, onSocialAction, onToast, onJumpToMessage
         });
       });
     } catch { /* bonds optional */ }
+    // ---- LIVING POSTS (sélections nationales, classements, UEFA, clubs) ----
+    try {
+      const season = Math.floor((week - 1) / 38) + 1;
+      const agentPlayerIds = new Set(roster.map((p) => p?.id).filter(Boolean));
+      const agentClubs = new Set(roster.map((p) => p?.club).filter(Boolean));
+      const livingPosts = generateLivingFeedPosts({ state, week, season, agentPlayerIds, agentClubs });
+      result.push(...livingPosts);
+    } catch (e) { /* living feed optional */ }
     // shuffle by deterministic seed for varied feed
     return result.sort((a, b) => seedHash(a.id + 'sort') - seedHash(b.id + 'sort'));
-  }, [featured, week, roster, state?.playerBonds]);
+  }, [featured, week, roster, state]);
 
   // ---- WHATSCALL THREADS (inbox messages first, then generated stress threads) ----
   const threads = useMemo(() => {
