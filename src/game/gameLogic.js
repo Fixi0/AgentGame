@@ -731,7 +731,7 @@ export const migrateState = (state) => {
   const normalizeMarketShelf = (list, count = 8) => {
     const current = asArray(list);
     const marketCap = getMarketRatingCeiling(reputation, marketScoutLevel);
-    const signatureMarketIds = new Set([GABRIEL_FIXIO_ID, UGO_MOXWMO_ID]);
+    const signatureMarketIds = new Set([GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, YOHAN_ZENOXX_ID]);
     const sanitized = current
       .map(reconcileCatalogPlayer)
       .filter((player) => (player?.rating ?? 0) <= marketCap || signatureMarketIds.has(player?.id))
