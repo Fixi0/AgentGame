@@ -1,4 +1,6 @@
-export const PASSIVE_EVENTS = [
+import { EXTRA_PASSIVE_EVENTS, EXTRA_INTERACTIVE_EVENTS, EXTRA_LOCKER_ROOM_EVENTS } from './eventsExtra';
+
+const _PASSIVE_BASE = [
   // ─── COMMUN BON ─────────────────────────────────────────────────
   // ─── COMMUN BON — valeurs d'argent réduites de 20% pour ralentir la progression F2P ───
   { id: 'hat_trick', rarity: 'common', type: 'performance', label: 'Triplé en finale', good: true, money: 14400, rep: 8, val: 1.15, moral: 10, trust: 2, chance: 0.04 },
@@ -76,8 +78,9 @@ export const PASSIVE_EVENTS = [
   // ─── LÉGENDAIRE MAUVAIS ──────────────────────────────────────────
   { id: 'career_end_injury', rarity: 'legendary', type: 'media', label: 'Blessure de fin de carrière potentielle', good: false, money: -20000, rep: -5, val: 0.55, moral: -25, trust: -5, chance: 0.001, injury: 12 },
 ];
+export const PASSIVE_EVENTS = [..._PASSIVE_BASE, ...EXTRA_PASSIVE_EVENTS];
 
-export const INTERACTIVE_EVENTS = [
+const _INTERACTIVE_BASE = [
   // ─── EXISTANTS ───────────────────────────────────────────────────
   {
     id: 'nightclub',
@@ -684,6 +687,7 @@ export const INTERACTIVE_EVENTS = [
     ],
   },
 ];
+export const INTERACTIVE_EVENTS = [..._INTERACTIVE_BASE, ...EXTRA_INTERACTIVE_EVENTS];
 
 export const CHAINED_EVENTS = {
   inj_severe: [
@@ -746,7 +750,7 @@ export const CHAINED_EVENTS = {
 };
 
 // ── VESTIAIRE & RIVALITÉS ──────────────────────────────────────────────────
-export const LOCKER_ROOM_EVENTS = [
+const _LOCKER_BASE = [
   {
     id: 'locker_rivalry',
     rarity: 'uncommon',
@@ -784,3 +788,4 @@ export const LOCKER_ROOM_EVENTS = [
     ],
   },
 ];
+export const LOCKER_ROOM_EVENTS = [..._LOCKER_BASE, ...EXTRA_LOCKER_ROOM_EVENTS];
