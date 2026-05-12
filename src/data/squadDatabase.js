@@ -1035,6 +1035,24 @@ export const drawMarketPlayers = ({
     }
   }
 
+  // Garantir la présence de TOUS les joueurs signatures (Gabriel, Ugo, Yohan)
+  // même si plusieurs partagent la même position dans le quota.
+  for (const signaturePlayer of signaturePlayers) {
+    if (result.some((p) => p?.id === signaturePlayer.id)) continue;
+    if (!marketCountrySet.has(signaturePlayer.countryCode ?? signaturePlayer.clubCountryCode)) continue;
+    // Remplace le dernier non-signature de la même position si possible, sinon le dernier slot
+    const samePosIdx = [...result].reverse().findIndex(
+      (p) => p?.position === signaturePlayer.position && !signaturePlayers.some((s) => s.id === p.id)
+    );
+    if (samePosIdx >= 0) {
+      const realIdx = result.length - 1 - samePosIdx;
+      result[realIdx] = { ...signaturePlayer };
+    } else {
+      result.push({ ...signaturePlayer });
+    }
+    usedIds.add(signaturePlayer.id);
+  }
+
   return result;
 };
 
