@@ -982,23 +982,8 @@ export const drawMarketPlayers = ({
   const rep = getMarketReputationScore(reputation);
   const targetRating = clamp(108 + rep * 0.28 + scoutLevel * 1.6, 100, 182);
   const maxRating = getMarketRatingCeiling(reputation, scoutLevel);
-  const signaturePlayers = [GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, YOHAN_ZENOXX_ID]
-    .map((id) => catalog.find((player) => player.id === id))
-    .filter(Boolean);
 
   for (const position of positionQuota) {
-    const signaturePlayer = signaturePlayers.find((player) =>
-      position === player.position
-      && !usedIds.has(player.id)
-      && marketCountrySet.has(player.countryCode ?? player.clubCountryCode)
-    );
-    if (signaturePlayer) {
-      result.push({ ...signaturePlayer });
-      usedIds.add(signaturePlayer.id);
-      if (!signaturePlayer.id.startsWith('sig_')) usedClubsThisBatch.add(signaturePlayer.club);
-      continue;
-    }
-
     const player = chooseCatalogPlayer({
       catalog,
       position,
@@ -1033,32 +1018,6 @@ export const drawMarketPlayers = ({
       usedIds.add(fallback.id);
       usedClubsThisBatch.add(fallback.club);
     }
-  }
-
-  // Garantir la présence de TOUS les joueurs signatures (Gabriel, Ugo, Yohan)
-  // même si plusieurs partagent la même position dans le quota.
-  for (const signaturePlayer of signaturePlayers) {
-    if (usedIds.has(signaturePlayer.id) || result.some((p) => p?.id === signaturePlayer.id)) continue;
-    if (!marketCountrySet.has(signaturePlayer.countryCode ?? signaturePlayer.clubCountryCode)) continue;
-    // Remplace le dernier non-signature de la même position si possible, sinon le dernier slot
-    const samePosIdx = [...result].reverse().findIndex(
-      (p) => p?.position === signaturePlayer.position && !signaturePlayers.some((s) => s.id === p.id)
-    );
-    if (samePosIdx >= 0) {
-      const realIdx = result.length - 1 - samePosIdx;
-      result[realIdx] = { ...signaturePlayer };
-    } else if (result.length < positionQuota.length) {
-      result.push({ ...signaturePlayer });
-    } else {
-      const fallbackIdx = [...result].reverse().findIndex(
-        (p) => !signaturePlayers.some((s) => s.id === p?.id)
-      );
-      if (fallbackIdx >= 0) {
-        const realIdx = result.length - 1 - fallbackIdx;
-        result[realIdx] = { ...signaturePlayer };
-      }
-    }
-    usedIds.add(signaturePlayer.id);
   }
 
   return result;
