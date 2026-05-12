@@ -10,7 +10,8 @@ const SEASON_START_DAY = 1;
 const getWeekDate = (week) => {
   const season = Math.floor((week - 1) / 38) + 1;
   const dayOffset = ((week - 1) % 38) * 7;
-  return new Date(Date.UTC(2025 + season, SEASON_START_MONTH, SEASON_START_DAY + dayOffset));
+  // Saison 1 démarre le 1er août 2025 → fin de saison mai 2026 → Coupe du Monde été 2026
+  return new Date(Date.UTC(2024 + season, SEASON_START_MONTH, SEASON_START_DAY + dayOffset));
 };
 
 export const getCalendarSnapshot = (week) => {
