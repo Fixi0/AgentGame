@@ -177,14 +177,33 @@ const QUICK_FILTERS = [
 
 export default function Market({ state, market, freeAgents = [], money, onSign, onRefresh, onDetails }) {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
-  const [filters, setFilters] = useState({ position: 'all', country: 'all', profile: 'all', maxCost: 'all', sort: 'rating', quick: 'all' });
+  const [filters, setFilters] = useState({ position: 'all', country: 'all', league: 'all', club: 'all', profile: 'all', maxCost: 'all', sort: 'rating', quick: 'all' });
   const [query, setQuery] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const allPlayers = useMemo(
-    () => Array.from(new Map([...freeAgents, ...market].filter(Boolean).map((player) => [player.id, player])).values()).slice(0, 80),
+  const season = state?.season ?? 1;
+  const recommendations = useMemo(
+    () => Array.from(new Map([...freeAgents, ...market].filter(Boolean).map((player) => [player.id, player])).values()).slice(0, 12),
     [freeAgents, market],
   );
+  const catalogPlayers = useMemo(() => createPlayerCatalog(season), [season]);
+  const clubMap = useMemo(() => new Map(CLUBS.map((club) => [club.name, club])), []);
+  const leagueMap = useMemo(() => new Map(COUNTRIES.map((country) => [country.code, country])), []);
+  const allPlayers = useMemo(() => {
+    const merged = [...recommendations, ...catalogPlayers].filter(Boolean).map((player) => {
+      const clubMeta = clubMap.get(player.club);
+      const leagueCode = player.clubCountryCode ?? clubMeta?.countryCode ?? player.countryCode;
+      const league = leagueMap.get(leagueCode);
+      return {
+        ...player,
+        leagueCode,
+        leagueLabel: league?.label ?? player.countryLabel ?? 'International',
+      };
+    });
+    return Array.from(new Map(merged.map((player) => [player.id, player])).values());
+  }, [recommendations, catalogPlayers, clubMap, leagueMap]);
   const countries = useMemo(() => [...new Map(allPlayers.map((player) => [player.countryCode, player])).values()], [allPlayers]);
+  const leagues = useMemo(() => [...new Map(allPlayers.map((player) => [player.leagueCode, { code: player.leagueCode, label: player.leagueLabel }])).values()].filter((league) => league.code), [allPlayers]);
+  const clubs = useMemo(() => [...new Map(allPlayers.map((player) => [player.club, player])).values()].sort((a, b) => (a.club ?? '').localeCompare(b.club ?? '')), [allPlayers]);
   const profileOptions = useMemo(() => {
     const profiles = allPlayers.map((player) => player.playerProfile ?? getPlayerProfileSummary(player));
     return [...new Map(profiles.map((profile) => [profile.id, profile])).values()];
@@ -193,50 +212,44 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
   const quickFilter = QUICK_FILTERS.find((f) => f.key === filters.quick);
   const search = query.trim().toLowerCase();
 
-  // Recherche globale style FIFA/FM : dès qu'on tape, on étend au catalogue complet
-  const season = state?.season ?? 1;
   const repNorm = normalizeAgencyReputation(state?.reputation ?? 0);
   const ratingCeiling = 130 + Math.floor(repNorm * 0.6) + ((state?.office?.scoutLevel ?? 0) * 6);
-  const knownIds = useMemo(() => new Set(allPlayers.map((p) => p.id)), [allPlayers]);
-  const discovered = useMemo(() => {
-    if (search.length < 2) return [];
-    const catalog = createPlayerCatalog(season);
-    return catalog
-      .filter((p) => !knownIds.has(p.id))
-      .filter((p) => `${p.firstName} ${p.lastName} ${p.club} ${p.position} ${p.countryLabel ?? ''}`.toLowerCase().includes(search))
-      .slice(0, 40)
-      .map((p) => {
-        const reachable = (p.rating ?? 0) <= ratingCeiling;
-        const repPenalty = Math.max(0, (p.rating ?? 0) - ratingCeiling) * 60;
-        return {
-          ...p,
-          fromSearch: true,
-          reachable,
-          signingCost: Math.max(2000, Math.floor((p.signingCost ?? p.value ?? 5000) * (reachable ? 1 : 1.4)) + repPenalty),
-        };
-      });
-  }, [search, season, knownIds, ratingCeiling]);
-
-  const pool = [...allPlayers, ...discovered];
-
-  const filteredMarket = pool
+  const filteredMarket = allPlayers
     .filter((player) => {
       const profile = player.playerProfile ?? getPlayerProfileSummary(player);
-      if (search && !`${fullName(player)} ${player.club} ${player.position}`.toLowerCase().includes(search)) return false;
+      const searchable = `${fullName(player)} ${player.club} ${player.position} ${player.countryLabel ?? ''} ${player.leagueLabel ?? ''}`.toLowerCase();
+      if (search && !searchable.includes(search)) return false;
       if (filters.position !== 'all' && player.position !== filters.position) return false;
       if (filters.country !== 'all' && player.countryCode !== filters.country) return false;
+      if (filters.league !== 'all' && player.leagueCode !== filters.league) return false;
+      if (filters.club !== 'all' && player.club !== filters.club) return false;
       if (filters.profile !== 'all' && profile.id !== filters.profile) return false;
       if (filters.maxCost !== 'all' && player.signingCost > Number(filters.maxCost)) return false;
       if (quickFilter?.test && !quickFilter.test(player)) return false;
       return true;
     })
+    .map((player) => {
+      const inRecommendations = recommendations.some((item) => item.id === player.id);
+      if (inRecommendations) return player;
+      const reachable = (player.rating ?? 0) <= ratingCeiling;
+      const repPenalty = Math.max(0, (player.rating ?? 0) - ratingCeiling) * 60;
+      return {
+        ...player,
+        fromSearch: true,
+        reachable,
+        signingCost: Math.max(2000, Math.floor((player.signingCost ?? player.value ?? 5000) * (reachable ? 1 : 1.4)) + repPenalty),
+      };
+    })
     .sort((a, b) => {
       if (filters.sort === 'price') return (a.signingCost ?? 0) - (b.signingCost ?? 0);
       if (filters.sort === 'age') return (a.age ?? 99) - (b.age ?? 99);
+      if (filters.sort === 'club') return (a.club ?? '').localeCompare(b.club ?? '');
       return (b.rating ?? 0) - (a.rating ?? 0);
     });
 
-  const visibleMarket = search.length >= 2 ? filteredMarket.slice(0, 30) : filteredMarket.slice(0, 12);
+  const visibleMarket = (search || filters.club !== 'all' || filters.league !== 'all' || filters.country !== 'all' || filters.position !== 'all' || filters.profile !== 'all' || filters.maxCost !== 'all' || filters.quick !== 'all')
+    ? filteredMarket.slice(0, 48)
+    : filteredMarket.slice(0, 12);
   const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
   const isFirstRecruit = !state?.roster?.length;
 
