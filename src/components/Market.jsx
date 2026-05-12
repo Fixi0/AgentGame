@@ -1,4 +1,4 @@
-import { Filter, Search, UserRound, Star, Flame, Sparkles, TrendingUp, Wallet, Shield, Globe, Building2, Trophy } from 'lucide-react';
+import { Filter, Search, UserRound, Star, Flame, Sparkles, TrendingUp, Wallet, Shield, Globe } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { MARKET_REFRESH_COST } from '../game/economy';
 import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
@@ -214,7 +214,18 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
 
   const repNorm = normalizeAgencyReputation(state?.reputation ?? 0);
   const ratingCeiling = 130 + Math.floor(repNorm * 0.6) + ((state?.office?.scoutLevel ?? 0) * 6);
-  const filteredMarket = allPlayers
+  const isOpenMarketView = Boolean(
+    search
+    || filters.club !== 'all'
+    || filters.league !== 'all'
+    || filters.country !== 'all'
+    || filters.position !== 'all'
+    || filters.profile !== 'all'
+    || filters.maxCost !== 'all'
+    || filters.quick !== 'all',
+  );
+  const sourcePool = isOpenMarketView ? allPlayers : recommendations;
+  const filteredMarket = sourcePool
     .filter((player) => {
       const profile = player.playerProfile ?? getPlayerProfileSummary(player);
       const searchable = `${fullName(player)} ${player.club} ${player.position} ${player.countryLabel ?? ''} ${player.leagueLabel ?? ''}`.toLowerCase();
@@ -247,7 +258,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
       return (b.rating ?? 0) - (a.rating ?? 0);
     });
 
-  const visibleMarket = (search || filters.club !== 'all' || filters.league !== 'all' || filters.country !== 'all' || filters.position !== 'all' || filters.profile !== 'all' || filters.maxCost !== 'all' || filters.quick !== 'all')
+  const visibleMarket = isOpenMarketView
     ? filteredMarket.slice(0, 48)
     : filteredMarket.slice(0, 12);
   const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
