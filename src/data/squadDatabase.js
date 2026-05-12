@@ -982,7 +982,7 @@ export const drawMarketPlayers = ({
   const rep = getMarketReputationScore(reputation);
   const targetRating = clamp(108 + rep * 0.28 + scoutLevel * 1.6, 100, 182);
   const maxRating = getMarketRatingCeiling(reputation, scoutLevel);
-  const signaturePlayers = [GABRIEL_FIXIO_ID, UGO_MOXWMO_ID]
+  const signaturePlayers = [GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, YOHAN_ZENOXX_ID]
     .map((id) => catalog.find((player) => player.id === id))
     .filter(Boolean);
 

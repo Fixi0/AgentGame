@@ -1,6 +1,6 @@
 import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
 import { COUNTRY_NAME_POOLS, FIRST_NAMES, HIDDEN_TRAITS, LAST_NAMES, LEGENDARY_PLAYERS, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
-import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA, createPlayerCatalog, getMarketRatingCeiling, getMarketCountryCodes, GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, reconcilePlayerWithCatalog } from '../data/squadDatabase';
+import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA, createPlayerCatalog, getMarketRatingCeiling, getMarketCountryCodes, GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, YOHAN_ZENOXX_ID, reconcilePlayerWithCatalog } from '../data/squadDatabase';
 import { createDefaultAgencyRecord } from '../data/gameDatabase';
 import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
@@ -731,7 +731,7 @@ export const migrateState = (state) => {
   const normalizeMarketShelf = (list, count = 8) => {
     const current = asArray(list);
     const marketCap = getMarketRatingCeiling(reputation, marketScoutLevel);
-    const signatureMarketIds = new Set([GABRIEL_FIXIO_ID, UGO_MOXWMO_ID]);
+    const signatureMarketIds = new Set([GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, YOHAN_ZENOXX_ID]);
     const sanitized = current
       .map(reconcileCatalogPlayer)
       .filter((player) => (player?.rating ?? 0) <= marketCap || signatureMarketIds.has(player?.id))
