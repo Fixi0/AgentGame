@@ -26,6 +26,7 @@ const computeBadges = (player) => {
   const rating = player.rating ?? 0;
   const value = player.value ?? 0;
   const cost = player.signingCost ?? 0;
+  if (player.fromSearch) b.push({ icon: Globe, label: player.reachable === false ? 'HORS PORTÉE' : 'DÉCOUVERT', color: player.reachable === false ? '#f97316' : '#a78bfa' });
   if (age <= 21 && rating >= 70) b.push({ icon: Sparkles, label: 'PÉPITE', color: '#22d3ee' });
   if (cost > 0 && value >= cost * 1.6) b.push({ icon: TrendingUp, label: 'BONNE AFFAIRE', color: '#10b981' });
   if (player.freeAgent) b.push({ icon: Shield, label: 'AGENT LIBRE', color: '#facc15' });
