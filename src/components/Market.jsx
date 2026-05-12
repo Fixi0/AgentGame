@@ -272,7 +272,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Nom, club ou poste"
+            placeholder="Recherche mondiale : nom, club, pays, poste…"
             style={{ ...S.textInput, width: '100%', paddingLeft: 34 }}
           />
         </div>
@@ -346,7 +346,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
 
       {filteredMarket.length > visibleMarket.length && (
         <div className="af-panel" style={{ padding: 14, marginTop: 12, color: 'var(--af-muted)', fontSize: 12, lineHeight: 1.45 }}>
-          {visibleMarket.length} profils affichés sur {filteredMarket.length}. Affine les filtres pour cibler mieux.
+          {visibleMarket.length} profils affichés sur {filteredMarket.length}. {search.length >= 2 ? 'Recherche mondiale active — les joueurs hors portée coûteront plus cher selon ta réputation.' : 'Tape un nom pour fouiller le catalogue mondial.'}
         </div>
       )}
 
