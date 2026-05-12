@@ -268,7 +268,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
           <div className="af-kicker">Marché des talents</div>
           <h1 className="af-title">Recruter</h1>
           <p style={{ color: 'var(--af-muted)', margin: '8px 0 0', lineHeight: 1.5, fontSize: 13 }}>
-            {filteredMarket.length} joueur{filteredMarket.length > 1 ? 's' : ''} · budget {formatMoney(money)}
+            {filteredMarket.length} joueur{filteredMarket.length > 1 ? 's' : ''} trouvés · {recommendations.length} recommandations · budget {formatMoney(money)}
           </p>
         </div>
 
@@ -289,9 +289,18 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Recherche mondiale : nom, club, pays, poste…"
+            placeholder="Recherche mondiale : nom, club, championnat, pays, poste…"
             style={{ ...S.textInput, width: '100%', paddingLeft: 34 }}
           />
+        </div>
+
+        <div className="af-panel" style={{ padding: '12px 14px', display: 'grid', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--af-text)', fontSize: 11, fontWeight: 900, letterSpacing: '.08em' }}>
+            <Sparkles size={13} /> RECOMMANDATIONS DU MOMENT
+          </div>
+          <div style={{ color: 'var(--af-muted)', fontSize: 12, lineHeight: 1.45 }}>
+            La liste du haut sert de vitrine. Les filtres et la recherche te donnent accès à toute la base, y compris tous les joueurs de Marseille si tu choisis ce club.
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
@@ -332,6 +341,16 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
               <option value="all">Tous postes</option>
               {['ATT', 'MIL', 'DEF', 'GK'].map((position) => <option key={position} value={position}>{position}</option>)}
             </select>
+            <select value={filters.league} onChange={(e) => { updateFilter('league', e.target.value); updateFilter('club', 'all'); }} style={S.textInput}>
+              <option value="all">Tous championnats</option>
+              {leagues.map((league) => <option key={league.code} value={league.code}>{league.label}</option>)}
+            </select>
+            <select value={filters.club} onChange={(e) => updateFilter('club', e.target.value)} style={S.textInput}>
+              <option value="all">Tous clubs</option>
+              {clubs
+                .filter((player) => filters.league === 'all' || player.leagueCode === filters.league)
+                .map((player) => <option key={player.club} value={player.club}>{player.club}</option>)}
+            </select>
             <select value={filters.country} onChange={(e) => updateFilter('country', e.target.value)} style={S.textInput}>
               <option value="all">Tous pays</option>
               {countries.map((player) => <option key={player.countryCode} value={player.countryCode}>{player.countryLabel}</option>)}
@@ -350,6 +369,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
               <option value="rating">Trier · Note</option>
               <option value="price">Trier · Prix</option>
               <option value="age">Trier · Âge</option>
+              <option value="club">Trier · Club</option>
             </select>
           </div>
         )}
@@ -363,7 +383,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
 
       {filteredMarket.length > visibleMarket.length && (
         <div className="af-panel" style={{ padding: 14, marginTop: 12, color: 'var(--af-muted)', fontSize: 12, lineHeight: 1.45 }}>
-          {visibleMarket.length} profils affichés sur {filteredMarket.length}. {search.length >= 2 ? 'Recherche mondiale active — les joueurs hors portée coûteront plus cher selon ta réputation.' : 'Tape un nom pour fouiller le catalogue mondial.'}
+          {visibleMarket.length} profils affichés sur {filteredMarket.length}. {search.length >= 2 || filters.club !== 'all' || filters.league !== 'all' ? 'Vue ouverte du marché — les joueurs hors portée coûteront plus cher selon ta réputation.' : 'Tape un nom ou filtre un club comme Marseille pour voir toute sa base.'}
         </div>
       )}
 
