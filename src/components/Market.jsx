@@ -1,8 +1,9 @@
-import { Filter, Search, UserRound, Star, Flame, Sparkles, TrendingUp, Wallet, Shield, Globe } from 'lucide-react';
+import { Filter, Search, UserRound, Star, Flame, Sparkles, TrendingUp, Wallet, Shield, Globe, Building2, Trophy } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { MARKET_REFRESH_COST } from '../game/economy';
 import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
 import { createPlayerCatalog } from '../data/squadDatabase';
+import { CLUBS, COUNTRIES } from '../data/clubs';
 import { normalizeAgencyReputation } from '../systems/reputationSystem';
 import { formatMoney } from '../utils/format';
 import { getPlayerStarsText } from '../utils/playerStars';
