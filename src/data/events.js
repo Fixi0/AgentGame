@@ -78,8 +78,9 @@ const _PASSIVE_BASE = [
   // ─── LÉGENDAIRE MAUVAIS ──────────────────────────────────────────
   { id: 'career_end_injury', rarity: 'legendary', type: 'media', label: 'Blessure de fin de carrière potentielle', good: false, money: -20000, rep: -5, val: 0.55, moral: -25, trust: -5, chance: 0.001, injury: 12 },
 ];
+export const PASSIVE_EVENTS = [..._PASSIVE_BASE, ...EXTRA_PASSIVE_EVENTS];
 
-export const INTERACTIVE_EVENTS = [
+const _INTERACTIVE_BASE = [
   // ─── EXISTANTS ───────────────────────────────────────────────────
   {
     id: 'nightclub',
