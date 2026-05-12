@@ -38,6 +38,7 @@ import {
 } from '../data/socialDatabase';
 import { generateBondSocialPosts } from '../systems/playerBondsSystem';
 import { getClubSquad } from '../data/squadDatabase';
+import { generateLivingFeedPosts } from '../systems/livingFeedSystem';
 
 // Renvoie un coéquipier déterministe (autre joueur du même club) pour les posts duo/rivalité.
 const pickTeammate = (player, seed) => {
@@ -113,6 +114,59 @@ function InstaFeed({ posts, liked, onLike, onComment, onPublish, brandValue, mon
   );
 }
 
+function PostList({ list }) {
+  if (!list) return null;
+  const renderItem = (item, key) => (
+    <div
+      key={key}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8,
+        background: item.isMine ? 'oklch(28% 0.13 145 / .25)' : 'oklch(14% 0.03 258)',
+        border: item.isMine ? '1px solid oklch(55% 0.15 145)' : '1px solid var(--af-border)',
+      }}
+    >
+      {item.rank != null && (
+        <div style={{ minWidth: 22, textAlign: 'center', fontWeight: 900, fontSize: 12, color: item.rank <= 3 ? 'var(--af-gold)' : 'var(--af-muted)' }}>
+          {item.rank}
+        </div>
+      )}
+      {item.position && (
+        <div style={{ minWidth: 28, fontSize: 9, fontWeight: 900, color: 'var(--af-cyan)', letterSpacing: '.05em' }}>
+          {item.position}
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--af-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {item.name} {item.isMine && <span style={{ color: 'var(--af-grass)', fontSize: 9, marginLeft: 4 }}>★ MOI</span>}
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--af-muted)' }}>{item.club}</div>
+      </div>
+      {item.goals != null && (
+        <div style={{ display: 'flex', gap: 6, fontSize: 11, fontWeight: 800 }}>
+          <span style={{ color: '#f59e0b' }}>{item.goals}⚽</span>
+          <span style={{ color: '#2f80ed' }}>{item.assists}🅰</span>
+        </div>
+      )}
+    </div>
+  );
+  return (
+    <div style={{ display: 'grid', gap: 8, marginTop: 8, padding: 10, background: 'oklch(10% 0.02 258)', borderRadius: 10, border: '1px solid var(--af-border)' }}>
+      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', color: 'var(--af-cyan)', textTransform: 'uppercase' }}>{list.title}</div>
+      {list.ranked && (
+        <div style={{ display: 'grid', gap: 4 }}>
+          {list.ranked.map((it, i) => renderItem(it, i))}
+        </div>
+      )}
+      {list.groups && list.groups.map((g) => (
+        <div key={g.label} style={{ display: 'grid', gap: 4 }}>
+          <div style={{ fontSize: 10, color: 'var(--af-muted)', fontWeight: 800, letterSpacing: '.05em' }}>{g.label.toUpperCase()} ({g.items.length})</div>
+          {g.items.map((it, i) => renderItem(it, `${g.label}-${i}`))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FeedCard({ post, liked, onLike, onComment }) {
   const isPlayer = post.kind === 'player';
   const isClub = post.kind === 'club';
@@ -147,9 +201,10 @@ function FeedCard({ post, liked, onLike, onComment }) {
             <span style={{ fontSize: 12, fontWeight: 800 }}>{post.comments}</span>
           </button>
         </div>
-        <div style={{ fontSize: 13, color: 'var(--af-text)', lineHeight: 1.4 }}>
+        <div style={{ fontSize: 13, color: 'var(--af-text)', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
           <strong>{post.handle}</strong> {post.text}
         </div>
+        {post.list && <PostList list={post.list} />}
         {post.commentsList?.length > 0 && (
           <div style={{ display: 'grid', gap: 4, paddingTop: 4, borderTop: '1px solid var(--af-border)' }}>
             {post.commentsList.slice(0, 2).map((c, i) => (
@@ -382,9 +437,17 @@ export default function Social({ state, onSocialAction, onToast, onJumpToMessage
         });
       });
     } catch { /* bonds optional */ }
+    // ---- LIVING POSTS (sélections nationales, classements, UEFA, clubs) ----
+    try {
+      const season = Math.floor((week - 1) / 38) + 1;
+      const agentPlayerIds = new Set(roster.map((p) => p?.id).filter(Boolean));
+      const agentClubs = new Set(roster.map((p) => p?.club).filter(Boolean));
+      const livingPosts = generateLivingFeedPosts({ state, week, season, agentPlayerIds, agentClubs });
+      result.push(...livingPosts);
+    } catch (e) { /* living feed optional */ }
     // shuffle by deterministic seed for varied feed
     return result.sort((a, b) => seedHash(a.id + 'sort') - seedHash(b.id + 'sort'));
-  }, [featured, week, roster, state?.playerBonds]);
+  }, [featured, week, roster, state]);
 
   // ---- WHATSCALL THREADS (inbox messages first, then generated stress threads) ----
   const threads = useMemo(() => {
