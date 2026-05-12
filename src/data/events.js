@@ -750,7 +750,7 @@ export const CHAINED_EVENTS = {
 };
 
 // ── VESTIAIRE & RIVALITÉS ──────────────────────────────────────────────────
-export const LOCKER_ROOM_EVENTS = [
+const _LOCKER_BASE = [
   {
     id: 'locker_rivalry',
     rarity: 'uncommon',
@@ -788,3 +788,4 @@ export const LOCKER_ROOM_EVENTS = [
     ],
   },
 ];
+export const LOCKER_ROOM_EVENTS = [..._LOCKER_BASE, ...EXTRA_LOCKER_ROOM_EVENTS];
