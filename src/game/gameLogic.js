@@ -65,7 +65,7 @@ import { formatMoney } from '../utils/format';
 import { normalizePromises } from '../systems/promiseSystem';
 
 export const STORAGE_KEY = 'agent_fc_v4';
-export const MARKET_DATA_VERSION = '2026-05-12-yohan-zenoxx-market-feed-fix-v3';
+export const MARKET_DATA_VERSION = '2026-05-12-yohan-zenoxx-market-feed-fix-v4';
 const MAX_OPEN_RESPONSE_MESSAGES_PER_PLAYER = 4;
 
 const createClubSeasonHistory = (season = 1) =>

@@ -1038,7 +1038,7 @@ export const drawMarketPlayers = ({
   // Garantir la présence de TOUS les joueurs signatures (Gabriel, Ugo, Yohan)
   // même si plusieurs partagent la même position dans le quota.
   for (const signaturePlayer of signaturePlayers) {
-    if (result.some((p) => p?.id === signaturePlayer.id)) continue;
+    if (usedIds.has(signaturePlayer.id) || result.some((p) => p?.id === signaturePlayer.id)) continue;
     if (!marketCountrySet.has(signaturePlayer.countryCode ?? signaturePlayer.clubCountryCode)) continue;
     // Remplace le dernier non-signature de la même position si possible, sinon le dernier slot
     const samePosIdx = [...result].reverse().findIndex(
@@ -1047,8 +1047,16 @@ export const drawMarketPlayers = ({
     if (samePosIdx >= 0) {
       const realIdx = result.length - 1 - samePosIdx;
       result[realIdx] = { ...signaturePlayer };
-    } else {
+    } else if (result.length < positionQuota.length) {
       result.push({ ...signaturePlayer });
+    } else {
+      const fallbackIdx = [...result].reverse().findIndex(
+        (p) => !signaturePlayers.some((s) => s.id === p?.id)
+      );
+      if (fallbackIdx >= 0) {
+        const realIdx = result.length - 1 - fallbackIdx;
+        result[realIdx] = { ...signaturePlayer };
+      }
     }
     usedIds.add(signaturePlayer.id);
   }
