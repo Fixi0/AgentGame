@@ -179,7 +179,10 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
   const [filters, setFilters] = useState({ position: 'all', country: 'all', profile: 'all', maxCost: 'all', sort: 'rating', quick: 'all' });
   const [query, setQuery] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const allPlayers = useMemo(() => [...freeAgents, ...market].filter(Boolean).slice(0, 80), [freeAgents, market]);
+  const allPlayers = useMemo(
+    () => Array.from(new Map([...freeAgents, ...market].filter(Boolean).map((player) => [player.id, player])).values()).slice(0, 80),
+    [freeAgents, market],
+  );
   const countries = useMemo(() => [...new Map(allPlayers.map((player) => [player.countryCode, player])).values()], [allPlayers]);
   const profileOptions = useMemo(() => {
     const profiles = allPlayers.map((player) => player.playerProfile ?? getPlayerProfileSummary(player));
