@@ -38,6 +38,7 @@ import {
 } from '../data/socialDatabase';
 import { generateBondSocialPosts } from '../systems/playerBondsSystem';
 import { getClubSquad } from '../data/squadDatabase';
+import { generateLivingFeedPosts } from '../systems/livingFeedSystem';
 
 // Renvoie un coéquipier déterministe (autre joueur du même club) pour les posts duo/rivalité.
 const pickTeammate = (player, seed) => {
