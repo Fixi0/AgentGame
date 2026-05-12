@@ -148,9 +148,10 @@ function FeedCard({ post, liked, onLike, onComment }) {
             <span style={{ fontSize: 12, fontWeight: 800 }}>{post.comments}</span>
           </button>
         </div>
-        <div style={{ fontSize: 13, color: 'var(--af-text)', lineHeight: 1.4 }}>
+        <div style={{ fontSize: 13, color: 'var(--af-text)', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
           <strong>{post.handle}</strong> {post.text}
         </div>
+        {post.list && <PostList list={post.list} />}
         {post.commentsList?.length > 0 && (
           <div style={{ display: 'grid', gap: 4, paddingTop: 4, borderTop: '1px solid var(--af-border)' }}>
             {post.commentsList.slice(0, 2).map((c, i) => (
