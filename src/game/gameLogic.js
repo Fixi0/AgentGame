@@ -1013,9 +1013,11 @@ export const refreshMarket = (state) => {
   // Exclure les IDs déjà dans le roster pour éviter les doublons
   const rosterIds = (state.roster ?? []).map((p) => p.id);
   const currentSeason = Math.floor(((state.week ?? 1) - 1) / 38) + 1;
+  const eliteActive = state.eliteMarketUntilWeek && state.week <= state.eliteMarketUntilWeek;
+  const eliteRepBoost = eliteActive ? 200 : 0;
   let newMarket = generateMarket(
-    state.reputation + staffBonus * 3 + specializationBonus,
-    scoutLevel,
+    Math.min(1000, state.reputation + staffBonus * 3 + specializationBonus + eliteRepBoost),
+    scoutLevel + (eliteActive ? 2 : 0),
     8,
     rosterIds,
     currentSeason,
