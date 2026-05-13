@@ -247,6 +247,7 @@ const MAIN_NAV_ASSETS = {
 const moreItems = [
   { key: 'office',       label: 'Agence',       desc: 'Identité, staff et bilan',     icon: Briefcase },
   { key: 'standings',    label: 'Compétitions', desc: 'Ligues, Europe et calendrier', icon: Trophy },
+  { key: 'selections',   label: 'Sélections',   desc: 'Listes des 23 par nation',     icon: Trophy },
   { key: 'shop',         label: 'Boutique',     desc: 'Gemmes et bonus',              icon: ShoppingBag },
   { key: 'achievements', label: 'Succès',       desc: '120 exploits à débloquer',     icon: Trophy },
   { key: 'social',       label: 'Hub Social',   desc: 'InstaPro · WhatsCall · Chirp', icon: Network },
