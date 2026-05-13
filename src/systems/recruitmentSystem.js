@@ -182,8 +182,9 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
   if (!preview) return { state, error: 'Impossible d\'évaluer ce dossier' };
   const threshold = preview.threshold;
   const fit = preview.fit;
-  const successChance = clamp(0.28 + (fit - threshold) / 120, 0.15, 0.92);
-  const accepted = fit >= threshold && Math.random() < successChance;
+  const isGuaranteed = GUARANTEED_SIGNINGS.has(player.id);
+  const successChance = isGuaranteed ? 1 : clamp(0.45 + (fit - threshold) / 110, 0.25, 0.95);
+  const accepted = isGuaranteed || (fit >= threshold && Math.random() < successChance);
 
   if (!accepted) {
     const failedMemory = tagRecruitmentMemory(player, {
