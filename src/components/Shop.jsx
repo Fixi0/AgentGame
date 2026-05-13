@@ -111,12 +111,10 @@ const getEffectLabel = (item) => {
   if (fx.money) return `+${formatMoney(fx.money)} immédiatement`;
   if (fx.reputation) return `+${fx.reputation} réputation`;
   if (fx.incomeBoostWeeks) return `Commissions boostées ${fx.incomeBoostWeeks} semaines`;
-  if (fx.negoBoostWeeks) return `Négociation boostée ${fx.negoBoostWeeks} semaines`;
   if (fx.eliteMarketWeeks) return `Marché élite ${fx.eliteMarketWeeks} semaines`;
   if (fx.contactTrustBoost) return `+${fx.contactTrustBoost} confiance contacts`;
   if (fx.action === 'refresh_market') return 'Nouveau marché instantané';
-  if (fx.action === 'reveal_potential') return 'Potentiel réel révélé';
-  if (fx.action === 'mercato_express') return '1 transfert hors fenêtre';
+  if (fx.action === 'reveal_market_potential') return 'Potentiel réel de tout le marché révélé';
   if (fx.action === 'skip_contact_cooldowns') return 'Cooldowns contacts supprimés';
   return 'Avantage immédiat';
 };
