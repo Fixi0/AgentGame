@@ -1758,7 +1758,10 @@ export const playWeek = (state) => {
     };
     const { salaryCost, commissionIncome } = calculateWeeklyPlayerEconomy(updatedPlayer);
     totalCost += salaryCost;
-    totalIncome += commissionIncome;
+    const incomeMult = (state.incomeBoost && state.week <= (state.incomeBoost.untilWeek ?? 0))
+      ? (state.incomeBoost.mult ?? 1)
+      : 1;
+    totalIncome += commissionIncome * incomeMult;
     const matchResult = matchByPlayerId.get(updatedPlayer.id);
     matchResults.push(matchResult);
     if (matchResult?.matchRating) {
