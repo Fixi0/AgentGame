@@ -204,11 +204,11 @@ export const SHOP_ITEMS = [
     id: 'scout_reveal',
     category: 'scouting',
     label: 'Œil du Recruteur',
-    desc: 'Révèle le potentiel réel d\'un joueur du marché.',
+    desc: 'Révèle le potentiel réel de TOUS les joueurs actuellement sur le marché.',
     icon: '🔍',
     cost: 80,
     currency: 'gems',
-    effect: { action: 'reveal_potential' },
+    effect: { action: 'reveal_market_potential' },
     highlight: false,
   },
   {
@@ -274,33 +274,33 @@ export const SHOP_ITEMS = [
     id: 'mercato_express',
     category: 'transfer',
     label: 'Mercato Express',
-    desc: 'Autorise 1 transfert hors fenêtre mercato officielle.',
+    desc: 'Rafraîchit le marché ET active 4 semaines de joueurs élite immédiatement.',
     icon: '⚡',
     cost: 900,
     currency: 'gems',
-    effect: { action: 'mercato_express' },
+    effect: { eliteMarketWeeks: 4, action: 'refresh_market' },
     highlight: true,
   },
   {
     id: 'nego_boost',
     category: 'transfer',
     label: 'Costume du Négociateur',
-    desc: 'Tes chances en négociation grimpent pendant 8 semaines.',
+    desc: 'Commissions x1,5 sur tous tes deals pendant 8 semaines.',
     icon: '💼',
     cost: 270,
     currency: 'gems',
-    effect: { negoBoostWeeks: 8 },
+    effect: { incomeBoostWeeks: 8, incomeBoostMult: 1.5 },
     highlight: false,
   },
   {
     id: 'nego_boost_long',
     category: 'transfer',
     label: 'Saison du Loup de Wall Street',
-    desc: 'Boost négociation pendant 25 semaines + 25 000 € de bonus.',
+    desc: 'Commissions x1,8 pendant 25 semaines + 25 000 € immédiats.',
     icon: '🐺',
     cost: 700,
     currency: 'gems',
-    effect: { negoBoostWeeks: 25, money: 25000 },
+    effect: { incomeBoostWeeks: 25, incomeBoostMult: 1.8, money: 25000 },
     highlight: true,
   },
 ];
@@ -472,9 +472,6 @@ export const purchaseShopItem = (state, itemId) => {
   if (fx.eliteMarketWeeks) {
     next = { ...next, eliteMarketUntilWeek: next.week + fx.eliteMarketWeeks };
   }
-  if (fx.negoBoostWeeks) {
-    next = { ...next, negoBoostUntilWeek: next.week + fx.negoBoostWeeks };
-  }
   if (fx.contactTrustBoost) {
     next = {
       ...next,
@@ -490,8 +487,15 @@ export const purchaseShopItem = (state, itemId) => {
       contacts: (next.contacts ?? []).map((c) => ({ ...c, cooldownWeek: 0 })),
     };
   }
-  if (fx.action === 'mercato_express') {
-    next = { ...next, mercatoExpressAvailable: true };
+  if (fx.action === 'reveal_market_potential') {
+    next = {
+      ...next,
+      market: (next.market ?? []).map((p) => ({
+        ...p,
+        revealedPotential: true,
+        hiddenPotential: false,
+      })),
+    };
   }
   if (fx.action === 'refresh_market') {
     // Handled by caller (needs generateMarket)
