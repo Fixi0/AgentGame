@@ -68,14 +68,30 @@ const windowKey = (season, week) => {
  */
 export const getNationalSquad = (countryCode, season = 1, week = 1, agentPlayerIds = new Set()) => {
   const catalog = createPlayerCatalog(season);
-  const candidates = catalog.filter((p) => p && p.countryCode === countryCode);
-  if (!candidates.length) return [];
+  const allCandidates = catalog.filter((p) => p && p.countryCode === countryCode);
+  if (!allCandidates.length) return [];
 
   const key = windowKey(season, week);
-  const variance = (id) => (hash(`${id}-${key}`) % 100) / 100;
-  candidates.sort((a, b) =>
-    ((b.rating ?? 0) + variance(b.id) * 5) - ((a.rating ?? 0) + variance(a.id) * 5),
-  );
+  // Variance minime (±1.5) pour ne pas inverser l'ordre rating réel
+  const variance = (id) => ((hash(`${id}-${key}`) % 100) / 100) * 1.5;
+
+  // Score : rating + bonus tier club (top clubs très favorisés) + bonus âge senior
+  // Pénalité forte pour <21 ans : on évite les très jeunes en sélection A
+  const tierBonus = (tier) => (tier === 1 ? 14 : tier === 2 ? 7 : tier === 3 ? 1 : -8);
+  const ageBonus = (age) => {
+    if (age < 19) return -40;
+    if (age < 21) return -18;
+    if (age < 23) return -4;
+    if (age <= 32) return 0;
+    return -6;
+  };
+  const score = (p) =>
+    (p.rating ?? 0) + tierBonus(p.clubTier ?? 4) + ageBonus(p.age ?? 24) + variance(p.id);
+
+  // On filtre d'abord les U19 (jamais en sélection A) ; on les garde uniquement si manque cruel
+  const seniors = allCandidates.filter((p) => (p.age ?? 24) >= 19);
+  const candidates = (seniors.length >= 28 ? seniors : allCandidates).slice();
+  candidates.sort((a, b) => score(b) - score(a));
 
   const taken = { GK: 0, DEF: 0, MIL: 0, ATT: 0 };
   const used = new Set();
