@@ -1978,6 +1978,7 @@ export default function FootballAgentGame() {
         )}
         {view === 'calendar' && <Calendar state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
         {view === 'standings' && <Standings state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
+        {view === 'selections' && <NationalSelections state={databaseState} />}
         {view === 'europe' && <EuropeanBracket state={databaseState} databaseView={databaseView} />}
         {view === 'deadline' && <DeadlineDay state={databaseState} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={databaseState} onStartMission={handleStartScoutingMission} />}
