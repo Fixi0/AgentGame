@@ -15,7 +15,7 @@
  *   5. IDs stables entre saisons + évolution stats (âge/note)
  */
 
-import { CLUBS, COUNTRIES } from './clubs';
+import { CLUBS, COUNTRIES, getClubDisplayName } from './clubs';
 import { COUNTRY_NAME_POOLS, PERSONALITIES, POSITION_ROLES } from './players';
 import { clamp } from '../utils/helpers';
 import { generatePlayerAttributes } from '../systems/attributesSystem';
