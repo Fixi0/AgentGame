@@ -231,7 +231,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
   const filteredMarket = sourcePool
     .filter((player) => {
       const profile = player.playerProfile ?? getPlayerProfileSummary(player);
-      const searchable = `${fullName(player)} ${player.club} ${player.position} ${player.countryLabel ?? ''} ${player.leagueLabel ?? ''}`.toLowerCase();
+      const searchable = `${fullName(player)} ${player.club} ${player.clubDisplay ?? ''} ${player.position} ${player.roleShort ?? ''} ${player.roleLabel ?? ''} ${player.countryLabel ?? ''} ${player.leagueLabel ?? ''}`.toLowerCase();
       if (search && !searchable.includes(search)) return false;
       if (filters.position !== 'all' && player.position !== filters.position) return false;
       if (filters.country !== 'all' && player.countryCode !== filters.country) return false;
