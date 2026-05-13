@@ -23,6 +23,7 @@ import Social from './components/Social';
 import SaveMenu from './components/SaveMenu';
 import Scouting from './components/Scouting';
 import Standings from './components/Standings';
+import NationalSelections from './components/NationalSelections';
 import EuropeanBracket from './components/EuropeanBracket';
 import InteractiveModal from './components/modals/InteractiveModal';
 import PressConferenceModal from './components/modals/PressConferenceModal';
