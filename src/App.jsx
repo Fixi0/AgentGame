@@ -92,7 +92,7 @@ import { createManualNewsPost } from './systems/newsSystem';
 import { simulateAITransfersForWeek } from './systems/aiTransferPersistenceSystem';
 import { applyWeeklySponsorIncome } from './systems/sponsorSystem';
 import { processRetirements } from './systems/hallOfFameSystem';
-import { ensureNationalCups, tickNationalCups } from './systems/nationalCupSystem';
+
 import { recordSeasonTrophies } from './systems/individualTrophiesSystem';
 import { CLUBS } from './data/clubs';
 import { clamp, makeId, pick } from './utils/helpers';
