@@ -605,7 +605,7 @@ export default function Standings({ state, databaseView = null, onClubDetails })
                 style={S.decisionRow}
               >
                 <span>
-                  {match.home_club_name} {match.score ?? '-'} {match.away_club_name}
+                  {getClubDisplayName(match.home_club_name)} {match.score ?? '-'} {getClubDisplayName(match.away_club_name)}
                   <div style={S.fixtureMeta}>S{match.week} · {match.competition_label ?? 'Championnat'}</div>
                 </span>
                 <strong>{match.result}</strong>
