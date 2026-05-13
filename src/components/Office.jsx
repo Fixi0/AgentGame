@@ -53,6 +53,7 @@ const agencyStyles = [
 
 export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeStaff, onUpdateAgencyProfile, onStartScoutingMission }) {
   const [profile, setProfile] = useState(state.agencyProfile);
+  const [flash, setFlash] = useState(null); // { key, ts }
   const availableCities = useMemo(() => getCitiesForCountry(profile.countryCode), [profile.countryCode]);
   const progression = getAgencyProgressSnapshot(state);
   const getModuleEffect = (key, level) => OFFICE_UPGRADE_EFFECTS[key]?.[level] ?? 'Niveau maximum';
@@ -60,6 +61,36 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
   useEffect(() => {
     setProfile(state.agencyProfile);
   }, [state.agencyProfile]);
+
+  const triggerFlash = (key) => {
+    setFlash({ key, ts: Date.now() });
+    setTimeout(() => setFlash(null), 1000);
+  };
+  const handleUpgrade = (key) => { triggerFlash(key); onUpgrade?.(key); };
+  const handleUpgradeAgency = () => { triggerFlash('agency'); onUpgradeAgency?.(); };
+  const handleUpgradeStaff = (key) => { triggerFlash('staff-' + key); onUpgradeStaff?.(key); };
+
+  const FlashBurst = () => (
+    <div className="af-upgrade-flash">
+      <div className="af-flash-burst" />
+      {[...Array(10)].map((_, i) => {
+        const angle = (i / 10) * Math.PI * 2;
+        return (
+          <div
+            key={i}
+            className="af-flash-piece"
+            style={{
+              '--cx': `${Math.cos(angle) * 60}px`,
+              '--cy': `${Math.sin(angle) * 60}px`,
+              background: i % 2 ? 'var(--af-gold)' : 'var(--af-grass)',
+              animationDelay: `${i * 0.02}s`,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+
   const items = [
     { key: 'scoutLevel', icon: <Search size={22} color="#00a676" />, label: 'Scouts', desc: 'Meilleurs joueurs et nouveaux pays', level: state.office.scoutLevel, costs: moduleCosts.scoutLevel },
     { key: 'lawyerLevel', icon: <FileText size={22} color="#2f80ed" />, label: 'Avocat', desc: 'Meilleures négociations', level: state.office.lawyerLevel, costs: moduleCosts.lawyerLevel },
@@ -79,6 +110,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
     setProfile(nextProfile);
   };
   const saveProfile = () => onUpdateAgencyProfile(profile);
+
 
   return (
     <div style={S.vp}>
@@ -208,7 +240,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
           </div>
         </div>
 
-        <div style={S.offCard}>
+        <div style={{ ...S.offCard, position: 'relative' }}>
           <VisualHeader
             src={agencyExpansion}
             label="EXPANSION"
@@ -217,16 +249,17 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             height={100}
           />
           {agencyUpgradeCost ? (
-            <button onClick={onUpgradeAgency} style={S.upBtn}>
+            <button onClick={handleUpgradeAgency} style={S.upBtn} className="af-upgrade-btn">
               AGRANDIR · {formatMoney(agencyUpgradeCost)}
             </button>
           ) : (
             <div style={S.maxLvl}>NIVEAU MAX</div>
           )}
+          {flash?.key === 'agency' && <FlashBurst />}
         </div>
 
         {items.map((item) => (
-          <div key={item.key} style={S.offCard}>
+          <div key={item.key} style={{ ...S.offCard, position: 'relative' }}>
             <VisualHeader
               src={MODULE_IMAGES[item.key]}
               label={`MODULE · NIV. ${item.level}/${item.costs.length}`}
@@ -239,18 +272,24 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             </div>
             <div style={{ ...S.offLvl, marginBottom: 8 }}>
               {Array.from({ length: item.costs.length }).map((_, index) => (
-                <div key={index} style={{ ...S.lvlDot, background: index < item.level ? '#00a676' : '#d6dde3' }} />
+                <div
+                  key={index}
+                  className={flash?.key === item.key && index === item.level - 1 ? 'af-level-dot-pop' : ''}
+                  style={{ ...S.lvlDot, background: index < item.level ? '#00a676' : '#d6dde3' }}
+                />
               ))}
             </div>
             {item.level < item.costs.length ? (
-              <button onClick={() => onUpgrade(item.key)} style={S.upBtn}>
+              <button onClick={() => handleUpgrade(item.key)} style={S.upBtn} className="af-upgrade-btn">
                 AMELIORER · {formatMoney(item.costs[item.level])}
               </button>
             ) : (
               <div style={S.maxLvl}>NIVEAU MAX</div>
             )}
+            {flash?.key === item.key && <FlashBurst />}
           </div>
         ))}
+
 
         <div style={S.offCard}>
           <div style={S.offHead}>
@@ -266,7 +305,8 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
               const cost = Math.floor(role.cost * (level + 1) * 1.25);
               const img = STAFF_IMAGES[key];
               return (
-                <div key={key} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--af-border)', background: 'oklch(16% 0.035 258 / .78)' }}>
+                <div key={key} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--af-border)', background: 'oklch(16% 0.035 258 / .78)' }}>
+                  {flash?.key === 'staff-' + key && <FlashBurst />}
                   {img && (
                     <div style={{ position: 'relative', height: 96 }}>
                       <img src={img} alt={role.label} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -288,7 +328,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
                       Effet niv. {Math.min(level + 1, role.maxLevel)}: {getStaffLevelEffect(key, Math.min(level + 1, role.maxLevel))}
                     </div>
                     {level < role.maxLevel ? (
-                      <button onClick={() => onUpgradeStaff(key)} style={S.staffBtn}>
+                      <button onClick={() => handleUpgradeStaff(key)} style={S.staffBtn} className="af-upgrade-btn">
                         RECRUTER · {formatMoney(cost)}
                       </button>
                     ) : (
