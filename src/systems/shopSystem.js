@@ -472,9 +472,6 @@ export const purchaseShopItem = (state, itemId) => {
   if (fx.eliteMarketWeeks) {
     next = { ...next, eliteMarketUntilWeek: next.week + fx.eliteMarketWeeks };
   }
-  if (fx.negoBoostWeeks) {
-    next = { ...next, negoBoostUntilWeek: next.week + fx.negoBoostWeeks };
-  }
   if (fx.contactTrustBoost) {
     next = {
       ...next,
@@ -490,8 +487,15 @@ export const purchaseShopItem = (state, itemId) => {
       contacts: (next.contacts ?? []).map((c) => ({ ...c, cooldownWeek: 0 })),
     };
   }
-  if (fx.action === 'mercato_express') {
-    next = { ...next, mercatoExpressAvailable: true };
+  if (fx.action === 'reveal_market_potential') {
+    next = {
+      ...next,
+      market: (next.market ?? []).map((p) => ({
+        ...p,
+        revealedPotential: true,
+        hiddenPotential: false,
+      })),
+    };
   }
   if (fx.action === 'refresh_market') {
     // Handled by caller (needs generateMarket)
