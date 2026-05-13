@@ -39,7 +39,10 @@ function MarketCard({ player, money, onSign, onDetails }) {
   const cost = player.signingCost ?? 0;
   const canSign = money >= cost;
   const profile = player.playerProfile ?? getPlayerProfileSummary(player);
-  const pos = POS_THEME[player.position] ?? { color: '#94a3b8', bg: 'oklch(40% 0.02 250 / .35)', label: player.position ?? '—' };
+  const roleLabel = player.roleShort ?? player.position ?? '—';
+  const pos = POS_THEME[player.position] ?? { color: '#94a3b8', bg: 'oklch(40% 0.02 250 / .35)', label: roleLabel };
+  pos.label = roleLabel;
+  const clubName = player.clubDisplay ?? player.club;
   const badges = computeBadges(player);
   const budgetPct = money > 0 ? Math.min(100, Math.round((cost / money) * 100)) : 100;
   const barColor = budgetPct < 40 ? '#10b981' : budgetPct < 80 ? '#facc15' : '#ef4444';
