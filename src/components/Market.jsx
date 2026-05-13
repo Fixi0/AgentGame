@@ -94,7 +94,7 @@ function MarketCard({ player, money, onSign, onDetails }) {
             {fullName(player)}
           </div>
           <div style={{ color: 'var(--af-muted)', fontSize: 11, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {player.club || 'Libre'} · {player.age ?? '—'} ans · {player.countryLabel}
+            {clubName || 'Libre'} · {player.age ?? '—'} ans · {player.countryLabel}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
             <Star size={13} fill={pos.color} stroke="none" />
