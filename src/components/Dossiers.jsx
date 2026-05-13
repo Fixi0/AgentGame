@@ -93,12 +93,22 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
 
       <div style={S.objCard}>
         <div style={S.secTitle}>FILE MERCATO</div>
-        {marketQueue.length ? marketQueue.map((offer) => (
-          <div key={offer.id} style={{
+        {marketQueue.length ? marketQueue.map((offer) => {
+          const offerPlayer = playerById.get(offer.playerId);
+          return (
+          <button
+            key={offer.id}
+            type="button"
+            onClick={() => (offerPlayer ? onOpenPlayer?.(offerPlayer) : onNav?.('deadline'))}
+            style={{
             ...S.offerRow,
             background: offer.queueStatus?.key === 'bloquee' ? 'oklch(28% 0.12 25 / .35)' : offer.queueStatus?.key === 'conclue' ? 'oklch(28% 0.10 155 / .35)' : offer.queueStatus?.key === 'en_cours' ? 'oklch(22% 0.05 245 / .55)' : 'var(--af-surface-soft)',
             borderColor: offer.queueStatus?.key === 'bloquee' ? '#fca5a5' : offer.queueStatus?.key === 'conclue' ? 'var(--af-border)' : offer.queueStatus?.key === 'en_cours' ? 'var(--af-border)' : 'var(--af-border)',
             alignItems: 'flex-start',
+            cursor: 'pointer',
+            textAlign: 'left',
+            font: 'inherit',
+            width: '100%',
           }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -117,8 +127,9 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
               <div style={S.qSub}>{offer.queueStatus?.detail ?? 'Dossier suivi dans la file mercato.'}</div>
             </div>
             <strong>{offer.queueStatus?.label ?? offer.status}</strong>
-          </div>
-        )) : <div style={S.emptySmall}>Aucune offre à suivre.</div>}
+          </button>
+          );
+        }) : <div style={S.emptySmall}>Aucune offre à suivre.</div>}
       </div>
 
       <div style={S.objCard}>
