@@ -358,10 +358,10 @@ export default function OfferContractModal({ offer, player, readiness, mode = 'o
             <div style={{ fontSize: 10, letterSpacing: '.16em', color: statusColor, fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 4 }}>
               RETOUR CLUB
             </div>
-            <div style={{ fontSize: 13, color: 'var(--af-text)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, color: '#172026', fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
               {status.label}
             </div>
-            <div style={{ marginTop: 8, fontSize: 11, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45 }}>
+            <div style={{ marginTop: 8, fontSize: 11, color: '#3f5663', fontFamily: 'system-ui,sans-serif', lineHeight: 1.45 }}>
               {stage === 'approved'
                 ? 'Le club a validé cette version du contrat. Tu peux signer.'
                 : 'Tu modifies, tu envoies, puis tu attends la réponse du club avant de signer.'}
