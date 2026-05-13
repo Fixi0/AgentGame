@@ -20,13 +20,21 @@ const FormDots = ({ form = [] }) => {
   if (!last.length) return null;
   return (
     <span style={{ display: 'inline-flex', gap: 3, marginLeft: 6, verticalAlign: 'middle' }}>
-      {last.map((r, i) => (
-        <span key={i} title={r} style={{
-          width: 8, height: 8, borderRadius: 4,
-          background: r === 'W' ? '#00a676' : r === 'D' ? '#f59e0b' : '#ef4444',
-          display: 'inline-block',
-        }} />
-      ))}
+      {last.map((r, i) => {
+        // Supporte les deux formats: EN ('W'/'D'/'L') et FR ('V'/'N'/'D').
+        // En FR, 'D' = Défaite ; en EN, 'D' = Draw. On détecte le format via la présence de 'V' ou 'N'.
+        const isFrench = last.some((x) => x === 'V' || x === 'N');
+        const isWin = r === 'W' || r === 'V';
+        const isDraw = isFrench ? r === 'N' : r === 'D';
+        const color = isWin ? '#00a676' : isDraw ? '#f59e0b' : '#ef4444';
+        return (
+          <span key={i} title={r} style={{
+            width: 8, height: 8, borderRadius: 4,
+            background: color,
+            display: 'inline-block',
+          }} />
+        );
+      })}
     </span>
   );
 };
