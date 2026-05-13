@@ -327,7 +327,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
                       Effet niv. {Math.min(level + 1, role.maxLevel)}: {getStaffLevelEffect(key, Math.min(level + 1, role.maxLevel))}
                     </div>
                     {level < role.maxLevel ? (
-                      <button onClick={() => onUpgradeStaff(key)} style={S.staffBtn}>
+                      <button onClick={() => handleUpgradeStaff(key)} style={S.staffBtn} className="af-upgrade-btn">
                         RECRUTER · {formatMoney(cost)}
                       </button>
                     ) : (
