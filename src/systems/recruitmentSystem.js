@@ -4,6 +4,11 @@ import { applyLeagueReputation } from './leagueReputationSystem';
 import { signPlayer } from '../game/gameLogic';
 import { getPlayerProfileSummary, getProfilePitchModifier } from './playerProfileSystem';
 import { clamp } from '../utils/helpers';
+import { GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, YOHAN_ZENOXX_ID } from '../data/squadDatabase';
+
+// Joueurs signature : ils acceptent toujours la première approche de l'agent
+// (cohérence narrative : ce sont les premiers protégés du joueur).
+const GUARANTEED_SIGNINGS = new Set([GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, YOHAN_ZENOXX_ID]);
 
 export const RECRUITMENT_PITCHES = [
   {
@@ -33,7 +38,8 @@ export const RECRUITMENT_PITCHES = [
 ];
 
 const getThreshold = (player, state) => {
-  const base = player.rating >= 160 ? 74 : player.rating >= 140 ? 66 : 58;
+  // Seuils assouplis : trop de refus en début de partie sinon
+  const base = player.rating >= 160 ? 68 : player.rating >= 140 ? 58 : 48;
   const difficultyPenalty = state.difficulty === 'hardcore' ? 7 : state.difficulty === 'facile' ? -6 : 0;
   return base + difficultyPenalty;
 };
@@ -127,8 +133,9 @@ export const getRecruitmentPreview = (state, player, pitchId) => {
   const profileRiskPenalty = profile.injuryRisk >= 65 && pitch.id === 'ambition' ? 4 : profile.pressure <= 45 && pitch.id === 'ambition' ? 5 : 0;
   const dealBreakerPenalty = (player.recruitmentDealBreakers ?? []).length * 3 + profileRiskPenalty;
   const memoryPenalty = getRecruitmentMemoryPenalty(player, pitch.id, state.week ?? 0);
-  const fit = clamp(Math.round(32 + pitchBonus + agencyBonus + networkBonus.bonus - dealBreakerPenalty - memoryPenalty), 0, 100);
-  const chance = clamp(Math.round(50 + (fit - threshold) * 1.5), 10, 95);
+  const isGuaranteed = GUARANTEED_SIGNINGS.has(player.id);
+  const fit = isGuaranteed ? 100 : clamp(Math.round(32 + pitchBonus + agencyBonus + networkBonus.bonus - dealBreakerPenalty - memoryPenalty), 0, 100);
+  const chance = isGuaranteed ? 99 : clamp(Math.round(55 + (fit - threshold) * 1.6), 15, 96);
 
   return {
     pitch,
@@ -176,8 +183,9 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
   if (!preview) return { state, error: 'Impossible d\'évaluer ce dossier' };
   const threshold = preview.threshold;
   const fit = preview.fit;
-  const successChance = clamp(0.28 + (fit - threshold) / 120, 0.15, 0.92);
-  const accepted = fit >= threshold && Math.random() < successChance;
+  const isGuaranteed = GUARANTEED_SIGNINGS.has(player.id);
+  const successChance = isGuaranteed ? 1 : clamp(0.45 + (fit - threshold) / 110, 0.25, 0.95);
+  const accepted = isGuaranteed || (fit >= threshold && Math.random() < successChance);
 
   if (!accepted) {
     const failedMemory = tagRecruitmentMemory(player, {
