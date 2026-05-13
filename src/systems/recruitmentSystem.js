@@ -133,8 +133,9 @@ export const getRecruitmentPreview = (state, player, pitchId) => {
   const profileRiskPenalty = profile.injuryRisk >= 65 && pitch.id === 'ambition' ? 4 : profile.pressure <= 45 && pitch.id === 'ambition' ? 5 : 0;
   const dealBreakerPenalty = (player.recruitmentDealBreakers ?? []).length * 3 + profileRiskPenalty;
   const memoryPenalty = getRecruitmentMemoryPenalty(player, pitch.id, state.week ?? 0);
-  const fit = clamp(Math.round(32 + pitchBonus + agencyBonus + networkBonus.bonus - dealBreakerPenalty - memoryPenalty), 0, 100);
-  const chance = clamp(Math.round(50 + (fit - threshold) * 1.5), 10, 95);
+  const isGuaranteed = GUARANTEED_SIGNINGS.has(player.id);
+  const fit = isGuaranteed ? 100 : clamp(Math.round(32 + pitchBonus + agencyBonus + networkBonus.bonus - dealBreakerPenalty - memoryPenalty), 0, 100);
+  const chance = isGuaranteed ? 99 : clamp(Math.round(55 + (fit - threshold) * 1.6), 15, 96);
 
   return {
     pitch,
