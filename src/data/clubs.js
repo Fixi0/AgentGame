@@ -147,6 +147,18 @@ const RAW_CLUBS = [
   { name: 'Braga', tier: 3, countryCode: 'PT', city: 'Braga' },
   { name: 'Vitoria SC', tier: 3, countryCode: 'PT', city: 'Guimarães' },
   { name: 'Boavista', tier: 4, countryCode: 'PT', city: 'Porto' },
+  { name: 'Famalicão', tier: 4, countryCode: 'PT', city: 'Famalicão' },
+  { name: 'Estoril', tier: 4, countryCode: 'PT', city: 'Estoril' },
+  { name: 'Casa Pia', tier: 4, countryCode: 'PT', city: 'Lisbonne' },
+  { name: 'Moreirense', tier: 4, countryCode: 'PT', city: 'Moreira' },
+  { name: 'Rio Ave', tier: 4, countryCode: 'PT', city: 'Vila do Conde' },
+  { name: 'Gil Vicente', tier: 4, countryCode: 'PT', city: 'Barcelos' },
+  { name: 'Arouca', tier: 4, countryCode: 'PT', city: 'Arouca' },
+  { name: 'Nacional', tier: 4, countryCode: 'PT', city: 'Funchal' },
+  { name: 'Santa Clara', tier: 4, countryCode: 'PT', city: 'Açores' },
+  { name: 'Estrela Amadora', tier: 4, countryCode: 'PT', city: 'Amadora' },
+  { name: 'AVS', tier: 4, countryCode: 'PT', city: 'Vila das Aves' },
+  { name: 'Farense', tier: 4, countryCode: 'PT', city: 'Faro' },
 
   // ── Belgique (Jupiler Pro League) ──────────────────────────────
   { name: 'Club Brugge', tier: 2, countryCode: 'BE', city: 'Bruges' },
@@ -156,6 +168,15 @@ const RAW_CLUBS = [
   { name: 'Antwerp', tier: 3, countryCode: 'BE', city: 'Anvers' },
   { name: 'Gent', tier: 4, countryCode: 'BE', city: 'Gand' },
   { name: 'Union SG', tier: 3, countryCode: 'BE', city: 'Bruxelles' },
+  { name: 'Charleroi', tier: 4, countryCode: 'BE', city: 'Charleroi' },
+  { name: 'Mechelen', tier: 4, countryCode: 'BE', city: 'Malines' },
+  { name: 'Cercle Brugge', tier: 4, countryCode: 'BE', city: 'Bruges' },
+  { name: 'OH Leuven', tier: 4, countryCode: 'BE', city: 'Louvain' },
+  { name: 'Westerlo', tier: 4, countryCode: 'BE', city: 'Westerlo' },
+  { name: 'Sint-Truiden', tier: 4, countryCode: 'BE', city: 'Saint-Trond' },
+  { name: 'Kortrijk', tier: 4, countryCode: 'BE', city: 'Courtrai' },
+  { name: 'Eupen', tier: 4, countryCode: 'BE', city: 'Eupen' },
+  { name: 'Beerschot', tier: 4, countryCode: 'BE', city: 'Anvers' },
 
   // ── Turquie (Süper Lig) ────────────────────────────────────────
   { name: 'Galatasaray', tier: 2, countryCode: 'TR', city: 'Istanbul' },
@@ -163,6 +184,18 @@ const RAW_CLUBS = [
   { name: 'Besiktas', tier: 2, countryCode: 'TR', city: 'Istanbul' },
   { name: 'Trabzonspor', tier: 3, countryCode: 'TR', city: 'Trabzon' },
   { name: 'Basaksehir', tier: 4, countryCode: 'TR', city: 'Istanbul' },
+  { name: 'Adana Demirspor', tier: 4, countryCode: 'TR', city: 'Adana' },
+  { name: 'Konyaspor', tier: 4, countryCode: 'TR', city: 'Konya' },
+  { name: 'Antalyaspor', tier: 4, countryCode: 'TR', city: 'Antalya' },
+  { name: 'Kayserispor', tier: 4, countryCode: 'TR', city: 'Kayseri' },
+  { name: 'Samsunspor', tier: 4, countryCode: 'TR', city: 'Samsun' },
+  { name: 'Sivasspor', tier: 4, countryCode: 'TR', city: 'Sivas' },
+  { name: 'Alanyaspor', tier: 4, countryCode: 'TR', city: 'Alanya' },
+  { name: 'Rizespor', tier: 4, countryCode: 'TR', city: 'Rize' },
+  { name: 'Goztepe', tier: 4, countryCode: 'TR', city: 'Izmir' },
+  { name: 'Eyupspor', tier: 4, countryCode: 'TR', city: 'Istanbul' },
+  { name: 'Bodrum FK', tier: 4, countryCode: 'TR', city: 'Bodrum' },
+  { name: 'Hatayspor', tier: 4, countryCode: 'TR', city: 'Hatay' },
 
   // ── Écosse (Premiership) ───────────────────────────────────────
   { name: 'Celtic', tier: 2, countryCode: 'SC', city: 'Glasgow' },
@@ -170,52 +203,156 @@ const RAW_CLUBS = [
   { name: 'Hearts', tier: 4, countryCode: 'SC', city: 'Édimbourg' },
   { name: 'Hibernian', tier: 4, countryCode: 'SC', city: 'Édimbourg' },
   { name: 'Aberdeen', tier: 4, countryCode: 'SC', city: 'Aberdeen' },
+  { name: 'Dundee United', tier: 4, countryCode: 'SC', city: 'Dundee' },
+  { name: 'Motherwell', tier: 4, countryCode: 'SC', city: 'Motherwell' },
+  { name: 'Kilmarnock', tier: 4, countryCode: 'SC', city: 'Kilmarnock' },
+  { name: 'St Mirren', tier: 4, countryCode: 'SC', city: 'Paisley' },
+  { name: 'Ross County', tier: 4, countryCode: 'SC', city: 'Dingwall' },
+  { name: 'St Johnstone', tier: 4, countryCode: 'SC', city: 'Perth' },
+  { name: 'Dundee FC', tier: 4, countryCode: 'SC', city: 'Dundee' },
 
   // ── Grèce (Super League) ───────────────────────────────────────
   { name: 'Olympiakos', tier: 2, countryCode: 'GR', city: 'Le Pirée' },
   { name: 'Panathinaikos', tier: 3, countryCode: 'GR', city: 'Athènes' },
   { name: 'AEK Athens', tier: 3, countryCode: 'GR', city: 'Athènes' },
   { name: 'PAOK', tier: 3, countryCode: 'GR', city: 'Thessalonique' },
+  { name: 'Aris', tier: 4, countryCode: 'GR', city: 'Thessalonique' },
+  { name: 'Atromitos', tier: 4, countryCode: 'GR', city: 'Athènes' },
+  { name: 'OFI Crete', tier: 4, countryCode: 'GR', city: 'Héraklion' },
+  { name: 'Volos', tier: 4, countryCode: 'GR', city: 'Volos' },
+  { name: 'Lamia', tier: 4, countryCode: 'GR', city: 'Lamia' },
+  { name: 'Panserraikos', tier: 4, countryCode: 'GR', city: 'Serrès' },
+  { name: 'Asteras Tripolis', tier: 4, countryCode: 'GR', city: 'Tripoli' },
+  { name: 'Kifisia', tier: 4, countryCode: 'GR', city: 'Athènes' },
 
   // ── Autriche (Bundesliga) ──────────────────────────────────────
   { name: 'RB Salzburg', tier: 2, countryCode: 'AT', city: 'Salzbourg' },
   { name: 'Sturm Graz', tier: 3, countryCode: 'AT', city: 'Graz' },
   { name: 'Rapid Vienne', tier: 4, countryCode: 'AT', city: 'Vienne' },
   { name: 'LASK', tier: 4, countryCode: 'AT', city: 'Linz' },
+  { name: 'Austria Vienne', tier: 4, countryCode: 'AT', city: 'Vienne' },
+  { name: 'WAC', tier: 4, countryCode: 'AT', city: 'Wolfsberg' },
+  { name: 'Hartberg', tier: 4, countryCode: 'AT', city: 'Hartberg' },
+  { name: 'Blau-Weiß Linz', tier: 4, countryCode: 'AT', city: 'Linz' },
+  { name: 'Klagenfurt', tier: 4, countryCode: 'AT', city: 'Klagenfurt' },
+  { name: 'Altach', tier: 4, countryCode: 'AT', city: 'Altach' },
+  { name: 'Tirol', tier: 4, countryCode: 'AT', city: 'Innsbruck' },
+  { name: 'GAK', tier: 4, countryCode: 'AT', city: 'Graz' },
 
   // ── Suisse (Super League) ──────────────────────────────────────
   { name: 'Young Boys', tier: 3, countryCode: 'CH', city: 'Berne' },
   { name: 'Bâle', tier: 3, countryCode: 'CH', city: 'Bâle' },
   { name: 'Servette', tier: 4, countryCode: 'CH', city: 'Genève' },
   { name: 'Zurich', tier: 4, countryCode: 'CH', city: 'Zurich' },
+  { name: 'Lugano', tier: 4, countryCode: 'CH', city: 'Lugano' },
+  { name: 'Lucerne', tier: 4, countryCode: 'CH', city: 'Lucerne' },
+  { name: 'St Gallen', tier: 4, countryCode: 'CH', city: 'Saint-Gall' },
+  { name: 'Sion', tier: 4, countryCode: 'CH', city: 'Sion' },
+  { name: 'Lausanne', tier: 4, countryCode: 'CH', city: 'Lausanne' },
+  { name: 'Yverdon', tier: 4, countryCode: 'CH', city: 'Yverdon' },
+  { name: 'Grasshopper', tier: 4, countryCode: 'CH', city: 'Zurich' },
+  { name: 'Winterthur', tier: 4, countryCode: 'CH', city: 'Winterthur' },
 
   // ── Tchéquie (Fortuna Liga) ────────────────────────────────────
   { name: 'Sparta Prague', tier: 3, countryCode: 'CZ', city: 'Prague' },
   { name: 'Slavia Prague', tier: 3, countryCode: 'CZ', city: 'Prague' },
   { name: 'Viktoria Plzen', tier: 4, countryCode: 'CZ', city: 'Plzen' },
+  { name: 'Banik Ostrava', tier: 4, countryCode: 'CZ', city: 'Ostrava' },
+  { name: 'Sigma Olomouc', tier: 4, countryCode: 'CZ', city: 'Olomouc' },
+  { name: 'Bohemians', tier: 4, countryCode: 'CZ', city: 'Prague' },
+  { name: 'Mladá Boleslav', tier: 4, countryCode: 'CZ', city: 'Mladá Boleslav' },
+  { name: 'Slovan Liberec', tier: 4, countryCode: 'CZ', city: 'Liberec' },
+  { name: 'Hradec Králové', tier: 4, countryCode: 'CZ', city: 'Hradec Králové' },
+  { name: 'Pardubice', tier: 4, countryCode: 'CZ', city: 'Pardubice' },
+  { name: 'Jablonec', tier: 4, countryCode: 'CZ', city: 'Jablonec' },
+  { name: 'Teplice', tier: 4, countryCode: 'CZ', city: 'Teplice' },
 
   // ── Danemark (Superliga) ───────────────────────────────────────
   { name: 'Copenhague', tier: 3, countryCode: 'DK', city: 'Copenhague' },
   { name: 'Midtjylland', tier: 3, countryCode: 'DK', city: 'Herning' },
   { name: 'Brondby', tier: 4, countryCode: 'DK', city: 'Brondby' },
+  { name: 'Aarhus GF', tier: 4, countryCode: 'DK', city: 'Aarhus' },
+  { name: 'Silkeborg', tier: 4, countryCode: 'DK', city: 'Silkeborg' },
+  { name: 'Nordsjælland', tier: 4, countryCode: 'DK', city: 'Farum' },
+  { name: 'Viborg', tier: 4, countryCode: 'DK', city: 'Viborg' },
+  { name: 'Randers', tier: 4, countryCode: 'DK', city: 'Randers' },
+  { name: 'Vejle', tier: 4, countryCode: 'DK', city: 'Vejle' },
+  { name: 'Lyngby', tier: 4, countryCode: 'DK', city: 'Lyngby' },
+  { name: 'Sonderjyske', tier: 4, countryCode: 'DK', city: 'Haderslev' },
+  { name: 'OB Odense', tier: 4, countryCode: 'DK', city: 'Odense' },
 
   // ── Norvège (Eliteserien) ──────────────────────────────────────
   { name: 'Bodo/Glimt', tier: 3, countryCode: 'NO', city: 'Bodø' },
   { name: 'Molde', tier: 4, countryCode: 'NO', city: 'Molde' },
   { name: 'Rosenborg', tier: 4, countryCode: 'NO', city: 'Trondheim' },
+  { name: 'Brann', tier: 4, countryCode: 'NO', city: 'Bergen' },
+  { name: 'Viking', tier: 4, countryCode: 'NO', city: 'Stavanger' },
+  { name: 'Lillestrom', tier: 4, countryCode: 'NO', city: 'Lillestrøm' },
+  { name: 'Valerenga', tier: 4, countryCode: 'NO', city: 'Oslo' },
+  { name: 'Stromsgodset', tier: 4, countryCode: 'NO', city: 'Drammen' },
+  { name: 'Tromso', tier: 4, countryCode: 'NO', city: 'Tromsø' },
+  { name: 'Sarpsborg 08', tier: 4, countryCode: 'NO', city: 'Sarpsborg' },
+  { name: 'Haugesund', tier: 4, countryCode: 'NO', city: 'Haugesund' },
+  { name: 'Kristiansund', tier: 4, countryCode: 'NO', city: 'Kristiansund' },
 
   // ── Suède (Allsvenskan) ────────────────────────────────────────
   { name: 'Malmö FF', tier: 3, countryCode: 'SE', city: 'Malmö' },
   { name: 'AIK', tier: 4, countryCode: 'SE', city: 'Stockholm' },
   { name: 'Djurgardens', tier: 4, countryCode: 'SE', city: 'Stockholm' },
+  { name: 'Hammarby', tier: 4, countryCode: 'SE', city: 'Stockholm' },
+  { name: 'Göteborg', tier: 4, countryCode: 'SE', city: 'Göteborg' },
+  { name: 'IFK Norrkoping', tier: 4, countryCode: 'SE', city: 'Norrköping' },
+  { name: 'Elfsborg', tier: 4, countryCode: 'SE', city: 'Borås' },
+  { name: 'Häcken', tier: 4, countryCode: 'SE', city: 'Göteborg' },
+  { name: 'Mjällby', tier: 4, countryCode: 'SE', city: 'Hällevik' },
+  { name: 'Halmstad', tier: 4, countryCode: 'SE', city: 'Halmstad' },
+  { name: 'Sirius', tier: 4, countryCode: 'SE', city: 'Uppsala' },
+  { name: 'Värnamo', tier: 4, countryCode: 'SE', city: 'Värnamo' },
 
+  // ── Brésil (Brasileirão) ───────────────────────────────────────
   { name: 'Flamengo', tier: 3, countryCode: 'BR', city: 'Rio de Janeiro' },
   { name: 'Palmeiras', tier: 3, countryCode: 'BR', city: 'Sao Paulo' },
   { name: 'Santos', tier: 4, countryCode: 'BR', city: 'Santos' },
+  { name: 'Corinthians', tier: 3, countryCode: 'BR', city: 'Sao Paulo' },
+  { name: 'Sao Paulo FC', tier: 3, countryCode: 'BR', city: 'Sao Paulo' },
+  { name: 'Fluminense', tier: 4, countryCode: 'BR', city: 'Rio de Janeiro' },
+  { name: 'Botafogo', tier: 4, countryCode: 'BR', city: 'Rio de Janeiro' },
+  { name: 'Vasco', tier: 4, countryCode: 'BR', city: 'Rio de Janeiro' },
+  { name: 'Atletico Mineiro', tier: 3, countryCode: 'BR', city: 'Belo Horizonte' },
+  { name: 'Cruzeiro', tier: 4, countryCode: 'BR', city: 'Belo Horizonte' },
+  { name: 'Internacional', tier: 4, countryCode: 'BR', city: 'Porto Alegre' },
+  { name: 'Gremio', tier: 4, countryCode: 'BR', city: 'Porto Alegre' },
+  { name: 'Bahia', tier: 4, countryCode: 'BR', city: 'Salvador' },
+  { name: 'Fortaleza', tier: 4, countryCode: 'BR', city: 'Fortaleza' },
+  { name: 'Athletico-PR', tier: 4, countryCode: 'BR', city: 'Curitiba' },
+  { name: 'Bragantino', tier: 4, countryCode: 'BR', city: 'Bragança' },
+
+  // ── Argentine (Liga Profesional) ───────────────────────────────
   { name: 'Boca Juniors', tier: 3, countryCode: 'AR', city: 'Buenos Aires' },
   { name: 'River Plate', tier: 3, countryCode: 'AR', city: 'Buenos Aires' },
   { name: 'Rosario Central', tier: 4, countryCode: 'AR', city: 'Rosario' },
+  { name: 'Racing Club', tier: 4, countryCode: 'AR', city: 'Avellaneda' },
+  { name: 'Independiente', tier: 4, countryCode: 'AR', city: 'Avellaneda' },
+  { name: 'San Lorenzo', tier: 4, countryCode: 'AR', city: 'Buenos Aires' },
+  { name: 'Estudiantes', tier: 4, countryCode: 'AR', city: 'La Plata' },
+  { name: 'Velez', tier: 4, countryCode: 'AR', city: 'Buenos Aires' },
+  { name: 'Newells', tier: 4, countryCode: 'AR', city: 'Rosario' },
+  { name: 'Lanus', tier: 4, countryCode: 'AR', city: 'Lanús' },
+  { name: 'Huracan', tier: 4, countryCode: 'AR', city: 'Buenos Aires' },
+  { name: 'Talleres', tier: 4, countryCode: 'AR', city: 'Cordoba' },
 ];
+
+const slugify = (s) => String(s ?? '')
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]+/g, '_')
+  .replace(/^_+|_+$/g, '');
+
+export const CLUBS = RAW_CLUBS.map((club) => ({
+  ...club,
+  id: club.id ?? `club_${club.countryCode.toLowerCase()}_${slugify(club.name)}`,
+}));
 
 export const getCountry = (countryCode) => COUNTRIES.find((country) => country.code === countryCode) ?? COUNTRIES[0];
 
