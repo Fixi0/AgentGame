@@ -301,11 +301,13 @@ const buildYohanZenoxx = (club = getMarseilleClub(), season = 1) => {
 };
 
 // Plages de ratings selon le tier du club (1-200 scale)
+// Plages resserrées : la majorité des joueurs sont 2-4 étoiles,
+// les 5 étoiles (≥176) restent rares et plafonnés par limitEliteRatings.
 const TIER_RATING = {
-  1: { starterMin: 158, starterMax: 182, benchMin: 142, benchMax: 162 },
-  2: { starterMin: 144, starterMax: 166, benchMin: 130, benchMax: 148 },
-  3: { starterMin: 128, starterMax: 152, benchMin: 116, benchMax: 136 },
-  4: { starterMin: 110, starterMax: 136, benchMin: 100, benchMax: 124 },
+  1: { starterMin: 148, starterMax: 174, benchMin: 130, benchMax: 152 },
+  2: { starterMin: 134, starterMax: 158, benchMin: 120, benchMax: 140 },
+  3: { starterMin: 120, starterMax: 144, benchMin: 108, benchMax: 128 },
+  4: { starterMin: 104, starterMax: 128, benchMin: 94, benchMax: 118 },
 };
 
 // ── Physique & Style de jeu ─────────────────────────────────────────────────
@@ -427,10 +429,16 @@ const estimateValue = (rating, potential, age, tier) => {
   return Math.round(Math.min(280_000_000, Math.max(250_000, raw)) / 1000) * 1000;
 };
 
-const limitEliteRatings = (catalog = [], maxElite = 3) => {
+// Limite les "5 étoiles" (≥176) à une poignée de joueurs dans tout le catalogue.
+// Les joueurs signature (sig_*) sont exemptés. Les autres sont ramenés à 174 (4 étoiles).
+const limitEliteRatings = (catalog = [], maxElite = 8) => {
+  const isSignature = (player) => typeof player?.id === 'string' && player.id.startsWith('sig_');
+  const ELITE_THRESHOLD = 176;
+  const ELITE_CAP = 174;
+
   const eliteIds = new Set(
     [...catalog]
-      .filter((player) => (player.rating ?? 0) > 180)
+      .filter((player) => !isSignature(player) && (player.rating ?? 0) >= ELITE_THRESHOLD)
       .sort((a, b) =>
         (b.rating ?? 0) - (a.rating ?? 0)
         || (b.potential ?? 0) - (a.potential ?? 0)
@@ -441,8 +449,9 @@ const limitEliteRatings = (catalog = [], maxElite = 3) => {
   );
 
   return catalog.map((player) => {
-    if ((player.rating ?? 0) <= 180 || eliteIds.has(player.id)) return player;
-    const rating = 180;
+    if (isSignature(player)) return player;
+    if ((player.rating ?? 0) < ELITE_THRESHOLD || eliteIds.has(player.id)) return player;
+    const rating = ELITE_CAP;
     const value = estimateValue(rating, Math.max(rating, player.potential ?? rating), player.age ?? 24, player.clubTier ?? 2);
     return {
       ...player,
