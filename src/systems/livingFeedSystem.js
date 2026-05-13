@@ -59,49 +59,8 @@ const FIFA_AUTHOR = { name: 'FIFA', handle: '@FIFAcom', color: '#1e40af' };
 const ROLE_SHORT = { GK: 'GB', DEF: 'DEF', MIL: 'MIL', ATT: 'ATT' };
 
 /** Sélectionne 23 joueurs représentatifs pour une sélection nationale (déterministe). */
-const buildNationalSquad = (countryCode, season, weekSeed, agentPlayerIds = new Set()) => {
-  // Pool : top joueurs des clubs du pays + joueurs nés dans le pays jouant à l'étranger.
-  const candidates = [];
-  for (const club of CLUBS) {
-    const squad = getClubSquad(club, season).slice(0, 16);
-    for (const p of squad) {
-      if (!p) continue;
-      if (p.countryCode === countryCode) {
-        candidates.push(p);
-      }
-    }
-  }
-  // Tri par rating + petite variance déterministe pour faire tourner l'effectif d'une convocation à l'autre
-  const variance = (id) => (hash(`${id}-${weekSeed}`) % 100) / 100;
-  candidates.sort((a, b) => (b.rating ?? 0) + variance(b.id) * 6 - ((a.rating ?? 0) + variance(a.id) * 6));
-
-  // Quota : 3 GK, 8 DEF, 7 MIL, 5 ATT
-  const quota = { GK: 3, DEF: 8, MIL: 7, ATT: 5 };
-  const taken = { GK: 0, DEF: 0, MIL: 0, ATT: 0 };
-  const used = new Set();
-  const squad = [];
-  for (const p of candidates) {
-    if (used.has(p.id)) continue;
-    if ((taken[p.position] ?? 0) >= (quota[p.position] ?? 0)) continue;
-    squad.push(p);
-    used.add(p.id);
-    taken[p.position] += 1;
-    if (squad.length >= 23) break;
-  }
-  // Garantit présence des joueurs du joueur (agence) éligibles
-  const myEligible = candidates.filter((p) => agentPlayerIds.has(p.id) && !used.has(p.id));
-  for (const p of myEligible) {
-    if (squad.length < 23) {
-      squad.push(p);
-      used.add(p.id);
-    } else {
-      // Remplace le moins bien noté de la même position
-      const idx = [...squad].reverse().findIndex((q) => q.position === p.position);
-      if (idx >= 0) squad[squad.length - 1 - idx] = p;
-    }
-  }
-  return squad;
-};
+const buildNationalSquad = (countryCode, season, weekSeed, agentPlayerIds = new Set()) =>
+  getNationalSquad(countryCode, season, weekSeed, agentPlayerIds);
 
 /** Construit un post de convocation pour la sélection nationale. */
 const buildSelectionPost = ({ team, season, week, agentPlayerIds }) => {
