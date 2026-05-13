@@ -19,6 +19,7 @@ export const setAppLanguage = (language) => {
 export const isEnglish = () => getAppLanguage() === 'en';
 
 const EXACT_EN = new Map(Object.entries({
+  ...EVENT_STRINGS_EN,
   'Accueil': 'Home',
   'Joueurs': 'Players',
   'Marché': 'Market',
