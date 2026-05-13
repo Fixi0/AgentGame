@@ -8,6 +8,7 @@ import {
 } from '../systems/nationalSelectionSystem';
 import { getClubDisplayName, COUNTRIES } from '../data/clubs';
 import { getPlayerPortrait } from '../utils/playerPortraits';
+import { getPlayerStarsText } from '../utils/playerStars';
 import { S } from './styles';
 
 const POS_GROUPS = [
@@ -128,7 +129,7 @@ export default function NationalSelections({ state }) {
                       {p.roleShort ?? p.position} · {getClubDisplayName(p.club)} · {p.age} ans
                     </div>
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 950, color: 'var(--af-text)' }}>{p.rating}</div>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: '#f5b301', letterSpacing: '.04em' }}>{getPlayerStarsText(p.rating)}</div>
                 </div>
               );
             })}
