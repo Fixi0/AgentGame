@@ -42,14 +42,14 @@ export default function NationalSelections({ state }) {
   const isNow = isSelectionWeek(week);
 
   return (
-    <div style={S.page}>
-      <div style={S.headerRow}>
+    <div style={{ padding: 14, paddingBottom: 80, color: 'var(--af-text)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
         <div>
-          <div style={S.h1}>Sélections nationales</div>
-          <div style={S.sub}>Listes officielles des 23 · Saison {season} · S{seasonWeek}/38</div>
+          <div style={{ fontSize: 18, fontWeight: 950, color: 'var(--af-text)' }}>Sélections nationales</div>
+          <div style={{ fontSize: 12, color: 'var(--af-muted)', marginTop: 2 }}>Listes officielles des 23 · Saison {season} · S{seasonWeek}/38</div>
         </div>
-        <div style={{ ...S.pill, background: isNow ? 'oklch(28% 0.10 155 / .35)' : 'var(--af-surface)', color: isNow ? '#00a676' : 'var(--af-muted)' }}>
-          {isNow ? 'Convocations en cours' : `Prochaine fenêtre · S${nextWindow}`}
+        <div style={{ padding: '5px 10px', borderRadius: 14, fontSize: 10, fontWeight: 900, letterSpacing: '.08em', background: isNow ? 'oklch(28% 0.10 155 / .35)' : 'var(--af-surface)', color: isNow ? '#00a676' : 'var(--af-muted)', border: '1px solid var(--af-border)', whiteSpace: 'nowrap' }}>
+          {isNow ? 'CONVOCATIONS EN COURS' : `PROCHAINE FENÊTRE · S${nextWindow}`}
         </div>
       </div>
 
