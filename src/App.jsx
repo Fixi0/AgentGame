@@ -265,7 +265,7 @@ const moreItems = [
   { key: 'contracts',    label: 'Contrats',     desc: "Vue d'ensemble des contrats",  icon: Briefcase },
   { key: 'dossiers',     label: 'Dossiers',     desc: 'Messages, tensions, mémoire',  icon: FileText },
   { key: 'deadline',     label: 'Deadline Day', desc: 'Appels mercato',               icon: Timer },
-  { key: 'nationalCups', label: 'Coupes nat.',  desc: 'Coupe de France, FA Cup…',     icon: Trophy },
+  
   { key: 'hallOfFame',   label: 'Hall of Fame', desc: 'Sponsors, trophées, légendes', icon: Trophy },
 ];
 
