@@ -204,11 +204,11 @@ export const SHOP_ITEMS = [
     id: 'scout_reveal',
     category: 'scouting',
     label: 'Œil du Recruteur',
-    desc: 'Révèle le potentiel réel d\'un joueur du marché.',
+    desc: 'Révèle le potentiel réel de TOUS les joueurs actuellement sur le marché.',
     icon: '🔍',
     cost: 80,
     currency: 'gems',
-    effect: { action: 'reveal_potential' },
+    effect: { action: 'reveal_market_potential' },
     highlight: false,
   },
   {
