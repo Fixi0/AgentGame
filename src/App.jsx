@@ -2117,6 +2117,7 @@ export default function FootballAgentGame() {
           );
         })}
       </nav>
+      <CinematicMoment moment={cinematicMoment} onClose={() => setCinematicMoment(null)} />
       {weekTickerData && (
         <WeekTickerModal
           report={weekTickerData}
