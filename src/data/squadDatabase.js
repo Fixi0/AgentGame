@@ -133,7 +133,7 @@ const buildUgoMoxwmo = (club = getMarseilleClub(), season = 1) => {
     ?? POSITION_ROLES.ATT?.[0]
     ?? POSITION_ROLES.MIL?.find((role) => role.id === 'right_winger')
     ?? POSITION_ROLES.MIL?.[0];
-  const baseAge = 20;
+  const baseAge = 18; // né le 2 octobre 2006 → 18 ans au 1er août 2025
   const baseRating = 128;
   const potential = 192; // Un peu moins de plafond que Gabriel
   const rating = evolveRating(baseRating, baseAge, potential, season);
@@ -146,8 +146,8 @@ const buildUgoMoxwmo = (club = getMarseilleClub(), season = 1) => {
     id: UGO_MOXWMO_ID,
     firstName: 'Ugo',
     lastName: 'Moxwmo',
-    birthDate: '2006-09-17',
-    birthDateLabel: '17 septembre 2006',
+    birthDate: '2006-10-02',
+    birthDateLabel: '2 octobre 2006',
     birthPlace: 'Marseille',
     position: 'ATT',
     roleId: roleObj.id,
@@ -218,9 +218,9 @@ const buildYohanZenoxx = (club = getMarseilleClub(), season = 1) => {
     ?? POSITION_ROLES.ATT?.[0]
     ?? POSITION_ROLES.MIL?.find((role) => role.id === 'left_winger')
     ?? POSITION_ROLES.MIL?.[0];
-  const baseAge = 20;
-  const baseRating = 128;
-  const potential = 192;
+  const baseAge = 16; // né le 26 février 2009 → 16 ans au 1er août 2025 (âge légal pour être suivi par un agent)
+  const baseRating = 118;
+  const potential = 196;
   const rating = evolveRating(baseRating, baseAge, potential, season);
   const age = baseAge + (season - 1);
   const countryData = COUNTRIES.find((c) => c.code === 'FR') ?? COUNTRIES[0];
@@ -231,8 +231,8 @@ const buildYohanZenoxx = (club = getMarseilleClub(), season = 1) => {
     id: YOHAN_ZENOXX_ID,
     firstName: 'Yohan',
     lastName: 'Zenoxx',
-    birthDate: '2006-11-08',
-    birthDateLabel: '8 novembre 2006',
+    birthDate: '2009-02-26',
+    birthDateLabel: '26 février 2009',
     birthPlace: 'Marseille',
     position: 'ATT',
     roleId: roleObj.id,
