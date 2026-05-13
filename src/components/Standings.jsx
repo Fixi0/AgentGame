@@ -578,7 +578,7 @@ export default function Standings({ state, databaseView = null, onClubDetails })
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 900, color: 'var(--af-text)' }}>
                       <ClubCrest club={row.club} size={20} />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: '0 1 auto' }}>{row.club}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: '0 1 auto' }}>{getClubDisplayName(row.club)}</span>
                       {isMyClub && <span style={{ fontSize: 8, fontWeight: 900, background: '#00a676', color: '#fff', borderRadius: 3, padding: '1px 4px', letterSpacing: '.06em', flexShrink: 0 }}>MOI</span>}
                       <QualifierBadge index={index} />
                     </div>
