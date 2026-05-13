@@ -26,7 +26,7 @@ import Standings from './components/Standings';
 import NationalSelections from './components/NationalSelections';
 import EuropeanBracket from './components/EuropeanBracket';
 import HallOfFame from './components/HallOfFame';
-import NationalCups from './components/NationalCups';
+
 import CinematicMoment from './components/CinematicMoment';
 import InteractiveModal from './components/modals/InteractiveModal';
 import PressConferenceModal from './components/modals/PressConferenceModal';
