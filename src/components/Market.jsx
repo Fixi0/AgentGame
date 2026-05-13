@@ -363,7 +363,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
               <option value="all">Tous clubs</option>
               {clubs
                 .filter((player) => filters.league === 'all' || player.leagueCode === filters.league)
-                .map((player) => <option key={player.club} value={player.club}>{player.club}</option>)}
+                .map((player) => <option key={player.club} value={player.club}>{player.clubDisplay ?? player.club}</option>)}
             </select>
             <select value={filters.country} onChange={(e) => updateFilter('country', e.target.value)} style={S.textInput}>
               <option value="all">Tous pays</option>
