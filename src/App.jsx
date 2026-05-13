@@ -25,6 +25,9 @@ import Scouting from './components/Scouting';
 import Standings from './components/Standings';
 import NationalSelections from './components/NationalSelections';
 import EuropeanBracket from './components/EuropeanBracket';
+import HallOfFame from './components/HallOfFame';
+import NationalCups from './components/NationalCups';
+import CinematicMoment from './components/CinematicMoment';
 import InteractiveModal from './components/modals/InteractiveModal';
 import PressConferenceModal from './components/modals/PressConferenceModal';
 import ClubModal from './components/modals/ClubModal';
@@ -86,6 +89,11 @@ import { NO_ADS_PRODUCT_ID, grantAdReward, grantIapPurchase, purchaseShopItem, r
 import { showInterstitialAd, showRewardedAd } from './services/adService';
 import { syncProgressionSystems } from './systems/objectivesSystem';
 import { createManualNewsPost } from './systems/newsSystem';
+import { simulateAITransfersForWeek } from './systems/aiTransferPersistenceSystem';
+import { applyWeeklySponsorIncome } from './systems/sponsorSystem';
+import { processRetirements } from './systems/hallOfFameSystem';
+import { ensureNationalCups, tickNationalCups } from './systems/nationalCupSystem';
+import { recordSeasonTrophies } from './systems/individualTrophiesSystem';
 import { CLUBS } from './data/clubs';
 import { clamp, makeId, pick } from './utils/helpers';
 import { formatMoney, formatMoneyCompact } from './utils/format';
@@ -257,6 +265,8 @@ const moreItems = [
   { key: 'contracts',    label: 'Contrats',     desc: "Vue d'ensemble des contrats",  icon: Briefcase },
   { key: 'dossiers',     label: 'Dossiers',     desc: 'Messages, tensions, mémoire',  icon: FileText },
   { key: 'deadline',     label: 'Deadline Day', desc: 'Appels mercato',               icon: Timer },
+  { key: 'nationalCups', label: 'Coupes nat.',  desc: 'Coupe de France, FA Cup…',     icon: Trophy },
+  { key: 'hallOfFame',   label: 'Hall of Fame', desc: 'Sponsors, trophées, légendes', icon: Trophy },
 ];
 
 const playerFromDatabaseRow = (row = {}) => {
