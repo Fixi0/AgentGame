@@ -625,7 +625,7 @@ const buildSquadPlayer = (club, slotIdx, season) => {
     slot.starter ? ranges.starterMax : ranges.benchMax,
   );
   const baseAge = slot.starter ? sInt(baseSeed, 1, 21, 32) : sInt(baseSeed, 1, 17, 27);
-  const potentialCeil = slot.starter ? 192 : 176;
+  const potentialCeil = slot.starter ? 190 : 174;
   const potential = Math.min(potentialCeil, baseRating + sInt(baseSeed, 2, 0, baseAge <= 22 ? 12 : 6));
 
   // Évolution inter-saisons
@@ -734,8 +734,8 @@ const buildYouthPlayer = (club, youthSlotIdx, season) => {
   const age     = baseAge + (season - 1);
   // Prospects : rating bas, potential élevé
   const baseRating = TIER_RATING[tier].benchMin - 10 + sInt(baseSeed, 0, 0, 10);
-  const rating     = evolveRating(baseRating, baseAge, 176, season);
-  const potential  = Math.min(184, baseRating + sInt(baseSeed, 2, 10, 22));
+  const rating     = evolveRating(baseRating, baseAge, 174, season);
+  const potential  = Math.min(190, baseRating + sInt(baseSeed, 2, 10, 22));
 
   const personality = sPick(baseSeed, 3, PERSONALITIES);
   const countryCode = pickNationality(club, baseSeed, 10);

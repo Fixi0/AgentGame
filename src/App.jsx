@@ -23,6 +23,7 @@ import Social from './components/Social';
 import SaveMenu from './components/SaveMenu';
 import Scouting from './components/Scouting';
 import Standings from './components/Standings';
+import NationalSelections from './components/NationalSelections';
 import EuropeanBracket from './components/EuropeanBracket';
 import InteractiveModal from './components/modals/InteractiveModal';
 import PressConferenceModal from './components/modals/PressConferenceModal';
@@ -246,6 +247,7 @@ const MAIN_NAV_ASSETS = {
 const moreItems = [
   { key: 'office',       label: 'Agence',       desc: 'Identité, staff et bilan',     icon: Briefcase },
   { key: 'standings',    label: 'Compétitions', desc: 'Ligues, Europe et calendrier', icon: Trophy },
+  { key: 'selections',   label: 'Sélections',   desc: 'Listes des 23 par nation',     icon: Trophy },
   { key: 'shop',         label: 'Boutique',     desc: 'Gemmes et bonus',              icon: ShoppingBag },
   { key: 'achievements', label: 'Succès',       desc: '120 exploits à débloquer',     icon: Trophy },
   { key: 'social',       label: 'Hub Social',   desc: 'InstaPro · WhatsCall · Chirp', icon: Network },
@@ -1976,6 +1978,7 @@ export default function FootballAgentGame() {
         )}
         {view === 'calendar' && <Calendar state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
         {view === 'standings' && <Standings state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
+        {view === 'selections' && <NationalSelections state={databaseState} />}
         {view === 'europe' && <EuropeanBracket state={databaseState} databaseView={databaseView} />}
         {view === 'deadline' && <DeadlineDay state={databaseState} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={databaseState} onStartMission={handleStartScoutingMission} />}

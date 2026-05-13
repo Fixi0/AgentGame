@@ -59,8 +59,16 @@ export const getLeagueTopStats = (countryCode, state = {}) => {
 
   const rosterById = new Map((state.roster ?? []).map((p) => [p.id, p]));
 
+  const leagueTable = state.leagueTables?.[countryCode] ?? {};
+  const playedByClub = new Map();
+  Object.values(leagueTable).forEach?.((row) => {
+    if (row?.club) playedByClub.set(row.club, row.played ?? 0);
+  });
+
   const entries = [];
   for (const club of clubs) {
+    const clubPlayed = playedByClub.get(club.name) ?? 0;
+    if (clubPlayed <= 0) continue; // pas encore de match → pas de stats fictives
     const squad = getClubSquad(club, season).slice(0, 12); // top 12 du club
     for (const npc of squad) {
       const real = rosterById.get(npc.id);
@@ -72,7 +80,7 @@ export const getLeagueTopStats = (countryCode, state = {}) => {
           assists: playerData.seasonStats.assists ?? 0,
           appearances: playerData.seasonStats.appearances ?? 0,
         }
-        : estimateNpcStats(npc, seasonWeek, season);
+        : estimateNpcStats(npc, Math.min(seasonWeek, clubPlayed), season);
       if (stats.goals === 0 && stats.assists === 0) continue;
       entries.push({
         id: playerData.id,
@@ -86,7 +94,7 @@ export const getLeagueTopStats = (countryCode, state = {}) => {
         countryFlag: playerData.countryFlag,
         countryCode: playerData.countryCode,
         rating: playerData.rating,
-        appearances: stats.appearances,
+        appearances: Math.min(stats.appearances, clubPlayed),
         goals: stats.goals,
         assists: stats.assists,
         isMine: isReal,

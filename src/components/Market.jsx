@@ -313,7 +313,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
             <Sparkles size={13} /> RECOMMANDATIONS DU MOMENT
           </div>
           <div style={{ color: 'var(--af-muted)', fontSize: 12, lineHeight: 1.45 }}>
-            La liste du haut sert de vitrine. Les filtres et la recherche te donnent accès à toute la base, y compris tous les joueurs de Marseille si tu choisis ce club.
+            La liste du haut sert de vitrine. Les filtres et la recherche te donnent accès à toute la base.
           </div>
         </div>
 

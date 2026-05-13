@@ -1,6 +1,6 @@
 import { Trophy } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
-import { CLUBS, COUNTRIES } from '../data/clubs';
+import { CLUBS, COUNTRIES, getClubDisplayName } from '../data/clubs';
 import { getClubProfile } from '../systems/clubSystem';
 import { getLeagueReputationLabel } from '../systems/leagueReputationSystem';
 import { getSortedTable } from '../systems/leagueSystem';
@@ -314,7 +314,7 @@ function EuropeCompetitionCard({ state, databaseView, competition, season, seaso
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1.25, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 11, minWidth: 20, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>{index + 1}.</span>
-                      <span><ClubCrest club={row.club.name} size={18} style={{ marginRight: 2 }} />{row.flag} {row.club.name}</span>
+                      <span><ClubCrest club={row.club.name} size={18} style={{ marginRight: 2 }} />{row.flag} {getClubDisplayName(row.club.name)}</span>
                       <span style={{ fontSize: 8, fontWeight: 900, background: zone.color, color: '#fff', borderRadius: 3, padding: '1px 5px', letterSpacing: '.06em', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
                         {zone.label}
                       </span>
@@ -578,7 +578,7 @@ export default function Standings({ state, databaseView = null, onClubDetails })
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 900, color: 'var(--af-text)' }}>
                       <ClubCrest club={row.club} size={20} />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: '0 1 auto' }}>{row.club}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: '0 1 auto' }}>{getClubDisplayName(row.club)}</span>
                       {isMyClub && <span style={{ fontSize: 8, fontWeight: 900, background: '#00a676', color: '#fff', borderRadius: 3, padding: '1px 4px', letterSpacing: '.06em', flexShrink: 0 }}>MOI</span>}
                       <QualifierBadge index={index} />
                     </div>
@@ -605,7 +605,7 @@ export default function Standings({ state, databaseView = null, onClubDetails })
                 style={S.decisionRow}
               >
                 <span>
-                  {match.home_club_name} {match.score ?? '-'} {match.away_club_name}
+                  {getClubDisplayName(match.home_club_name)} {match.score ?? '-'} {getClubDisplayName(match.away_club_name)}
                   <div style={S.fixtureMeta}>S{match.week} · {match.competition_label ?? 'Championnat'}</div>
                 </span>
                 <strong>{match.result}</strong>
@@ -616,7 +616,7 @@ export default function Standings({ state, databaseView = null, onClubDetails })
           {selectedClub && clubProfile && (
             <div style={S.objCard}>
               <div style={S.secTitle}>FICHE CLUB</div>
-              <div style={S.sumRow}><span style={S.sumK}>Club</span><strong>{selectedClub.name}</strong></div>
+              <div style={S.sumRow}><span style={S.sumK}>Club</span><strong>{getClubDisplayName(selectedClub.name)}</strong></div>
               {selectedClubContext && (
                 <>
                   <div style={S.sumRow}><span style={S.sumK}>Saison</span><strong>{selectedClubContext.position ?? '-'}e/{selectedClubContext.totalClubs ?? '-'} · {selectedClubContext.points ?? 0} pts</strong></div>
