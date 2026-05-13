@@ -304,10 +304,10 @@ const buildYohanZenoxx = (club = getMarseilleClub(), season = 1) => {
 // Plages resserrées : la majorité des joueurs sont 2-4 étoiles,
 // les 5 étoiles (≥176) restent rares et plafonnés par limitEliteRatings.
 const TIER_RATING = {
-  1: { starterMin: 148, starterMax: 174, benchMin: 130, benchMax: 152 },
-  2: { starterMin: 134, starterMax: 158, benchMin: 120, benchMax: 140 },
-  3: { starterMin: 120, starterMax: 144, benchMin: 108, benchMax: 128 },
-  4: { starterMin: 104, starterMax: 128, benchMin: 94, benchMax: 118 },
+  1: { starterMin: 156, starterMax: 178, benchMin: 138, benchMax: 158 },
+  2: { starterMin: 138, starterMax: 162, benchMin: 124, benchMax: 144 },
+  3: { starterMin: 122, starterMax: 146, benchMin: 110, benchMax: 130 },
+  4: { starterMin: 104, starterMax: 130, benchMin: 94, benchMax: 118 },
 };
 
 // ── Physique & Style de jeu ─────────────────────────────────────────────────
