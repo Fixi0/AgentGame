@@ -953,9 +953,6 @@ export default function FootballAgentGame() {
         // AI transfers between AI clubs (only during mercato windows)
         const aiRes = simulateAITransfersForWeek(nextState, week, phase);
         nextState = aiRes.state;
-        // National cups bracket lifecycle
-        nextState = ensureNationalCups(nextState);
-        nextState = tickNationalCups(nextState);
         // Retirements
         const retRes = processRetirements(nextState);
         nextState = retRes.state;
