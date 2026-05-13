@@ -445,6 +445,8 @@ export default function FootballAgentGame() {
   const [loaded, setLoaded] = useState(false);
   const [state, setState] = useState(null);
   const [view, setView] = useState('dashboard');
+  const [cinematicMoment, setCinematicMoment] = useState(null);
+  const cinematicSeenRef = useRef(new Set());
   const [modal, setModal] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [toast, setToast] = useState(null);
