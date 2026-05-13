@@ -1284,6 +1284,49 @@ const REGEX_EN = [
   [/La campagne médiatique commence\./g, 'The media campaign begins.'],
   [/L'agence change de dimension\./g, 'The agency moves to another level.'],
   [/Une seule équipe soulève le trophée cette season\./g, 'Only one team lifts the trophy this season.'],
+
+  // ── Time labels ──
+  [/il y a (\d+)j\b/g, '$1d ago'],
+  [/il y a (\d+)\s*sem\./g, '$1 wks ago'],
+  [/il y a (\d+) heures?/g, '$1h ago'],
+  [/il y a (\d+) minutes?/g, '$1 min ago'],
+
+  // ── French months ──
+  [/\bjanvier\b/gi, 'January'],
+  [/\bfévrier\b/gi, 'February'],
+  [/\bmars\b/gi, 'March'],
+  [/\bavril\b/gi, 'April'],
+  [/\bmai\b/gi, 'May'],
+  [/\bjuin\b/gi, 'June'],
+  [/\bjuillet\b/gi, 'July'],
+  [/\baoût\b/gi, 'August'],
+  [/\bseptembre\b/gi, 'September'],
+  [/\boctobre\b/gi, 'October'],
+  [/\bnovembre\b/gi, 'November'],
+  [/\bdécembre\b/gi, 'December'],
+
+  // ── Shop & misc ──
+  [/Pas assez de gemmes \((\d+) requis\)\./g, 'Not enough gems ($1 required).'],
+  [/Fonds insuffisants \(([\d\s]+) € requis\)\./g, 'Insufficient funds (€$1 required).'],
+  [/FONDS INSUFFISANTS \(([\d\s]+) €\)/g, 'INSUFFICIENT FUNDS (€$1)'],
+  [/Impact:\s*\+([\d\s]+)\s*€\s*immédiatement/g, 'Impact: +€$1 instantly'],
+  [/Impact:\s*([^—]+?)\s+immédiatement/g, 'Impact: $1 instantly'],
+  [/RAFRAÎCHIR\s*·\s*([\d\s]+)\s*€/g, 'REFRESH · €$1'],
+  [/(\d+)\s*players?\s*trouvés?/gi, '$1 players found'],
+  [/(\d+)\s*recommandations?/gi, '$1 recommendations'],
+  [/budget\s+([\d\s]+)\s*€/gi, 'budget €$1'],
+  [/Recherche mondiale\s*:\s*nom,\s*club,\s*championnat,\s*pays/gi, 'Global search: name, club, league, country'],
+  [/Rechercher un player,\s*club/gi, 'Search a player, club'],
+  [/(\d+)\s*ans\b/g, '$1y old'],
+  [/Communiqué médical/gi, 'Medical statement'],
+  [/souffre d'une blessure aux? (\w+)/gi, 'is suffering from a $1 injury'],
+  [/Indisponibilité estimée/gi, 'Estimated time out'],
+  [/Séance terminée à/gi, 'Session wrapped at'],
+  [/Le groupe prépare le prochain rendez-vous officiel\./gi, 'The squad prepares for the next official fixture.'],
+  [/genou/gi, 'knee'],
+  [/cheville/gi, 'ankle'],
+  [/cuisse/gi, 'thigh'],
+  [/épaule/gi, 'shoulder'],
 ];
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
