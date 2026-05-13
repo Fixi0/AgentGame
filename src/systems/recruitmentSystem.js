@@ -4,6 +4,11 @@ import { applyLeagueReputation } from './leagueReputationSystem';
 import { signPlayer } from '../game/gameLogic';
 import { getPlayerProfileSummary, getProfilePitchModifier } from './playerProfileSystem';
 import { clamp } from '../utils/helpers';
+import { GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, YOHAN_ZENOXX_ID } from '../data/squadDatabase';
+
+// Joueurs signature : ils acceptent toujours la première approche de l'agent
+// (cohérence narrative : ce sont les premiers protégés du joueur).
+const GUARANTEED_SIGNINGS = new Set([GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, YOHAN_ZENOXX_ID]);
 
 export const RECRUITMENT_PITCHES = [
   {
