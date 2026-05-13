@@ -2076,6 +2076,7 @@ export const playWeek = (state) => {
     // Snapshot des blessures AVANT le tick hebdomadaire (sinon un joueur "blessé" en championnat
     // pourrait être considéré comme valide en Europe parce que injured a été décrémenté).
     const injuryAtWeekStart = new Map(state.roster.map((p) => [p.id, p.injured ?? 0]));
+    const euroWeekOpponents = new Map();
 
     for (const group of euroGroups.values()) {
       const { comp, clubName, clubCountryCode, clubCity, players } = group;
@@ -2093,12 +2094,24 @@ export const playWeek = (state) => {
       const stage = getEuropeanStage(phase.seasonWeek, comp);
       const matchdayIdx = getEuropeanMatchdayIndex(phase.seasonWeek, comp);
       const usedOpponents = compData.opponentHistory[clubName];
+      const usedThisWeekKey = `${comp}:${currentSeason}:${phase.seasonWeek}`;
+      const usedThisWeek = euroWeekOpponents.get(usedThisWeekKey) ?? new Set();
       // En KO, on utilise aussi un index déterministe (pas de répétition interne à la saison)
       const effectiveIdx = stage === 'league' ? matchdayIdx : 20 + Object.keys(compData.koPath[clubName]).length;
-      const seededOpponent = pickSeededOpponent(clubName, comp, effectiveIdx, currentSeason, stage === 'league' ? usedOpponents : []);
+      const seededOpponent = pickSeededOpponent(
+        clubName,
+        comp,
+        effectiveIdx,
+        currentSeason,
+        stage === 'league' ? [...usedOpponents, ...usedThisWeek] : [],
+      );
 
       // Mettre à jour l'historique des adversaires (phase de ligue uniquement)
-      if (stage === 'league') compData.opponentHistory[clubName] = [...usedOpponents, seededOpponent.name];
+      if (stage === 'league') {
+        compData.opponentHistory[clubName] = [...usedOpponents, seededOpponent.name];
+        usedThisWeek.add(seededOpponent.name);
+        euroWeekOpponents.set(usedThisWeekKey, usedThisWeek);
+      }
 
       // ── Générer le bracket KO si on entre en phase KO ─────────────────
       if (stage !== 'league' && !compData.bracketClubs) {
@@ -2135,6 +2148,7 @@ export const playWeek = (state) => {
       };
       // Passer l'adversaire sélectionné comme contexte partagé
       const koRoundMatch = stage !== 'league' ? getEuropeanClubRoundMatch(compData, clubName, comp, phase.seasonWeek) : null;
+      if (stage !== 'league' && !koRoundMatch) continue;
       const clubMatchBase = simulateEuropeanMatch(seedPlayer, comp, phase.seasonWeek, koRoundMatch ?? { opponent: seededOpponent });
       if (!clubMatchBase || !clubMatchBase.matchRating) continue;
 

@@ -70,7 +70,7 @@ export const getWorldCupFixturePreview = (player, phase, wcState = {}) => {
   if (!country) return null;
   const opponents = NATIONAL_TEAMS.filter((t) => t.code !== player.countryCode);
   if (!opponents.length) return null;
-  const seed = hashString(`${player.id}:${phase}:${wcState.year ?? ''}:${wcState.weekOffset ?? 0}`);
+  const seed = hashString(`${player.countryCode}:${phase}:${wcState.year ?? ''}:${wcState.weekOffset ?? 0}`);
   const opponent = opponents[seed % opponents.length];
 
   return {
@@ -239,9 +239,35 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
     : NATIONAL_TEAMS.find((t) => t.code !== player.countryCode);
   const oppStrength = getNationalTeamStrength(opponent.code);
 
-  const ownGoals = Math.max(0, Math.min(4, rand(0, 2) + (ownStrength > oppStrength ? 1 : 0)));
-  const oppGoals = Math.max(0, Math.min(4, rand(0, 2) + (oppStrength > ownStrength ? 1 : 0)));
-  const result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
+  const sharedCountryMatch = (wcState.results ?? []).find((match) => (
+    match.phase === phase
+    && match.countryCode === player.countryCode
+    && match.opponentCode === opponent.code
+  ));
+
+  let ownGoals = sharedCountryMatch?.goalsFor;
+  let oppGoals = sharedCountryMatch?.goalsAgainst;
+  let result = sharedCountryMatch?.result;
+  let score = sharedCountryMatch?.score;
+  let decidedBy = sharedCountryMatch?.decidedBy ?? null;
+
+  if (!Number.isFinite(ownGoals) || !Number.isFinite(oppGoals) || !result) {
+    ownGoals = Math.max(0, Math.min(4, rand(0, 2) + (ownStrength > oppStrength ? 1 : 0)));
+    oppGoals = Math.max(0, Math.min(4, rand(0, 2) + (oppStrength > ownStrength ? 1 : 0)));
+    result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
+    score = `${ownGoals}-${oppGoals}`;
+
+    if (phase !== 'groupes' && ownGoals === oppGoals) {
+      const tieSeed = hashString(`${player.countryCode}:${opponent.code}:${wcState.year}:${phase}:shootout`);
+      const ownTieScore = ownStrength + (tieSeed % 16);
+      const oppTieScore = oppStrength + ((tieSeed >> 4) % 16);
+      result = ownTieScore >= oppTieScore ? 'win' : 'loss';
+      decidedBy = tieSeed % 3 === 0 ? 'extra_time' : 'penalties';
+      score = decidedBy === 'extra_time'
+        ? `${ownGoals + (result === 'win' ? 1 : 0)}-${oppGoals + (result === 'loss' ? 1 : 0)} a.p.`
+        : `${ownGoals}-${oppGoals} (${result === 'win' ? 'victoire' : 'défaite'} tab)`;
+    }
+  }
 
   // Performances individuelles
   const isStarter = Math.random() < (playerEntry.starterChance ?? (player.rating >= 150 ? 0.85 : 0.6));
@@ -275,13 +301,18 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
     id: makeId('wc'),
     playerId: player.id,
     playerName: `${player.firstName} ${player.lastName}`,
+    countryCode: country.code,
     countryFlag: country.flag,
     countryName: country.name,
+    opponentCode: opponent.code,
     opponentFlag: opponent.flag,
     phase,
     opponent: opponent.name,
-    score: `${ownGoals}-${oppGoals}`,
+    score,
+    goalsFor: ownGoals,
+    goalsAgainst: oppGoals,
     result,
+    decidedBy,
     minutes,
     goals,
     assists,
