@@ -616,7 +616,7 @@ export default function Standings({ state, databaseView = null, onClubDetails })
           {selectedClub && clubProfile && (
             <div style={S.objCard}>
               <div style={S.secTitle}>FICHE CLUB</div>
-              <div style={S.sumRow}><span style={S.sumK}>Club</span><strong>{selectedClub.name}</strong></div>
+              <div style={S.sumRow}><span style={S.sumK}>Club</span><strong>{getClubDisplayName(selectedClub.name)}</strong></div>
               {selectedClubContext && (
                 <>
                   <div style={S.sumRow}><span style={S.sumK}>Saison</span><strong>{selectedClubContext.position ?? '-'}e/{selectedClubContext.totalClubs ?? '-'} · {selectedClubContext.points ?? 0} pts</strong></div>
