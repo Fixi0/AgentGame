@@ -19,6 +19,7 @@ export default function EventVisualCard({ event, compact = false, used = null })
         border: `1px solid ${accent}40`,
         boxShadow: `0 8px 22px ${accent}25`,
         background: '#0b1620',
+        flexShrink: 0,
       }}
     >
       <div style={{ position: 'relative', height, width: '100%' }}>
