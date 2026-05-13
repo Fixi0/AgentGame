@@ -413,7 +413,7 @@ function TopStatsBoard({ countryCode, state }) {
                     {player.firstName} {player.lastName}
                     {player.isMine && <span style={{ marginLeft: 6, fontSize: 8, fontWeight: 900, background: '#00a676', color: '#fff', borderRadius: 3, padding: '1px 4px', letterSpacing: '.06em' }}>MOI</span>}
                   </div>
-                  <div style={{ color: 'var(--af-muted)', fontSize: 10, fontFamily: 'system-ui,sans-serif' }}>{player.club} · {player.position} · {sub}</div>
+                  <div style={{ color: 'var(--af-muted)', fontSize: 10, fontFamily: 'system-ui,sans-serif' }}>{player.clubDisplay ?? player.club} · {player.roleShort ?? player.position} · {sub}</div>
                 </div>
                 <div style={{ color: accent, fontSize: 20, fontWeight: 950, lineHeight: 1 }}>{value}</div>
               </div>

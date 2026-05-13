@@ -39,7 +39,10 @@ function MarketCard({ player, money, onSign, onDetails }) {
   const cost = player.signingCost ?? 0;
   const canSign = money >= cost;
   const profile = player.playerProfile ?? getPlayerProfileSummary(player);
-  const pos = POS_THEME[player.position] ?? { color: '#94a3b8', bg: 'oklch(40% 0.02 250 / .35)', label: player.position ?? '—' };
+  const roleLabel = player.roleShort ?? player.position ?? '—';
+  const pos = POS_THEME[player.position] ?? { color: '#94a3b8', bg: 'oklch(40% 0.02 250 / .35)', label: roleLabel };
+  pos.label = roleLabel;
+  const clubName = player.clubDisplay ?? player.club;
   const badges = computeBadges(player);
   const budgetPct = money > 0 ? Math.min(100, Math.round((cost / money) * 100)) : 100;
   const barColor = budgetPct < 40 ? '#10b981' : budgetPct < 80 ? '#facc15' : '#ef4444';
@@ -91,7 +94,7 @@ function MarketCard({ player, money, onSign, onDetails }) {
             {fullName(player)}
           </div>
           <div style={{ color: 'var(--af-muted)', fontSize: 11, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {player.club || 'Libre'} · {player.age ?? '—'} ans · {player.countryLabel}
+            {clubName || 'Libre'} · {player.age ?? '—'} ans · {player.countryLabel}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
             <Star size={13} fill={pos.color} stroke="none" />
@@ -228,7 +231,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
   const filteredMarket = sourcePool
     .filter((player) => {
       const profile = player.playerProfile ?? getPlayerProfileSummary(player);
-      const searchable = `${fullName(player)} ${player.club} ${player.position} ${player.countryLabel ?? ''} ${player.leagueLabel ?? ''}`.toLowerCase();
+      const searchable = `${fullName(player)} ${player.club} ${player.clubDisplay ?? ''} ${player.position} ${player.roleShort ?? ''} ${player.roleLabel ?? ''} ${player.countryLabel ?? ''} ${player.leagueLabel ?? ''}`.toLowerCase();
       if (search && !searchable.includes(search)) return false;
       if (filters.position !== 'all' && player.position !== filters.position) return false;
       if (filters.country !== 'all' && player.countryCode !== filters.country) return false;
@@ -360,7 +363,7 @@ export default function Market({ state, market, freeAgents = [], money, onSign, 
               <option value="all">Tous clubs</option>
               {clubs
                 .filter((player) => filters.league === 'all' || player.leagueCode === filters.league)
-                .map((player) => <option key={player.club} value={player.club}>{player.club}</option>)}
+                .map((player) => <option key={player.club} value={player.club}>{player.clubDisplay ?? player.club}</option>)}
             </select>
             <select value={filters.country} onChange={(e) => updateFilter('country', e.target.value)} style={S.textInput}>
               <option value="all">Tous pays</option>

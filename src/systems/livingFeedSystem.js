@@ -312,7 +312,7 @@ const buildFixturePreviewPost = (fixture, week) => {
 
 /** Posts officiels de clubs majeurs branchés sur les vrais fixtures. */
 const buildClubOfficialPosts = ({ state, week, agentClubs }) => {
-  const topClubs = ['Real Madrid', 'Manchester City', 'Bayern Munich', 'PSG', 'Liverpool', 'Barcelona', 'Inter', 'Arsenal'];
+  const topClubs = ['Real Madrid', 'Man City', 'Bayern', 'PSG', 'Liverpool', 'Barcelona', 'Inter', 'Arsenal'];
   const out = [];
   const recentFixtures = (state?.lastFixtures ?? []).filter((fixture) => {
     const home = getClubName(fixture?.homeClub);
