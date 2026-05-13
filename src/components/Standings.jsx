@@ -1,6 +1,6 @@
 import { Trophy } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
-import { CLUBS, COUNTRIES } from '../data/clubs';
+import { CLUBS, COUNTRIES, getClubDisplayName } from '../data/clubs';
 import { getClubProfile } from '../systems/clubSystem';
 import { getLeagueReputationLabel } from '../systems/leagueReputationSystem';
 import { getSortedTable } from '../systems/leagueSystem';
