@@ -36,7 +36,7 @@ function PlayerFutTile({ player, onOpen }) {
       <div className="af-fut-portrait" style={{ backgroundImage: `url(${portrait})` }}>
         <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 3, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 999, background: 'oklch(8% 0.025 258 / .72)', border: '1px solid oklch(78% 0.16 215 / .35)', backdropFilter: 'blur(8px)', color: '#fff', fontSize: 10, fontWeight: 900, letterSpacing: '.1em' }}>
           <span>{flag}</span>
-          <span style={{ color: 'var(--af-cyan)' }}>{player.position}</span>
+          <span style={{ color: 'var(--af-cyan)' }}>{player.roleShort ?? player.clubRole ?? player.position}</span>
         </div>
         {player.injured > 0 && (
           <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 3, padding: '3px 7px', borderRadius: 6, background: 'oklch(40% 0.16 25)', color: '#fff', fontSize: 9, fontWeight: 900, letterSpacing: '.08em' }}>
