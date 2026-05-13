@@ -38,7 +38,8 @@ export const RECRUITMENT_PITCHES = [
 ];
 
 const getThreshold = (player, state) => {
-  const base = player.rating >= 160 ? 74 : player.rating >= 140 ? 66 : 58;
+  // Seuils assouplis : trop de refus en début de partie sinon
+  const base = player.rating >= 160 ? 68 : player.rating >= 140 ? 58 : 48;
   const difficultyPenalty = state.difficulty === 'hardcore' ? 7 : state.difficulty === 'facile' ? -6 : 0;
   return base + difficultyPenalty;
 };
