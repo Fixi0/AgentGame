@@ -26,7 +26,7 @@ import Standings from './components/Standings';
 import NationalSelections from './components/NationalSelections';
 import EuropeanBracket from './components/EuropeanBracket';
 import HallOfFame from './components/HallOfFame';
-import NationalCups from './components/NationalCups';
+
 import CinematicMoment from './components/CinematicMoment';
 import InteractiveModal from './components/modals/InteractiveModal';
 import PressConferenceModal from './components/modals/PressConferenceModal';
@@ -92,7 +92,7 @@ import { createManualNewsPost } from './systems/newsSystem';
 import { simulateAITransfersForWeek } from './systems/aiTransferPersistenceSystem';
 import { applyWeeklySponsorIncome } from './systems/sponsorSystem';
 import { processRetirements } from './systems/hallOfFameSystem';
-import { ensureNationalCups, tickNationalCups } from './systems/nationalCupSystem';
+
 import { recordSeasonTrophies } from './systems/individualTrophiesSystem';
 import { CLUBS } from './data/clubs';
 import { clamp, makeId, pick } from './utils/helpers';
@@ -265,7 +265,7 @@ const moreItems = [
   { key: 'contracts',    label: 'Contrats',     desc: "Vue d'ensemble des contrats",  icon: Briefcase },
   { key: 'dossiers',     label: 'Dossiers',     desc: 'Messages, tensions, mémoire',  icon: FileText },
   { key: 'deadline',     label: 'Deadline Day', desc: 'Appels mercato',               icon: Timer },
-  { key: 'nationalCups', label: 'Coupes nat.',  desc: 'Coupe de France, FA Cup…',     icon: Trophy },
+  
   { key: 'hallOfFame',   label: 'Hall of Fame', desc: 'Sponsors, trophées, légendes', icon: Trophy },
 ];
 
@@ -953,9 +953,6 @@ export default function FootballAgentGame() {
         // AI transfers between AI clubs (only during mercato windows)
         const aiRes = simulateAITransfersForWeek(nextState, week, phase);
         nextState = aiRes.state;
-        // National cups bracket lifecycle
-        nextState = ensureNationalCups(nextState);
-        nextState = tickNationalCups(nextState);
         // Retirements
         const retRes = processRetirements(nextState);
         nextState = retRes.state;
@@ -2065,7 +2062,7 @@ export default function FootballAgentGame() {
         {view === 'standings' && <Standings state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
         {view === 'selections' && <NationalSelections state={databaseState} />}
         {view === 'europe' && <EuropeanBracket state={databaseState} databaseView={databaseView} />}
-        {view === 'nationalCups' && <NationalCups state={databaseState} />}
+        
         {view === 'hallOfFame' && <HallOfFame state={databaseState} />}
         {view === 'deadline' && <DeadlineDay state={databaseState} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={databaseState} onStartMission={handleStartScoutingMission} />}
