@@ -53,6 +53,7 @@ const agencyStyles = [
 
 export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeStaff, onUpdateAgencyProfile, onStartScoutingMission }) {
   const [profile, setProfile] = useState(state.agencyProfile);
+  const [flash, setFlash] = useState(null); // { key, ts }
   const availableCities = useMemo(() => getCitiesForCountry(profile.countryCode), [profile.countryCode]);
   const progression = getAgencyProgressSnapshot(state);
   const getModuleEffect = (key, level) => OFFICE_UPGRADE_EFFECTS[key]?.[level] ?? 'Niveau maximum';
@@ -60,6 +61,36 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
   useEffect(() => {
     setProfile(state.agencyProfile);
   }, [state.agencyProfile]);
+
+  const triggerFlash = (key) => {
+    setFlash({ key, ts: Date.now() });
+    setTimeout(() => setFlash(null), 1000);
+  };
+  const handleUpgrade = (key) => { triggerFlash(key); onUpgrade?.(key); };
+  const handleUpgradeAgency = () => { triggerFlash('agency'); onUpgradeAgency?.(); };
+  const handleUpgradeStaff = (key) => { triggerFlash('staff-' + key); onUpgradeStaff?.(key); };
+
+  const FlashBurst = () => (
+    <div className="af-upgrade-flash">
+      <div className="af-flash-burst" />
+      {[...Array(10)].map((_, i) => {
+        const angle = (i / 10) * Math.PI * 2;
+        return (
+          <div
+            key={i}
+            className="af-flash-piece"
+            style={{
+              '--cx': `${Math.cos(angle) * 60}px`,
+              '--cy': `${Math.sin(angle) * 60}px`,
+              background: i % 2 ? 'var(--af-gold)' : 'var(--af-grass)',
+              animationDelay: `${i * 0.02}s`,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+
   const items = [
     { key: 'scoutLevel', icon: <Search size={22} color="#00a676" />, label: 'Scouts', desc: 'Meilleurs joueurs et nouveaux pays', level: state.office.scoutLevel, costs: moduleCosts.scoutLevel },
     { key: 'lawyerLevel', icon: <FileText size={22} color="#2f80ed" />, label: 'Avocat', desc: 'Meilleures négociations', level: state.office.lawyerLevel, costs: moduleCosts.lawyerLevel },
@@ -79,6 +110,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
     setProfile(nextProfile);
   };
   const saveProfile = () => onUpdateAgencyProfile(profile);
+
 
   return (
     <div style={S.vp}>
