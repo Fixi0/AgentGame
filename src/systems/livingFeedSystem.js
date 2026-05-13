@@ -15,6 +15,7 @@ import { getClubSquad } from '../data/squadDatabase';
 import { getLeagueTopStats, getEuropeanTopStats } from './topScorersSystem';
 import { EURO_CUP_LABELS } from './europeanCupSystem';
 import { getCalendarSnapshot } from './seasonSystem';
+import { getNationalSquad } from './nationalSelectionSystem';
 
 const hash = (s) => {
   let h = 2166136261 >>> 0;
