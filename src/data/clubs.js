@@ -20,7 +20,7 @@ export const COUNTRIES = [
   { code: 'AR', label: 'Argentine', flag: '🇦🇷', minReputation: 50, marketWeight: 5 },
 ];
 
-export const CLUBS = [
+const RAW_CLUBS = [
   { name: 'PSG', tier: 1, countryCode: 'FR', city: 'Paris' },
   { name: 'Marseille', tier: 1, countryCode: 'FR', city: 'Marseille' },
   { name: 'Monaco', tier: 1, countryCode: 'FR', city: 'Monaco' },
@@ -113,6 +113,14 @@ export const CLUBS = [
   { name: 'Torino', tier: 3, countryCode: 'IT', city: 'Turin' },
   { name: 'Genoa', tier: 4, countryCode: 'IT', city: 'Gênes' },
   { name: 'Udinese', tier: 4, countryCode: 'IT', city: 'Udine' },
+  { name: 'Sassuolo', tier: 4, countryCode: 'IT', city: 'Sassuolo' },
+  { name: 'Hellas Verona', tier: 4, countryCode: 'IT', city: 'Vérone' },
+  { name: 'Cagliari', tier: 4, countryCode: 'IT', city: 'Cagliari' },
+  { name: 'Lecce', tier: 4, countryCode: 'IT', city: 'Lecce' },
+  { name: 'Empoli', tier: 4, countryCode: 'IT', city: 'Empoli' },
+  { name: 'Monza', tier: 4, countryCode: 'IT', city: 'Monza' },
+  { name: 'Como', tier: 4, countryCode: 'IT', city: 'Côme' },
+  { name: 'Parma', tier: 4, countryCode: 'IT', city: 'Parme' },
 
   { name: 'Ajax', tier: 2, countryCode: 'NL', city: 'Amsterdam' },
   { name: 'PSV', tier: 2, countryCode: 'NL', city: 'Eindhoven' },
@@ -120,6 +128,18 @@ export const CLUBS = [
   { name: 'AZ Alkmaar', tier: 3, countryCode: 'NL', city: 'Alkmaar' },
   { name: 'Twente', tier: 3, countryCode: 'NL', city: 'Enschede' },
   { name: 'Utrecht', tier: 4, countryCode: 'NL', city: 'Utrecht' },
+  { name: 'Heerenveen', tier: 4, countryCode: 'NL', city: 'Heerenveen' },
+  { name: 'Vitesse', tier: 4, countryCode: 'NL', city: 'Arnhem' },
+  { name: 'NEC Nijmegen', tier: 4, countryCode: 'NL', city: 'Nimègue' },
+  { name: 'Sparta Rotterdam', tier: 4, countryCode: 'NL', city: 'Rotterdam' },
+  { name: 'Heracles', tier: 4, countryCode: 'NL', city: 'Almelo' },
+  { name: 'Go Ahead Eagles', tier: 4, countryCode: 'NL', city: 'Deventer' },
+  { name: 'Fortuna Sittard', tier: 4, countryCode: 'NL', city: 'Sittard' },
+  { name: 'Groningen', tier: 4, countryCode: 'NL', city: 'Groningue' },
+  { name: 'PEC Zwolle', tier: 4, countryCode: 'NL', city: 'Zwolle' },
+  { name: 'Willem II', tier: 4, countryCode: 'NL', city: 'Tilbourg' },
+  { name: 'NAC Breda', tier: 4, countryCode: 'NL', city: 'Bréda' },
+  { name: 'RKC Waalwijk', tier: 4, countryCode: 'NL', city: 'Waalwijk' },
 
   { name: 'Porto', tier: 2, countryCode: 'PT', city: 'Porto' },
   { name: 'Benfica', tier: 2, countryCode: 'PT', city: 'Lisbonne' },
