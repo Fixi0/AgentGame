@@ -314,7 +314,7 @@ function EuropeCompetitionCard({ state, databaseView, competition, season, seaso
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 900, lineHeight: 1.25, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 11, minWidth: 20, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>{index + 1}.</span>
-                      <span><ClubCrest club={row.club.name} size={18} style={{ marginRight: 2 }} />{row.flag} {row.club.name}</span>
+                      <span><ClubCrest club={row.club.name} size={18} style={{ marginRight: 2 }} />{row.flag} {getClubDisplayName(row.club.name)}</span>
                       <span style={{ fontSize: 8, fontWeight: 900, background: zone.color, color: '#fff', borderRadius: 3, padding: '1px 5px', letterSpacing: '.06em', fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
                         {zone.label}
                       </span>
