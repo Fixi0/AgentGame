@@ -498,5 +498,8 @@ export const generateLivingFeedPosts = ({ state, week, season, agentPlayerIds, a
   // 4. Posts clubs officiels (toujours quelques-uns mais raisonnable)
   out.push(...buildClubOfficialPosts({ state, week, agentClubs }));
 
+  // 5. Vie des clubs : blessures, prolongations, mercato IA
+  out.push(...buildClubLifePosts({ state, week, season, agentClubs }));
+
   return out;
 };
