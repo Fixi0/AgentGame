@@ -7,8 +7,21 @@ import { OFFICE_UPGRADE_COSTS, OFFICE_UPGRADE_EFFECTS } from '../game/economy';
 import { STAFF_ROLES, getStaffLevelEffect } from '../systems/staffSystem';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
-import agencyOffice from '../assets/events/agency-office.jpg';
+import agencyOfficeT1 from '../assets/events/agency-office.jpg';
+import agencyOfficeT2 from '../assets/events/agency-office-tier2.jpg';
+import agencyOfficeT3 from '../assets/events/agency-office-tier3.jpg';
 import agencyExpansion from '../assets/events/agency-expansion.jpg';
+
+const getOfficeHeroImage = (level = 1) => {
+  if (level >= 7) return agencyOfficeT3;
+  if (level >= 4) return agencyOfficeT2;
+  return agencyOfficeT1;
+};
+const getOfficeStageLabel = (level = 1) => {
+  if (level >= 7) return "QG GLOBAL · ÉLITE MONDIALE";
+  if (level >= 4) return "BUREAU PREMIUM · STRUCTURE NATIONALE";
+  return "QG · CONSEIL D'ADMINISTRATION";
+};
 import moduleScouts from '../assets/events/module-scouts.jpg';
 import moduleLawyer from '../assets/events/module-lawyer.jpg';
 import moduleComms from '../assets/events/module-comms.jpg';
@@ -120,11 +133,11 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
       </div>
 
       <VisualHeader
-        src={agencyOffice}
-        label="QG · CONSEIL D'ADMINISTRATION"
+        src={getOfficeHeroImage(state.agencyLevel)}
+        label={getOfficeStageLabel(state.agencyLevel)}
         title={profile.name}
-        subtitle={`${profile.city} · ${COUNTRIES.find((country) => country.code === profile.countryCode)?.label}`}
-        height={150}
+        subtitle={`${profile.city} · ${COUNTRIES.find((country) => country.code === profile.countryCode)?.label} · Niv. ${state.agencyLevel}/10`}
+        height={170}
       />
 
       <div style={S.cardList}>
