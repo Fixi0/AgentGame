@@ -318,20 +318,31 @@ const buildClubLifePosts = ({ state, week, season, agentClubs }) => {
     if (post) out.push(post);
   }
 
-  // Mercato IA — uniquement en fenêtre mercato (juillet-août = sw 36-38 et 1-4, ou hiver sw 19-22)
-  const isMercato = seasonWeek <= 4 || seasonWeek >= 36 || (seasonWeek >= 19 && seasonWeek <= 22);
-  if (isMercato) {
-    for (let i = 0; i < 3; i += 1) {
-      const fromIdx = (week * 11 + i * 4) % TOP_CLUBS_AI.length;
-      let toIdx = (week * 7 + i * 9) % TOP_CLUBS_AI.length;
-      if (toIdx === fromIdx) toIdx = (toIdx + 1) % TOP_CLUBS_AI.length;
-      const fromClub = TOP_CLUBS_AI[fromIdx];
-      const toClub = TOP_CLUBS_AI[toIdx];
-      if (agentClubs?.has(fromClub) || agentClubs?.has(toClub)) continue;
-      const post = buildAiTransferPost({ fromClub, toClub, season, week: week + i });
-      if (post) out.push(post);
-    }
-  }
+  // Mercato IA — on s'appuie sur les VRAIS transferts persistés cette semaine
+  // (provenant d'aiTransferPersistenceSystem) pour garantir la cohérence avec le marché.
+  const realTransfers = (state?.aiTransferLog ?? []).filter((t) => t?.week === week);
+  realTransfers.forEach((t) => {
+    if (agentClubs?.has(t.fromClub) || agentClubs?.has(t.toClub)) return;
+    const seed = `aitrans-real-${t.id}`;
+    const years = 3 + (hash(seed + 'y') % 3);
+    out.push({
+      id: seed,
+      kind: 'press',
+      player: null,
+      authorName: 'FootMercato',
+      handle: '@footmercato',
+      tag: 'OFFICIEL',
+      text: `🚨 OFFICIEL — ${t.playerName} (${t.fromClub}) s'engage avec ${t.toClub}. Transfert estimé à ${t.fee}M€. Contrat signé pour ${years} saisons.`,
+      image: null,
+      likes: 6000 + num(seed + 'l', 40000),
+      comments: 150 + num(seed + 'c', 1500),
+      timeLabel: 'à l\'instant',
+      commentsList: [
+        { handle: '@transferroom', text: 'Beau coup pour ' + t.toClub + ' 👀' },
+        { handle: '@ultras', text: 'Mercato qui s\'enflamme 🔥' },
+      ],
+    });
+  });
 
   return out;
 };
