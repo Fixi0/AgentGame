@@ -939,9 +939,82 @@ export default function FootballAgentGame() {
         throw new Error('playWeek() a renvoyé un résultat incomplet');
       }
       const interstitialDue = shouldShowInterstitialAd(result.state);
-      const nextState = interstitialDue
+      let nextState = interstitialDue
         ? recordInterstitialAdView(result.state, 'week_transition')
         : result.state;
+
+      // ---- Persistent AI transfers + sponsors + national cups + retirements + season trophies ----
+      try {
+        const week = nextState.week ?? playableState.week ?? 1;
+        const phase = getPhase(week);
+        // Sponsors weekly income
+        const spo = applyWeeklySponsorIncome(nextState);
+        nextState = spo.state;
+        // AI transfers between AI clubs (only during mercato windows)
+        const aiRes = simulateAITransfersForWeek(nextState, week, phase);
+        nextState = aiRes.state;
+        // National cups bracket lifecycle
+        nextState = ensureNationalCups(nextState);
+        nextState = tickNationalCups(nextState);
+        // Retirements
+        const retRes = processRetirements(nextState);
+        nextState = retRes.state;
+        if (retRes.retired.length) {
+          const top = retRes.retired[0];
+          setCinematicMoment({
+            kind: 'Hall of Fame',
+            emoji: '🌟',
+            title: `${top.name} prend sa retraite`,
+            subtitle: `${top.retiredAtAge} ans · ${top.totalGoals} buts en carrière. Bienvenue dans la légende.`,
+            accent: '#fbbf24',
+          });
+        }
+        // End-of-season trophies
+        if (phase.seasonWeek === 38) {
+          const trophyRes = recordSeasonTrophies(nextState);
+          nextState = trophyRes.state;
+          if (trophyRes.trophies?.ballonDor) {
+            setCinematicMoment({
+              kind: 'Trophée individuel',
+              emoji: '🏆',
+              title: `Ballon d'Or : ${trophyRes.trophies.ballonDor.name}`,
+              subtitle: `${trophyRes.trophies.ballonDor.club} · saison ${trophyRes.trophies.season}`,
+              accent: '#facc15',
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[AgentFoot] post-week extra simulation failed', e);
+      }
+
+      // ---- Cinematic milestone detection ----
+      const seen = cinematicSeenRef.current;
+      // First >50M transfer (managed roster)
+      const newTransfers = (nextState.roster ?? []).filter((p) => (p.value ?? 0) >= 50_000_000 && p.lastContractEventWeek === nextState.week);
+      const hugeTransfer = newTransfers[0];
+      if (hugeTransfer && !seen.has('big_transfer')) {
+        seen.add('big_transfer');
+        setCinematicMoment({
+          kind: 'Premier mégatransfert',
+          emoji: '💎',
+          title: `${hugeTransfer.firstName} ${hugeTransfer.lastName} → ${hugeTransfer.club}`,
+          subtitle: `Plus de 50 M€ · une nouvelle dimension pour ton agence.`,
+          accent: '#22d3ee',
+        });
+      }
+      // National A selection of a managed player
+      const newSelectionPlayer = (nextState.roster ?? []).find((p) => p.nationalSelection === 'A' && !seen.has(`sel_${p.id}`));
+      if (newSelectionPlayer) {
+        seen.add(`sel_${newSelectionPlayer.id}`);
+        setCinematicMoment({
+          kind: 'Sélection nationale A',
+          emoji: '🇫🇷',
+          title: `${newSelectionPlayer.firstName} ${newSelectionPlayer.lastName} en sélection !`,
+          subtitle: `Convoqué pour la première fois en équipe nationale A.`,
+          accent: '#3b82f6',
+        });
+      }
+
       setState(nextState);
       if (interstitialDue) {
         showInterstitialAd({ placement: 'week_transition' }).catch((error) => {
