@@ -1,3 +1,5 @@
+import { EVENT_STRINGS_EN } from './eventStringsEn';
+
 const LANGUAGE_KEY = 'agentFootLanguage';
 
 const getDeviceLanguage = () => {
