@@ -209,6 +209,133 @@ const buildUefaTeamOfWeekPost = ({ state, week, season, agentPlayerIds }) => {
 
 const getClubName = (club) => club?.name ?? club ?? '';
 
+// ============= POSTS DE VIE DES CLUBS (blessures, prolongations, mercato IA) =============
+
+const handleFor = (club) => '@' + String(club).toLowerCase().replace(/[^a-z0-9]/g, '') + '_off';
+
+const pickPlayerFromClub = (club, season, seed) => {
+  try {
+    const squad = getClubSquad({ name: club }, season) ?? [];
+    if (!squad.length) return null;
+    return squad[hash(seed) % squad.length];
+  } catch (e) {
+    return null;
+  }
+};
+
+const buildInjuryPost = ({ club, season, week, agentClubs }) => {
+  if (agentClubs?.has(club)) return null;
+  const seed = `injury-${club}-${week}`;
+  const p = pickPlayerFromClub(club, season, seed);
+  if (!p) return null;
+  const durations = ['10 jours', '3 semaines', '6 semaines', '2 mois'];
+  const types = ['ischio', 'cheville', 'mollet', 'adducteurs', 'genou'];
+  const dur = pick(durations, seed + 'd');
+  const type = pick(types, seed + 't');
+  return {
+    id: seed,
+    kind: 'club',
+    player: null,
+    authorName: club,
+    handle: handleFor(club),
+    tag: 'INFIRMERIE',
+    text: `🚑 Communiqué médical — ${p.firstName} ${p.lastName} souffre d'une blessure aux ${type}. Indisponibilité estimée : ${dur}. Prompt rétablissement champion.`,
+    image: null,
+    likes: 800 + num(seed + 'l', 12000),
+    comments: 30 + num(seed + 'c', 400),
+    timeLabel: 'à l\'instant',
+    commentsList: [
+      { handle: '@medicfoot', text: 'Coup dur pour le groupe 😔' },
+      { handle: '@ultras', text: `On t'attend ${p.firstName} ❤️` },
+    ],
+  };
+};
+
+const buildExtensionPost = ({ club, season, week, agentClubs }) => {
+  if (agentClubs?.has(club)) return null;
+  const seed = `ext-${club}-${week}`;
+  const p = pickPlayerFromClub(club, season, seed);
+  if (!p) return null;
+  const years = 2 + (hash(seed + 'y') % 4);
+  return {
+    id: seed,
+    kind: 'club',
+    player: null,
+    authorName: club,
+    handle: handleFor(club),
+    tag: 'PROLONGATION',
+    text: `✍️ OFFICIEL — ${p.firstName} ${p.lastName} prolonge avec ${club} jusqu'en ${2026 + years}. L'aventure continue ! 💚`,
+    image: null,
+    likes: 4500 + num(seed + 'l', 35000),
+    comments: 100 + num(seed + 'c', 1200),
+    timeLabel: 'à l\'instant',
+    commentsList: [
+      { handle: '@fanszone', text: 'Énorme nouvelle 🔥' },
+      { handle: '@mercatolive', text: 'Beau coup du club.' },
+    ],
+  };
+};
+
+const buildAiTransferPost = ({ fromClub, toClub, season, week }) => {
+  const seed = `aitrans-${fromClub}-${toClub}-${week}`;
+  const p = pickPlayerFromClub(fromClub, season, seed);
+  if (!p) return null;
+  const fee = 8 + (hash(seed + 'f') % 75);
+  return {
+    id: seed,
+    kind: 'press',
+    player: null,
+    authorName: 'FootMercato',
+    handle: '@footmercato',
+    tag: 'OFFICIEL',
+    text: `🚨 OFFICIEL — ${p.firstName} ${p.lastName} (${fromClub}) s'engage avec ${toClub}. Transfert estimé à ${fee}M€. Contrat signé pour ${3 + (hash(seed + 'y') % 3)} saisons.`,
+    image: null,
+    likes: 6000 + num(seed + 'l', 40000),
+    comments: 150 + num(seed + 'c', 1500),
+    timeLabel: 'à l\'instant',
+    commentsList: [
+      { handle: '@transferroom', text: 'Beau coup pour ' + toClub + ' 👀' },
+      { handle: '@ultras', text: 'Mercato qui s\'enflamme 🔥' },
+    ],
+  };
+};
+
+const TOP_CLUBS_AI = ['Real Madrid', 'Man City', 'Bayern', 'PSG', 'Liverpool', 'Barcelona', 'Inter', 'Arsenal', 'Chelsea', 'Juventus', 'Milan', 'Atletico', 'Tottenham', 'Dortmund', 'Napoli'];
+
+const buildClubLifePosts = ({ state, week, season, agentClubs }) => {
+  const out = [];
+  const seasonWeek = ((week - 1) % 38) + 1;
+
+  // 1 prolongation/semaine (rotation)
+  const extClub = TOP_CLUBS_AI[(week * 3) % TOP_CLUBS_AI.length];
+  const ext = buildExtensionPost({ club: extClub, season, week, agentClubs });
+  if (ext) out.push(ext);
+
+  // 1-2 blessures/semaine
+  for (let i = 0; i < 2; i += 1) {
+    const club = TOP_CLUBS_AI[(week * 5 + i * 7) % TOP_CLUBS_AI.length];
+    const post = buildInjuryPost({ club, season, week: week + i, agentClubs });
+    if (post) out.push(post);
+  }
+
+  // Mercato IA — uniquement en fenêtre mercato (juillet-août = sw 36-38 et 1-4, ou hiver sw 19-22)
+  const isMercato = seasonWeek <= 4 || seasonWeek >= 36 || (seasonWeek >= 19 && seasonWeek <= 22);
+  if (isMercato) {
+    for (let i = 0; i < 3; i += 1) {
+      const fromIdx = (week * 11 + i * 4) % TOP_CLUBS_AI.length;
+      let toIdx = (week * 7 + i * 9) % TOP_CLUBS_AI.length;
+      if (toIdx === fromIdx) toIdx = (toIdx + 1) % TOP_CLUBS_AI.length;
+      const fromClub = TOP_CLUBS_AI[fromIdx];
+      const toClub = TOP_CLUBS_AI[toIdx];
+      if (agentClubs?.has(fromClub) || agentClubs?.has(toClub)) continue;
+      const post = buildAiTransferPost({ fromClub, toClub, season, week: week + i });
+      if (post) out.push(post);
+    }
+  }
+
+  return out;
+};
+
 const buildFixtureResultPost = (fixture, week) => {
   const homeClub = getClubName(fixture?.homeClub);
   const awayClub = getClubName(fixture?.awayClub);
