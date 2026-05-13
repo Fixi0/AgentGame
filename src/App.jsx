@@ -25,6 +25,9 @@ import Scouting from './components/Scouting';
 import Standings from './components/Standings';
 import NationalSelections from './components/NationalSelections';
 import EuropeanBracket from './components/EuropeanBracket';
+import HallOfFame from './components/HallOfFame';
+import NationalCups from './components/NationalCups';
+import CinematicMoment from './components/CinematicMoment';
 import InteractiveModal from './components/modals/InteractiveModal';
 import PressConferenceModal from './components/modals/PressConferenceModal';
 import ClubModal from './components/modals/ClubModal';
@@ -86,6 +89,11 @@ import { NO_ADS_PRODUCT_ID, grantAdReward, grantIapPurchase, purchaseShopItem, r
 import { showInterstitialAd, showRewardedAd } from './services/adService';
 import { syncProgressionSystems } from './systems/objectivesSystem';
 import { createManualNewsPost } from './systems/newsSystem';
+import { simulateAITransfersForWeek } from './systems/aiTransferPersistenceSystem';
+import { applyWeeklySponsorIncome } from './systems/sponsorSystem';
+import { processRetirements } from './systems/hallOfFameSystem';
+import { ensureNationalCups, tickNationalCups } from './systems/nationalCupSystem';
+import { recordSeasonTrophies } from './systems/individualTrophiesSystem';
 import { CLUBS } from './data/clubs';
 import { clamp, makeId, pick } from './utils/helpers';
 import { formatMoney, formatMoneyCompact } from './utils/format';
@@ -257,6 +265,8 @@ const moreItems = [
   { key: 'contracts',    label: 'Contrats',     desc: "Vue d'ensemble des contrats",  icon: Briefcase },
   { key: 'dossiers',     label: 'Dossiers',     desc: 'Messages, tensions, mémoire',  icon: FileText },
   { key: 'deadline',     label: 'Deadline Day', desc: 'Appels mercato',               icon: Timer },
+  { key: 'nationalCups', label: 'Coupes nat.',  desc: 'Coupe de France, FA Cup…',     icon: Trophy },
+  { key: 'hallOfFame',   label: 'Hall of Fame', desc: 'Sponsors, trophées, légendes', icon: Trophy },
 ];
 
 const playerFromDatabaseRow = (row = {}) => {
@@ -435,6 +445,8 @@ export default function FootballAgentGame() {
   const [loaded, setLoaded] = useState(false);
   const [state, setState] = useState(null);
   const [view, setView] = useState('dashboard');
+  const [cinematicMoment, setCinematicMoment] = useState(null);
+  const cinematicSeenRef = useRef(new Set());
   const [modal, setModal] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [toast, setToast] = useState(null);
@@ -927,9 +939,82 @@ export default function FootballAgentGame() {
         throw new Error('playWeek() a renvoyé un résultat incomplet');
       }
       const interstitialDue = shouldShowInterstitialAd(result.state);
-      const nextState = interstitialDue
+      let nextState = interstitialDue
         ? recordInterstitialAdView(result.state, 'week_transition')
         : result.state;
+
+      // ---- Persistent AI transfers + sponsors + national cups + retirements + season trophies ----
+      try {
+        const week = nextState.week ?? playableState.week ?? 1;
+        const phase = getPhase(week);
+        // Sponsors weekly income
+        const spo = applyWeeklySponsorIncome(nextState);
+        nextState = spo.state;
+        // AI transfers between AI clubs (only during mercato windows)
+        const aiRes = simulateAITransfersForWeek(nextState, week, phase);
+        nextState = aiRes.state;
+        // National cups bracket lifecycle
+        nextState = ensureNationalCups(nextState);
+        nextState = tickNationalCups(nextState);
+        // Retirements
+        const retRes = processRetirements(nextState);
+        nextState = retRes.state;
+        if (retRes.retired.length) {
+          const top = retRes.retired[0];
+          setCinematicMoment({
+            kind: 'Hall of Fame',
+            emoji: '🌟',
+            title: `${top.name} prend sa retraite`,
+            subtitle: `${top.retiredAtAge} ans · ${top.totalGoals} buts en carrière. Bienvenue dans la légende.`,
+            accent: '#fbbf24',
+          });
+        }
+        // End-of-season trophies
+        if (phase.seasonWeek === 38) {
+          const trophyRes = recordSeasonTrophies(nextState);
+          nextState = trophyRes.state;
+          if (trophyRes.trophies?.ballonDor) {
+            setCinematicMoment({
+              kind: 'Trophée individuel',
+              emoji: '🏆',
+              title: `Ballon d'Or : ${trophyRes.trophies.ballonDor.name}`,
+              subtitle: `${trophyRes.trophies.ballonDor.club} · saison ${trophyRes.trophies.season}`,
+              accent: '#facc15',
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[AgentFoot] post-week extra simulation failed', e);
+      }
+
+      // ---- Cinematic milestone detection ----
+      const seen = cinematicSeenRef.current;
+      // First >50M transfer (managed roster)
+      const newTransfers = (nextState.roster ?? []).filter((p) => (p.value ?? 0) >= 50_000_000 && p.lastContractEventWeek === nextState.week);
+      const hugeTransfer = newTransfers[0];
+      if (hugeTransfer && !seen.has('big_transfer')) {
+        seen.add('big_transfer');
+        setCinematicMoment({
+          kind: 'Premier mégatransfert',
+          emoji: '💎',
+          title: `${hugeTransfer.firstName} ${hugeTransfer.lastName} → ${hugeTransfer.club}`,
+          subtitle: `Plus de 50 M€ · une nouvelle dimension pour ton agence.`,
+          accent: '#22d3ee',
+        });
+      }
+      // National A selection of a managed player
+      const newSelectionPlayer = (nextState.roster ?? []).find((p) => p.nationalSelection === 'A' && !seen.has(`sel_${p.id}`));
+      if (newSelectionPlayer) {
+        seen.add(`sel_${newSelectionPlayer.id}`);
+        setCinematicMoment({
+          kind: 'Sélection nationale A',
+          emoji: '🇫🇷',
+          title: `${newSelectionPlayer.firstName} ${newSelectionPlayer.lastName} en sélection !`,
+          subtitle: `Convoqué pour la première fois en équipe nationale A.`,
+          accent: '#3b82f6',
+        });
+      }
+
       setState(nextState);
       if (interstitialDue) {
         showInterstitialAd({ placement: 'week_transition' }).catch((error) => {
@@ -1980,6 +2065,8 @@ export default function FootballAgentGame() {
         {view === 'standings' && <Standings state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
         {view === 'selections' && <NationalSelections state={databaseState} />}
         {view === 'europe' && <EuropeanBracket state={databaseState} databaseView={databaseView} />}
+        {view === 'nationalCups' && <NationalCups state={databaseState} />}
+        {view === 'hallOfFame' && <HallOfFame state={databaseState} />}
         {view === 'deadline' && <DeadlineDay state={databaseState} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={databaseState} onStartMission={handleStartScoutingMission} />}
         {view === 'vestiaire' && <Vestiaire state={databaseState} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} />}
@@ -2030,6 +2117,7 @@ export default function FootballAgentGame() {
           );
         })}
       </nav>
+      <CinematicMoment moment={cinematicMoment} onClose={() => setCinematicMoment(null)} />
       {weekTickerData && (
         <WeekTickerModal
           report={weekTickerData}
