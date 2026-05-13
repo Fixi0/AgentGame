@@ -305,7 +305,8 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
               const cost = Math.floor(role.cost * (level + 1) * 1.25);
               const img = STAFF_IMAGES[key];
               return (
-                <div key={key} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--af-border)', background: 'oklch(16% 0.035 258 / .78)' }}>
+                <div key={key} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--af-border)', background: 'oklch(16% 0.035 258 / .78)' }}>
+                  {flash?.key === 'staff-' + key && <FlashBurst />}
                   {img && (
                     <div style={{ position: 'relative', height: 96 }}>
                       <img src={img} alt={role.label} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
