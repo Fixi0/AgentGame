@@ -240,7 +240,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
           </div>
         </div>
 
-        <div style={S.offCard}>
+        <div style={{ ...S.offCard, position: 'relative' }}>
           <VisualHeader
             src={agencyExpansion}
             label="EXPANSION"
@@ -249,16 +249,17 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             height={100}
           />
           {agencyUpgradeCost ? (
-            <button onClick={onUpgradeAgency} style={S.upBtn}>
+            <button onClick={handleUpgradeAgency} style={S.upBtn} className="af-upgrade-btn">
               AGRANDIR · {formatMoney(agencyUpgradeCost)}
             </button>
           ) : (
             <div style={S.maxLvl}>NIVEAU MAX</div>
           )}
+          {flash?.key === 'agency' && <FlashBurst />}
         </div>
 
         {items.map((item) => (
-          <div key={item.key} style={S.offCard}>
+          <div key={item.key} style={{ ...S.offCard, position: 'relative' }}>
             <VisualHeader
               src={MODULE_IMAGES[item.key]}
               label={`MODULE · NIV. ${item.level}/${item.costs.length}`}
@@ -271,18 +272,24 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             </div>
             <div style={{ ...S.offLvl, marginBottom: 8 }}>
               {Array.from({ length: item.costs.length }).map((_, index) => (
-                <div key={index} style={{ ...S.lvlDot, background: index < item.level ? '#00a676' : '#d6dde3' }} />
+                <div
+                  key={index}
+                  className={flash?.key === item.key && index === item.level - 1 ? 'af-level-dot-pop' : ''}
+                  style={{ ...S.lvlDot, background: index < item.level ? '#00a676' : '#d6dde3' }}
+                />
               ))}
             </div>
             {item.level < item.costs.length ? (
-              <button onClick={() => onUpgrade(item.key)} style={S.upBtn}>
+              <button onClick={() => handleUpgrade(item.key)} style={S.upBtn} className="af-upgrade-btn">
                 AMELIORER · {formatMoney(item.costs[item.level])}
               </button>
             ) : (
               <div style={S.maxLvl}>NIVEAU MAX</div>
             )}
+            {flash?.key === item.key && <FlashBurst />}
           </div>
         ))}
+
 
         <div style={S.offCard}>
           <div style={S.offHead}>
