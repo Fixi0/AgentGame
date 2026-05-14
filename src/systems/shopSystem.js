@@ -13,7 +13,7 @@ export const GEM_PACKS = [
 
 export const getGemPackById = (packId) => GEM_PACKS.find((pack) => pack.id === packId) ?? null;
 
-export const NO_ADS_PRODUCT_ID = 'remove_ads';
+export const NO_ADS_PRODUCT_ID = 'no_ads_pack';
 export const AD_INTERSTITIAL_MIN_WEEKS = 2;
 export const AD_INTERSTITIAL_MAX_WEEKS = 3;
 

@@ -35,7 +35,7 @@ public class AgentFootBillingPlugin extends Plugin {
         "gems_pro",
         "gems_elite",
         "gems_legend",
-        "remove_ads"
+        "no_ads_pack"
     };
 
     private BillingClient billingClient;
@@ -166,7 +166,7 @@ public class AgentFootBillingPlugin extends Plugin {
         }
 
         Runnable finish = () -> {
-            if ("remove_ads".equals(productId)) {
+            if ("no_ads_pack".equals(productId)) {
                 emitPurchase(productId, purchase.getOrderId() != null ? purchase.getOrderId() : purchase.getPurchaseToken());
                 return;
             }

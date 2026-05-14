@@ -4,7 +4,7 @@
     <string name="title_activity_main">Football Agent Simulator</string>
     <string name="package_name">com.agentfc.footballagentsimulator</string>
     <string name="custom_url_scheme">com.agentfc.footballagentsimulator</string>
-    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
-    <string name="admob_interstitial_ad_unit_id">ca-app-pub-3940256099942544/1033173712</string>
-    <string name="admob_rewarded_ad_unit_id">ca-app-pub-3940256099942544/5224354917</string>
+    <string name="admob_app_id">ca-app-pub-6706373152254937~8549199155</string>
+    <string name="admob_interstitial_ad_unit_id">ca-app-pub-6706373152254937/9046674010</string>
+    <string name="admob_rewarded_ad_unit_id">ca-app-pub-6706373152254937/4473004184</string>
 </resources>

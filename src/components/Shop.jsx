@@ -24,7 +24,7 @@ const PACK_BANNER = {
   gems_pro: packPro,
   gems_elite: packElite,
   gems_legend: packLegend,
-  remove_ads: packNoAds,
+  [NO_ADS_PRODUCT_ID]: packNoAds,
 };
 
 const CATEGORY_BANNER = {
@@ -86,7 +86,7 @@ const PACK_THEME = {
   gems_pro: { gradient: 'linear-gradient(135deg,#7c3aed,#8b5cf6)', halo: 'rgba(124,58,237,.26)', tag: 'Pro' },
   gems_elite: { gradient: 'linear-gradient(135deg,#c2410c,#f97316)', halo: 'rgba(194,65,12,.26)', tag: 'Élite' },
   gems_legend: { gradient: 'linear-gradient(135deg,#14532d,#22c55e)', halo: 'rgba(20,83,45,.26)', tag: 'Légende' },
-  remove_ads: { gradient: 'linear-gradient(135deg,#111827,#0f766e)', halo: 'rgba(15,118,110,.24)', tag: 'Premium' },
+  [NO_ADS_PRODUCT_ID]: { gradient: 'linear-gradient(135deg,#111827,#0f766e)', halo: 'rgba(15,118,110,.24)', tag: 'Premium' },
 };
 
 const CATEGORY_ASSET = {
