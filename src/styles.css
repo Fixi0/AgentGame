@@ -122,11 +122,11 @@ button {
 
 .af-cyan-line {
   display: inline-block;
-  width: 44px;
-  height: 3px;
+  width: 36px;
+  height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--af-cyan), var(--af-grass));
-  box-shadow: 0 0 18px var(--af-cyan);
+  background: linear-gradient(90deg, var(--af-text), transparent);
+  opacity: 0.6;
 }
 
 @keyframes af-fade-up {
