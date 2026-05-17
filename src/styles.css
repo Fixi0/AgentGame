@@ -278,23 +278,21 @@ button {
 }
 
 .af-chip.is-active {
-  border-color: oklch(70% 0.19 155 / 0.7);
-  background: oklch(70% 0.19 155 / 0.18);
-  color: var(--af-grass);
+  border-color: oklch(80% 0.020 250 / 0.45);
+  background: oklch(80% 0.020 250 / 0.10);
+  color: var(--af-text);
 }
 
 .af-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .af-stat {
-  padding: 18px;
-  min-height: 102px;
-  background:
-    linear-gradient(160deg, oklch(28% 0.04 252 / 0.92), oklch(15% 0.035 258 / 0.96)),
-    linear-gradient(90deg, oklch(70% 0.19 155 / 0.18), transparent);
+  padding: 16px;
+  min-height: 96px;
+  background: linear-gradient(160deg, oklch(24% 0.010 250 / 0.78), oklch(18% 0.008 250 / 0.78));
   border: 1px solid var(--af-border);
   border-radius: var(--af-radius);
   box-shadow: var(--af-shadow-card);
