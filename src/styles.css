@@ -1,30 +1,32 @@
 :root {
   color-scheme: dark;
-  --af-bg: oklch(11% 0.025 258);
-  --af-bg-2: oklch(15% 0.035 252);
-  --af-surface: oklch(19% 0.035 252 / 0.92);
-  --af-surface-2: oklch(24% 0.04 252 / 0.86);
-  --af-surface-soft: oklch(26% 0.035 252 / 0.62);
-  --af-border: oklch(64% 0.04 248 / 0.22);
-  --af-border-strong: oklch(78% 0.05 248 / 0.36);
-  --af-text: oklch(97% 0.012 245);
-  --af-muted: oklch(78% 0.03 245);
-  --af-dim: oklch(60% 0.03 245);
-  --af-grass: oklch(74% 0.19 155);
-  --af-grass-2: oklch(58% 0.18 155);
-  --af-cyan: oklch(78% 0.16 215);
-  --af-cyan-2: oklch(60% 0.18 240);
-  --af-gold: oklch(82% 0.16 83);
-  --af-danger: oklch(64% 0.18 25);
-  --af-blue: oklch(62% 0.17 245);
-  --af-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
-  --af-shadow-card: 0 16px 40px rgba(0, 0, 0, 0.42);
-  --af-radius: 14px;
-  --af-radius-lg: 22px;
-  --af-radius-sm: 10px;
-  --af-gradient-hero: radial-gradient(circle at 16% 8%, oklch(40% 0.12 245 / 0.55), transparent 42%),
-    radial-gradient(circle at 88% 14%, oklch(70% 0.19 155 / 0.22), transparent 36%),
-    linear-gradient(180deg, var(--af-bg), oklch(8% 0.025 258));
+  /* Slate & Steel — premium minimal */
+  --af-bg: oklch(16% 0.008 250);
+  --af-bg-2: oklch(20% 0.010 250);
+  --af-surface: oklch(22% 0.010 250 / 0.78);
+  --af-surface-2: oklch(26% 0.012 250 / 0.72);
+  --af-surface-soft: oklch(28% 0.010 250 / 0.48);
+  --af-border: oklch(72% 0.015 250 / 0.12);
+  --af-border-strong: oklch(80% 0.020 250 / 0.22);
+  --af-text: oklch(97% 0.005 250);
+  --af-muted: oklch(72% 0.012 250);
+  --af-dim: oklch(56% 0.010 250);
+  /* Accents — refined steel + subtle teal highlight, no neon */
+  --af-grass: oklch(78% 0.040 200);
+  --af-grass-2: oklch(62% 0.045 220);
+  --af-cyan: oklch(82% 0.030 230);
+  --af-cyan-2: oklch(68% 0.040 235);
+  --af-gold: oklch(82% 0.10 85);
+  --af-danger: oklch(64% 0.14 25);
+  --af-blue: oklch(70% 0.060 240);
+  --af-shadow: 0 24px 60px rgba(0, 0, 0, 0.38);
+  --af-shadow-card: 0 10px 28px rgba(0, 0, 0, 0.28);
+  --af-radius: 12px;
+  --af-radius-lg: 18px;
+  --af-radius-sm: 8px;
+  --af-gradient-hero: radial-gradient(circle at 12% 6%, oklch(40% 0.020 245 / 0.45), transparent 48%),
+    radial-gradient(circle at 92% 10%, oklch(50% 0.015 230 / 0.30), transparent 42%),
+    linear-gradient(180deg, var(--af-bg), oklch(12% 0.008 250));
   background: var(--af-bg);
 }
 
@@ -60,20 +62,20 @@ button {
 }
 
 .af-kicker {
-  color: var(--af-grass);
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.28em;
+  color: var(--af-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.32em;
   text-transform: uppercase;
 }
 
 .af-title {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   color: var(--af-text);
-  font-size: clamp(32px, 6.5vw, 56px);
-  line-height: 0.95;
-  font-weight: 950;
-  letter-spacing: -0.045em;
+  font-size: clamp(28px, 6vw, 48px);
+  line-height: 1.02;
+  font-weight: 800;
+  letter-spacing: -0.035em;
   overflow-wrap: anywhere;
 }
 
@@ -120,11 +122,11 @@ button {
 
 .af-cyan-line {
   display: inline-block;
-  width: 44px;
-  height: 3px;
+  width: 36px;
+  height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--af-cyan), var(--af-grass));
-  box-shadow: 0 0 18px var(--af-cyan);
+  background: linear-gradient(90deg, var(--af-text), transparent);
+  opacity: 0.6;
 }
 
 @keyframes af-fade-up {
@@ -245,22 +247,24 @@ button {
   border-radius: var(--af-radius-sm);
   border: 1px solid var(--af-border);
   cursor: pointer;
-  font-weight: 900;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  font-size: 12px;
   transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 .af-btn-primary {
-  background: linear-gradient(135deg, var(--af-grass), var(--af-grass-2));
-  color: oklch(10% 0.025 258);
-  box-shadow: 0 18px 44px oklch(70% 0.19 155 / 0.32);
+  background: var(--af-text);
+  color: oklch(14% 0.008 250);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
   border-color: transparent;
 }
 
 .af-btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 22px 56px oklch(70% 0.19 155 / 0.42);
+  background: oklch(92% 0.005 250);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.40);
 }
 
 .af-btn-secondary,
@@ -274,23 +278,21 @@ button {
 }
 
 .af-chip.is-active {
-  border-color: oklch(70% 0.19 155 / 0.7);
-  background: oklch(70% 0.19 155 / 0.18);
-  color: var(--af-grass);
+  border-color: oklch(80% 0.020 250 / 0.45);
+  background: oklch(80% 0.020 250 / 0.10);
+  color: var(--af-text);
 }
 
 .af-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .af-stat {
-  padding: 18px;
-  min-height: 102px;
-  background:
-    linear-gradient(160deg, oklch(28% 0.04 252 / 0.92), oklch(15% 0.035 258 / 0.96)),
-    linear-gradient(90deg, oklch(70% 0.19 155 / 0.18), transparent);
+  padding: 16px;
+  min-height: 96px;
+  background: linear-gradient(160deg, oklch(24% 0.010 250 / 0.78), oklch(18% 0.008 250 / 0.78));
   border: 1px solid var(--af-border);
   border-radius: var(--af-radius);
   box-shadow: var(--af-shadow-card);
