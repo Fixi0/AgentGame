@@ -1,30 +1,32 @@
 :root {
   color-scheme: dark;
-  --af-bg: oklch(11% 0.025 258);
-  --af-bg-2: oklch(15% 0.035 252);
-  --af-surface: oklch(19% 0.035 252 / 0.92);
-  --af-surface-2: oklch(24% 0.04 252 / 0.86);
-  --af-surface-soft: oklch(26% 0.035 252 / 0.62);
-  --af-border: oklch(64% 0.04 248 / 0.22);
-  --af-border-strong: oklch(78% 0.05 248 / 0.36);
-  --af-text: oklch(97% 0.012 245);
-  --af-muted: oklch(78% 0.03 245);
-  --af-dim: oklch(60% 0.03 245);
-  --af-grass: oklch(74% 0.19 155);
-  --af-grass-2: oklch(58% 0.18 155);
-  --af-cyan: oklch(78% 0.16 215);
-  --af-cyan-2: oklch(60% 0.18 240);
-  --af-gold: oklch(82% 0.16 83);
-  --af-danger: oklch(64% 0.18 25);
-  --af-blue: oklch(62% 0.17 245);
-  --af-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
-  --af-shadow-card: 0 16px 40px rgba(0, 0, 0, 0.42);
-  --af-radius: 14px;
-  --af-radius-lg: 22px;
-  --af-radius-sm: 10px;
-  --af-gradient-hero: radial-gradient(circle at 16% 8%, oklch(40% 0.12 245 / 0.55), transparent 42%),
-    radial-gradient(circle at 88% 14%, oklch(70% 0.19 155 / 0.22), transparent 36%),
-    linear-gradient(180deg, var(--af-bg), oklch(8% 0.025 258));
+  /* Slate & Steel — premium minimal */
+  --af-bg: oklch(16% 0.008 250);
+  --af-bg-2: oklch(20% 0.010 250);
+  --af-surface: oklch(22% 0.010 250 / 0.78);
+  --af-surface-2: oklch(26% 0.012 250 / 0.72);
+  --af-surface-soft: oklch(28% 0.010 250 / 0.48);
+  --af-border: oklch(72% 0.015 250 / 0.12);
+  --af-border-strong: oklch(80% 0.020 250 / 0.22);
+  --af-text: oklch(97% 0.005 250);
+  --af-muted: oklch(72% 0.012 250);
+  --af-dim: oklch(56% 0.010 250);
+  /* Accents — refined steel + subtle teal highlight, no neon */
+  --af-grass: oklch(78% 0.040 200);
+  --af-grass-2: oklch(62% 0.045 220);
+  --af-cyan: oklch(82% 0.030 230);
+  --af-cyan-2: oklch(68% 0.040 235);
+  --af-gold: oklch(82% 0.10 85);
+  --af-danger: oklch(64% 0.14 25);
+  --af-blue: oklch(70% 0.060 240);
+  --af-shadow: 0 24px 60px rgba(0, 0, 0, 0.38);
+  --af-shadow-card: 0 10px 28px rgba(0, 0, 0, 0.28);
+  --af-radius: 12px;
+  --af-radius-lg: 18px;
+  --af-radius-sm: 8px;
+  --af-gradient-hero: radial-gradient(circle at 12% 6%, oklch(40% 0.020 245 / 0.45), transparent 48%),
+    radial-gradient(circle at 92% 10%, oklch(50% 0.015 230 / 0.30), transparent 42%),
+    linear-gradient(180deg, var(--af-bg), oklch(12% 0.008 250));
   background: var(--af-bg);
 }
 
