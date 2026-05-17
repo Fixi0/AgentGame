@@ -44,6 +44,17 @@ export default function PlayerDossier({ player, onBack, actions = [], bonds = {}
   const tier = ratingTier(player.rating);
   const flag = player.countryFlag || COUNTRY_FLAGS[player.countryCode] || '🏳️';
   const playerBonds = getBondsForPlayer(bonds, player.id, roster).slice(0, 4);
+  const currentRating = Number(player.rating) || 0;
+  const potentialRating = Math.max(currentRating, Number(player.potential) || currentRating);
+  const signedRating = Number(player.agencySignedRating);
+  const hasSignedReference = Number.isFinite(signedRating) && signedRating > 0;
+  const ratingDelta = hasSignedReference ? currentRating - signedRating : 0;
+  const progressToPotential = potentialRating > 0 ? Math.round((currentRating / potentialRating) * 100) : 0;
+  const progressionLabel = hasSignedReference
+    ? ratingDelta > 0
+      ? `+${ratingDelta}`
+      : `${ratingDelta}`
+    : 'N/A';
 
   return (
     <section className="af-panel" style={{ padding: 0, display: 'grid', gap: 0, overflow: 'hidden' }}>
@@ -70,6 +81,17 @@ export default function PlayerDossier({ player, onBack, actions = [], bonds = {}
           <Stat label="Salaire / sem" value={formatMoney(player.weeklySalary ?? 0)} />
           <Stat label="Contrat" value={`${player.contractWeeksLeft ?? 0} sem.`} />
           <Stat label="Niveau" value={getPlayerStarsText(player.rating)} accent="var(--af-cyan)" />
+        </div>
+
+        <div className="af-panel" style={{ padding: 14 }}>
+          <div className="af-kicker" style={{ marginBottom: 10 }}>Progression</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 }}>
+            <Stat label="Niveau actuel" value={`${getPlayerStarsText(currentRating)} · ${currentRating}`} accent="var(--af-cyan)" />
+            <Stat label="Potentiel max" value={`${getPlayerStarsText(potentialRating)} · ${potentialRating}`} accent="var(--af-gold)" />
+            <Stat label="Depuis signature" value={progressionLabel} accent={ratingDelta >= 0 ? 'var(--af-grass)' : '#ef4444'} />
+            <Stat label="Cap atteint" value={`${Math.max(0, Math.min(100, progressToPotential))}%`} />
+          </div>
+          <Bar label="Progression vers potentiel" value={progressToPotential} color="var(--af-cyan)" />
         </div>
 
         {/* Bars */}

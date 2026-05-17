@@ -10,7 +10,7 @@ import { clamp, makeId } from '../utils/helpers';
 
 const COHERENCE_THRESHOLDS = {
   ballonDor: {
-    minRating: 170, // MUST be 170+ (equiv. 85 on old scale) to win Ballon d'Or
+    minRating: 170, // MUST be 170+ (equiv. 85 on old scale) to win Ballon Global
     minSeasonAvg: 8.2, // Season average must be 8.2+
     minAppearances: 25, // At least 25 appearances
     scoreNeeded: 300, // Total coherence score
@@ -229,7 +229,7 @@ export const generateSeasonAwards = (roster = [], week = 38) => {
     awards.push({
       id: makeId('award'),
       type: 'ballon_dor',
-      title: `Ballon d'Or`,
+      title: `Ballon Global`,
       playerName: `${ballonDorCandidate.firstName} ${ballonDorCandidate.lastName}`,
       playerId: ballonDorCandidate.id,
       rating: ballonDorCandidate.rating,

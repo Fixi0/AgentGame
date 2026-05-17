@@ -10,12 +10,18 @@ export const applyRelationshipEffects = (player, effects = {}) => ({
 });
 
 export const getDepartureRisk = (player) => {
-  const moralRisk = player.moral < 25 ? 0.22 : player.moral < 40 ? 0.08 : 0;
-  const trustRisk = player.trust < 25 ? 0.25 : player.trust < 45 ? 0.08 : 0;
-  const personalityRisk = ['instable', 'mercenaire'].includes(player.personality) ? 0.08 : 0;
-  const activeTransferRisk = (player.careerStatus === 'en discussion' || player.careerStatus === 'transféré') ? 0.06 : 0;
-  const roleRisk = ['Indésirable', 'rotation forcée'].includes(player.clubRole) ? 0.06 : 0;
-  const risk = Math.min(0.65, moralRisk + trustRisk + personalityRisk + activeTransferRisk + roleRisk);
+  const signedWeek = player.agencySignedWeek ?? player.relationshipStartedWeek ?? player.contractStartWeek ?? 0;
+  const currentWeek = player.currentWeek ?? signedWeek;
+  const weeksInAgency = Math.max(0, currentWeek - signedWeek);
+  const gracePeriod = weeksInAgency < 12;
+
+  const moralRisk = player.moral < 18 ? 0.1 : player.moral < 30 ? 0.05 : player.moral < 40 ? 0.02 : 0;
+  const trustRisk = player.trust < 18 ? 0.12 : player.trust < 30 ? 0.06 : player.trust < 45 ? 0.02 : 0;
+  const personalityRisk = ['instable', 'mercenaire'].includes(player.personality) ? 0.02 : 0;
+  const activeTransferRisk = (player.careerStatus === 'en discussion' || player.careerStatus === 'transféré') ? 0.03 : 0;
+  const roleRisk = ['Indésirable', 'rotation forcée'].includes(player.clubRole) ? 0.025 : 0;
+  const gracePenalty = gracePeriod ? 0.08 : 0;
+  const risk = Math.min(0.3, Math.max(0, moralRisk + trustRisk + personalityRisk + activeTransferRisk + roleRisk - gracePenalty));
 
   return {
     risk,

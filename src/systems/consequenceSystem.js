@@ -5,6 +5,7 @@ import { applyLeagueReputation } from './leagueReputationSystem';
 import { createMessage } from './messageSystem';
 import { hasDossierEventThisWeek, hasRecentDossierEvent, recordDossierEvent } from './coherenceSystem';
 import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
+import { CLUBS, getCountry } from '../data/clubs';
 import { clamp, makeId, pick } from '../utils/helpers';
 
 const MEDIA_NAME_TO_ID = MEDIA_RELATION_TEMPLATES.reduce((map, media) => ({
@@ -31,6 +32,37 @@ const normalizeMediaId = (accountName = '') => {
   if (key.includes('stat')) return 'statszone_fc';
   if (key.includes('social') || key.includes('supporter') || key.includes('tribune')) return 'foot_social_club';
   return 'canal_football_desk';
+};
+
+const buildNarrativeOffer = ({ player, week, context = 'narrative' }) => {
+  if (!player?.id || !player?.club) return null;
+  const openValue = Math.max(1000, Number(player.value ?? 10000));
+  const possibleClubs = CLUBS.filter((club) => club.name !== player.club);
+  if (!possibleClubs.length) return null;
+  const club = pick(possibleClubs);
+  const country = getCountry(club.countryCode);
+
+  return {
+    id: makeId('offer'),
+    week,
+    expiresWeek: week + 2,
+    window: 'approche',
+    isHotWeek: false,
+    isCompetingOffer: true,
+    preWindow: false,
+    effectiveWeek: week,
+    playerId: player.id,
+    playerName: `${player.firstName} ${player.lastName}`,
+    club: club.name,
+    clubTier: club.tier,
+    clubCountry: country.flag,
+    clubCountryCode: club.countryCode,
+    clubCity: club.city,
+    price: Math.max(1000, Math.floor(openValue * (1.04 + Math.random() * 0.24))),
+    salMult: Math.round((1.15 + Math.random() * 0.55) * 100) / 100,
+    status: 'open',
+    actionSource: `event:${context}`,
+  };
 };
 
 export const createNarrativeArc = ({ type, player, club, week, origin, intensity = 1 }) => ({
@@ -256,29 +288,33 @@ export const applyNewsConsequences = ({ state, roster, posts, week }) => {
 
 export const generateNarrativeFollowups = ({ state, roster, week }) => {
   const arcs = (state.activeNarratives ?? []).filter((arc) => arc.weeksLeft > 1);
-  if (!arcs.length || Math.random() > 0.55) return { events: [], messages: [] };
+  if (!arcs.length || Math.random() > 0.55) return { events: [], messages: [], offers: [] };
 
   const arc = pick(arcs);
   const player = roster.find((item) => item.id === arc.playerId);
-  if (!player) return { events: [], messages: [] };
+  if (!player) return { events: [], messages: [], offers: [] };
 
   if (arc.type === 'media_crisis') {
     if (hasOpenMediaPressure(state, player.id) || getMediaCrisisCooldownWeeks(state, player.id) > 0) {
       return {
         events: [{ title: 'Réseaux sous contrôle', text: `${player.firstName} ${player.lastName} reste dans une séquence médiatique sensible, mais la pression a été contenue pour le moment.` }],
         messages: [],
+        offers: [],
       };
     }
     return {
       events: [{ title: 'Crise media qui continue', text: `${player.firstName} ${player.lastName} reste au centre des débats. La prochaine réponse peut calmer ou amplifier l'histoire.` }],
       messages: [createMessage({ player, type: 'media_pressure', week, context: arc.id })],
+      offers: [],
     };
   }
 
   if (arc.type === 'transfer_saga') {
+    const offer = Math.random() < 0.7 ? buildNarrativeOffer({ player, week, context: arc.id }) : null;
     return {
-      events: [{ title: 'Saga mercato', text: `Le dossier ${player.firstName} ${player.lastName} continue d'agiter les clubs. Un appel sérieux pourrait arriver si les performances suivent.` }],
+      events: [{ title: 'Saga mercato', text: offer ? `Le dossier ${player.firstName} ${player.lastName} s'accélère: ${offer.club} passe à l'action.` : `Le dossier ${player.firstName} ${player.lastName} continue d'agiter les clubs. Un appel sérieux pourrait arriver si les performances suivent.` }],
       messages: [createMessage({ player, type: 'transfer_request', week, context: arc.id })],
+      offers: offer ? [offer] : [],
     };
   }
 
@@ -286,6 +322,7 @@ export const generateNarrativeFollowups = ({ state, roster, week }) => {
     return {
       events: [{ title: 'Retour de blessure', text: `${player.firstName} ${player.lastName} s'approche d'un retour. La gestion des minutes sera décisive.` }],
       messages: [createMessage({ player, type: 'thanks', week, context: arc.id })],
+      offers: [],
     };
   }
 
@@ -293,6 +330,7 @@ export const generateNarrativeFollowups = ({ state, roster, week }) => {
     return {
       events: [{ title: 'Conflit coach', text: `Le dossier ${player.firstName} ${player.lastName} reste tendu avec le staff. Un échange direct peut éviter la casse.` }],
       messages: [createMessage({ player, type: 'role_frustration', week, context: arc.id })],
+      offers: [],
     };
   }
 
@@ -300,18 +338,22 @@ export const generateNarrativeFollowups = ({ state, roster, week }) => {
     return {
       events: [{ title: 'Montée en puissance', text: `${player.firstName} ${player.lastName} enchaîne les semaines fortes. La valeur du dossier grimpe.` }],
       messages: [createMessage({ player, type: 'thanks', week, context: arc.id })],
+      offers: [],
     };
   }
 
   if (arc.type === 'transfer_rumor') {
+    const offer = Math.random() < 0.45 ? buildNarrativeOffer({ player, week, context: arc.id }) : null;
     return {
-      events: [{ title: 'Rumeur de départ', text: `Une rumeur de départ entoure ${player.firstName} ${player.lastName}. Le prochain message comptera.` }],
+      events: [{ title: 'Rumeur de départ', text: offer ? `La rumeur prend forme: ${offer.club} prépare une proposition pour ${player.firstName} ${player.lastName}.` : `Une rumeur de départ entoure ${player.firstName} ${player.lastName}. Le prochain message comptera.` }],
       messages: [createMessage({ player, type: 'transfer_request', week, context: arc.id })],
+      offers: offer ? [offer] : [],
     };
   }
 
   return {
     events: [{ title: 'Buzz positif', text: `${player.firstName} ${player.lastName} profite d'une vague positive. Attention a ne pas laisser la pression grandir trop vite.` }],
     messages: Math.random() < 0.5 ? [createMessage({ player, type: 'thanks', week, context: arc.id })] : [],
+    offers: [],
   };
 };

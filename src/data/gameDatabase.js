@@ -6,6 +6,7 @@ import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
 import { STAFF_ROLES, createDefaultStaff } from '../systems/staffSystem';
 import { createDefaultClubMemory, createDefaultClubRelations, getClubProfile } from '../systems/clubSystem';
 import { getAgencyCapacity } from '../systems/agencySystem';
+import { MATCH_STATUS, calendarMatchToFixture } from '../systems/matchCalendarSystem';
 
 const slugId = (value) => String(value ?? '')
   .toLowerCase()
@@ -759,7 +760,9 @@ const buildFixtureRows = (state = {}, season = 1, week = 1) => {
     const fixtureWeek = fixture.week ?? (source === 'nextFixtures' ? week + 1 : week);
     const home = normalizeFixtureClub(fixture.homeClub ?? { name: fixture.homeClubName ?? fixture.home });
     const away = normalizeFixtureClub(fixture.awayClub ?? { name: fixture.awayClubName ?? fixture.away });
-    const hasScore = source === 'lastFixtures' && Number.isFinite(fixture.homeGoals) && Number.isFinite(fixture.awayGoals);
+    const hasScore = ['lastFixtures', MATCH_STATUS.PLAYED].includes(source)
+      && Number.isFinite(fixture.homeGoals)
+      && Number.isFinite(fixture.awayGoals);
     return {
       id: fixture.fixtureId ?? `fixture_${source}_${fixtureWeek}_${slugId(home.name)}_${slugId(away.name)}_${index}`,
       fixture_id: fixture.fixtureId ?? null,
@@ -767,7 +770,7 @@ const buildFixtureRows = (state = {}, season = 1, week = 1) => {
       week: fixtureWeek,
       season_week: getSeasonWeekFromWeek(fixtureWeek),
       source,
-      status: source === 'lastFixtures' ? 'played' : 'scheduled',
+      status: source === 'lastFixtures' ? MATCH_STATUS.PLAYED : source === 'nextFixtures' ? MATCH_STATUS.SCHEDULED : source,
       competition: fixture.isFriendly ? 'friendly' : fixture.competition ?? 'league',
       country_code: fixture.countryCode ?? home.country_code ?? away.country_code ?? null,
       club_id: home.id,
@@ -783,6 +786,12 @@ const buildFixtureRows = (state = {}, season = 1, week = 1) => {
     };
   };
 
+  const centralRows = safeArray(state.matchCalendar)
+    .filter((match) => match?.homeClub?.name && match?.awayClub?.name)
+    .map((match, index) => mapFixture(calendarMatchToFixture(match), match.status ?? MATCH_STATUS.SCHEDULED, index));
+
+  if (centralRows.length) return centralRows;
+
   return [
     ...safeArray(state.lastFixtures).map((fixture, index) => mapFixture(fixture, 'lastFixtures', index)),
     ...safeArray(state.nextFixtures).map((fixture, index) => mapFixture(fixture, 'nextFixtures', index)),
@@ -794,7 +803,7 @@ const inferCompetitionLabel = (match = {}) => {
   if (match.competition === 'CL') return 'Ligue des Champions';
   if (match.competition === 'EL') return 'Europa League';
   if (match.competition === 'ECL') return 'Conference League';
-  if (match.competition === 'world_cup') return 'Coupe du Monde';
+  if (match.competition === 'world_cup') return 'Tournoi Mondial';
   return match.isFriendly ? 'Match amical' : 'Championnat';
 };
 
@@ -848,7 +857,7 @@ const buildMatchResultRows = (state = {}, season = 1, week = 1) => {
       season_id: getSeasonId(season),
       season_week: getSeasonWeekFromWeek(matchWeek),
       competition: 'world_cup',
-      competition_label: 'Coupe du Monde',
+      competition_label: 'Tournoi Mondial',
       phase: match.phase ?? state.worldCupState?.phase ?? null,
       stage: match.phase ?? null,
       club_id: null,
@@ -982,7 +991,7 @@ const buildCompetitionHistoryRows = (state = {}, season = 1, week = 1) => {
     week: match.week ?? week,
     season_week: getSeasonWeekFromWeek(match.week ?? week),
     competition: 'world_cup',
-    competition_label: 'Coupe du Monde',
+    competition_label: 'Tournoi Mondial',
     country_code: match.countryCode ?? null,
     phase: match.phase ?? state.worldCupState?.phase ?? null,
     stage: match.phase ?? state.worldCupState?.phase ?? null,
@@ -1270,7 +1279,7 @@ const buildSeasonRows = (state = {}, week = 1) => [{
   number: getSeasonNumberFromWeek(week),
   start_date: makeGameStamp(getSeasonNumberFromWeek(week), 1),
   end_date: makeGameStamp(getSeasonNumberFromWeek(week), 38),
-  phase: state.worldCupState && state.worldCupState.phase !== 'done' ? 'Coupe du Monde' : 'Saison régulière',
+  phase: state.worldCupState && state.worldCupState.phase !== 'done' ? 'Tournoi Mondial' : 'Saison régulière',
   active: true,
 }];
 

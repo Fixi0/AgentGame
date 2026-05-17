@@ -1,6 +1,7 @@
 import { CLUBS } from '../data/clubs';
 import { getClubSquad } from '../data/squadDatabase';
-import { getSupercupMatch, getClubWorldCupFixtures, EURO_CUP_LABELS } from './europeanCupSystem';
+import { getClubWorldCupFixtures, EURO_CUP_LABELS } from './europeanCupSystem';
+import { simulateMatch } from '../engine/matchEngine';
 
 const findClub = (name) => CLUBS.find((c) => c.name === name) ?? null;
 
@@ -78,37 +79,44 @@ const getPlayerClub = (player) => ({
   city: player.clubCity,
 });
 
-// Tier base scores — wider gap so tier-1 clubs dominate tier-3/4 clubs realistically.
-const TIER_STRENGTH = { 1: 7.5, 2: 5.0, 3: 3.0, 4: 1.5 };
-
-const getClubStrength = (club, players = [], random = Math.random) => {
-  // Squad boost uses known agents' players; divided by 22 to keep scale manageable.
-  const squadBoost = players.length
-    ? players.reduce((sum, p) => sum + p.rating + p.form / 5, 0) / players.length / 22
-    : 0;
-  const base = TIER_STRENGTH[club.tier] ?? 1.5;
-  return Math.max(1, base + squadBoost + (Math.floor(random() * 13) - 6) / 10);
+const buildFallbackSimulationSquad = (club) => {
+  const baseRating = club.tier <= 1 ? 81 : club.tier === 2 ? 76 : club.tier === 3 ? 72 : 68;
+  return Array.from({ length: 11 }, (_, index) => ({
+    id: `${club.countryCode}_${club.name}_sim_${index + 1}`,
+    rating: baseRating + ((index % 5) - 2),
+    form: 62,
+    attributes: {
+      shooting: { current: 10 },
+      passing: { current: 10 },
+    },
+    roleId: index <= 1 ? 'center_back' : index <= 4 ? 'central_mid' : 'striker',
+    position: index === 0 ? 'GK' : index <= 4 ? 'DEF' : index <= 7 ? 'MIL' : 'ATT',
+  }));
 };
 
-const getTeamGoals = (ownStrength, rivalStrength, homeBonus, random = Math.random) => {
-  const base = Math.floor(random() * 3);
-  const strengthEdge = ownStrength - rivalStrength + homeBonus;
-  const extra = (random() < 0.18 + Math.max(0, strengthEdge) * 0.08 ? 1 : 0)
-    + (random() < 0.05 + Math.max(0, strengthEdge) * 0.03 ? 1 : 0);
-  return Math.max(0, Math.min(5, base + extra));
-};
+const buildSimulationSquad = (club, knownPlayers = []) =>
+  knownPlayers.length ? knownPlayers : buildFallbackSimulationSquad(club);
 
 const createFixture = ({ homeClub, awayClub, playersByClub, isFriendly = false, week = 1, season = 1, seasonWeek = 1 }) => {
   const seed = hashString(`${season}:${seasonWeek}:${homeClub.countryCode}:${homeClub.name}:${awayClub.name}`);
-  const random = createSeededRandom(seed);
   const homePlayers = playersByClub.get(clubKey(homeClub)) ?? [];
   const awayPlayers = playersByClub.get(clubKey(awayClub)) ?? [];
-  const homeStrength = getClubStrength(homeClub, homePlayers, random);
-  const awayStrength = getClubStrength(awayClub, awayPlayers, random);
-  // Friendlies: smaller gap, teams rotate squads → more "random" scorelines
-  const friendlyNoise = isFriendly ? (Math.floor(random() * 31) - 15) / 10 : 0;
-  const homeGoals = getTeamGoals(homeStrength + friendlyNoise, awayStrength, 0.25, random);
-  const awayGoals = getTeamGoals(awayStrength + friendlyNoise, homeStrength, 0, random);
+  const homeSimulationSquad = buildSimulationSquad(homeClub, homePlayers);
+  const awaySimulationSquad = buildSimulationSquad(awayClub, awayPlayers);
+  const simulation = simulateMatch({
+    homePlayers: homeSimulationSquad,
+    awayPlayers: awaySimulationSquad,
+    homeTeamName: homeClub.name,
+    awayTeamName: awayClub.name,
+    seed,
+  });
+  let homeGoals = simulation.homeGoals;
+  let awayGoals = simulation.awayGoals;
+  if (isFriendly) {
+    const random = createSeededRandom(seed + 991);
+    homeGoals = Math.max(0, Math.min(6, homeGoals + (random() < 0.18 ? 1 : 0) - (random() < 0.12 ? 1 : 0)));
+    awayGoals = Math.max(0, Math.min(6, awayGoals + (random() < 0.18 ? 1 : 0) - (random() < 0.12 ? 1 : 0)));
+  }
 
   return {
     fixtureId: `fx_${season}_${seasonWeek}_${homeClub.countryCode}_${hashString(`${homeClub.name}:${awayClub.name}`)}`,
@@ -120,7 +128,16 @@ const createFixture = ({ homeClub, awayClub, playersByClub, isFriendly = false, 
     countryCode: homeClub.countryCode,
     homeGoals,
     awayGoals,
+    homeXg: simulation.stats?.home?.xg ?? simulation.summary?.homeXg ?? null,
+    awayXg: simulation.stats?.away?.xg ?? simulation.summary?.awayXg ?? null,
+    homeShots: simulation.stats?.home?.shots ?? null,
+    awayShots: simulation.stats?.away?.shots ?? null,
+    homeShotsOnTarget: simulation.stats?.home?.shotsOnTarget ?? null,
+    awayShotsOnTarget: simulation.stats?.away?.shotsOnTarget ?? null,
+    homeChances: simulation.stats?.home?.chances ?? null,
+    awayChances: simulation.stats?.away?.chances ?? null,
     isFriendly,
+    simulation,
   };
 };
 
@@ -427,6 +444,8 @@ const toPlayerResult = ({ player, fixture, budget }) => {
   const ownGoals = isHome ? fixture.homeGoals : fixture.awayGoals;
   const opponentGoals = isHome ? fixture.awayGoals : fixture.homeGoals;
   const opponent = isHome ? fixture.awayClub : fixture.homeClub;
+  const ownStats = isHome ? fixture.simulation?.stats?.home : fixture.simulation?.stats?.away;
+  const opponentStats = isHome ? fixture.simulation?.stats?.away : fixture.simulation?.stats?.home;
   const teamKey = isHome ? clubKey(fixture.homeClub) : clubKey(fixture.awayClub);
   const currentBudget = budget?.get(teamKey) ?? { goals: ownGoals, assists: ownGoals };
   const random = createSeededRandom(hashString(`${fixture.fixtureId}:${player.id}:${fixture.week}`));
@@ -464,6 +483,16 @@ const toPlayerResult = ({ player, fixture, budget }) => {
     score: `${ownGoals}-${opponentGoals}`,
     goalsFor: ownGoals,
     goalsAgainst: opponentGoals,
+    fixtureStats: {
+      ownXg: ownStats?.xg ?? (isHome ? fixture.homeXg : fixture.awayXg) ?? null,
+      opponentXg: opponentStats?.xg ?? (isHome ? fixture.awayXg : fixture.homeXg) ?? null,
+      ownShots: ownStats?.shots ?? (isHome ? fixture.homeShots : fixture.awayShots) ?? null,
+      opponentShots: opponentStats?.shots ?? (isHome ? fixture.awayShots : fixture.homeShots) ?? null,
+      ownShotsOnTarget: ownStats?.shotsOnTarget ?? (isHome ? fixture.homeShotsOnTarget : fixture.awayShotsOnTarget) ?? null,
+      opponentShotsOnTarget: opponentStats?.shotsOnTarget ?? (isHome ? fixture.awayShotsOnTarget : fixture.homeShotsOnTarget) ?? null,
+      ownChances: ownStats?.chances ?? (isHome ? fixture.homeChances : fixture.awayChances) ?? null,
+      opponentChances: opponentStats?.chances ?? (isHome ? fixture.awayChances : fixture.homeChances) ?? null,
+    },
     result,
     ...playerOutput,
   };
@@ -499,7 +528,21 @@ export const simulateFixtureSquadResults = (fixture, roster = []) => {
     [clubKey(fixture.awayClub), { goals: fixture.awayGoals, assists: fixture.awayGoals }],
   ]);
 
-  return [...homeSquad, ...awaySquad].map((player) => toPlayerResult({ player, fixture, budget }));
+  const results = [...homeSquad, ...awaySquad].map((player) => toPlayerResult({ player, fixture, budget }));
+  const averageByClub = new Map();
+  [fixture.homeClub, fixture.awayClub].forEach((club) => {
+    const ratings = results
+      .filter((match) => match.club === club.name && Number.isFinite(match.matchRating))
+      .map((match) => match.matchRating);
+    const average = ratings.length
+      ? Number((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length).toFixed(1))
+      : null;
+    averageByClub.set(clubKey(club), average);
+  });
+  return results.map((match) => ({
+    ...match,
+    teamAverageRating: averageByClub.get(`${match.clubCountryCode}:${match.club}`) ?? null,
+  }));
 };
 
 export const simulateFixturePlayerResults = (fixtures = [], roster = []) =>
@@ -531,25 +574,6 @@ export const buildWeeklyFixtures = (roster = [], week = 1) => {
       fixtures.push(createFixture({ homeClub, awayClub, playersByClub, isFriendly: isFriendlyWeek, week, season, seasonWeek }));
     });
   });
-
-  // ── Supercoupe UEFA (semaine 2) ────────────────────────────────────────────
-  if (seasonWeek === 2) {
-    const sc = getSupercupMatch(season);
-    const home = sc && findClub(sc.homeClub);
-    const away = sc && findClub(sc.awayClub);
-    if (home && away) {
-      const fx = createFixture({ homeClub: home, awayClub: away, playersByClub, isFriendly: false, week, season, seasonWeek });
-      fixtures.push({
-        ...fx,
-        fixtureId: `sc_${season}_${home.name}_${away.name}`,
-        competition: 'SC',
-        competitionLabel: EURO_CUP_LABELS.SC.name,
-        countryCode: '__SC__', // marqueur : ne pas peupler le classement domestique
-        phase: sc.phase,
-        venue: sc.venue,
-      });
-    }
-  }
 
   // ── Mondial des Clubs (semaines 35-37) ─────────────────────────────────────
   if (seasonWeek >= 35 && seasonWeek <= 37) {

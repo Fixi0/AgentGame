@@ -24,7 +24,7 @@ export const getWorldStateDescription = (worldState) => {
   if (worldState.tendance === 'jeunes') lines.push('Saison des jeunes — les pépites valent de l\'or');
   if (worldState.tendance === 'experience') lines.push('Les clubs chassent l\'expérience et la maturité');
   if (worldState.scandal_media) lines.push('Presse en mode chasseur — les scandales font la une');
-  if (worldState.coupe_du_monde) lines.push('Année Coupe du Monde — hystérie des transferts');
+  if (worldState.coupe_du_monde) lines.push('Année Tournoi Mondial — hystérie des transferts');
   if (worldState.phase_europeenne) lines.push('Phase KO européenne — les valeurs s\'envolent');
   if (worldState.leagues_en_feu?.length) lines.push(`Ligues qui recrutent fort : ${worldState.leagues_en_feu.join(', ')}`);
   return lines;

@@ -52,7 +52,7 @@ export const updateLeagueTables = (tables = {}, fixtures = []) => {
   const nextTables = { ...tables };
 
   fixtures.forEach((fixture) => {
-    // Ignorer les compétitions hors-championnat (Supercoupe UEFA, Mondial des Clubs, coupes euro)
+    // Ignorer les compétitions hors-championnat (Mondial des Clubs, coupes euro)
     if (fixture.competition && fixture.competition !== 'LEAGUE') return;
     const countryCode = fixture.countryCode ?? fixture.homeClub.countryCode;
     if (countryCode === '__SC__' || countryCode === '__CWC__') return;

@@ -1,6 +1,6 @@
 /**
  * individualTrophiesSystem.js
- * Trophées individuels en fin de saison : Ballon d'Or, Soulier d'Or, équipe-type.
+ * Trophées individuels en fin de saison : Ballon Global, Soulier d'Or, équipe-type.
  */
 import { createPlayerCatalog } from '../data/squadDatabase';
 
@@ -13,7 +13,7 @@ export const computeSeasonTrophies = (state) => {
   // include managed roster too
   const all = [...catalog, ...(state.roster ?? [])];
 
-  // Ballon d'Or: combine rating, goals, assists; pick top
+  // Ballon Global: combine rating, goals, assists; pick top
   const scored = all
     .filter((p) => p?.id && p?.firstName)
     .map((p) => {
@@ -73,7 +73,7 @@ export const computeSeasonTrophies = (state) => {
 export const recordSeasonTrophies = (state) => {
   const trophies = computeSeasonTrophies(state);
   const list = [trophies, ...((state.seasonTrophies) ?? [])].slice(0, 30);
-  // Mark managed players who won Ballon d'Or
+  // Mark managed players who won Ballon Global
   const updatedRoster = (state.roster ?? []).map((p) => {
     if (trophies.ballonDor?.playerId === p.id) {
       return { ...p, ballonDorWins: (p.ballonDorWins ?? 0) + 1 };

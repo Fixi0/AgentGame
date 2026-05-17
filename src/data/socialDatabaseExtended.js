@@ -223,7 +223,7 @@ export const FAN_POST_EXTRA = [
 export const PULSE_TEMPLATES_EXTRA = [
   // mercato
   ({ p }) => `🚨 BREAKING — ${fullName(p)} discute en secret avec un cador anglais. Réunion prévue à Londres ✈️`,
-  ({ p }) => `Un agent FIFA travaille un transfert XXL pour ${fullName(p)}. Plus d'infos 24h.`,
+  ({ p }) => `Un agent Global Football Board travaille un transfert XXL pour ${fullName(p)}. Plus d'infos 24h.`,
   ({ p }) => `${p.club} fixe le prix de ${p.lastName} à 35M€. Trop cher selon les cadors européens.`,
   ({ p }) => `Pré-accord trouvé entre ${p.lastName} et un club de Bundesliga. Reste à convaincre ${p.club}.`,
   ({ p }) => `Le clan ${p.lastName} demande un salaire revu à la hausse. ${p.club} étudie.`,
@@ -303,7 +303,7 @@ export const PULSE_NO_PLAYER_EXTRA = [
   { name: 'XGFanatic', handle: '@xg_fanatic', text: 'Serie A : Naples redevient surprenant dans la verticalité. Stats à l\'appui.' },
   // Europe
   { name: 'TouchlineFR', handle: '@touchline_fr', text: '🌍 Mondial des Clubs cet été : 32 équipes. Nouveau format, gros enjeux.' },
-  { name: 'TransferRoom', handle: '@transferroom', text: '🏆 Supercoupe UEFA : les vainqueurs de C1 et Europa s\'affrontent dans 6 semaines.' },
+  { name: 'TransferRoom', handle: '@transferroom', text: '🏆 Les clubs européens finalisent leur préparation avant le retour des soirées continentales.' },
 ];
 
 // ============= COMMENTAIRES additionnels (50+) =============

@@ -758,7 +758,7 @@ export const getMessageContextOutcome = ({ message, responseType, player }) => {
       type: 'media',
       impact: 2,
       text: `La convocation de ${playerName} en sélection fait monter l'attention autour de son dossier.`,
-      account: { name: 'World Cup Chronicle', kind: 'journal', icon: 'WC', color: '#1a1a6e' },
+      account: { name: 'Global Tournament Chronicle', kind: 'journal', icon: 'WC', color: '#1a1a6e' },
     };
     outcome.followup = {
       type: 'thanks',
@@ -782,8 +782,8 @@ export const getMessageContextOutcome = ({ message, responseType, player }) => {
     outcome.news = {
       type: 'media',
       impact: 1,
-      text: `${playerName} reste au centre de la Coupe du Monde. Le dossier attire plus de regards qu'avant.`,
-      account: { name: 'World Cup Chronicle', kind: 'journal', icon: 'WC', color: '#1a1a6e' },
+      text: `${playerName} reste au centre de le Tournoi Mondial. Le dossier attire plus de regards qu'avant.`,
+      account: { name: 'Global Tournament Chronicle', kind: 'journal', icon: 'WC', color: '#1a1a6e' },
     };
     return outcome;
   }
@@ -886,10 +886,49 @@ export const getMessageContextOutcome = ({ message, responseType, player }) => {
     return outcome;
   }
 
+  if (message?.type === 'national_pride') {
+    outcome.actionOverride = responseType === 'professionnel'
+      ? { type: 'press_release', label: 'Communication sélection cadrée' }
+      : responseType === 'empathique'
+        ? { type: 'deal_followup', label: 'Capital confiance sélection renforcé' }
+        : { type: 'focus_reset', label: 'Focus club maintenu après sélection' };
+    outcome.effects.trust += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 2 : -1;
+    outcome.effects.moral += responseType === 'empathique' ? 3 : responseType === 'professionnel' ? 2 : 0;
+    outcome.effects.reputation += responseType === 'professionnel' ? 2 : 1;
+    outcome.effects.credibility += responseType === 'professionnel' ? 1 : 0;
+    outcome.effects.pressure += responseType === 'ferme' ? 2 : -1;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? 0 : 2,
+      text: responseType === 'ferme'
+        ? `${playerName} reste discret après sa convocation et recentre le discours sur le club.`
+        : `La sélection de ${playerName} booste sa cote, l'agence encadre une communication maîtrisée.`,
+      account: { name: 'International Watch', kind: 'media', icon: 'IW', color: '#1a1a6e' },
+    };
+    outcome.followup = {
+      type: 'staff_dialogue',
+      senderRole: 'staff',
+      senderName: 'Responsable communication',
+      subject: 'Fenêtre sélection',
+      body: responseType === 'ferme'
+        ? "Compris. On réduit les prises de parole et on garde une ligne simple orientée performance."
+        : "Compris. On déroule un plan média léger pour valoriser la sélection sans perturber le sportif.",
+    };
+    return outcome;
+  }
+
   if (message?.type === 'injury_worry') {
     outcome.effects.moral += responseType === 'empathique' ? 6 : responseType === 'professionnel' ? 3 : -2;
     outcome.effects.trust += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 2 : -1;
     outcome.effects.pressure += responseType === 'ferme' ? 2 : -4;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? -1 : 1,
+      text: responseType === 'ferme'
+        ? `Le staff confirme que ${playerName} suivra un protocole strict, sans risque inutile.`
+        : `Point médical validé: reprise encadrée pour ${playerName}, le club veut éviter toute rechute.`,
+      account: { name: 'Cellule Médicale', kind: 'club', icon: 'CM', color: '#16a34a' },
+    };
     outcome.followup = {
       type: 'staff_dialogue',
       senderRole: 'staff',
@@ -898,6 +937,183 @@ export const getMessageContextOutcome = ({ message, responseType, player }) => {
       body: responseType === 'ferme'
         ? "Le protocole suit son cours. On veut un retour sans précipitation."
         : "On confirme un protocole progressif et une reprise encadrée pour éviter la rechute.",
+    };
+    return outcome;
+  }
+
+  if (message?.type === 'life_event') {
+    outcome.effects.trust += responseType === 'empathique' ? 5 : responseType === 'professionnel' ? 3 : -2;
+    outcome.effects.moral += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 2 : -3;
+    outcome.effects.pressure += responseType === 'ferme' ? 2 : -3;
+    outcome.effects.reputation += responseType === 'professionnel' ? 1 : 0;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? -1 : 1,
+      text: responseType === 'ferme'
+        ? `${playerName} garde le focus terrain malgré un contexte personnel sensible.`
+        : `L'agence adapte le plan sportif de ${playerName} pour préserver l'équilibre personnel.`,
+      account: { name: 'Inside Agency', kind: 'agency', icon: 'IA', color: '#f59e0b' },
+    };
+    outcome.followup = {
+      type: 'staff_dialogue',
+      senderRole: 'staff',
+      senderName: 'Conseiller carrière',
+      subject: 'Plan personnel ajusté',
+      body: responseType === 'ferme'
+        ? "Message reçu. On maintient le cap sportif, mais on surveille l'équilibre semaine par semaine."
+        : "Message reçu. On ajuste les pistes mercato et le rythme des discussions selon les priorités personnelles du joueur.",
+    };
+    return outcome;
+  }
+
+  if (message?.type === 'form_slump') {
+    outcome.actionOverride = responseType === 'professionnel'
+      ? { type: 'coach_talk', label: 'Plan relance performance lancé' }
+      : responseType === 'empathique'
+        ? { type: 'voice_call', label: 'Appel confiance joueur lancé' }
+        : { type: 'focus_reset', label: 'Cadre performance renforcé' };
+    outcome.effects.trust += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 2 : -2;
+    outcome.effects.moral += responseType === 'empathique' ? 5 : responseType === 'professionnel' ? 2 : -3;
+    outcome.effects.pressure += responseType === 'ferme' ? 2 : -3;
+    outcome.effects.clubRelation += responseType === 'professionnel' ? 1 : responseType === 'ferme' ? -1 : 0;
+    outcome.effects.clubMemoryTrust += responseType === 'professionnel' ? 1 : responseType === 'ferme' ? -1 : 0;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? -1 : 1,
+      text: responseType === 'ferme'
+        ? `Le clan de ${playerName} exige une réaction immédiate après la baisse de forme.`
+        : `L'agence met en place un plan de relance pour ${playerName} avec le staff du club.`,
+      account: { name: 'Data Matchline', kind: 'data', icon: 'DM', color: '#2f80ed' },
+    };
+    outcome.followup = {
+      type: 'staff_dialogue',
+      senderRole: 'staff',
+      senderName: `Staff de ${player?.club ?? 'club'}`,
+      subject: 'Plan relance validé',
+      body: responseType === 'ferme'
+        ? "Reçu. Le joueur sera attendu sur une réponse immédiate aux prochains matchs."
+        : "Reçu. Le staff applique un plan relance: charge adaptée, suivi vidéo et objectifs sur les 2 prochaines semaines.",
+    };
+    return outcome;
+  }
+
+  if (message?.type === 'retirement_thoughts') {
+    outcome.actionOverride = responseType === 'professionnel'
+      ? { type: 'club_check', label: 'Plan fin de carrière cadré' }
+      : responseType === 'empathique'
+        ? { type: 'voice_call', label: 'Entretien personnel lancé' }
+        : { type: 'focus_reset', label: 'Cadre court terme confirmé' };
+    outcome.effects.trust += responseType === 'empathique' ? 5 : responseType === 'professionnel' ? 3 : -2;
+    outcome.effects.moral += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 2 : -3;
+    outcome.effects.pressure += responseType === 'ferme' ? 2 : -2;
+    outcome.effects.credibility += responseType === 'professionnel' ? 1 : 0;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? -1 : 1,
+      text: responseType === 'ferme'
+        ? `${playerName} veut rester focus court terme, sans projection publique sur sa retraite.`
+        : `L'agence ouvre un plan de fin de carrière pour ${playerName}, entre performance et transition.`,
+      account: { name: 'Career Desk', kind: 'media', icon: 'CD', color: '#6366f1' },
+    };
+    outcome.followup = {
+      type: 'staff_dialogue',
+      senderRole: 'staff',
+      senderName: 'Conseiller carrière',
+      subject: 'Plan de transition',
+      body: responseType === 'ferme'
+        ? "Compris. On maintient une logique sportive court terme et on reporte les décisions de transition."
+        : "Compris. On prépare un plan en 3 temps: horizon sportif, dernier contrat et options post-carrière.",
+    };
+    return outcome;
+  }
+
+  if (message?.type === 'captain_demand') {
+    outcome.actionOverride = responseType === 'professionnel'
+      ? { type: 'coach_talk', label: 'Dossier brassard ouvert' }
+      : responseType === 'empathique'
+        ? { type: 'voice_call', label: 'Appel leadership joueur lancé' }
+        : { type: 'focus_reset', label: 'Leadership terrain exigé' };
+    outcome.effects.trust += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 2 : -2;
+    outcome.effects.moral += responseType === 'empathique' ? 3 : responseType === 'professionnel' ? 2 : -2;
+    outcome.effects.pressure += responseType === 'ferme' ? 2 : -2;
+    outcome.effects.clubRelation += responseType === 'professionnel' ? 2 : responseType === 'ferme' ? -2 : 1;
+    outcome.effects.clubMemoryTrust += responseType === 'professionnel' ? 1 : responseType === 'ferme' ? -2 : 1;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? -1 : 1,
+      text: responseType === 'ferme'
+        ? `Le dossier capitanat de ${playerName} se crispe après une prise de position dure.`
+        : `L'agence ouvre un échange avec le club autour du leadership de ${playerName}.`,
+      account: { name: 'Vestiaire Live', kind: 'media', icon: 'VL', color: '#172026' },
+    };
+    outcome.followup = {
+      type: 'staff_dialogue',
+      senderRole: 'staff',
+      senderName: `Coach de ${player?.club ?? 'club'}`,
+      subject: 'Point capitanat',
+      body: responseType === 'ferme'
+        ? "Le brassard n'est pas négocié publiquement. Le joueur devra imposer son leadership sur le terrain."
+        : "Message reçu. Le staff évaluera son leadership sur les prochaines semaines avant décision.",
+    };
+    return outcome;
+  }
+
+  if (message?.type === 'role_frustration') {
+    outcome.effects.trust += responseType === 'empathique' ? 4 : responseType === 'professionnel' ? 2 : -2;
+    outcome.effects.moral += responseType === 'empathique' ? 3 : responseType === 'professionnel' ? 1 : -3;
+    outcome.effects.pressure += responseType === 'ferme' ? 3 : -1;
+    outcome.effects.clubRelation += responseType === 'professionnel' ? 1 : responseType === 'ferme' ? -2 : 0;
+    outcome.effects.clubMemoryTrust += responseType === 'professionnel' ? 1 : responseType === 'ferme' ? -2 : 0;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? -1 : 1,
+      text: responseType === 'ferme'
+        ? `Le dossier temps de jeu de ${playerName} se tend après une réponse musclée.`
+        : `L'agence ouvre un dialogue structuré avec le club pour clarifier le rôle de ${playerName}.`,
+      account: { name: 'Le Vestiaire', kind: 'media', icon: 'LV', color: '#172026' },
+    };
+    outcome.followup = {
+      type: 'staff_dialogue',
+      senderRole: 'staff',
+      senderName: `Staff de ${player?.club ?? 'club'}`,
+      subject: 'Point rôle demandé',
+      body: responseType === 'ferme'
+        ? "Message reçu. Le coach veut des preuves immédiates sur le terrain."
+        : "Message reçu. Un point sur le rôle et les minutes est programmé cette semaine.",
+    };
+    return outcome;
+  }
+
+  if (message?.type === 'coach_dialogue') {
+    outcome.effects.trust += responseType === 'empathique' ? 3 : responseType === 'professionnel' ? 2 : -1;
+    outcome.effects.moral += responseType === 'empathique' ? 2 : responseType === 'professionnel' ? 1 : -2;
+    outcome.effects.pressure += responseType === 'ferme' ? 2 : -1;
+    outcome.effects.clubRelation += responseType === 'professionnel' ? 2 : responseType === 'ferme' ? -2 : 1;
+    outcome.effects.clubMemoryTrust += responseType === 'professionnel' ? 1 : responseType === 'ferme' ? -2 : 1;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? -1 : 1,
+      text: responseType === 'ferme'
+        ? `Le ton monte entre le clan de ${playerName} et le coach.`
+        : `Le staff confirme un échange constructif avec le clan de ${playerName} sur son temps de jeu.`,
+      account: { name: 'Canal Football Desk', kind: 'journal', icon: 'CF', color: '#172026' },
+    };
+    return outcome;
+  }
+
+  if (message?.type === 'ds_dialogue') {
+    outcome.effects.trust += responseType === 'empathique' ? 3 : responseType === 'professionnel' ? 2 : -1;
+    outcome.effects.moral += responseType === 'empathique' ? 2 : responseType === 'professionnel' ? 1 : -2;
+    outcome.effects.credibility += responseType === 'professionnel' ? 2 : responseType === 'empathique' ? 1 : 0;
+    outcome.effects.clubRelation += responseType === 'professionnel' ? 2 : responseType === 'ferme' ? -1 : 1;
+    outcome.effects.clubMemoryTrust += responseType === 'professionnel' ? 2 : responseType === 'ferme' ? -1 : 1;
+    outcome.news = {
+      type: 'media',
+      impact: responseType === 'ferme' ? 0 : 1,
+      text: responseType === 'ferme'
+        ? `La direction reste sous pression sur le dossier ${playerName}.`
+        : `La direction et l'agence annoncent une feuille de route plus claire pour ${playerName}.`,
+      account: { name: 'Mercato Insider', kind: 'journal', icon: 'MI', color: '#172026' },
     };
     return outcome;
   }

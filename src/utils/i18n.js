@@ -110,8 +110,8 @@ const EXACT_EN = new Map(Object.entries({
   'À venir': 'Upcoming',
   'Hors tournoi': 'No tournament',
   'Championnat': 'League',
-  'Coupe du monde': 'World Cup',
-  'Tournoi Mondial': 'World Cup',
+  'Coupe du monde': 'Global Tournament',
+  'Tournoi Mondial': 'Global Tournament',
   'Défi International': 'International Challenge',
   'Tous les clubs jouent leur saison': 'All clubs play their season',
   'La sélection nationale ne prend pas toute la saison': 'National teams do not take the whole season',
@@ -374,8 +374,8 @@ const PHRASE_EN = new Map(Object.entries({
   'transfert': 'transfer',
   'Mercato': 'Transfer window',
   'Championnat': 'League',
-  'Coupe du monde': 'World Cup',
-  'Tournoi Mondial': 'World Cup',
+  'Coupe du monde': 'Global Tournament',
+  'Tournoi Mondial': 'Global Tournament',
   'Défi International': 'International Challenge',
   'Europe': 'Europe',
   'Ligue des Champions': 'Champions League',
@@ -515,7 +515,7 @@ const PHRASE_EN = new Map(Object.entries({
   'Masquer le détail bureau': 'Hide office details',
   'Voir le détail bureau (chiffres, saison, agence)': 'View office details (numbers, season, agency)',
   'Coupes européennes': 'European cups',
-  'Tournoi mondial': 'World Cup',
+  'Tournoi mondial': 'Global Tournament',
   'Aucun engagé': 'None involved',
   'Vision agence': 'Agency vision',
   'Ce que tu construis': 'What you are building',
@@ -1135,11 +1135,11 @@ const PHRASE_EN = new Map(Object.entries({
   'Presse agressive': 'Aggressive press',
   'Les journalistes cherchent les histoires sensibles. Les petites phrases peuvent devenir des crises.':
     'Journalists are looking for sensitive stories. Small comments can become crises.',
-  "La liste du Ballon d'Or tombe, mais aucun joueur de l'agence n'est encore assez haut dans la hiérarchie.":
+  "La liste du Ballon Global tombe, mais aucun joueur de l'agence n'est encore assez haut dans la hiérarchie.":
     'The Golden Ball shortlist is out, but no agency player is high enough in the hierarchy yet.',
-  "Nominé Ballon d'Or": 'Golden Ball nominee',
-  "Remporte le Ballon d'Or": 'Wins the Golden Ball',
-  "Le Ballon d'Or est attribué hors de l'agence. Les standards mondiaux restent très élevés: niveau élite, grosse moyenne et impact décisif toute la saison.":
+  "Nominé Ballon Global": 'Golden Ball nominee',
+  "Remporte le Ballon Global": 'Wins the Golden Ball',
+  "Le Ballon Global est attribué hors de l'agence. Les standards mondiaux restent très élevés: niveau élite, grosse moyenne et impact décisif toute la saison.":
     'The Golden Ball goes outside the agency. Global standards remain very high: elite level, strong average rating and decisive impact all season.',
   'Mise à jour': 'Update',
   'Messages du jour': "Today's messages",

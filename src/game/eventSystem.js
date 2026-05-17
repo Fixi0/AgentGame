@@ -130,7 +130,7 @@ export const chooseInteractiveEvent = (roster, context = {}) => {
     if (event.id === 'retirement_decision' && player.age < 31) return false;
     if (event.id === 'youth_mentor' && player.age < 28) return false;
     if (event.types?.includes('vestiaire') && !(context.vestiaireTension ?? 0)) return false;
-    // Events liés à la Coupe du Monde — uniquement quand la CdM est active
+    // Events liés à le Tournoi Mondial — uniquement quand la CdM est active
     if (event.wcOnly && !context.worldCupActive) return false;
     if (!event.personalities?.length) return true;
     return event.personalities.includes(player.personality);

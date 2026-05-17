@@ -430,7 +430,7 @@ function ContractTerms({ player, role, contractYears, signingBonus, releaseClaus
             <input type="number" min="5000" max={Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))} step="1000" value={bonusPackage} onChange={(event) => onBonusPackage(Math.max(0, Number(event.target.value)))} style={S.textInput} />
           </label>
           <label style={S.fieldLabel}>
-            Bonus Ballon d'Or
+            Bonus Ballon Global
             <input type="number" min="0" max={Math.max(5000, Math.floor((player.weeklySalary ?? 10000) * MAX_BONUS_PACKAGE_MULTIPLIER))} step="1000" value={ballonDorBonus} onChange={(event) => onBallonDorBonus(Math.max(0, Number(event.target.value)))} style={S.textInput} />
           </label>
           <label style={{ ...S.fieldLabel, flexDirection: 'row', alignItems: 'center', gap: 8 }}>

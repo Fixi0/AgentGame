@@ -11,7 +11,6 @@ import redCard from '../assets/events/red-card.jpg';
 import matchCelebrate from '../assets/events/match-celebrate.jpg';
 import goalCelebration from '../assets/events/goal-celebration.jpg';
 import matchAction from '../assets/events/match-action.jpg';
-import matchTackle from '../assets/events/match-tackle.jpg';
 import matchSave from '../assets/events/match-save.jpg';
 import matchWide from '../assets/events/match-wide.jpg';
 import matchHeader from '../assets/events/match-header.jpg';
@@ -27,34 +26,38 @@ import pressConference from '../assets/events/press-conference.jpg';
 import contractSigning from '../assets/events/contract-signing.jpg';
 import bootDeal from '../assets/events/boot-deal.jpg';
 import deadlineDay from '../assets/events/deadline-day.jpg';
-import charity from '../assets/events/charity.jpg';
 import crowdUltras from '../assets/events/crowd-ultras.jpg';
 import fans from '../assets/events/fans.jpg';
 import euroFinal from '../assets/events/euro-final.jpg';
-import worldCup from '../assets/events/world-cup.jpg';
-import trophyImg from '../assets/events/trophy.jpg';
 import penaltyMiss from '../assets/events/penalty-miss.jpg';
 import tacticsBoard from '../assets/events/tactics-board.jpg';
+import lockerRoomDoubt from '../assets/events/locker-room-doubt.jpg';
+import stadiumArrival from '../assets/events/stadium-arrival.jpg';
+import stadiumNight from '../assets/events/stadium-night.jpg';
+import agentOfficeCall from '../assets/events/agent-office-call.jpg';
+import physioRoom from '../assets/events/physio-room.jpg';
 
 // Multi-image pools keyed by semantic context
 export const POOLS = {
-  matchWin: [matchCelebrate, goalCelebration, teamHuddle, matchAction, matchHeader],
-  matchLoss: [benched, lockerFight, matchTackle, penaltyMiss, stadiumTunnel],
-  matchDraw: [matchAction, matchWide, matchHeader, teamBus, tacticsBoard],
-  matchKeeper: [matchSave, matchAction, matchWide],
-  performanceGood: [perfGood, matchCelebrate, goalCelebration, matchHeader, teamHuddle],
-  performanceBad: [perfBad, benched, penaltyMiss, lockerFight, matchTackle],
-  mediaGood: [mediaGood, pressConference, pressRoom, charity],
-  mediaBad: [mediaBad, scandal, pressRoom],
-  fansGood: [fansGood, fans, crowdUltras, charity],
-  fansBad: [fansBad, crowdUltras, scandal],
-  scandal: [scandal, mediaBad, lockerFight],
-  injury: [injury, recovery, benched],
-  redCard: [redCard, lockerFight, penaltyMiss],
-  transfer: [transfer, contractSigning, deadlineDay, bootDeal],
-  europe: [euroFinal, matchCelebrate, stadiumTunnel],
-  worldCup: [worldCup, euroFinal, matchCelebrate],
-  training: [training, tacticsBoard, teamHuddle],
+  matchWin: [goalCelebration, matchCelebrate, stadiumNight, matchHeader, teamHuddle],
+  matchLoss: [lockerRoomDoubt, benched, lockerFight, matchAction, penaltyMiss, stadiumArrival],
+  matchDraw: [stadiumNight, matchWide, matchHeader, teamBus, tacticsBoard],
+  matchKeeper: [matchSave, stadiumNight, matchWide],
+  performanceGood: [goalCelebration, perfGood, matchCelebrate, matchHeader, teamHuddle],
+  performanceBad: [lockerRoomDoubt, perfBad, benched, penaltyMiss, lockerFight, matchAction],
+  mediaGood: [agentOfficeCall, mediaGood, pressConference, pressRoom, teamHuddle],
+  mediaBad: [agentOfficeCall, mediaBad, scandal, pressRoom],
+  fansGood: [stadiumNight, fansGood, fans, crowdUltras, teamHuddle],
+  fansBad: [fansBad, crowdUltras, scandal, lockerRoomDoubt],
+  scandal: [scandal, mediaBad, lockerFight, agentOfficeCall],
+  injury: [physioRoom, injury, recovery, lockerRoomDoubt],
+  redCard: [redCard, lockerFight, penaltyMiss, lockerRoomDoubt],
+  transfer: [agentOfficeCall, transfer, contractSigning, deadlineDay, bootDeal],
+  europe: [euroFinal, stadiumNight, matchCelebrate, stadiumArrival],
+  worldCup: [euroFinal, stadiumNight, matchCelebrate, matchWide],
+  training: [teamHuddle, training, tacticsBoard, stadiumArrival],
+  personal: [stadiumArrival, lockerRoomDoubt, agentOfficeCall],
+  matchday: [stadiumNight, matchWide, stadiumArrival, matchHeader],
 };
 
 const ID_OVERRIDES = {
@@ -85,6 +88,11 @@ const ID_OVERRIDES = {
   viral_interview: { pool: 'mediaGood', accent: '#00a676' },
   press_conference_week: { pool: 'mediaGood', accent: '#00a676' },
   european_goal: { pool: 'europe', accent: '#7dd3fc' },
+  family_issue: { pool: 'personal', accent: '#f59e0b' },
+  family_visit: { pool: 'personal', accent: '#f59e0b' },
+  training_ground: { pool: 'training', accent: '#00a676' },
+  open_training: { pool: 'training', accent: '#00a676' },
+  matchday: { pool: 'matchday', accent: '#00a676' },
 };
 
 const TYPE_TO_POOL = {
@@ -131,12 +139,15 @@ const resolvePool = (event) => {
   if (id && ID_OVERRIDES[id]) return POOLS[ID_OVERRIDES[id].pool] ?? POOLS.performanceGood;
 
   const label = String(event.label || '').toLowerCase();
-  if (label.includes('blessure') || label.includes('rechute')) return POOLS.injury;
+  if (label.includes('blessure') || label.includes('rechute') || label.includes('douleur') || label.includes('genou') || label.includes('physio') || label.includes('soins')) return POOLS.injury;
   if (label.includes('rouge')) return POOLS.redCard;
+  if (label.includes('entrainement') || label.includes('entraînement') || label.includes('training') || label.includes('séance') || label.includes('seance') || label.includes('préparation') || label.includes('preparation')) return POOLS.training;
+  if (label.includes('famille') || label.includes('maman') || label.includes('family') || label.includes('entourage') || label.includes('discussion')) return POOLS.personal;
+  if (label.includes('stade') || label.includes('affluence') || label.includes('matchday') || label.includes('jour de match')) return POOLS.matchday;
+  if (label.includes('bureau') || label.includes('appel') || label.includes('call') || label.includes('agent')) return event.good ? POOLS.mediaGood : POOLS.mediaBad;
   if (label.includes('supporter') || label.includes('fan')) return event.good ? POOLS.fansGood : POOLS.fansBad;
   if (label.includes('contrat') || label.includes('sponsor') || label.includes('transfert') || label.includes('mercato')) return POOLS.transfer;
   if (label.includes('interview') || label.includes('presse') || label.includes('média') || label.includes('media')) return event.good ? POOLS.mediaGood : POOLS.mediaBad;
-  if (label.includes('entourage') || label.includes('discussion')) return POOLS.mediaGood;
   if (label.includes('ballon')) return POOLS.performanceGood;
   if (label.includes('european') || label.includes('ldc') || label.includes('champions')) return POOLS.europe;
 
@@ -187,13 +198,18 @@ export const getEventImage = (opts = {}) => {
 };
 
 const POST_KIND_POOLS = {
-  player: POOLS.performanceGood,
-  club: [...POOLS.transfer, ...POOLS.matchWin],
+  player: [...POOLS.performanceGood, ...POOLS.training, ...POOLS.matchday],
+  club: [...POOLS.matchday, ...POOLS.transfer, ...POOLS.matchWin],
   press: [...POOLS.mediaGood, ...POOLS.mediaBad, ...POOLS.scandal],
   fan: [...POOLS.fansGood, ...POOLS.fansBad],
 };
 export const getPostImage = ({ kind = 'player', tag, seed = 0, used = null } = {}) => {
   if (tag === 'injury') return pickFromPool(POOLS.injury, seed, used);
+  if (tag === 'training' || tag === 'session') return pickFromPool(POOLS.training, seed, used);
+  if (tag === 'matchday' || tag === 'match') return pickFromPool(POOLS.matchday, seed, used);
+  if (tag === 'goal' || tag === 'win') return pickFromPool(POOLS.matchWin, seed, used);
+  if (tag === 'family' || tag === 'personal' || tag === 'recovery') return pickFromPool(POOLS.personal, seed, used);
+  if (tag === 'office' || tag === 'agent' || tag === 'meeting') return pickFromPool(POOLS.mediaGood, seed, used);
   if (tag === 'transfer' || tag === 'signing' || tag === 'mercato') return pickFromPool(POOLS.transfer, seed, used);
   if (tag === 'scandal' || tag === 'controversy') return pickFromPool(POOLS.scandal, seed, used);
   if (tag === 'red_card') return pickFromPool(POOLS.redCard, seed, used);

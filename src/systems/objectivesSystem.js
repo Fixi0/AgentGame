@@ -248,7 +248,7 @@ const getProgressCounters = (state = {}) => ({
   reputation: state.reputation ?? 0,
   totalEarned: state.stats?.totalEarned ?? 0,
   transfersDone: state.stats?.transfersDone ?? 0,
-  playersSigned: state.stats?.playersSigned ?? 0,
+  playersSigned: Number.isFinite(state.stats?.playersSigned) ? state.stats.playersSigned : 0,
   seasonsPlayed: state.stats?.seasonsPlayed ?? 0,
   shopPurchases: state.shopStats?.purchasesTotal ?? 0,
   shopGemsSpent: state.shopStats?.gemsSpentTotal ?? 0,

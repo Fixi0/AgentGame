@@ -1,7 +1,7 @@
 import { CLUBS } from '../data/clubs';
 import { EURO_CUP_LABELS } from '../systems/europeanCupSystem';
 import { createManualNewsPost } from '../systems/newsSystem';
-import { getCalendarSnapshot } from '../systems/seasonSystem';
+import { getCalendarSnapshot, getWeekDailySnapshots } from '../systems/seasonSystem';
 import { generateSeasonAwards, calculateCoherenceScore } from '../systems/weeklyEventsSystem';
 import { pick, rand } from '../utils/helpers';
 
@@ -27,6 +27,13 @@ const getChampionsLeagueWinner = (leagueTables) => {
 };
 
 export const generateWorldSummary = ({ week, phase, worldState }) => {
+  const europeanClubs = CLUBS.filter((club) => ['FR', 'ES', 'EN', 'IT', 'DE', 'PT', 'NL'].includes(club.countryCode));
+  const pickClubName = () => pick(europeanClubs)?.name ?? pick(CLUBS)?.name ?? 'Un grand club européen';
+  const losingClub = pickClubName();
+  let winningClub = pickClubName();
+  if (winningClub === losingClub) winningClub = pickClubName();
+  const score = `${1 + rand(0, 1)}-${2 + rand(0, 1)}`;
+
   const calmWeek = Math.random() < 0.25 && !phase.mercato && !phase.deadlineDay;
   if (calmWeek) {
     return [{
@@ -37,7 +44,7 @@ export const generateWorldSummary = ({ week, phase, worldState }) => {
   }
 
   const pool = [
-    { type: 'match', title: 'Choc européen', text: 'Un grand club européen perd un match important. Plusieurs cadres sont critiqués dans la presse.' },
+    { type: 'match', title: 'Choc européen', text: `${losingClub} s'incline ${score} contre ${winningClub} dans un match très suivi. Plusieurs cadres sont pointés du doigt par la presse et les émissions du soir ouvrent le débat sur l'état du vestiaire.` },
     { type: 'injury', title: 'Blessure star', text: 'Une star du continent se blesse. Son club pourrait chercher une solution rapide au mercato.' },
     { type: 'rumor', title: 'Rumeur marché', text: 'Un insider annonce que plusieurs clubs préparent déjà leur prochain numéro 9.' },
     { type: 'media', title: 'Débat agents', text: 'Les médias débattent du rôle des agents dans les carrières des jeunes talents.' },
@@ -67,15 +74,15 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
       player: shortlist,
       week,
       text: shortlist
-        ? `${shortlist.firstName} ${shortlist.lastName} apparaît dans la liste officielle du Ballon d'Or. La campagne médiatique commence.`
-        : "La liste du Ballon d'Or tombe, mais aucun joueur de l'agence n'est encore assez haut dans la hiérarchie.",
+        ? `${shortlist.firstName} ${shortlist.lastName} apparaît dans la liste officielle du Ballon Global. La campagne médiatique commence.`
+        : "La liste du Ballon Global tombe, mais aucun joueur de l'agence n'est encore assez haut dans la hiérarchie.",
       reputationImpact: shortlist ? 6 : 0,
       account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
     }));
     if (shortlist) {
       reputation += 6;
       income += 12000;
-      events.push({ player: `${shortlist.firstName} ${shortlist.lastName}`, playerId: shortlist.id, label: "Nominé Ballon d'Or", good: true, money: 12000, rep: 6, calendar: true });
+      events.push({ player: `${shortlist.firstName} ${shortlist.lastName}`, playerId: shortlist.id, label: "Nominé Ballon Global", good: true, money: 12000, rep: 6, calendar: true });
     }
   }
 
@@ -97,7 +104,7 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
               trust: Math.max(0, Math.min(100, (player.trust ?? 50) + 5)),
               brandValue: Math.max(0, Math.min(100, (player.brandValue ?? 10) + 25)),
               timeline: [
-                { week, type: 'trophee', label: "Ballon d'Or", coherenceScore: ballonDorAward.coherenceScore },
+                { week, type: 'trophee', label: "Ballon Global", coherenceScore: ballonDorAward.coherenceScore },
                 ...(player.timeline ?? []),
               ],
             }
@@ -108,7 +115,7 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
       events.push({
         player: `${winner.firstName} ${winner.lastName}`,
         playerId: winner.id,
-        label: "Remporte le Ballon d'Or",
+        label: "Remporte le Ballon Global",
         good: true,
         money: 80000,
         rep: 35,
@@ -122,7 +129,7 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
         type: 'media',
         player: winner,
         week,
-        text: `${winner.firstName} ${winner.lastName} remporte le Ballon d'Or avec un score de cohérence de ${ballonDorAward.coherenceScore} (note: ${winner.rating}, moyenne: ${winner.seasonStats?.averageRating?.toFixed(1)}). L'agence change de dimension.`,
+        text: `${winner.firstName} ${winner.lastName} remporte le Ballon Global avec un score de cohérence de ${ballonDorAward.coherenceScore} (note: ${winner.rating}, moyenne: ${winner.seasonStats?.averageRating?.toFixed(1)}). L'agence change de dimension.`,
         reputationImpact: 35,
         account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
       }));
@@ -132,7 +139,7 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
         type: 'media',
         player: null,
         week,
-        text: "Le Ballon d'Or est attribué hors de l'agence. Les standards mondiaux restent très élevés: niveau élite, grosse moyenne et impact décisif toute la saison.",
+        text: "Le Ballon Global est attribué hors de l'agence. Les standards mondiaux restent très élevés: niveau élite, grosse moyenne et impact décisif toute la saison.",
         reputationImpact: 0,
         account: { name: 'France Football Desk', kind: 'journal', icon: 'FF', color: '#172026' },
       }));
@@ -191,8 +198,9 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
   };
 };
 
-const MATCHDAY_TEMPLATES = {
-  Monday: { day: 'Lundi', icon: '📅', tone: 'info', label: 'Mise à jour' },
+const toDisplayWeekday = (label = '', fallback = 'Jour') => {
+  if (!label) return fallback;
+  return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
 export const buildWeeklyTimeline = ({
@@ -218,6 +226,7 @@ export const buildWeeklyTimeline = ({
   reputationChange,
 }) => {
   const currentDate = getCalendarSnapshot(week);
+  const dailyDates = getWeekDailySnapshots(week);
   const seasonWeekLabel = phase?.season && phase?.seasonWeek
     ? `S${phase.season} · Semaine ${phase.seasonWeek}/38`
     : `Semaine ${week}`;
@@ -225,7 +234,7 @@ export const buildWeeklyTimeline = ({
   const topWorldCupMatch = [...worldCupMatchResults].sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
   const worldCupBlock = topWorldCupMatch ? {
     id: `wc_${topWorldCupMatch.playerId ?? week}`,
-    day: 'Coupe du Monde',
+    day: 'Tournoi Mondial',
     icon: '🌍',
     tone: topWorldCupMatch.isChampion ? 'good' : topWorldCupMatch.isEliminated ? 'danger' : topWorldCupMatch.result === 'win' ? 'warn' : 'info',
     major: true,
@@ -241,9 +250,9 @@ export const buildWeeklyTimeline = ({
     match: topWorldCupMatch,
   } : null;
 
-  return [
-    {
-      day: 'Lundi',
+  const mondayCard = {
+      day: toDisplayWeekday(dailyDates[0]?.weekdayLabel, 'Lundi'),
+      dateLabel: dailyDates[0]?.dateLabel,
       icon: '📅',
       tone: 'info',
       major: false,
@@ -251,10 +260,11 @@ export const buildWeeklyTimeline = ({
       title: currentDate.dateLabel,
       text: `${seasonWeekLabel} · ${phase.phase}. ${activePeriod ? `${activePeriod.emoji} ${activePeriod.label}` : 'Rythme normal'} de l'agence.`,
       chips: [currentDate.weekRangeLabel, `Messages ${deliveredMessagesCount}/${queueSize}`],
-    },
-    worldCupBlock,
-    topWorldCupMatch ? {
-      day: 'Mardi',
+  };
+
+  const tuesdayCard = topWorldCupMatch ? {
+      day: toDisplayWeekday(dailyDates[1]?.weekdayLabel, 'Mardi'),
+      dateLabel: dailyDates[1]?.dateLabel,
       icon: '🌍',
       tone: topWorldCupMatch.isChampion ? 'good' : topWorldCupMatch.isEliminated ? 'danger' : 'warn',
       major: true,
@@ -262,9 +272,22 @@ export const buildWeeklyTimeline = ({
       title: `CdM · ${topWorldCupMatch.playerName}`,
       text: `Résultat mondial: ${topWorldCupMatch.countryName} ${topWorldCupMatch.score} ${topWorldCupMatch.opponent} · note ${topWorldCupMatch.matchRating}.`,
       chips: [`${topWorldCupMatch.minutes} min`, `Phase ${topWorldCupMatch.phase}`, topWorldCupMatch.isChampion ? 'Titre' : topWorldCupMatch.isEliminated ? 'Sortie' : topWorldCupMatch.result],
-    } : null,
-    topEuroMatch ? {
-      day: 'Mercredi',
+    } : {
+      day: toDisplayWeekday(dailyDates[1]?.weekdayLabel, 'Mardi'),
+      dateLabel: dailyDates[1]?.dateLabel,
+      icon: '🏋️',
+      tone: 'good',
+      major: false,
+      kind: 'training',
+      eventType: 'performance',
+      title: "Séance d'entraînement collective",
+      text: "Travail physique, tactique et récupération active pour préparer les prochains matchs.",
+      chips: ['Intensité contrôlée', 'Prévention blessures'],
+    };
+
+  const wednesdayCard = topEuroMatch ? {
+      day: toDisplayWeekday(dailyDates[2]?.weekdayLabel, 'Mercredi'),
+      dateLabel: dailyDates[2]?.dateLabel,
       icon: '🏆',
       tone: topEuroMatch.result === 'win' ? 'good' : topEuroMatch.result === 'loss' ? 'danger' : 'warn',
       major: true,
@@ -272,9 +295,22 @@ export const buildWeeklyTimeline = ({
       title: `${topEuroMatch.competitionLabel ?? EURO_CUP_LABELS[topEuroMatch.competition]?.name ?? topEuroMatch.competition ?? 'Europe'} · ${topEuroMatch.playerName ?? 'Joueur'}`,
       text: `Match européen: ${topEuroMatch.club ?? 'Club'} ${topEuroMatch.score ?? '0-0'} ${topEuroMatch.opponentName ?? topEuroMatch.opponent ?? '—'} · note ${topEuroMatch.matchRating ?? '—'}.`,
       chips: [topEuroMatch.phase ?? 'Europe', `${topEuroMatch.minutes ?? 0} min`, topEuroMatch.result === 'win' ? 'Victoire' : topEuroMatch.result === 'loss' ? 'Défaite' : 'Nul'],
-    } : null,
-    {
-      day: 'Jeudi',
+    } : {
+      day: toDisplayWeekday(dailyDates[2]?.weekdayLabel, 'Mercredi'),
+      dateLabel: dailyDates[2]?.dateLabel,
+      icon: '📹',
+      tone: 'info',
+      major: false,
+      kind: 'analysis',
+      eventType: 'media',
+      title: 'Analyse vidéo et préparation',
+      text: "Débrief des performances et ajustements individuels avant la fin de semaine.",
+      chips: ['Débrief staff', 'Plan de progression'],
+    };
+
+  const thursdayCard = {
+      day: toDisplayWeekday(dailyDates[3]?.weekdayLabel, 'Jeudi'),
+      dateLabel: dailyDates[3]?.dateLabel,
       icon: '💬',
       tone: promiseFailuresCount > 0 ? 'danger' : 'info',
       major: false,
@@ -286,9 +322,11 @@ export const buildWeeklyTimeline = ({
         `${promiseFailuresCount} promesses`,
         `${leavingPlayersCount} départs`,
       ],
-    },
-    interactiveEvent ? {
-      day: 'Vendredi',
+    };
+
+  const fridayPrimaryCard = interactiveEvent ? {
+      day: toDisplayWeekday(dailyDates[4]?.weekdayLabel, 'Vendredi'),
+      dateLabel: dailyDates[4]?.dateLabel,
       icon: '⚡',
       tone: 'warn',
       major: true,
@@ -298,9 +336,9 @@ export const buildWeeklyTimeline = ({
       title: interactiveEvent.event?.title ?? interactiveEvent.title ?? 'Événement',
       text: interactiveEvent.event?.description ?? interactiveEvent.text ?? 'Un dossier réclame une réponse nette.',
       chips: interactiveEvent.chips ?? (interactiveEvent.player ? [`${interactiveEvent.player.firstName ?? ''} ${interactiveEvent.player.lastName ?? ''}`.trim()] : []),
-    } : null,
-    contractEvent ? {
-      day: 'Vendredi',
+    } : contractEvent ? {
+      day: toDisplayWeekday(dailyDates[4]?.weekdayLabel, 'Vendredi'),
+      dateLabel: dailyDates[4]?.dateLabel,
       icon: '📄',
       tone: 'info',
       major: false,
@@ -310,9 +348,22 @@ export const buildWeeklyTimeline = ({
       title: contractEvent.event?.title ?? contractEvent.title ?? 'Contrat à renouveler',
       text: contractEvent.event?.description ?? contractEvent.text ?? 'Un contrat avance cette semaine.',
       chips: contractEvent.chips ?? (contractEvent.player ? [`${contractEvent.player.firstName ?? ''} ${contractEvent.player.lastName ?? ''}`.trim()] : []),
-    } : null,
-    topMatch ? {
-      day: 'Samedi',
+    } : {
+      day: toDisplayWeekday(dailyDates[4]?.weekdayLabel, 'Vendredi'),
+      dateLabel: dailyDates[4]?.dateLabel,
+      icon: '📣',
+      tone: 'info',
+      major: false,
+      kind: 'prep',
+      eventType: 'fans',
+      title: 'Mise en place avant match',
+      text: 'Conférence tactique, annonces de groupe et derniers réglages avant le week-end.',
+      chips: ['Pré-match', 'Brief staff'],
+    };
+
+  const saturdayCard = topMatch ? {
+      day: toDisplayWeekday(dailyDates[5]?.weekdayLabel, 'Samedi'),
+      dateLabel: dailyDates[5]?.dateLabel,
       icon: '⚽',
       tone: topMatch.matchRating >= 8 ? 'good' : topMatch.matchRating <= 5.8 ? 'danger' : 'info',
       major: true,
@@ -321,9 +372,22 @@ export const buildWeeklyTimeline = ({
       text: `${topMatch.playerName} a signé une note ${topMatch.matchRating}. ${topMatch.minutes} min, ${topMatch.goals} but, ${topMatch.assists} passe. ${topMatch.matchReport}`,
       chips: [topMatch.homeAway, topMatch.result === 'win' ? 'Victoire' : topMatch.result === 'loss' ? 'Défaite' : 'Nul'],
       match: topMatch,
-    } : null,
-    flopMatch ? {
-      day: 'Dimanche',
+    } : {
+      day: toDisplayWeekday(dailyDates[5]?.weekdayLabel, 'Samedi'),
+      dateLabel: dailyDates[5]?.dateLabel,
+      icon: '🏟️',
+      tone: 'warn',
+      major: false,
+      kind: 'matchday',
+      eventType: 'performance',
+      title: 'Week-end de championnat',
+      text: 'Les matchs nationaux structurent la dynamique sportive et médiatique de la semaine.',
+      chips: ['Jour de match', 'Suivi performance'],
+    };
+
+  const sundayCard = flopMatch ? {
+      day: toDisplayWeekday(dailyDates[6]?.weekdayLabel, 'Dimanche'),
+      dateLabel: dailyDates[6]?.dateLabel,
       icon: '📰',
       tone: flopMatch.matchRating <= 5.8 ? 'danger' : 'info',
       major: false,
@@ -333,6 +397,29 @@ export const buildWeeklyTimeline = ({
         ? `${flopMatch.club} ${flopMatch.score} ${flopMatch.opponent}. Note ${flopMatch.matchRating}, ${flopMatch.matchReport}`
         : `Bilan financier net ${net >= 0 ? '+' : ''}${net}, bonus ${bonusMoney}, variation réputation ${reputationChange}.`,
       chips: [flopMatch.matchRating <= 5.8 ? 'Flop' : 'Bilan', `${net >= 0 ? '+' : ''}${net}`],
-    } : null,
+    } : {
+      day: toDisplayWeekday(dailyDates[6]?.weekdayLabel, 'Dimanche'),
+      dateLabel: dailyDates[6]?.dateLabel,
+      icon: '📊',
+      tone: net >= 0 ? 'good' : 'danger',
+      major: false,
+      kind: 'weeklySummary',
+      eventType: 'performance',
+      title: 'Bilan de fin de semaine',
+      text: `Net ${net >= 0 ? '+' : ''}${net}, bonus ${bonusMoney}, réputation ${reputationChange >= 0 ? '+' : ''}${reputationChange}.`,
+      chips: ['Synthèse', 'Projection semaine suivante'],
+    };
+
+  const timeline = [
+    mondayCard,
+    worldCupBlock,
+    tuesdayCard,
+    wednesdayCard,
+    thursdayCard,
+    fridayPrimaryCard,
+    saturdayCard,
+    sundayCard,
   ].filter(Boolean);
+
+  return timeline;
 };

@@ -373,6 +373,34 @@ export default function Social({ state, onSocialAction, onToast, onJumpToMessage
   const posts = useMemo(() => {
     const result = [];
     const used = new Set(); // garantit zéro doublon de visuel dans tout le feed
+    const officialNews = [...(state?.news ?? [])]
+      .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
+      .slice(0, 12)
+      .map((post, idx) => {
+        const seed = `official-news-${post.id ?? idx}-${week}`;
+        const alertMedia = String(post.text ?? '').toLowerCase().includes('alerte médias')
+          || String(post.text ?? '').toLowerCase().includes('presse')
+          || String(post.text ?? '').toLowerCase().includes('médias')
+          || String(post.text ?? '').toLowerCase().includes('media');
+        return {
+          id: `official-news-${post.id ?? idx}`,
+          kind: 'press',
+          player: null,
+          authorName: post.accountName ?? 'Canal Football Desk',
+          handle: `@${String(post.accountName ?? 'football').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+          tag: alertMedia ? 'ALERTE MÉDIAS' : 'NEWS OFFICIELLE',
+          text: post.text ?? '',
+          image: getPostImage({ kind: 'press', tag: alertMedia ? 'press' : 'matchday', seed }),
+          likes: post.likes ?? (250 + num(seed + 'l', 2500)),
+          comments: post.comments ?? (12 + num(seed + 'c', 160)),
+          timeLabel: weekAgo(week - (post.week ?? week), week),
+          commentsList: [
+            { handle: pick(PRESS_AUTHORS, seed + 'a').handle, text: alertMedia ? 'La communication du clan va être décisive.' : 'Breaking confirmé.' },
+            { handle: pick(FAN_AUTHORS, seed + 'b').handle, text: alertMedia ? 'On veut la version du joueur.' : 'Ça va impacter le prochain match.' },
+          ],
+        };
+      });
+    result.push(...officialNews);
     featured.forEach((player, idx) => {
       // 2 posts joueurs par joueur (variations différentes)
       for (let v = 0; v < 2; v++) {

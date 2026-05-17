@@ -13,6 +13,8 @@
 
 import { CLUBS } from '../data/clubs';
 import { rand, makeId } from '../utils/helpers';
+import { simulateMatch } from '../engine/matchEngine';
+import { EUROPEAN_SCHEDULE } from './competitionCalendarSystem';
 
 // Pays dont les clubs accèdent aux coupes UEFA (top leagues européennes + secondes nations)
 const TOP_LEAGUE_COUNTRIES = new Set([
@@ -39,9 +41,43 @@ const EURO_LEAGUE_PHASE_SIZE = 36;
 // Tri déterministe : tier croissant puis hash (club, saison). Les 36 meilleurs → CL,
 // les 36 suivants → EL, les 36 suivants → ECL. Le reste : pas d'Europe.
 const _participantsCache = new Map();
+const _participantsOverrideBySeason = new Map();
+
+export const registerEuropeanParticipantsFromLeagueTables = (season = 2, leagueTables = {}) => {
+  if (!leagueTables || typeof leagueTables !== 'object') return;
+  const slotOrder = [
+    ['EN', 5], ['ES', 4], ['IT', 4], ['DE', 4], ['FR', 3],
+    ['PT', 2], ['NL', 2], ['BE', 2], ['TR', 2], ['SC', 1], ['GR', 1], ['AT', 1], ['CH', 1], ['CZ', 1], ['DK', 1], ['NO', 1], ['SE', 1],
+  ];
+  const orderedQualifiers = [];
+  slotOrder.forEach(([countryCode, slots]) => {
+    const rows = Object.values(leagueTables[countryCode] ?? {})
+      .sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || (((b.goalsFor ?? 0) - (b.goalsAgainst ?? 0)) - ((a.goalsFor ?? 0) - (a.goalsAgainst ?? 0))));
+    rows.slice(0, slots).forEach((row) => {
+      if (row?.club) orderedQualifiers.push(row.club);
+    });
+  });
+
+  const fallback = CLUBS.filter((club) => TOP_LEAGUE_COUNTRIES.has(club.countryCode))
+    .sort((a, b) => (a.tier ?? 4) - (b.tier ?? 4) || hashStr(`${a.name}:${season}:fallback`) - hashStr(`${b.name}:${season}:fallback`))
+    .map((club) => club.name);
+  const fullRanking = [...new Set([...orderedQualifiers, ...fallback])];
+  const map = new Map();
+  fullRanking.slice(0, EURO_LEAGUE_PHASE_SIZE).forEach((name) => map.set(name, 'CL'));
+  fullRanking.slice(EURO_LEAGUE_PHASE_SIZE, EURO_LEAGUE_PHASE_SIZE * 2).forEach((name) => map.set(name, 'EL'));
+  fullRanking.slice(EURO_LEAGUE_PHASE_SIZE * 2, EURO_LEAGUE_PHASE_SIZE * 3).forEach((name) => map.set(name, 'ECL'));
+  _participantsOverrideBySeason.set(`s${season}`, map);
+  _participantsCache.delete(`s${season}`);
+};
+
 export const getEuropeanParticipantsMap = (season = 1) => {
   const cacheKey = `s${season}`;
   if (_participantsCache.has(cacheKey)) return _participantsCache.get(cacheKey);
+  if (_participantsOverrideBySeason.has(cacheKey)) {
+    const override = _participantsOverrideBySeason.get(cacheKey);
+    _participantsCache.set(cacheKey, override);
+    return override;
+  }
 
   const eligible = CLUBS.filter((c) => TOP_LEAGUE_COUNTRIES.has(c.countryCode));
   const ranked = [...eligible].sort((a, b) => {
@@ -65,44 +101,22 @@ const getCompetitionPool = (competition, season = 1) => {
   return CLUBS.filter((c) => map.get(c.name) === competition);
 };
 
-const EURO_SCHEDULE = {
-  CL: {
-    league: new Set([3, 5, 7, 9, 11, 13, 15, 17]),
-    playoff: new Set([20, 21]),
-    roundOf16: new Set([23, 24]),
-    quarters: new Set([26, 27]),
-    semis: new Set([29, 30]),
-    final: new Set([33]),
-  },
-  EL: {
-    league: new Set([4, 6, 8, 10, 12, 14, 16, 18]),
-    playoff: new Set([20, 21]),
-    roundOf16: new Set([23, 24]),
-    quarters: new Set([26, 27]),
-    semis: new Set([29, 30]),
-    final: new Set([33]),
-  },
-  ECL: {
-    league: new Set([5, 7, 9, 11, 13, 15]),
-    playoff: new Set([20, 21]),
-    roundOf16: new Set([23, 24]),
-    quarters: new Set([26, 27]),
-    semis: new Set([29, 30]),
-    final: new Set([33]),
-  },
-};
+const EURO_SCHEDULE = Object.fromEntries(
+  Object.entries(EUROPEAN_SCHEDULE).map(([competition, stages]) => [
+    competition,
+    Object.fromEntries(Object.entries(stages).map(([stage, weeks]) => [stage, new Set(weeks)])),
+  ]),
+);
 
 export const EURO_CUP_LABELS = {
   CL: { name: 'Ligue des Champions', short: 'UCL', color: '#1a1a6e', icon: '⭐' },
   EL: { name: 'Europa League', short: 'UEL', color: '#f97316', icon: '🟠' },
   ECL: { name: 'Conference League', short: 'ECL', color: '#16a34a', icon: '🟢' },
-  SC: { name: 'Supercoupe UEFA', short: 'SUC', color: '#7dd3fc', icon: '🏅' },
   CWC: { name: 'Mondial des Clubs', short: 'CWC', color: '#f5c842', icon: '🌍' },
 };
 
 // Compétitions hors-championnat / hors-coupe européenne classique
 export const EXTRA_TOURNAMENT_WEEKS = {
-  SC: new Set([2]),               // Supercoupe UEFA — début de saison (1 match)
   CWC: new Set([35, 36, 37]),     // Mondial des Clubs — fin de saison (groupe → finale)
 };
 
@@ -192,6 +206,29 @@ export const getEuropeanPhaseLabel = (seasonWeek, competition) => {
 };
 
 const clampNumber = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const buildVirtualSquad = (ratingBase = 72, code = 'TEAM') =>
+  Array.from({ length: 11 }, (_x, idx) => ({
+    id: `${code}_${idx + 1}`,
+    rating: ratingBase + ((idx % 5) - 2),
+    form: 62,
+    attributes: { shooting: { current: 10 }, passing: { current: 10 } },
+    roleId: idx <= 1 ? 'center_back' : idx <= 4 ? 'central_mid' : 'striker',
+    position: idx === 0 ? 'GK' : idx <= 4 ? 'DEF' : idx <= 7 ? 'MIL' : 'ATT',
+  }));
+
+const scoreFromUnifiedMatchEngine = (player, competition, seasonWeek, opponentName = 'Club Européen') => {
+  const ownBase = Math.max(65, Math.min(90, (player.rating ?? 70) + ((player.form ?? 60) - 60) * 0.12 + 2));
+  const oppBase = Math.max(65, Math.min(90, ownBase + ((hashStr(`${opponentName}:${competition}:${seasonWeek}`) % 13) - 6)));
+  const simulation = simulateMatch({
+    homePlayers: buildVirtualSquad(ownBase, `${player.club ?? 'HOME'}_${competition}_${seasonWeek}`),
+    awayPlayers: buildVirtualSquad(oppBase, `${opponentName}_${competition}_${seasonWeek}`),
+    homeTeamName: player.club ?? 'Club',
+    awayTeamName: opponentName,
+    seed: hashStr(`${player.id}:${competition}:${seasonWeek}:${opponentName}:eu`),
+  });
+  return { ownGoals: simulation.homeGoals, oppGoals: simulation.awayGoals };
+};
 
 const getEuropeanSelectionProfile = (player) => {
   if (!player || (player.injured ?? 0) > 0) {
@@ -325,12 +362,29 @@ const getClubPower = (clubName, competition, season) => {
   return base + competitionBonus + (hashStr(`${clubName}:${competition}:${season}:power`) % 18);
 };
 
-const seededGoals = (clubName, opponentName, competition, season, stage, leg) => {
-  const power = getClubPower(clubName, competition, season);
-  const oppPower = getClubPower(opponentName, competition, season);
-  const swing = (hashStr(`${clubName}:${opponentName}:${competition}:${season}:${stage}:${leg}`) % 100) / 100;
-  const edge = clampNumber((power - oppPower) / 42, -0.9, 0.9);
-  return clampNumber(Math.floor(1 + edge + swing * 3.1), 0, 5);
+const buildClubVirtualSquad = (ratingBase = 74, code = 'EUCLUB') =>
+  Array.from({ length: 11 }, (_x, idx) => ({
+    id: `${code}_${idx + 1}`,
+    rating: ratingBase + ((idx % 5) - 2),
+    form: 64,
+    attributes: { shooting: { current: 10 }, passing: { current: 10 } },
+    roleId: idx <= 1 ? 'center_back' : idx <= 4 ? 'central_mid' : 'striker',
+    position: idx === 0 ? 'GK' : idx <= 4 ? 'DEF' : idx <= 7 ? 'MIL' : 'ATT',
+  }));
+
+const simulateClubFixtureWithUnifiedEngine = (homeClubName, awayClubName, competition, season, tag = 'league') => {
+  const homePower = getClubPower(homeClubName, competition, season);
+  const awayPower = getClubPower(awayClubName, competition, season);
+  const homeBase = Math.max(66, Math.min(91, 62 + Math.round(homePower * 0.23)));
+  const awayBase = Math.max(66, Math.min(91, 62 + Math.round(awayPower * 0.23)));
+  const simulation = simulateMatch({
+    homePlayers: buildClubVirtualSquad(homeBase, `${homeClubName}_${competition}_${season}_h_${tag}`),
+    awayPlayers: buildClubVirtualSquad(awayBase, `${awayClubName}_${competition}_${season}_a_${tag}`),
+    homeTeamName: homeClubName,
+    awayTeamName: awayClubName,
+    seed: hashStr(`${homeClubName}:${awayClubName}:${competition}:${season}:${tag}`),
+  });
+  return { homeGoals: simulation.homeGoals, awayGoals: simulation.awayGoals };
 };
 
 const makeClubEntry = (club) => {
@@ -342,6 +396,8 @@ const makeClubEntry = (club) => {
     name: club.name,
     country: club.country ?? FLAG_MAP[getClubRef(club.name).countryCode] ?? '🌍',
     isAgent: Boolean(club.isAgent),
+    rank: club.rank,
+    uefaSeed: club.uefaSeed,
   };
 };
 
@@ -391,17 +447,138 @@ const buildLeagueTable = (competition, season, agentClubNames = []) => {
     }
   });
 
-  return [...entriesByName.values()]
+  const seededEntries = [...entriesByName.values()]
     .sort((a, b) => {
       if (b.power !== a.power) return b.power - a.power;
-      return hashStr(`${a.name}:${competition}:${season}:league-table`) - hashStr(`${b.name}:${competition}:${season}:league-table`);
+      return hashStr(`${a.name}:${competition}:${season}:league-seed`) - hashStr(`${b.name}:${competition}:${season}:league-seed`);
     })
     .slice(0, EURO_LEAGUE_PHASE_SIZE)
     .map((club, index) => ({
       ...club,
-      rank: index + 1,
-      leagueStatus: index < 8 ? 'roundOf16' : index < 24 ? 'playoff' : 'eliminated',
+      uefaSeed: index + 1,
+      points: 0,
+      played: 0,
+      win: 0,
+      draw: 0,
+      loss: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      awayGoalsFor: 0,
+      awayWins: 0,
+      opponents: new Set(),
     }));
+
+  // Pots UEFA: 4 pots de 9 clubs
+  const pots = [
+    seededEntries.slice(0, 9),
+    seededEntries.slice(9, 18),
+    seededEntries.slice(18, 27),
+    seededEntries.slice(27, 36),
+  ];
+  const byName = new Map(seededEntries.map((entry) => [entry.name, entry]));
+  const schedulePairs = [];
+
+  const pickOpponentsFromPot = (club, potEntries, needed, tagSeed) => {
+    const candidates = potEntries
+      .filter((entry) => entry.name !== club.name)
+      .filter((entry) => !club.opponents.has(entry.name));
+    const ranked = [...candidates].sort((a, b) =>
+      hashStr(`${club.name}:${a.name}:${competition}:${season}:${tagSeed}`)
+      - hashStr(`${club.name}:${b.name}:${competition}:${season}:${tagSeed}`),
+    );
+    return ranked.slice(0, Math.min(needed, ranked.length));
+  };
+
+  seededEntries.forEach((club) => {
+    pots.forEach((potEntries, potIndex) => {
+      const picked = pickOpponentsFromPot(club, potEntries, 2, `pot_${potIndex + 1}`);
+      picked.forEach((opponent, idx) => {
+        const pairKey = [club.name, opponent.name].sort().join('|');
+        if (schedulePairs.some((pair) => pair.key === pairKey)) return;
+        const homeSeed = hashStr(`${club.name}:${opponent.name}:${competition}:${season}:venue:${idx}`);
+        const homeClub = homeSeed % 2 === 0 ? club.name : opponent.name;
+        const awayClub = homeClub === club.name ? opponent.name : club.name;
+        schedulePairs.push({ key: pairKey, homeClub, awayClub });
+        club.opponents.add(opponent.name);
+        opponent.opponents.add(club.name);
+      });
+    });
+  });
+
+  const targetMatchesPerClub = competition === 'ECL' ? 6 : 8;
+  const countMatchesFor = (clubName) =>
+    schedulePairs.reduce((count, pair) => count + (pair.homeClub === clubName || pair.awayClub === clubName ? 1 : 0), 0);
+  const hasPair = (clubA, clubB) => schedulePairs.some((pair) => pair.key === [clubA, clubB].sort().join('|'));
+  const ensurePair = (clubA, clubB, tag = 'fill') => {
+    if (clubA === clubB || hasPair(clubA, clubB)) return false;
+    if (countMatchesFor(clubA) >= targetMatchesPerClub || countMatchesFor(clubB) >= targetMatchesPerClub) return false;
+    const homeSeed = hashStr(`${clubA}:${clubB}:${competition}:${season}:venue:${tag}`);
+    const homeClub = homeSeed % 2 === 0 ? clubA : clubB;
+    const awayClub = homeClub === clubA ? clubB : clubA;
+    schedulePairs.push({ key: [clubA, clubB].sort().join('|'), homeClub, awayClub });
+    return true;
+  };
+
+  const orderedForFill = [...seededEntries].sort((a, b) => a.uefaSeed - b.uefaSeed);
+  for (const club of orderedForFill) {
+    let guard = 0;
+    while (countMatchesFor(club.name) < targetMatchesPerClub && guard < 400) {
+      guard += 1;
+      const candidate = orderedForFill.find((entry) =>
+        entry.name !== club.name
+        && countMatchesFor(entry.name) < targetMatchesPerClub
+        && !hasPair(club.name, entry.name),
+      );
+      if (!candidate) break;
+      ensurePair(club.name, candidate.name, `fill_${guard}`);
+    }
+  }
+
+  schedulePairs.forEach((fixture, idx) => {
+    const result = simulateClubFixtureWithUnifiedEngine(fixture.homeClub, fixture.awayClub, competition, season, `league_${idx}`);
+    const home = byName.get(fixture.homeClub);
+    const away = byName.get(fixture.awayClub);
+    if (!home || !away) return;
+    home.played += 1;
+    away.played += 1;
+    home.goalsFor += result.homeGoals;
+    home.goalsAgainst += result.awayGoals;
+    away.goalsFor += result.awayGoals;
+    away.goalsAgainst += result.homeGoals;
+    away.awayGoalsFor += result.awayGoals;
+
+    if (result.homeGoals > result.awayGoals) {
+      home.win += 1;
+      away.loss += 1;
+      home.points += 3;
+    } else if (result.homeGoals < result.awayGoals) {
+      away.win += 1;
+      away.awayWins += 1;
+      home.loss += 1;
+      away.points += 3;
+    } else {
+      home.draw += 1;
+      away.draw += 1;
+      home.points += 1;
+      away.points += 1;
+    }
+  });
+
+  const ranked = seededEntries.sort((a, b) =>
+    b.points - a.points
+    || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst)
+    || b.goalsFor - a.goalsFor
+    || b.awayGoalsFor - a.awayGoalsFor
+    || b.win - a.win
+    || b.awayWins - a.awayWins
+    || a.name.localeCompare(b.name),
+  );
+
+  return ranked.map((club, index) => ({
+    ...club,
+    rank: index + 1,
+    leagueStatus: index < 8 ? 'roundOf16' : index < 24 ? 'playoff' : 'eliminated',
+  }));
 };
 
 const ensureLeagueTable = (data, competition, season, agentClubNames = []) => {
@@ -416,7 +593,7 @@ const getStageEntrants = (data, stage) => {
   if (stage === 'playoff') {
     return (data.leagueTable ?? [])
       .filter((club) => club.rank >= 9 && club.rank <= 24)
-      .map(makeClubEntry);
+      .map((club) => ({ ...makeClubEntry(club), rank: club.rank }));
   }
 
   if (stage === 'roundOf16') {
@@ -440,6 +617,20 @@ const sortEntrantsForStage = (entrants = [], competition, season, stage) => [...
   });
 
 const pairSeededRound = (entrants = [], competition, season, stage) => {
+  if (stage === 'playoff') {
+    const sortedByLeagueRank = [...entrants]
+      .map(makeClubEntry)
+      .sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
+    const pairs = [];
+    let left = 0;
+    let right = sortedByLeagueRank.length - 1;
+    while (left < right) {
+      pairs.push([sortedByLeagueRank[left], sortedByLeagueRank[right]]);
+      left += 1;
+      right -= 1;
+    }
+    return pairs;
+  }
   const sorted = sortEntrantsForStage(entrants, competition, season, stage);
   const pairs = [];
   let left = 0;
@@ -522,8 +713,9 @@ export const ensureEuropeanCompetitionProgress = (compData, competition, season,
   }, {});
 
   const matches = pairs.map(([home, away]) => {
-    const homeGoals = seededGoals(home.name, away.name, competition, season, stage, leg);
-    const awayGoals = seededGoals(away.name, home.name, competition, season, stage, leg);
+    const score = simulateClubFixtureWithUnifiedEngine(home.name, away.name, competition, season, `${stage}_leg_${leg}`);
+    const homeGoals = score.homeGoals;
+    const awayGoals = score.awayGoals;
     const previous = previousByPair[`${home.name}|${away.name}`] ?? null;
     const homeAggregate = homeGoals + (previous?.homeGoals ?? 0);
     const awayAggregate = awayGoals + (previous?.awayGoals ?? 0);
@@ -680,12 +872,13 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek, clubMatch
   const opponent = typeof rawOpponent === 'string'
     ? { name: rawOpponent, country: sharedContext.opponentCountry ?? null }
     : rawOpponent;
+  const engineScore = scoreFromUnifiedMatchEngine(player, competition, seasonWeek, opponent.name);
   const ownGoals = Number.isFinite(sharedContext.goalsFor)
     ? sharedContext.goalsFor
-    : Math.max(0, Math.min(4, rand(0, 2)));
+    : engineScore.ownGoals;
   const oppGoals = Number.isFinite(sharedContext.goalsAgainst)
     ? sharedContext.goalsAgainst
-    : Math.max(0, Math.min(4, rand(0, 2)));
+    : engineScore.oppGoals;
   const result = sharedContext.result ?? (ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw');
   const homeAway = sharedContext.homeAway ?? (Math.random() < 0.5 ? 'Domicile' : 'Extérieur');
 
@@ -819,8 +1012,6 @@ export const normalizeEuropeanMatch = (match = {}) => {
 };
 
 // ─── Compétitions hors-UEFA classiques ────────────────────────────────────────
-// Supercoupe UEFA : un seul match en début de saison entre le vainqueur de la C1
-// et le vainqueur de la C3 de la saison précédente.
 // Mondial des Clubs : tournoi élargi en fin de saison (32 clubs simplifié à 16).
 
 const seedRandom = (seed) => {
@@ -828,27 +1019,6 @@ const seedRandom = (seed) => {
   return () => {
     s = lcgNext(s);
     return (s & 0x7fffffff) / 0x7fffffff;
-  };
-};
-
-/**
- * Retourne le match de Supercoupe UEFA pour la saison donnée.
- * Sélectionne 2 clubs tier-1 du top des grandes ligues, déterministe par saison.
- */
-export const getSupercupMatch = (season = 1) => {
-  const elite = CLUBS.filter((c) => c.tier === 1 && TOP_LEAGUE_COUNTRIES.has(c.countryCode));
-  if (elite.length < 2) return null;
-  const rnd = seedRandom(`uefa-supercup-${season}`);
-  const sorted = [...elite].sort(() => rnd() - 0.5);
-  return {
-    competition: 'SC',
-    competitionLabel: EURO_CUP_LABELS.SC.name,
-    week: 2,
-    season,
-    homeClub: sorted[0].name,
-    awayClub: sorted[1].name,
-    phase: 'Finale unique',
-    venue: 'Lieu neutre UEFA',
   };
 };
 
@@ -910,10 +1080,6 @@ export const getClubWorldCupFixtures = (season = 1) => {
  */
 export const getExtraTournamentForWeek = (club, seasonWeek, season) => {
   if (!club) return null;
-  if (EXTRA_TOURNAMENT_WEEKS.SC.has(seasonWeek)) {
-    const sc = getSupercupMatch(season);
-    if (sc && (sc.homeClub === club.name || sc.awayClub === club.name)) return sc;
-  }
   if (EXTRA_TOURNAMENT_WEEKS.CWC.has(seasonWeek)) {
     const fixtures = getClubWorldCupFixtures(season);
     const match = fixtures.find((f) => f.week === seasonWeek && (f.homeClub === club.name || f.awayClub === club.name));

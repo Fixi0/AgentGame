@@ -1,5 +1,5 @@
 import React from 'react';
-import { Briefcase, FileText, Network, ShoppingBag, Telescope, Trophy, Users, Timer, Layers, Sparkles, Building2, Award } from 'lucide-react';
+import { Activity, Briefcase, FileText, ShoppingBag, Telescope, Trophy, Timer, Layers, Sparkles, Building2, Award } from 'lucide-react';
 import { getAppLanguage, setAppLanguage, t } from '../utils/i18n';
 
 // One tile per feature — no sub-sections, no duplicate buttons.
@@ -9,9 +9,8 @@ const TILE_META = {
   shop:         { icon: ShoppingBag, accent: '#fbbf24', tint: 'oklch(30% 0.14 75  / .30)' },
   achievements: { icon: Award,      accent: '#f59e0b', tint: 'oklch(30% 0.12 75  / .35)' },
   social:       { icon: Sparkles,   accent: '#e879f9', tint: 'oklch(30% 0.14 320 / .30)' },
-  contacts:     { icon: Network,    accent: '#38bdf8', tint: 'oklch(28% 0.10 220 / .35)' },
+  engineHistory:{ icon: Activity,   accent: '#38bdf8', tint: 'oklch(28% 0.10 230 / .35)' },
   scouting:     { icon: Telescope,  accent: '#22d3ee', tint: 'oklch(28% 0.10 200 / .35)' },
-  vestiaire:    { icon: Users,      accent: '#34d399', tint: 'oklch(28% 0.10 158 / .30)' },
   contracts:    { icon: Briefcase,  accent: '#94a3b8', tint: 'oklch(22% 0.03 258 / .55)' },
   dossiers:     { icon: FileText,   accent: '#fb923c', tint: 'oklch(30% 0.12 50  / .30)' },
   deadline:     { icon: Timer,      accent: '#f87171', tint: 'oklch(30% 0.14 25  / .30)' },

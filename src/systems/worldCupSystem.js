@@ -1,6 +1,6 @@
 /**
  * worldCupSystem.js
- * Coupe du Monde 2026 — se joue entre la saison 1 et la saison 2 (été 2026).
+ * Tournoi Mondial 2026 — se joue entre la saison 1 et la saison 2 (été 2026).
  * Toutes les 4 saisons ensuite (2030, 2034…).
  *
  * Phases :
@@ -17,7 +17,9 @@
  */
 
 import { CLUBS } from '../data/clubs';
+import { createPlayerCatalog } from '../data/squadDatabase';
 import { rand, makeId } from '../utils/helpers';
+import { simulateMatch } from '../engine/matchEngine';
 
 // Pays représentés avec drapeaux et noms
 export const NATIONAL_TEAMS = [
@@ -57,6 +59,17 @@ export const NATIONAL_TEAMS = [
 
 export const WC_PHASES = ['groupes', 'huitièmes', 'quarts', 'demies', 'finale'];
 
+const WC_COUNTRY_ALIASES = {
+  GB: 'EN',
+  ENG: 'EN',
+  UK: 'EN',
+  CR: 'HR',
+  KO: 'KR',
+  USA: 'US',
+};
+
+const normalizeWcCountryCode = (countryCode = '') => WC_COUNTRY_ALIASES[countryCode] ?? countryCode;
+
 const hashString = (value) => {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -64,6 +77,16 @@ const hashString = (value) => {
   }
   return Math.abs(hash);
 };
+
+const buildVirtualSquad = (ratingBase = 72, code = 'NT') =>
+  Array.from({ length: 11 }, (_x, idx) => ({
+    id: `${code}_${idx + 1}`,
+    rating: ratingBase + ((idx % 5) - 2),
+    form: 64,
+    attributes: { shooting: { current: 10 }, passing: { current: 10 } },
+    roleId: idx <= 1 ? 'center_back' : idx <= 4 ? 'central_mid' : 'striker',
+    position: idx === 0 ? 'GK' : idx <= 4 ? 'DEF' : idx <= 7 ? 'MIL' : 'ATT',
+  }));
 
 export const getWorldCupFixturePreview = (player, phase, wcState = {}) => {
   const country = NATIONAL_TEAMS.find((t) => t.code === player.countryCode);
@@ -88,7 +111,7 @@ export const getWorldCupFixturePreview = (player, phase, wcState = {}) => {
 };
 
 /**
- * Déclenche la Coupe du Monde si on est à la bonne saison.
+ * Déclenche le Tournoi Mondial si on est à la bonne saison.
  * La CdM 2026 se joue entre la saison 1 et la saison 2 (week 38→39).
  * Ensuite toutes les 4 saisons (saison 5, 9…).
  */
@@ -101,44 +124,99 @@ export const shouldTriggerWorldCup = (season, worldCupState) => {
 /**
  * Crée un état CdM initial avec une liste de sélectionnés potentiels.
  */
-export const createWorldCupState = (season, roster) => {
+export const createWorldCupState = (season, roster, context = {}) => {
   const year = 2026 + (season - 1);
   const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-  const selectedPlayers = roster
-    .filter((p) => p.rating >= 130 && !p.freeAgent && p.countryCode)
-    .map((p) => ({ player: p, ...getWorldCupSelectionProfile(p) }))
-    .filter(({ score }) => score > 0)
-    .filter(({ score }) => {
-      const selectionChance = Math.max(0.05, Math.min(0.98, 0.08 + score / 90));
-      return Math.random() < selectionChance;
+  const wcNationCodes = new Set(NATIONAL_TEAMS.map((team) => team.code));
+  const liveRoster = Array.isArray(roster) ? roster : [];
+  const liveById = new Map(liveRoster.map((player) => [player.id, player]));
+  const catalog = createPlayerCatalog(season);
+  const mergedPool = catalog
+    .map((candidate) => {
+      const live = liveById.get(candidate.id);
+      const merged = live ? { ...candidate, ...live } : candidate;
+      const normalizedCode = normalizeWcCountryCode(merged.countryCode);
+      return { ...merged, countryCode: normalizedCode };
     })
+    .filter((player) => wcNationCodes.has(player.countryCode))
+    .filter((player) => !player.freeAgent && (player.injured ?? 0) <= 0 && (player.rating ?? 0) >= 120);
+
+  const byCountry = mergedPool.reduce((acc, player) => {
+    const key = player.countryCode;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(player);
+    return acc;
+  }, {});
+
+  const quotaByPosition = { GK: 2, DEF: 4, MIL: 4, ATT: 3 };
+  const selectedPlayers = [];
+  Object.entries(byCountry).forEach(([countryCode, players]) => {
+    const profiled = players
+      .map((player) => ({ player, ...getWorldCupSelectionProfile(player) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score);
+    const selectedIds = new Set();
+    Object.entries(quotaByPosition).forEach(([position, quota]) => {
+      const positionPool = profiled.filter((entry) => entry.player.position === position).slice(0, quota);
+      positionPool.forEach((entry) => {
+        selectedIds.add(entry.player.id);
+        selectedPlayers.push(entry);
+      });
+    });
+    profiled.slice(0, 18).forEach((entry) => {
+      if (!selectedIds.has(entry.player.id) && selectedIds.size < 18) {
+        selectedIds.add(entry.player.id);
+        selectedPlayers.push(entry);
+      }
+    });
+  });
+
+  const normalizedSelectedPlayers = selectedPlayers
     .sort((a, b) => b.score - a.score)
-    .map(({ player, score, starterChance, note }) => ({
-      playerId: player.id,
-      playerName: `${player.firstName} ${player.lastName}`,
-      countryCode: player.countryCode,
-      countryFlag: player.countryFlag,
-      rating: player.rating,
-      group: groupLetters[Math.floor(Math.random() * groupLetters.length)],
-      goals: 0,
-      assists: 0,
-      avgRating: 0,
-      appearances: 0,
-      eliminated: false,
-      champion: false,
-      selectionScore: Number(score.toFixed(1)),
-      starterChance: Number(starterChance.toFixed(2)),
-      selectionNote: note,
-    }));
+    .map(({ player, score, starterChance, note }) => {
+      const country = NATIONAL_TEAMS.find((team) => team.code === player.countryCode);
+      return {
+        playerId: player.id,
+        playerName: `${player.firstName} ${player.lastName}`,
+        countryCode: player.countryCode,
+        countryName: country?.name ?? player.countryCode,
+        countryFlag: country?.flag ?? player.countryFlag,
+        club: player.club,
+        position: player.position,
+        rating: player.rating,
+        form: player.form ?? 60,
+        moral: player.moral ?? 50,
+        group: null,
+        goals: 0,
+        assists: 0,
+        avgRating: 0,
+        appearances: 0,
+        eliminated: false,
+        champion: false,
+        selectionScore: Number(score.toFixed(1)),
+        starterChance: Number(starterChance.toFixed(2)),
+        selectionNote: note,
+      };
+    });
+
+  const countryCodes = [...new Set(normalizedSelectedPlayers.map((player) => player.countryCode))];
+  const countryGroupMap = countryCodes.reduce((map, code, index) => ({
+    ...map,
+    [code]: groupLetters[index % groupLetters.length],
+  }), {});
+  const groupedSelectedPlayers = normalizedSelectedPlayers.map((player) => ({
+    ...player,
+    group: countryGroupMap[player.countryCode] ?? groupLetters[0],
+  }));
 
   return {
     year,
     season,
     phase: 'groupes',
     weekOffset: 0,
-    selectedPlayers,
+    selectedPlayers: groupedSelectedPlayers,
     drawGroups: groupLetters.reduce((acc, group) => ({ ...acc, [group]: [] }), {}),
-    countryPressure: roster.reduce((acc, player) => {
+    countryPressure: groupedSelectedPlayers.reduce((acc, player) => {
       if (!player.countryCode) return acc;
       const base = player.rating >= 160 ? 72 : player.rating >= 144 ? 60 : 48;
       return { ...acc, [player.countryCode]: Math.max(acc[player.countryCode] ?? 0, base) };
@@ -252,8 +330,15 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
   let decidedBy = sharedCountryMatch?.decidedBy ?? null;
 
   if (!Number.isFinite(ownGoals) || !Number.isFinite(oppGoals) || !result) {
-    ownGoals = Math.max(0, Math.min(4, rand(0, 2) + (ownStrength > oppStrength ? 1 : 0)));
-    oppGoals = Math.max(0, Math.min(4, rand(0, 2) + (oppStrength > ownStrength ? 1 : 0)));
+    const simulation = simulateMatch({
+      homePlayers: buildVirtualSquad(Math.round(ownStrength), `${player.countryCode}_${phase}_${wcState.year}_h`),
+      awayPlayers: buildVirtualSquad(Math.round(oppStrength), `${opponent.code}_${phase}_${wcState.year}_a`),
+      homeTeamName: country.name,
+      awayTeamName: opponent.name,
+      seed: hashString(`${player.countryCode}:${opponent.code}:${wcState.year}:${phase}:worldcup`),
+    });
+    ownGoals = simulation.homeGoals;
+    oppGoals = simulation.awayGoals;
     result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
     score = `${ownGoals}-${oppGoals}`;
 
@@ -360,15 +445,15 @@ export const getWorldCupMatchNews = (player, wcMatch) => {
 
   let text = '';
   if (wcMatch.isChampion) {
-    text = `🏆 CHAMPION DU MONDE ! ${flag} ${player.firstName} ${player.lastName} soulève la Coupe du Monde avec ${country?.name}. Moment historique.`;
+    text = `🏆 CHAMPION DU MONDE ! ${flag} ${player.firstName} ${player.lastName} soulève le Tournoi Mondial avec ${country?.name}. Moment historique.`;
   } else if (wcMatch.isEliminated) {
-    text = `💔 Élimination — ${flag} ${country?.name} quitte la Coupe du Monde en ${wcMatch.phase}. ${player.firstName} ${player.lastName} rentre à son club.`;
+    text = `💔 Élimination — ${flag} ${country?.name} quitte le Tournoi Mondial en ${wcMatch.phase}. ${player.firstName} ${player.lastName} rentre à son club.`;
   } else if (wcMatch.goals >= 2) {
-    text = `🌍 ${flag} Doublé en Coupe du Monde ! ${player.firstName} ${player.lastName} marque 2 fois contre ${wcMatch.opponent} (${wcMatch.score}) en ${wcMatch.phase}.`;
+    text = `🌍 ${flag} Doublé en Tournoi Mondial ! ${player.firstName} ${player.lastName} marque 2 fois contre ${wcMatch.opponent} (${wcMatch.score}) en ${wcMatch.phase}.`;
   } else if (wcMatch.goals >= 1) {
-    text = `🌍 ${flag} But en Coupe du Monde — ${player.firstName} ${player.lastName} contre ${wcMatch.opponent} (${wcMatch.score}). Note ${wcMatch.matchRating}/10.`;
+    text = `🌍 ${flag} But en Tournoi Mondial — ${player.firstName} ${player.lastName} contre ${wcMatch.opponent} (${wcMatch.score}). Note ${wcMatch.matchRating}/10.`;
   } else if (wcMatch.matchRating >= 8) {
-    text = `🌍 ${flag} Prestation XXL de ${player.firstName} ${player.lastName} en Coupe du Monde. Note ${wcMatch.matchRating}/10 contre ${wcMatch.opponent}.`;
+    text = `🌍 ${flag} Prestation XXL de ${player.firstName} ${player.lastName} en Tournoi Mondial. Note ${wcMatch.matchRating}/10 contre ${wcMatch.opponent}.`;
   } else {
     return null;
   }

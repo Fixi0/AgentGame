@@ -3,7 +3,7 @@
  * Génère des publications "vivantes" pour le feed social :
  *  - Posts officiels des sélections nationales (liste des 23 visible)
  *  - Posts officiels des championnats (top buteurs / équipe-type)
- *  - Posts officiels UEFA / FIFA (équipe de la semaine, tirages)
+ *  - Posts officiels UEFA / Global Football Board (équipe de la semaine, tirages)
  *  - Posts de clubs majeurs sans lien avec le roster du joueur
  *
  * Le tout est déterministe (basé sur la semaine) pour rester stable
@@ -16,6 +16,7 @@ import { getLeagueTopStats, getEuropeanTopStats } from './topScorersSystem';
 import { EURO_CUP_LABELS } from './europeanCupSystem';
 import { getCalendarSnapshot } from './seasonSystem';
 import { getNationalSquad } from './nationalSelectionSystem';
+import { MATCH_STATUS, calendarMatchToFixture } from './matchCalendarSystem';
 
 const hash = (s) => {
   let h = 2166136261 >>> 0;
@@ -54,21 +55,27 @@ const LEAGUE_HANDLES = {
 };
 
 const UEFA_AUTHOR = { name: 'UEFA', handle: '@UEFA', color: '#003366' };
-const FIFA_AUTHOR = { name: 'FIFA', handle: '@FIFAcom', color: '#1e40af' };
+const GFB_AUTHOR = { name: 'Global Football Board', handle: '@GlobalFootball', color: '#1e40af' };
 
 const ROLE_SHORT = { GK: 'GB', DEF: 'DEF', MIL: 'MIL', ATT: 'ATT' };
 
 /** Sélectionne 23 joueurs représentatifs pour une sélection nationale (déterministe). */
-const buildNationalSquad = (countryCode, season, weekSeed, agentPlayerIds = new Set()) =>
-  getNationalSquad(countryCode, season, weekSeed, agentPlayerIds);
+const buildNationalSquad = (countryCode, season, weekSeed, agentPlayerIds = new Set(), state = null) =>
+  getNationalSquad(countryCode, season, weekSeed, agentPlayerIds, {
+    liveRoster: state?.roster ?? [],
+    leagueReputation: state?.leagueReputation ?? {},
+    countryReputation: state?.countryReputation ?? {},
+    agencyReputation: state?.reputation ?? 0,
+    playerSegmentReputation: state?.playerSegmentReputation ?? {},
+  });
 
 /** Construit un post de convocation pour la sélection nationale. */
-const buildSelectionPost = ({ team, season, week, agentPlayerIds }) => {
+const buildSelectionPost = ({ team, season, week, agentPlayerIds, state }) => {
   const opponent = pick(FRIENDLY_OPPONENTS, `${team.code}-${week}`);
   // Date réelle calculée depuis le calendrier (1er aout 2025 = saison 1, semaine 1)
   const matchSnap = getCalendarSnapshot(week + 1);
   const date = matchSnap.dateLabel;
-  const squad = buildNationalSquad(team.code, season, week, agentPlayerIds);
+  const squad = buildNationalSquad(team.code, season, week, agentPlayerIds, state);
   const myInside = squad.filter((p) => agentPlayerIds.has(p.id));
   const id = `nt-${team.code}-${week}`;
 
@@ -408,16 +415,26 @@ const buildFixturePreviewPost = (fixture, week) => {
   };
 };
 
+const getFixturesFromCalendar = (state, week, status) =>
+  (Array.isArray(state?.matchCalendar) ? state.matchCalendar : [])
+    .filter((match) => match.week === week)
+    .filter((match) => match.status === status)
+    .filter((match) => !match.competition || match.competition === 'LEAGUE')
+    .map(calendarMatchToFixture)
+    .filter((fixture) => fixture?.homeClub?.name && fixture?.awayClub?.name);
+
 /** Posts officiels de clubs majeurs branchés sur les vrais fixtures. */
 const buildClubOfficialPosts = ({ state, week, agentClubs }) => {
   const topClubs = ['Real Madrid', 'Man City', 'Bayern', 'PSG', 'Liverpool', 'Barcelona', 'Inter', 'Arsenal'];
   const out = [];
-  const recentFixtures = (state?.lastFixtures ?? []).filter((fixture) => {
+  const centralRecentFixtures = getFixturesFromCalendar(state, week, MATCH_STATUS.PLAYED);
+  const centralUpcomingFixtures = getFixturesFromCalendar(state, week, MATCH_STATUS.SCHEDULED);
+  const recentFixtures = (centralRecentFixtures.length ? centralRecentFixtures : state?.lastFixtures ?? []).filter((fixture) => {
     const home = getClubName(fixture?.homeClub);
     const away = getClubName(fixture?.awayClub);
     return topClubs.includes(home) || topClubs.includes(away);
   });
-  const upcomingFixtures = (state?.nextFixtures ?? []).filter((fixture) => {
+  const upcomingFixtures = (centralUpcomingFixtures.length ? centralUpcomingFixtures : state?.nextFixtures ?? []).filter((fixture) => {
     const home = getClubName(fixture?.homeClub);
     const away = getClubName(fixture?.awayClub);
     return topClubs.includes(home) || topClubs.includes(away);
@@ -472,17 +489,17 @@ export const generateLivingFeedPosts = ({ state, week, season, agentPlayerIds, a
   const out = [];
   const seasonWeek = ((week - 1) % 38) + 1;
 
-  // 1. Sélection nationale — uniquement pendant les vraies fenêtres FIFA
+  // 1. Sélection nationale — uniquement pendant les vraies fenêtres Global Football Board
   // Sept (sw 6), Oct (sw 11), Nov (sw 15), Mar (sw 27), Juin (sw 36)
   const SELECTION_WEEKS = [6, 11, 15, 27, 36];
   if (SELECTION_WEEKS.includes(seasonWeek)) {
     const teamIdx = SELECTION_WEEKS.indexOf(seasonWeek) % NATIONAL_TEAMS.length;
     const team = NATIONAL_TEAMS[teamIdx];
-    out.push(buildSelectionPost({ team, season, week, agentPlayerIds }));
+    out.push(buildSelectionPost({ team, season, week, agentPlayerIds, state }));
     const agencyCountry = state?.agencyProfile?.countryCode ?? 'FR';
     const agencyTeam = NATIONAL_TEAMS.find((t) => t.code === agencyCountry);
     if (agencyTeam && agencyTeam.code !== team.code) {
-      out.push(buildSelectionPost({ team: agencyTeam, season, week, agentPlayerIds }));
+      out.push(buildSelectionPost({ team: agencyTeam, season, week, agentPlayerIds, state }));
     }
   }
 

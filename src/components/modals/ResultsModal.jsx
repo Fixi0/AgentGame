@@ -54,6 +54,54 @@ const buildMatchSummary = (match) => {
   return `Note ${rating ?? '—'}/10 · ${minutes} min${keyPasses ? ` · ${keyPasses} passes clés` : ''}`;
 };
 
+const statValue = (value, decimals = 1) => {
+  if (!Number.isFinite(value)) return '—';
+  return decimals === 0 ? String(Math.round(value)) : Number(value).toFixed(decimals).replace(/\.0$/, '');
+};
+
+function MatchStatGrid({ match, theme = {} }) {
+  const stats = match?.fixtureStats ?? {};
+  const rows = [
+    ['xG', statValue(stats.ownXg), statValue(stats.opponentXg)],
+    ['Tirs', statValue(stats.ownShots, 0), statValue(stats.opponentShots, 0)],
+    ['Cadrés', statValue(stats.ownShotsOnTarget, 0), statValue(stats.opponentShotsOnTarget, 0)],
+    ['Occasions', statValue(stats.ownChances, 0), statValue(stats.opponentChances, 0)],
+  ];
+  const hasEngineStats = rows.some(([, own, opp]) => own !== '—' || opp !== '—');
+  if (!hasEngineStats && !Number.isFinite(match?.teamAverageRating)) return null;
+
+  return (
+    <div style={{
+      marginTop: 9,
+      padding: 8,
+      borderRadius: 8,
+      background: theme.scoreBg ?? 'oklch(16% 0.035 258 / .62)',
+      border: '1px solid rgba(255,255,255,.10)',
+      display: 'grid',
+      gap: 6,
+      fontFamily: 'system-ui,sans-serif',
+    }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, color: theme.subText ?? 'var(--af-muted)', fontSize: 9, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+        <span>{safeText(match.club, 'Club')}</span>
+        <span style={{ textAlign: 'center' }}>Stats</span>
+        <span style={{ textAlign: 'right' }}>{safeText(match.opponentName, safeText(match.opponent, 'Adv.'))}</span>
+      </div>
+      {rows.map(([label, own, opp]) => (
+        <div key={label} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, alignItems: 'center', fontSize: 11, color: theme.subText ?? 'var(--af-muted)' }}>
+          <strong style={{ color: theme.text ?? 'var(--af-text)' }}>{own}</strong>
+          <span style={{ textAlign: 'center', fontWeight: 850 }}>{label}</span>
+          <strong style={{ color: theme.text ?? 'var(--af-text)', textAlign: 'right' }}>{opp}</strong>
+        </div>
+      ))}
+      {Number.isFinite(match.teamAverageRating) && (
+        <div style={{ marginTop: 2, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,.10)', color: theme.subText ?? 'var(--af-muted)', fontSize: 10, textAlign: 'center' }}>
+          Note moyenne équipe : <strong style={{ color: theme.text ?? 'var(--af-text)' }}>{match.teamAverageRating}/10</strong>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function getBigHeadline(data) {
   // Find the single most exciting thing that happened
   const topWorldCup = (data.worldCupMatchResults ?? []).filter(Boolean).reduce((best, m) => (
@@ -63,7 +111,7 @@ function getBigHeadline(data) {
     return { emoji: '🏆', title: `Champion du monde !`, sub: `${topWorldCup.playerName} · ${topWorldCup.countryName} · match décisif ${topWorldCup.score}` };
   }
   if (topWorldCup?.isEliminated) {
-    return { emoji: '💔', title: `Fin de parcours en Coupe du Monde`, sub: `${topWorldCup.playerName} · ${topWorldCup.countryName} · ${topWorldCup.phase}` };
+    return { emoji: '💔', title: `Fin de parcours en Tournoi Mondial`, sub: `${topWorldCup.playerName} · ${topWorldCup.countryName} · ${topWorldCup.phase}` };
   }
   if (topWorldCup && ((topWorldCup.goals ?? 0) >= 2 || (topWorldCup.matchRating ?? 0) >= 8.5)) {
     return { emoji: '🌍', title: `CdM — ${topWorldCup.playerName} en lumière`, sub: `${topWorldCup.countryName} · ${topWorldCup.score} · Note ${topWorldCup.matchRating ?? '—'}` };
@@ -215,6 +263,7 @@ function MatchScorecard({ match, highlight = false }) {
       {matchSummary && (
         <div style={{ marginTop: 5, fontSize: 10, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', fontStyle: match.matchReport ? 'italic' : 'normal', lineHeight: 1.4, textAlign: 'center' }}>{matchSummary}</div>
       )}
+      <MatchStatGrid match={match} theme={competitionTheme} />
       {match.isFriendly && (
         <div style={{ marginTop: 4, fontSize: 9, color: competitionTheme.chipColor ?? '#b45309', fontFamily: 'system-ui,sans-serif', textAlign: 'center', background: competitionTheme.chipBg ?? '#fffbeb', borderRadius: 4, padding: '2px 6px', display: 'inline-block' }}>Amical</div>
       )}

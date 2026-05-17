@@ -3,7 +3,6 @@ import def0 from '../assets/portraits/def.jpg';
 import mid from '../assets/portraits/mid.jpg';
 import att from '../assets/portraits/att.jpg';
 import gabrielFixio from '../assets/portraits/gabriel-fixio.jpg';
-import yohanZenoxx from '../assets/portraits/yohan-zenoxx.jpg';
 import p01 from '../assets/portraits/p01.jpg';
 import p02 from '../assets/portraits/p02.jpg';
 import p03 from '../assets/portraits/p03.jpg';
@@ -127,7 +126,7 @@ import p120 from '../assets/portraits/p120.jpg';
 
 const OVERRIDES = {
   sig_gabriel_fixio: gabrielFixio,
-  sig_yohan_zenoxx: yohanZenoxx,
+  sig_yohan_zenoxx: p58,
 };
 
 const POOL = [

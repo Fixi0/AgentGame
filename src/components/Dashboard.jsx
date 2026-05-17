@@ -137,10 +137,10 @@ function MatchCarousel({ fixtures, roster, onNav }) {
   );
 }
 
-function WeekFocus({ urgentMessages, marketQueue, expiringContracts, onNav, onOpenContracts }) {
+function WeekFocus({ urgentMessages, marketQueue, expiringContracts, onNav, onOpenContracts, onOpenOffer }) {
   const items = [];
   if (urgentMessages.length) items.push({ icon: MessageCircle, tone: 'gold', label: `${urgentMessages.length} réponse à donner`, detail: urgentMessages[0]?.playerName || 'Conversation active', onClick: () => onNav('messages') });
-  if (marketQueue.length) items.push({ icon: Handshake, tone: 'blue', label: `${marketQueue.length} offre à suivre`, detail: marketQueue[0]?.playerName || 'Dossier mercato', onClick: () => onNav('dossiers') });
+  if (marketQueue.length) items.push({ icon: Handshake, tone: 'blue', label: `${marketQueue.length} offre à suivre`, detail: marketQueue[0]?.playerName || 'Dossier mercato', onClick: () => onOpenOffer?.(marketQueue[0]?.id) || onNav('dossiers') });
   if (expiringContracts.length) items.push({ icon: BriefcaseBusiness, tone: 'gold', label: 'Contrat à sécuriser', detail: `${expiringContracts[0].firstName} ${expiringContracts[0].lastName}`, onClick: () => onOpenContracts?.() || onNav('contracts') });
   if (!items.length) items.push({ icon: Shield, tone: 'grass', label: 'Bureau sous contrôle', detail: 'Lance la semaine quand tu es prêt', onClick: () => onNav('calendar') });
 
@@ -152,7 +152,7 @@ function WeekFocus({ urgentMessages, marketQueue, expiringContracts, onNav, onOp
   );
 }
 
-export default function Dashboard({ state, phase, onPlay, onNav, onOpenContracts, onOpenPlayer }) {
+export default function Dashboard({ state, phase, onPlay, onNav, onOpenContracts, onOpenPlayer, onOpenOffer }) {
   const [showDetails, setShowDetails] = useState(false);
   const pendingCounts = getPendingMessageCounts(state);
   const urgentMessages = (state.messages ?? []).filter(messageNeedsResponse).slice(0, 3);
@@ -161,18 +161,22 @@ export default function Dashboard({ state, phase, onPlay, onNav, onOpenContracts
   const portfolioValue = state.roster.reduce((sum, player) => sum + (player.value ?? 0), 0);
   const capacity = getAgencyCapacity(state.agencyLevel);
   const starPlayer = [...(state.roster ?? [])].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0] ?? null;
-  const fixtures = state.nextFixtures ?? [];
+  const fixtures = (state.matchCalendar ?? [])
+    .filter((match) => match.status === 'scheduled' && match.week === state.week)
+    .map((match) => match.fixture)
+    .filter(Boolean);
+  const visibleFixtures = fixtures.length ? fixtures : state.nextFixtures ?? [];
   const net = (state.history ?? []).slice(-1)[0]?.net ?? 0;
 
   return (
     <div className="af-page">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 14, marginBottom: 14 }}>
         <StarHero player={starPlayer} phase={phase} onPlay={onPlay} onOpenPlayer={onOpenPlayer} net={net} />
-        <WeekFocus urgentMessages={urgentMessages} marketQueue={marketQueue} expiringContracts={expiringContracts} onNav={onNav} onOpenContracts={onOpenContracts} />
+        <WeekFocus urgentMessages={urgentMessages} marketQueue={marketQueue} expiringContracts={expiringContracts} onNav={onNav} onOpenContracts={onOpenContracts} onOpenOffer={onOpenOffer} />
       </div>
 
       <div style={{ marginBottom: 14 }}>
-        <MatchCarousel fixtures={fixtures} roster={state.roster ?? []} onNav={onNav} />
+        <MatchCarousel fixtures={visibleFixtures} roster={state.roster ?? []} onNav={onNav} />
       </div>
 
       <button

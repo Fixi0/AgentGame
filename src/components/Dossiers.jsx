@@ -12,7 +12,7 @@ const STATUS_COLORS = {
   neutral: 'var(--af-muted)',
 };
 
-export default function Dossiers({ state, databaseView = null, onOpenPlayer, onClubDetails, onNav }) {
+export default function Dossiers({ state, databaseView = null, onOpenPlayer, onClubDetails, onNav, onOpenOffer }) {
   const counts = getPendingMessageCounts(state);
   const playerById = useMemo(() => new Map((state.roster ?? []).map((player) => [player.id, player])), [state.roster]);
   const clubMemoryEntries = useMemo(() => (
@@ -99,7 +99,7 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
           <button
             key={offer.id}
             type="button"
-            onClick={() => (offerPlayer ? onOpenPlayer?.(offerPlayer) : onNav?.('deadline'))}
+            onClick={() => onOpenOffer?.(offer.id) || (offerPlayer ? onOpenPlayer?.(offerPlayer) : onNav?.('deadline'))}
             style={{
             ...S.offerRow,
             background: offer.queueStatus?.key === 'bloquee' ? 'oklch(28% 0.12 25 / .35)' : offer.queueStatus?.key === 'conclue' ? 'oklch(28% 0.10 155 / .35)' : offer.queueStatus?.key === 'en_cours' ? 'oklch(22% 0.05 245 / .55)' : 'var(--af-surface-soft)',

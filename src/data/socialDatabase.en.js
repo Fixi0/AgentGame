@@ -234,7 +234,7 @@ export const FAN_POST_TEMPLATES_EN = [
   { tag: 'fan', text: () => `When the players come salute the away end you forget everything ❤️` },
   { tag: 'mercato', text: () => `Winter window: we expect movement please 📞` },
   { tag: 'fan', text: ({ p }) => `${p.lastName} you are our pride, period. No one touches.` },
-  { tag: 'duo', text: ({ p, partner }) => `The ${p.lastName}/${partner ?? 'X'} duo = future Ballon d'Or for two 😍` },
+  { tag: 'duo', text: ({ p, partner }) => `The ${p.lastName}/${partner ?? 'X'} duo = future Ballon Global for two 😍` },
   { tag: 'rivalry', text: ({ p, rival }) => `Pick one: ${p.lastName} or ${rival ?? 'the other'}? Dressing room needs a reset 🚨` },
   { tag: 'press', text: ({ p }) => `${p.firstName} must step up, we expect more in big games.` },
   { tag: 'press', text: () => `Coach we need a system change, we're going in circles.` },
@@ -261,7 +261,7 @@ export const PULSE_TEMPLATES_EN = [
 
   // extended
   ({ p }) => `🚨 BREAKING — ${fullName(p)} in secret talks with an English heavyweight. Meeting planned in London ✈️`,
-  ({ p }) => `A FIFA agent is working an XXL transfer for ${fullName(p)}. More info in 24h.`,
+  ({ p }) => `An international federation agent is working an XXL transfer for ${fullName(p)}. More info in 24h.`,
   ({ p }) => `${p.club} set the price of ${p.lastName} at €35M. Too expensive per European heavyweights.`,
   ({ p }) => `Pre-agreement found between ${p.lastName} and a Bundesliga club. Now to convince ${p.club}.`,
   ({ p }) => `The ${p.lastName} clan asks for a higher salary. ${p.club} reviewing.`,
@@ -339,7 +339,7 @@ export const PULSE_NO_PLAYER_EN = [
   { name: 'StatsZone', handle: '@statszone', text: 'PL title race: within 12 points, anything can happen by May.' },
   { name: 'TacticBoard', handle: '@tacticboard', text: 'Bundesliga: Bayer Leverkusen pressing dissected. European model.' },
   { name: 'XGFanatic', handle: '@xg_fanatic', text: 'Serie A: Naples regaining surprise in vertical play. Stats to back it.' },
-  { name: 'TouchlineFR', handle: '@touchline_fr', text: '🌍 Club World Cup this summer: 32 teams. New format, big stakes.' },
+  { name: 'TouchlineFR', handle: '@touchline_fr', text: '🌍 Club Global Tournament this summer: 32 teams. New format, big stakes.' },
   { name: 'TransferRoom', handle: '@transferroom', text: '🏆 UEFA Super Cup: Champions League and Europa winners face off in 6 weeks.' },
 ];
 

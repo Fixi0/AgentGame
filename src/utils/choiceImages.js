@@ -9,14 +9,27 @@ import refuse from '../assets/events/choice-refuse.jpg';
 import communicate from '../assets/events/choice-communicate.jpg';
 import gift from '../assets/events/choice-gift.jpg';
 import release from '../assets/events/choice-release.jpg';
-import support from '../assets/events/choice-support.jpg';
 import risk from '../assets/events/choice-risk.jpg';
 import contract from '../assets/events/choice-contract.jpg';
 import wait from '../assets/events/choice-wait.jpg';
 import transfer from '../assets/events/choice-transfer.jpg';
-import team from '../assets/events/choice-team.jpg';
 
-const ART = { pay, negotiate, confront, protect, refuse, communicate, gift, release, support, risk, contract, wait, transfer, team };
+const ART = {
+  pay,
+  negotiate,
+  confront,
+  protect,
+  refuse,
+  communicate,
+  gift,
+  release,
+  support: communicate,
+  risk,
+  contract,
+  wait,
+  transfer,
+  team: negotiate,
+};
 
 const KEYWORDS = [
   // ordered: most specific first

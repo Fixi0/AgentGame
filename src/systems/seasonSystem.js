@@ -7,11 +7,22 @@ import { normalizeAgencyReputation } from './reputationSystem';
 const SEASON_START_MONTH = 7; // August (0-indexed month)
 const SEASON_START_DAY = 1;
 
+const getSeasonStartMonday = (year) => {
+  const date = new Date(Date.UTC(year, SEASON_START_MONTH, SEASON_START_DAY));
+  const weekday = date.getUTCDay(); // 0=Sunday, 1=Monday, ... 6=Saturday
+  const mondayOffset = weekday === 0 ? 1 : (8 - weekday) % 7; // next Monday (or same day if Monday)
+  date.setUTCDate(date.getUTCDate() + mondayOffset);
+  return date;
+};
+
 const getWeekDate = (week) => {
   const season = Math.floor((week - 1) / 38) + 1;
   const dayOffset = ((week - 1) % 38) * 7;
-  // Saison 1 démarre le 1er août 2025 → fin de saison mai 2026 → Coupe du Monde été 2026
-  return new Date(Date.UTC(2024 + season, SEASON_START_MONTH, SEASON_START_DAY + dayOffset));
+  // Chaque saison démarre sur un lundi pour garder des semaines cohérentes Lundi→Dimanche.
+  const seasonStart = getSeasonStartMonday(2024 + season);
+  const date = new Date(seasonStart);
+  date.setUTCDate(seasonStart.getUTCDate() + dayOffset);
+  return date;
 };
 
 export const getCalendarSnapshot = (week) => {
@@ -25,6 +36,31 @@ export const getCalendarSnapshot = (week) => {
     dateLabel: fmt.format(date),
     weekRangeLabel: `${shortFmt.format(date)} - ${shortFmt.format(weekEnd)}`,
   };
+};
+
+export const getWeekDailySnapshots = (week) => {
+  const startDate = getWeekDate(week);
+  const locale = isEnglish() ? 'en-US' : 'fr-FR';
+  const weekdayFmt = new Intl.DateTimeFormat(locale, {
+    weekday: 'long',
+    timeZone: 'UTC',
+  });
+  const dayFmt = new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+
+  return Array.from({ length: 7 }, (_unused, index) => {
+    const date = new Date(startDate);
+    date.setUTCDate(startDate.getUTCDate() + index);
+    return {
+      dayIndex: index + 1,
+      weekdayLabel: weekdayFmt.format(date),
+      dateLabel: dayFmt.format(date),
+    };
+  });
 };
 
 const getEligibleBuyerTiers = (player) => {

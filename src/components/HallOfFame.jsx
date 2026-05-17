@@ -45,7 +45,7 @@ export default function HallOfFame({ state }) {
         {trophies.map((t) => (
           <div key={t.season} style={{ padding: 12, marginBottom: 10, background: 'oklch(18% 0.04 258 / .9)', border: '1px solid var(--af-border)', borderRadius: 10 }}>
             <div style={{ fontSize: 11, color: 'var(--af-muted)', letterSpacing: '.16em', fontWeight: 900 }}>SAISON {t.season}</div>
-            {t.ballonDor && <div style={{ marginTop: 6, fontWeight: 900 }}>🏆 Ballon d'Or : {t.ballonDor.name} ({t.ballonDor.club})</div>}
+            {t.ballonDor && <div style={{ marginTop: 6, fontWeight: 900 }}>🏆 Ballon Global : {t.ballonDor.name} ({t.ballonDor.club})</div>}
             {t.goldenBoot && <div>👟 Soulier d'Or : {t.goldenBoot.name} — {t.goldenBoot.goals} buts</div>}
             {t.playmaker && <div>🎯 Meilleur passeur : {t.playmaker.name} — {t.playmaker.assists} passes</div>}
             {t.teamOfSeason?.length > 0 && (
@@ -72,7 +72,7 @@ export default function HallOfFame({ state }) {
               Retraite à {p.retiredAtAge} ans · dernier club {p.finalClub} · note finale {p.finalRating}
             </div>
             <div style={{ fontSize: 11, color: 'var(--af-muted)', marginTop: 2 }}>
-              {p.totalGoals} buts · {p.totalAssists} passes · {p.ballonDorWins ?? 0} Ballon d'Or · {p.selectionsCount ?? 0} sélections
+              {p.totalGoals} buts · {p.totalAssists} passes · {p.ballonDorWins ?? 0} Ballon Global · {p.selectionsCount ?? 0} sélections
             </div>
           </div>
         ))}

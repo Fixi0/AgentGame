@@ -1,6 +1,8 @@
 import { CalendarDays, Star } from 'lucide-react';
 import React from 'react';
 import { getCalendarSnapshot, getSeasonMilestones } from '../systems/seasonSystem';
+import { getUpcomingProgram } from '../systems/competitionCalendarSystem';
+import { buildWeeklyFixtures } from '../systems/matchSystem';
 import { ClubCrest } from '../utils/clubCrests';
 import { S } from './styles';
 
@@ -16,6 +18,15 @@ const toFixtureFromDb = (row) => ({
   },
   homeGoals: row.home_goals,
   awayGoals: row.away_goals,
+});
+
+const toFixtureFromCalendarMatch = (match) => ({
+  ...(match.fixture ?? {}),
+  fixtureId: match.fixtureId ?? match.id,
+  homeClub: match.homeClub ?? match.fixture?.homeClub,
+  awayClub: match.awayClub ?? match.fixture?.awayClub,
+  homeGoals: match.result?.homeGoals ?? match.fixture?.homeGoals,
+  awayGoals: match.result?.awayGoals ?? match.fixture?.awayGoals,
 });
 
 const FixtureRow = ({ fixture, played, onClubDetails, mustWatch }) => (
@@ -35,9 +46,21 @@ const FixtureRow = ({ fixture, played, onClubDetails, mustWatch }) => (
 );
 
 export default function Calendar({ state, databaseView = null, onClubDetails }) {
+  const season = Math.floor(((state.week ?? 1) - 1) / 38) + 1;
+  const seasonStartWeek = (season - 1) * 38 + 1;
+  const seasonEndWeek = seasonStartWeek + 37;
   const currentDate = getCalendarSnapshot(state.week);
   const nextDate = getCalendarSnapshot(state.week + 1);
   const dbFixtures = databaseView?.fixtures ?? [];
+  const centralFixtures = state.matchCalendar ?? [];
+  const nextFixturesFromCalendar = centralFixtures
+    .filter((fixture) => fixture.status === 'scheduled')
+    .sort((a, b) => (a.week ?? 0) - (b.week ?? 0))
+    .map(toFixtureFromCalendarMatch);
+  const lastFixturesFromCalendar = centralFixtures
+    .filter((fixture) => fixture.status === 'played')
+    .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
+    .map(toFixtureFromCalendarMatch);
   const nextFixturesFromDb = dbFixtures
     .filter((fixture) => fixture.status === 'scheduled')
     .sort((a, b) => (a.week ?? 0) - (b.week ?? 0))
@@ -46,10 +69,22 @@ export default function Calendar({ state, databaseView = null, onClubDetails }) 
     .filter((fixture) => fixture.status === 'played')
     .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
     .map(toFixtureFromDb);
-  const nextFixtures = nextFixturesFromDb.length ? nextFixturesFromDb : state.nextFixtures ?? [];
-  const lastFixtures = lastFixturesFromDb.length ? lastFixturesFromDb : state.lastFixtures ?? [];
+  const nextFixtures = nextFixturesFromCalendar.length ? nextFixturesFromCalendar : nextFixturesFromDb.length ? nextFixturesFromDb : state.nextFixtures ?? [];
+  const lastFixtures = lastFixturesFromCalendar.length ? lastFixturesFromCalendar : lastFixturesFromDb.length ? lastFixturesFromDb : state.lastFixtures ?? [];
   const milestones = getSeasonMilestones(state.week);
+  const upcomingProgram = getUpcomingProgram(state.week, 10);
   const rosterClubs = new Set((state.roster ?? []).map((p) => p.club));
+  const trackedClubs = [...rosterClubs].filter((club) => club && club !== 'Libre');
+  const seasonLeagueCalendar = trackedClubs.length
+    ? Array.from({ length: 38 }, (_unused, index) => {
+        const week = seasonStartWeek + index;
+        const fixtures = buildWeeklyFixtures(state.roster ?? [], week).filter((fixture) =>
+          (!fixture.competition || fixture.competition === 'LEAGUE')
+          && (trackedClubs.includes(fixture.homeClub?.name) || trackedClubs.includes(fixture.awayClub?.name)),
+        );
+        return { week, seasonWeek: index + 1, fixtures };
+      })
+    : [];
   const isMustWatch = (f) => rosterClubs.has(f.homeClub.name) || rosterClubs.has(f.awayClub.name);
   const sortMustFirst = (a, b) => Number(isMustWatch(b)) - Number(isMustWatch(a));
 
@@ -70,6 +105,59 @@ export default function Calendar({ state, databaseView = null, onClubDetails }) 
         {nextFixtures.length ? [...nextFixtures].sort(sortMustFirst).slice(0, 20).map((fixture) => (
           <FixtureRow key={fixture.fixtureId} fixture={fixture} onClubDetails={onClubDetails} mustWatch={isMustWatch(fixture)} />
         )) : <div style={S.emptySmall}>Signe des joueurs puis joue une semaine pour générer le calendrier.</div>}
+      </div>
+      <div style={S.objCard}>
+        <div style={S.secTitle}>
+          <CalendarDays size={14} />
+          <span>CALENDRIER CHAMPIONNAT SAISON COMPLÈTE</span>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--af-muted)', marginBottom: 10 }}>
+          Saison {season} · Semaines {seasonStartWeek} à {seasonEndWeek}
+        </div>
+        {!seasonLeagueCalendar.length ? (
+          <div style={S.emptySmall}>Signe des joueurs pour afficher le calendrier complet de leurs clubs.</div>
+        ) : seasonLeagueCalendar.map((block) => (
+          <div key={`season_week_${block.week}`} style={{ ...S.fixtureRow, display: 'block', marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <strong style={{ fontSize: 12 }}>Semaine {block.seasonWeek}</strong>
+              <span style={{ ...S.fixtureMeta, color: block.week < (state.week ?? 1) ? 'var(--af-dim)' : 'var(--af-cyan)' }}>
+                {block.week < (state.week ?? 1) ? 'Jouée' : block.week === (state.week ?? 1) ? 'En cours' : 'À venir'}
+              </span>
+            </div>
+            {block.fixtures.length ? block.fixtures.map((fixture) => (
+              <FixtureRow
+                key={`${block.week}_${fixture.fixtureId}`}
+                fixture={fixture}
+                played={block.week < (state.week ?? 1)}
+                onClubDetails={onClubDetails}
+                mustWatch={isMustWatch(fixture)}
+              />
+            )) : (
+              <div style={S.fixtureMeta}>Pas de match suivi cette semaine.</div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={S.objCard}>
+        <div style={S.secTitle}>
+          <CalendarDays size={14} />
+          <span>PROGRAMME OFFICIEL (10 SEMAINES)</span>
+        </div>
+        {upcomingProgram.map((item) => {
+          const chips = [];
+          if (item.leagueMatchday) chips.push('Championnat');
+          if (item.european.length) chips.push(`Europe: ${item.european.join('/')}`);
+          if (item.internationalBreak) chips.push('Sélections');
+          if (item.winterWindow) chips.push('Mercato hiver');
+          if (item.summerWindow) chips.push('Mercato été');
+          if (item.worldCupKickoffWeek === item.seasonWeek) chips.push('Début CdM');
+          return (
+            <div key={`program_${item.week}`} style={{ ...S.fixtureRow, display: 'block' }}>
+              <div style={{ fontWeight: 700, fontSize: 12 }}>Semaine {item.seasonWeek} (Saison {item.season})</div>
+              <div style={S.fixtureMeta}>{chips.length ? chips.join(' · ') : 'Repos compétitions majeures'}</div>
+            </div>
+          );
+        })}
       </div>
       <div style={S.objCard}>
         <div style={S.secTitle}>

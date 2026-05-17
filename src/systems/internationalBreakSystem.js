@@ -3,10 +3,12 @@
  * Trêves internationales : ~3 fois par saison, pas de match de club.
  * À la place, certains joueurs partent en sélection (amicaux ou qualifs mondiales).
  */
+import { simulateMatch } from '../engine/matchEngine';
+import { INTERNATIONAL_BREAK_WEEKS } from './competitionCalendarSystem';
 
 // Semaines de saison (1..38) où il y a une trêve internationale.
 // Réparties à peu près comme dans la vraie vie (sept, oct, nov, mars).
-export const INTERNATIONAL_BREAK_SEASON_WEEKS = new Set([6, 11, 18, 30]);
+export const INTERNATIONAL_BREAK_SEASON_WEEKS = new Set(INTERNATIONAL_BREAK_WEEKS);
 
 export const isInternationalBreakWeek = (seasonWeek) => INTERNATIONAL_BREAK_SEASON_WEEKS.has(seasonWeek);
 
@@ -17,7 +19,7 @@ export const getBreakKind = (seasonWeek) => {
 };
 
 const BREAK_LABELS = {
-  qualif: { label: 'Éliminatoires Coupe du Monde', short: 'Qualifs', emoji: '🌍' },
+  qualif: { label: 'Éliminatoires Tournoi Mondial', short: 'Qualifs', emoji: '🌍' },
   friendly: { label: 'Match amical international', short: 'Amical', emoji: '🤝' },
 };
 
@@ -31,8 +33,21 @@ const hashFloat = (str) => {
   return (h >>> 0) / 4294967295;
 };
 
+const buildVirtualSquad = (ratingBase = 72, code = 'INTL') =>
+  Array.from({ length: 11 }, (_x, idx) => ({
+    id: `${code}_${idx + 1}`,
+    rating: ratingBase + ((idx % 5) - 2),
+    form: 63,
+    attributes: { shooting: { current: 10 }, passing: { current: 10 } },
+    roleId: idx <= 1 ? 'center_back' : idx <= 4 ? 'central_mid' : 'striker',
+    position: idx === 0 ? 'GK' : idx <= 4 ? 'DEF' : idx <= 7 ? 'MIL' : 'ATT',
+  }));
+
 // Déterministe : un joueur est sélectionné si son rating dépasse un seuil dépendant du pays.
-const isSelected = (player, seasonWeek) => {
+const isSelected = (player, seasonWeek, calledUpMap = null) => {
+  if (calledUpMap instanceof Map && calledUpMap.size) {
+    return calledUpMap.has(player.id);
+  }
   if (!player || (player.injured ?? 0) > 0) return false;
   const rating = player.rating ?? 70;
   const threshold = 74;
@@ -60,19 +75,27 @@ const NATIONAL_OPPONENTS = [
  * Simule la semaine internationale pour le roster.
  * Retourne { selectedMatches: [...], events: [...], summary }
  */
-export const simulateInternationalBreak = (roster = [], { seasonWeek = 1, week = 1 } = {}) => {
+export const simulateInternationalBreak = (roster = [], { seasonWeek = 1, week = 1, calledUpMap = null } = {}) => {
   const kind = getBreakKind(seasonWeek);
   const meta = BREAK_LABELS[kind];
   const selectedMatches = [];
   const events = [];
 
   for (const player of roster) {
-    if (!isSelected(player, seasonWeek)) continue;
+    if (!isSelected(player, seasonWeek, calledUpMap)) continue;
     const seed = hashFloat(`intl:${player.id}:${seasonWeek}`);
     const opponent = NATIONAL_OPPONENTS[Math.floor(seed * NATIONAL_OPPONENTS.length)];
-    // Score réaliste 0..3
-    const ownGoals = Math.floor(hashFloat(`og:${player.id}:${seasonWeek}`) * 4);
-    const oppGoals = Math.floor(hashFloat(`xg:${player.id}:${seasonWeek}`) * 4);
+    const ownBase = Math.max(66, Math.min(90, (player.rating ?? 70) + ((player.form ?? 60) - 60) * 0.1));
+    const oppBase = Math.max(66, Math.min(90, ownBase + Math.floor((hashFloat(`opp:${opponent.code}:${seasonWeek}`) - 0.5) * 10)));
+    const simulation = simulateMatch({
+      homePlayers: buildVirtualSquad(Math.round(ownBase), `${player.countryCode}_${seasonWeek}_home`),
+      awayPlayers: buildVirtualSquad(Math.round(oppBase), `${opponent.code}_${seasonWeek}_away`),
+      homeTeamName: player.countryCode ?? 'INTL',
+      awayTeamName: opponent.name,
+      seed: Math.floor(hashFloat(`intl-match:${player.id}:${seasonWeek}:${opponent.code}`) * 1_000_000_000),
+    });
+    const ownGoals = simulation.homeGoals;
+    const oppGoals = simulation.awayGoals;
     const result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
     const minutes = seed > 0.7 ? 45 + Math.floor(seed * 45) : 60 + Math.floor(seed * 30);
     // Performance individuelle simple

@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Play, Save, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle, Users } from 'lucide-react';
+import { Activity, Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Play, Save, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
 import Achievements from './components/Achievements';
 import Calendar from './components/Calendar';
 import Dossiers from './components/Dossiers';
-import Contacts from './components/Contacts';
 import ContractDashboard from './components/ContractDashboard';
 import DeadlineDay from './components/DeadlineDay';
 import Market from './components/Market';
@@ -16,7 +15,6 @@ import More from './components/More';
 import NewsFeed from './components/NewsFeed';
 import Onboarding from './components/Onboarding';
 import Office from './components/Office';
-import Vestiaire from './components/Vestiaire';
 import Roster from './components/Roster';
 import Shop from './components/Shop';
 import Social from './components/Social';
@@ -26,6 +24,8 @@ import Standings from './components/Standings';
 import NationalSelections from './components/NationalSelections';
 import EuropeanBracket from './components/EuropeanBracket';
 import HallOfFame from './components/HallOfFame';
+import EngineHistory from './components/EngineHistory';
+import SeasonDebug from './components/SeasonDebug';
 
 import CinematicMoment from './components/CinematicMoment';
 import InteractiveModal from './components/modals/InteractiveModal';
@@ -48,11 +48,15 @@ import {
   callContact,
   createPlayerMarketAction,
   createFreshState,
+  createPromiseCrisisOffer,
+  createSecretOfferFollowup,
+  createTensionMarketOffer,
   finishNegotiation,
   getPhase,
+  getEuropeanSimDayIndex,
   MARKET_DATA_VERSION,
   migrateState,
-  playWeek,
+  playDay,
   proposePlayerToClubs,
   refreshMarket,
   rejectClubOffer,
@@ -219,18 +223,18 @@ const views = {
   roster: { label: 'Joueurs', icon: Shield },
   shop: { label: 'Boutique', icon: ShoppingBag },
   contracts: { label: 'Contrats', icon: Briefcase },
-  contacts: { label: 'Réseau', icon: Network },
   calendar: { label: 'Calend.', icon: CalendarDays },
   standings: { label: 'Ligues', icon: Trophy },
   news: { label: 'News', icon: Newspaper },
   media: { label: 'Médias', icon: Newspaper },
   deadline: { label: 'Deadline', icon: Timer },
   scouting: { label: 'Scout', icon: Telescope },
-  vestiaire: { label: 'Vestiaire', icon: Users },
   office: { label: 'Agence', icon: Briefcase },
   profile: { label: 'Profil', icon: UserCircle },
   messages: { label: 'Messages', icon: MessageCircle },
   achievements: { label: 'Succès', icon: Trophy },
+  engineHistory: { label: 'Moteur', icon: Activity },
+  debugSeason: { label: 'Debug', icon: Activity },
 };
 
 const mainNav = [
@@ -258,10 +262,9 @@ const moreItems = [
   { key: 'selections',   label: 'Sélections',   desc: 'Listes des 23 par nation',     icon: Trophy },
   { key: 'shop',         label: 'Boutique',     desc: 'Gemmes et bonus',              icon: ShoppingBag },
   { key: 'achievements', label: 'Succès',       desc: '120 exploits à débloquer',     icon: Trophy },
+  { key: 'engineHistory', label: 'Historique moteur', desc: 'Matchs simulés et stats', icon: Activity },
   { key: 'social',       label: 'Hub Social',   desc: 'InstaPro · WhatsCall · Chirp', icon: Network },
-  { key: 'contacts',     label: 'Réseau',       desc: 'Contacts et infos exclusives', icon: Network },
   { key: 'scouting',     label: 'Scouting',     desc: 'Missions et rapports',         icon: Telescope },
-  { key: 'vestiaire',    label: 'Vestiaire',    desc: 'Chimie et tensions',           icon: Users },
   { key: 'contracts',    label: 'Contrats',     desc: "Vue d'ensemble des contrats",  icon: Briefcase },
   { key: 'dossiers',     label: 'Dossiers',     desc: 'Messages, tensions, mémoire',  icon: FileText },
   { key: 'deadline',     label: 'Deadline Day', desc: 'Appels mercato',               icon: Timer },
@@ -428,8 +431,8 @@ const buildStateFromDatabaseView = (fallbackState, databaseView) => {
     decisionHistory: databaseView.decisionHistory ? rowsToRaw(databaseView.decisionHistory, 'raw') : fallbackState.decisionHistory,
     contacts: databaseView.contacts ? rowsToRaw(databaseView.contacts, 'raw') : fallbackState.contacts,
     news: databaseView.newsPosts ? rowsToRaw(databaseView.newsPosts, 'raw_news') : fallbackState.news,
-    nextFixtures: databaseView.fixtures ? rowsToRaw((databaseView.fixtures ?? []).filter((row) => row.source === 'nextFixtures'), 'raw') : fallbackState.nextFixtures,
-    lastFixtures: databaseView.fixtures ? rowsToRaw((databaseView.fixtures ?? []).filter((row) => row.source === 'lastFixtures'), 'raw') : fallbackState.lastFixtures,
+    nextFixtures: databaseView.fixtures ? rowsToRaw((databaseView.fixtures ?? []).filter((row) => ['nextFixtures', 'scheduled'].includes(row.source)), 'raw') : fallbackState.nextFixtures,
+    lastFixtures: databaseView.fixtures ? rowsToRaw((databaseView.fixtures ?? []).filter((row) => ['lastFixtures', 'played'].includes(row.source)), 'raw') : fallbackState.lastFixtures,
     leagueTables: rebuildLeagueTablesFromDb(databaseView.leagueTableRows ?? [], fallbackState.leagueTables),
     leagueSeasonData: Object.keys(leagueSeasonData).length ? leagueSeasonData : fallbackState.leagueSeasonData,
     clubSeasonHistory: rebuildClubMapFromDb(databaseView.clubSeasonHistory ?? [], 'raw_history', fallbackState.clubSeasonHistory),
@@ -463,6 +466,7 @@ export default function FootballAgentGame() {
   const [databaseView, setDatabaseView] = useState(null);
   const [iapPendingProductId, setIapPendingProductId] = useState(null);
   const [iapProducts, setIapProducts] = useState({});
+  const [seasonDebugTapCount, setSeasonDebugTapCount] = useState(0);
   const startupActionLockRef = useRef(false);
   const importInputRef = useRef(null);
 
@@ -595,6 +599,18 @@ export default function FootballAgentGame() {
     setTimeout(() => setToast(null), 2500);
   };
 
+  const handleSeasonHeaderTap = () => {
+    setSeasonDebugTapCount((count) => {
+      const next = count + 1;
+      if (next >= 5) {
+        setView('debugSeason');
+        showToast('Debug saison ouvert', 'info');
+        return 0;
+      }
+      return next;
+    });
+  };
+
   useEffect(() => {
     window.AgentFootIAP = {
       completePurchase: ({ productId, transactionId } = {}) => {
@@ -680,7 +696,16 @@ export default function FootballAgentGame() {
     } else if (result.summary.achievementsUnlocked.length > 0) {
       showToast(`Exploit débloqué: ${result.summary.achievementsUnlocked[0]}`, 'success');
     }
-  }, [state, loaded]);
+  }, [
+    state?.week,
+    state?.stats?.playersSigned,
+    state?.stats?.transfersDone,
+    state?.stats?.totalEarned,
+    state?.reputation,
+    state?.shopStats?.purchasesTotal,
+    state?.shopStats?.gemsSpentTotal,
+    loaded,
+  ]);
 
   const commitResult = (result, successMessage) => {
     if (result.error) {
@@ -934,9 +959,19 @@ export default function FootballAgentGame() {
       setWeekTickerData(null);
       setLastWeekError(null);
       if (playableState !== state) setState(playableState);
-      const result = playWeek(playableState);
+      const result = playDay(playableState);
       if (!result?.state || !result?.report) {
-        throw new Error('playWeek() a renvoyé un résultat incomplet');
+        throw new Error('playDay() a renvoyé un résultat incomplet');
+      }
+      const isWeeklyWrap = String(result.report?.kind ?? '').startsWith('weekly');
+      if (!isWeeklyWrap) {
+        setState(result.state);
+        setWeekTickerData(result.report);
+        if ((result.report?.newMessagesCount ?? 0) > 0) {
+          showToast(`${result.report.newMessagesCount} nouveau message`, 'info');
+        }
+        showToast(`Jour ${result.state.day}/7`, 'info');
+        return;
       }
       const interstitialDue = shouldShowInterstitialAd(result.state);
       let nextState = interstitialDue
@@ -974,7 +1009,7 @@ export default function FootballAgentGame() {
             setCinematicMoment({
               kind: 'Trophée individuel',
               emoji: '🏆',
-              title: `Ballon d'Or : ${trophyRes.trophies.ballonDor.name}`,
+              title: `Ballon Global : ${trophyRes.trophies.ballonDor.name}`,
               subtitle: `${trophyRes.trophies.ballonDor.club} · saison ${trophyRes.trophies.season}`,
               accent: '#facc15',
             });
@@ -1080,6 +1115,7 @@ export default function FootballAgentGame() {
   const handleTickerDone = () => {
     const report = weekTickerData;
     setWeekTickerData(null);
+    if (report?.isDailyStep) return;
     setModal({ type: 'results', data: report });
   };
 
@@ -1292,6 +1328,19 @@ export default function FootballAgentGame() {
       const withMarketAction = actionType === 'market_watch' && targetPlayer
         ? createPlayerMarketAction(current, message.playerId, 'propose').state
         : current;
+      const withSecretOfferFollowup = (message.type === 'secret_offer' && actionType === 'club_check' && targetPlayer)
+        ? (createSecretOfferFollowup(withMarketAction, message.playerId).state ?? withMarketAction)
+        : withMarketAction;
+      const withPromiseCrisisOffer = (message.type === 'promise_broken_warning' && responseType === 'ferme' && targetPlayer)
+        ? (createPromiseCrisisOffer(withSecretOfferFollowup, message.playerId).state ?? withSecretOfferFollowup)
+        : withSecretOfferFollowup;
+      const shouldCreateTensionOffer = targetPlayer && (
+        (message.type === 'ambition_clash' && ['professionnel', 'empathique'].includes(responseType))
+        || (message.type === 'competitor_agent' && responseType !== 'ferme')
+      );
+      const withTensionOffer = shouldCreateTensionOffer
+        ? (createTensionMarketOffer(withPromiseCrisisOffer, message.playerId, message.type).state ?? withPromiseCrisisOffer)
+        : withPromiseCrisisOffer;
       const extraPlayerEffect = {
         moral: (actionType === 'voice_call' ? 3 : actionType === 'press_release' ? 1 : 0),
         trust: (actionType === 'voice_call' ? 3 : actionType === 'coach_talk' ? 2 : actionType === 'market_watch' ? 1 : 0),
@@ -1299,22 +1348,22 @@ export default function FootballAgentGame() {
           + (contextOutcome.effects?.pressure ?? 0),
       };
       const nextClubRelations = actionType === 'coach_talk' && targetPlayer?.club
-        ? applyClubRelation(withMarketAction.clubRelations, targetPlayer.club, responseType === 'ferme' ? -1 : 2)
+        ? applyClubRelation(withTensionOffer.clubRelations, targetPlayer.club, responseType === 'ferme' ? -1 : 2)
         : actionType === 'salary_case' && targetPlayer?.club
-          ? applyClubRelation(withMarketAction.clubRelations, targetPlayer.club, -1)
-          : withMarketAction.clubRelations;
+          ? applyClubRelation(withTensionOffer.clubRelations, targetPlayer.club, -1)
+          : withTensionOffer.clubRelations;
       const nextClubRelationsWithContext = targetPlayer?.club
         ? applyClubRelation(nextClubRelations, targetPlayer.club, contextOutcome.effects?.clubRelation ?? 0)
         : nextClubRelations;
       const nextMediaRelations = actionType === 'press_release'
         ? applyMediaRelation(withMarketAction.mediaRelations, 'canal_football_desk', responseType === 'professionnel' ? 3 : 1)
-        : withMarketAction.mediaRelations;
+        : withTensionOffer.mediaRelations;
       const nextMediaRelationsWithContext = (contextOutcome.effects?.mediaRelation ?? 0) !== 0
         ? applyMediaRelation(nextMediaRelations, 'canal_football_desk', contextOutcome.effects.mediaRelation)
         : nextMediaRelations;
       const nextClubMemory = targetPlayer?.club && targetPlayer.club !== 'Libre'
         ? recordClubMemory(
-            withMarketAction.clubMemory,
+            withTensionOffer.clubMemory,
             targetPlayer.club,
             {
               trust: actionType === 'coach_talk' || actionType === 'club_check' ? (responseType === 'ferme' ? -1 : 2) : responseType === 'ferme' ? -1 : 1,
@@ -1334,21 +1383,21 @@ export default function FootballAgentGame() {
           )
         : nextClubMemory;
       const nextCredibility = actionType === 'press_release' || actionType === 'club_check'
-        ? applyCredibilityChange(withMarketAction.credibility, responseType === 'ferme' ? 1 : 2)
+        ? applyCredibilityChange(withTensionOffer.credibility, responseType === 'ferme' ? 1 : 2)
         : responseType === 'ferme'
-          ? applyCredibilityChange(withMarketAction.credibility, 1)
-          : withMarketAction.credibility;
+          ? applyCredibilityChange(withTensionOffer.credibility, 1)
+          : withTensionOffer.credibility;
       const nextCredibilityWithContext = applyCredibilityChange(nextCredibility, contextOutcome.effects?.credibility ?? 0);
-      const nextDecisionHistory = addDecisionHistory(withMarketAction.decisionHistory, {
+      const nextDecisionHistory = addDecisionHistory(withTensionOffer.decisionHistory, {
         week: current.week,
         type: `message_${message.type}`,
         label: `${message.playerName}: ${responseAction?.label ?? responseText.split('\n')[0]}`,
         impact: mergedEffects.trust + mergedEffects.moral,
       });
       const nextSocialCrisisCooldowns = message.type === 'media_pressure' && message.playerId
-        ? { ...(withMarketAction.socialCrisisCooldowns ?? {}), [message.playerId]: current.week + 6 }
-        : withMarketAction.socialCrisisCooldowns;
-      const nextDossierMemory = recordDossierEvent(withMarketAction.dossierMemory, {
+        ? { ...(withTensionOffer.socialCrisisCooldowns ?? {}), [message.playerId]: current.week + 6 }
+        : withTensionOffer.socialCrisisCooldowns;
+      const nextDossierMemory = recordDossierEvent(withTensionOffer.dossierMemory, {
         playerId: message.playerId,
         clubName: targetPlayer?.club,
         mediaId: message.type === 'media_pressure' ? 'media_pressure' : null,
@@ -1399,8 +1448,8 @@ export default function FootballAgentGame() {
         : null;
 
       return {
-        ...withMarketAction,
-        reputation: applyReputationChange(withMarketAction.reputation, mergedEffects.reputation),
+        ...withTensionOffer,
+        reputation: applyReputationChange(withTensionOffer.reputation, mergedEffects.reputation),
         credibility: nextCredibilityWithContext,
         mediaRelations: nextMediaRelationsWithContext,
         clubRelations: nextClubRelationsWithContext,
@@ -1408,7 +1457,7 @@ export default function FootballAgentGame() {
         decisionHistory: nextDecisionHistory,
         dossierMemory: nextDossierMemory,
         socialCrisisCooldowns: nextSocialCrisisCooldowns,
-        roster: withMarketAction.roster.map((player) =>
+        roster: withTensionOffer.roster.map((player) =>
           player.id === message.playerId
             ? {
                 ...player,
@@ -1422,15 +1471,15 @@ export default function FootballAgentGame() {
             : player,
         ),
         messages: [
-          ...withMarketAction.messages.map((item) => (item.id === messageId ? { ...item, resolved: true, responseType, responseAction, responseText } : item)),
+          ...withTensionOffer.messages.map((item) => (item.id === messageId ? { ...item, resolved: true, responseType, responseAction, responseText } : item)),
           ...(staffReply ? [staffReply] : []),
           ...(contextualFollowup ? [contextualFollowup] : []),
         ].slice(0, 40),
         news: [
           ...(contextualNews ? [contextualNews] : []),
-          ...(withMarketAction.news ?? []),
+          ...(withTensionOffer.news ?? []),
         ].slice(0, 60),
-        promises: normalizePromises([...(promise ? [promise] : []), ...(withMarketAction.promises ?? [])]).slice(0, 30),
+        promises: normalizePromises([...(promise ? [promise] : []), ...(withTensionOffer.promises ?? [])]).slice(0, 30),
       };
     });
     if (currentMessage) setActiveMessageThreadKey(currentMessage.threadKey ?? currentMessage.playerId);
@@ -1957,10 +2006,15 @@ export default function FootballAgentGame() {
   const phase = getPhase(state.week);
   const calendarSnapshot = getCalendarSnapshot(state.week);
   const pendingCounts = getPendingMessageCounts(databaseState ?? state);
-  // Badge "match européen ce soir" — vrai si au moins un joueur a un match euro cette semaine
-  const hasEuroMatchThisWeek = (databaseState.roster ?? []).some((p) => {
+  // Badge "match européen ce soir" — uniquement le vrai jour simulé (mardi/mercredi).
+  const currentDayIndex = Number(databaseState?.day ?? state?.day ?? 1);
+  const hasEuroMatchToday = (databaseState.roster ?? []).some((p) => {
     const comp = p.europeanCompetition;
-    return comp && isEuropeanMatchWeek(phase.seasonWeek, comp);
+    if (!comp || !isEuropeanMatchWeek(phase.seasonWeek, comp)) return false;
+    if (getEuropeanSimDayIndex(databaseState.week ?? state.week, p.id) !== currentDayIndex) return false;
+    const alreadySimulated = databaseState?.midweekEuropean?.week === (databaseState.week ?? state.week)
+      && (databaseState.midweekEuropean.results ?? []).some((match) => match?.playerId === p.id);
+    return !alreadySimulated;
   });
   const agencyProfile = state.agencyProfile;
   const agencyEmblemSrc = agencyProfile.emblemSrc || assetPath('branding/agent-foot-logo.png');
@@ -1990,7 +2044,7 @@ export default function FootballAgentGame() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            {hasEuroMatchThisWeek && (
+            {hasEuroMatchToday && (
               <button
                 onClick={() => setView('europe')}
                 style={{ fontSize: 10, fontWeight: 900, color: 'var(--af-blue)', background: 'oklch(62% 0.17 245 / .12)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', cursor: 'pointer', animation: 'pulse 2s infinite' }}
@@ -2011,7 +2065,7 @@ export default function FootballAgentGame() {
             </button>
           </div>
         </div>
-        <div style={S.seasonBar}>
+        <div style={{ ...S.seasonBar, cursor: 'default' }} onClick={handleSeasonHeaderTap} title="Debug saison caché">
           <div>
             <div style={S.seasonLabel}>{t('SAISON')} {phase.season} · S{phase.seasonWeek}/38</div>
             <div style={S.seasonDate}>{calendarSnapshot.dateLabel} · {calendarSnapshot.weekRangeLabel}</div>
@@ -2040,13 +2094,15 @@ export default function FootballAgentGame() {
         </div>
       </header>
       <main style={S.main}>
-        {view === 'dashboard' && <Dashboard state={databaseState} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} onOpenPlayer={showPlayerDetails} />}
+        {view === 'dashboard' && <Dashboard state={databaseState} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} onOpenPlayer={showPlayerDetails} onOpenOffer={handleAcceptOffer} />}
         {view === 'market' && <Market state={databaseState} market={databaseState.market} freeAgents={databaseState.freeAgents} money={databaseState.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
         {view === 'roster' && <Roster state={databaseState} roster={databaseState.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
         {view === 'messages' && <Social state={databaseState} onSocialAction={handleSocialAction} onToast={showToast} initialTab="chats" messages={databaseState.messages} messageQueue={databaseState.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'more' && <More items={moreItems} onNav={setView} />}
         {view === 'social' && <Social state={databaseState} onSocialAction={handleSocialAction} onToast={showToast} messages={databaseState.messages} messageQueue={databaseState.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'achievements' && <Achievements state={databaseState} />}
+        {view === 'engineHistory' && <EngineHistory state={databaseState} />}
+        {view === 'debugSeason' && <SeasonDebug state={databaseState} />}
         {view === 'shop' && (
           <Shop
             state={databaseState}
@@ -2066,8 +2122,7 @@ export default function FootballAgentGame() {
         {view === 'hallOfFame' && <HallOfFame state={databaseState} />}
         {view === 'deadline' && <DeadlineDay state={databaseState} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={databaseState} onStartMission={handleStartScoutingMission} />}
-        {view === 'vestiaire' && <Vestiaire state={databaseState} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} />}
-        {view === 'dossiers' && <Dossiers state={databaseState} databaseView={databaseView} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} onNav={setView} />}
+        {view === 'dossiers' && <Dossiers state={databaseState} databaseView={databaseView} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} onNav={setView} onOpenOffer={handleAcceptOffer} />}
         {view === 'office' && (
           <Office
             state={databaseState}
@@ -2081,7 +2136,6 @@ export default function FootballAgentGame() {
         {view === 'profile' && <AgencyProfile state={databaseState} />}
         {/* news/media views removed — content accessible via Dossiers */}
         {view === 'contracts' && <ContractDashboard state={databaseState} onNego={(player, type) => startNegotiation(player, type ?? 'extend')} onOpenPlayer={showPlayerDetails} />}
-        {view === 'contacts' && <Contacts state={databaseState} onCall={handleCallContact} />}
       </main>
       </div>{/* end scrollArea */}
       <nav style={S.nav}>
@@ -2316,11 +2370,11 @@ export default function FootballAgentGame() {
           onCancel={() => setConfirmDialog(null)}
         />
       )}
-      {/* Floating Action Button — play week from any view */}
+      {/* Floating Action Button — play day from any view */}
       {!weekTickerData && !modal && view !== 'dashboard' && loaded && state?.roster?.length > 0 && (
         <button
           onClick={handlePlayWeek}
-          title="Jouer la semaine"
+          title={`Jouer le jour (${state?.day ?? 1}/7)`}
           style={{
             position: 'fixed',
             bottom: 'calc(72px + var(--agent-safe-bottom))',

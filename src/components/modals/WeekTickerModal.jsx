@@ -93,7 +93,7 @@ function buildLegacyItems(report, activePeriod) {
       tone: 'warn',
       day: 'Monde',
       icon: '🌍',
-      title: `Coupe du Monde — ${report.worldCupPhase ?? ''}`,
+      title: `Tournoi Mondial — ${report.worldCupPhase ?? ''}`,
       text: 'Les joueurs en selection sont sur le terrain.',
       chips: ['Selection nationale'],
     });
@@ -124,6 +124,11 @@ function buildLegacyItems(report, activePeriod) {
 }
 
 function buildTimeline(report, activePeriod) {
+  if (Array.isArray(report?.dailyTimeline) && report.dailyTimeline.length > 0) {
+    return report.dailyTimeline
+      .slice()
+      .sort((a, b) => String(a.timestamp ?? '').localeCompare(String(b.timestamp ?? '')));
+  }
   if (Array.isArray(report?.weekTimeline) && report.weekTimeline.length > 0) {
     return report.weekTimeline;
   }
@@ -188,8 +193,15 @@ function WeekDayCard({ item, visible, used }) {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-          <div style={{ fontSize: 10, fontWeight: 900, color: isMajor ? '#7dd3fc' : style.accent, letterSpacing: '.14em', textTransform: 'uppercase', fontFamily: 'system-ui,sans-serif' }}>
-            {item.day ?? 'Jour'}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 900, color: isMajor ? '#7dd3fc' : style.accent, letterSpacing: '.14em', textTransform: 'uppercase', fontFamily: 'system-ui,sans-serif' }}>
+              {item.day ?? 'Jour'}
+            </div>
+            {item.dateLabel ? (
+              <div style={{ fontSize: 10, color: isMajor ? 'rgba(255,255,255,.8)' : 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {item.dateLabel}
+              </div>
+            ) : null}
           </div>
           {isMajor && (
             <span style={{
@@ -392,6 +404,7 @@ export default function WeekTickerModal({ report, activePeriod, onDone }) {
   const weekLabel = report?.phase?.season && report?.phase?.seasonWeek
     ? `S${report.phase.season} · S${report.phase.seasonWeek}/38`
     : `Semaine ${report?.week ?? '—'}`;
+  const isDailyOnly = Boolean(report?.isDailyStep);
 
   return (
     <div style={{
@@ -508,7 +521,7 @@ export default function WeekTickerModal({ report, activePeriod, onDone }) {
               boxShadow: '0 18px 38px rgba(15,23,32,.18)',
             }}
           >
-            Voir le bilan complet <ChevronRight size={14} />
+            {isDailyOnly ? 'Continuer' : 'Voir le bilan complet'} <ChevronRight size={14} />
           </button>
         )}
       </div>

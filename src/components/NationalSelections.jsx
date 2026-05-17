@@ -30,8 +30,14 @@ export default function NationalSelections({ state }) {
   const [activeCode, setActiveCode] = useState(state?.agencyProfile?.countryCode ?? 'FR');
 
   const squad = useMemo(
-    () => getNationalSquad(activeCode, season, week, agentIds),
-    [activeCode, season, week, agentIds],
+    () => getNationalSquad(activeCode, season, week, agentIds, {
+      liveRoster: state?.roster ?? [],
+      leagueReputation: state?.leagueReputation ?? {},
+      countryReputation: state?.countryReputation ?? {},
+      agencyReputation: state?.reputation ?? 0,
+      playerSegmentReputation: state?.playerSegmentReputation ?? {},
+    }),
+    [activeCode, season, week, agentIds, state?.roster, state?.leagueReputation, state?.countryReputation, state?.reputation, state?.playerSegmentReputation],
   );
   const activeNation = SELECTION_NATIONS.find((n) => n.code === activeCode) ?? SELECTION_NATIONS[0];
   const activeFlag = COUNTRIES.find((c) => c.code === activeNation.code)?.flag ?? '';

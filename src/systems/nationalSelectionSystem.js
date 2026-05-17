@@ -18,7 +18,7 @@ const hash = (s) => {
   return h >>> 0;
 };
 
-// Fenêtres FIFA officielles : ~1 toutes les 6 semaines
+// Fenêtres Global Football Board officielles : ~1 toutes les 6 semaines
 export const SELECTION_WINDOWS = [6, 11, 15, 27, 36];
 
 /** Liste des nations qui publient une sélection. */
@@ -51,7 +51,7 @@ const QUOTA = { GK: 3, DEF: 8, MIL: 7, ATT: 5 };
  */
 const windowKey = (season, week) => {
   const seasonWeek = ((week - 1) % 38) + 1;
-  // Snap à la fenêtre FIFA la plus proche en arrière, sinon la dernière
+  // Snap à la fenêtre Global Football Board la plus proche en arrière, sinon la dernière
   let win = SELECTION_WINDOWS[0];
   for (const w of SELECTION_WINDOWS) {
     if (seasonWeek >= w) win = w;
@@ -66,9 +66,60 @@ const windowKey = (season, week) => {
  * @param {number} week
  * @param {Set<string>} agentPlayerIds — ids des joueurs sous contrat (priorisation)
  */
-export const getNationalSquad = (countryCode, season = 1, week = 1, agentPlayerIds = new Set()) => {
+const getReputationBonus = (player, context = {}) => {
+  const leagueRep = context.leagueReputation?.[player.clubCountryCode] ?? 0;
+  const countryRep = context.countryReputation?.[player.countryCode] ?? 0;
+  const agencyRep = context.agencyReputation ?? 0;
+  const segmentRep = context.playerSegmentReputation?.[player.segment ?? 'prospect'] ?? 0;
+  return (leagueRep * 0.08) + (countryRep * 0.05) + (agencyRep * 0.03) + (segmentRep * 0.02);
+};
+
+const getLivePerformanceBonus = (player) => {
+  const stats = player.seasonStats ?? {};
+  const appearances = stats.appearances ?? 0;
+  const avgRating = Number.isFinite(stats.averageRating) ? stats.averageRating : ((player.form ?? 60) / 10);
+  const form = player.form ?? 60;
+  const role = player.clubRole ?? 'Rotation';
+  const moral = player.moral ?? 50;
+  const fatigue = player.fatigue ?? 20;
+  const injuryPenalty = (player.injured ?? 0) > 0 ? 50 : 0;
+  const statsImpact = (stats.goals ?? 0) * 0.7 + (stats.assists ?? 0) * 0.45 + (stats.saves ?? 0) * 0.25;
+  const roleBonus = role === 'Star' ? 6 : role === 'Titulaire' ? 4 : role === 'Rotation' ? 1 : -4;
+  return (
+    (appearances >= 24 ? 4 : appearances >= 16 ? 2 : appearances >= 8 ? 1 : -2)
+    + ((avgRating - 6.5) * 9)
+    + ((form - 50) * 0.22)
+    + ((moral - 50) * 0.08)
+    + roleBonus
+    + statsImpact
+    - Math.max(0, fatigue - 80) * 0.35
+    - injuryPenalty
+  );
+};
+
+const mergeCandidateWithLiveState = (candidate, livePlayerById = new Map()) => {
+  const live = livePlayerById.get(candidate.id);
+  if (!live) return candidate;
+  return {
+    ...candidate,
+    ...live,
+    rating: live.rating ?? candidate.rating,
+    potential: live.potential ?? candidate.potential,
+    age: live.age ?? candidate.age,
+    clubTier: live.clubTier ?? candidate.clubTier,
+    club: live.club ?? candidate.club,
+    clubCountryCode: live.clubCountryCode ?? candidate.clubCountryCode ?? candidate.countryCode,
+    countryCode: live.countryCode ?? candidate.countryCode,
+  };
+};
+
+export const getNationalSquad = (countryCode, season = 1, week = 1, agentPlayerIds = new Set(), context = {}) => {
   const catalog = createPlayerCatalog(season);
-  const allCandidates = catalog.filter((p) => p && p.countryCode === countryCode);
+  const liveRoster = Array.isArray(context.liveRoster) ? context.liveRoster : [];
+  const livePlayerById = new Map(liveRoster.map((player) => [player.id, player]));
+  const allCandidates = catalog
+    .filter((p) => p && p.countryCode === countryCode)
+    .map((candidate) => mergeCandidateWithLiveState(candidate, livePlayerById));
   if (!allCandidates.length) return [];
 
   const key = windowKey(season, week);
@@ -86,10 +137,15 @@ export const getNationalSquad = (countryCode, season = 1, week = 1, agentPlayerI
     return -6;
   };
   const score = (p) =>
-    (p.rating ?? 0) + tierBonus(p.clubTier ?? 4) + ageBonus(p.age ?? 24) + variance(p.id);
+    (p.rating ?? 0)
+    + tierBonus(p.clubTier ?? 4)
+    + ageBonus(p.age ?? 24)
+    + variance(p.id)
+    + getLivePerformanceBonus(p)
+    + getReputationBonus(p, context);
 
   // On filtre d'abord les U19 (jamais en sélection A) ; on les garde uniquement si manque cruel
-  const seniors = allCandidates.filter((p) => (p.age ?? 24) >= 19);
+  const seniors = allCandidates.filter((p) => (p.age ?? 24) >= 19 && (p.injured ?? 0) <= 0);
   const candidates = (seniors.length >= 28 ? seniors : allCandidates).slice();
   candidates.sort((a, b) => score(b) - score(a));
 
@@ -107,8 +163,8 @@ export const getNationalSquad = (countryCode, season = 1, week = 1, agentPlayerI
 
   // Garantir présence des joueurs de l'agence éligibles s'ils dépassent un seuil
   if (agentPlayerIds && agentPlayerIds.size) {
-    const minRating = 138;
-    const myEligible = candidates.filter((p) => agentPlayerIds.has(p.id) && (p.rating ?? 0) >= minRating);
+    const minRating = 132;
+    const myEligible = candidates.filter((p) => agentPlayerIds.has(p.id) && (p.rating ?? 0) >= minRating && (p.injured ?? 0) <= 0);
     for (const p of myEligible) {
       if (used.has(p.id)) continue;
       const idx = [...squad].reverse().findIndex((q) => q.position === p.position);
@@ -138,11 +194,11 @@ export const getAllNationalSquads = (season = 1, week = 1, agentPlayerIds = new 
   }));
 
 /** Liste des joueurs de l'agence convoqués (id → nation). */
-export const getCalledUpAgentPlayers = (season = 1, week = 1, agentPlayerIds = new Set()) => {
+export const getCalledUpAgentPlayers = (season = 1, week = 1, agentPlayerIds = new Set(), context = {}) => {
   const map = new Map();
   if (!agentPlayerIds || !agentPlayerIds.size) return map;
   for (const nation of SELECTION_NATIONS) {
-    const squad = getNationalSquad(nation.code, season, week, agentPlayerIds);
+    const squad = getNationalSquad(nation.code, season, week, agentPlayerIds, context);
     for (const p of squad) {
       if (agentPlayerIds.has(p.id)) map.set(p.id, nation);
     }

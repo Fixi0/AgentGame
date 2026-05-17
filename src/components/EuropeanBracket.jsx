@@ -155,6 +155,76 @@ const ClubMatchCell = ({ club, cupColor }) => (
   </div>
 );
 
+/** Arbre KO complet (barrages -> finale) */
+const KnockoutTree = ({ compData, cupLabel }) => {
+  const rounds = compData?.bracketState?.rounds ?? {};
+  const hasRoundData = Object.keys(rounds).length > 0;
+  if (!hasRoundData && !compData?.bracketClubs?.length) return null;
+
+  const fallbackRoundOf16 = (() => {
+    if (hasRoundData || !Array.isArray(compData?.bracketClubs)) return [];
+    const clubs = compData.bracketClubs.slice(0, 16);
+    const pairs = [];
+    for (let i = 0; i < clubs.length; i += 2) {
+      const home = clubs[i];
+      const away = clubs[i + 1];
+      if (!home || !away) continue;
+      pairs.push({
+        home: home.name ?? 'Club',
+        away: away.name ?? 'Club',
+        score: '',
+        aggregate: '',
+      });
+    }
+    return pairs;
+  })();
+
+  const stageMatches = {
+    playoff: rounds.playoff?.matches ?? [],
+    roundOf16: rounds.roundOf16?.matches ?? fallbackRoundOf16,
+    quarters: rounds.quarters?.matches ?? [],
+    semis: rounds.semis?.matches ?? [],
+    final: rounds.final?.matches ?? [],
+  };
+
+  const stages = STAGE_ORDER.filter((stage) => (stageMatches[stage] ?? []).length > 0);
+  if (!stages.length) return null;
+
+  return (
+    <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${stages.length}, minmax(200px, 1fr))`, gap: 10, minWidth: Math.max(stages.length * 220, 720) }}>
+        {stages.map((stage) => (
+          <div key={stage} style={{ background: 'oklch(16% 0.035 258 / .78)', border: '1px solid var(--af-border)', borderRadius: 8, padding: 10 }}>
+            <div style={{ fontSize: 10, letterSpacing: '.12em', color: cupLabel.color, fontWeight: 900, marginBottom: 8, fontFamily: 'system-ui,sans-serif' }}>
+              {STAGE_LABELS[stage] ?? stage}
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {(stageMatches[stage] ?? []).map((match, idx) => (
+                <div key={`${stage}_${idx}_${match.home}_${match.away}`} style={{ border: '1px solid var(--af-border)', borderRadius: 6, overflow: 'hidden', background: 'oklch(18% 0.035 258 / .92)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 8px', borderBottom: '1px solid oklch(28% 0.04 258 / .35)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--af-text)' }}>{match.home ?? 'Club A'}</span>
+                    <strong style={{ fontSize: 12, color: 'var(--af-text)' }}>{match.score ? String(match.score).split('-')[0]?.trim() : ''}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 8px' }}>
+                    <span style={{ fontSize: 12, color: 'var(--af-text)' }}>{match.away ?? 'Club B'}</span>
+                    <strong style={{ fontSize: 12, color: 'var(--af-text)' }}>{match.score ? String(match.score).split('-')[1]?.trim() : ''}</strong>
+                  </div>
+                  {(match.score || match.aggregate) && (
+                    <div style={{ padding: '4px 8px 6px', fontSize: 10, color: 'var(--af-muted)', borderTop: '1px solid oklch(28% 0.04 258 / .35)', fontFamily: 'system-ui,sans-serif' }}>
+                      {match.score ? `Match: ${match.score}` : ''}
+                      {match.aggregate ? `${match.score ? ' · ' : ''}Agg: ${match.aggregate}` : ''}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 /** Buteurs & passeurs européens — synthétiques pour tous les clubs engagés. */
 const TopScorers = ({ state, competition, cupColor }) => {
   const [tab, setTab] = useState('scorers');
@@ -352,6 +422,12 @@ export default function EuropeanBracket({ state, databaseView = null }) {
                   : 'Aucun de tes joueurs n\u2019y est engagé — tu suis la compétition en spectateur'}
               </div>
             </div>
+          </div>
+
+          {/* Arbre KO complet */}
+          <div style={{ marginBottom: 16 }}>
+            <SectionTitle>Arbre complet — phases finales</SectionTitle>
+            <KnockoutTree compData={currentCompEntry.compData} cupLabel={currentCompEntry.cupLabel} />
           </div>
 
           {/* Bracket global (R16) si disponible */}

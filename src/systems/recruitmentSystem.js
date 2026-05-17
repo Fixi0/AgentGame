@@ -226,7 +226,6 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
     };
   }
 
-  const costMultiplier = clamp(1.08 - (fit - threshold) / 220, 0.82, 1.1);
   const recruitmentMemory = tagRecruitmentMemory(player, {
     week: state.week,
     pitchId,
@@ -238,7 +237,8 @@ export const recruitPlayer = (state, playerId, pitchId = 'sportif') => {
   });
   const signedPlayer = {
     ...player,
-    signingCost: Math.floor(player.signingCost * costMultiplier),
+    // Keep the exact displayed market cost to avoid any mismatch at signing time.
+    signingCost: Math.max(0, Math.floor(player.signingCost ?? 0)),
     recruitmentPitch: preview.pitch.id,
     recruitmentFit: fit,
     recruitmentChance: preview.chance,

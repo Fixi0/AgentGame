@@ -20,7 +20,7 @@ export const getStrategicSuggestions = (state) => {
   if (unresolvedPromises.length) suggestions.push(`${unresolvedPromises.length} promesse(s) active(s) : surveille les échéances avant qu'elles explosent.`);
   if (state.money > 120000 && state.agencyLevel < 3) suggestions.push("Agrandir l'agence avant de rafraîchir le marché en boucle.");
   if (state.worldCupState && state.worldCupState.phase !== 'done') {
-    suggestions.push("Suivre la Coupe du Monde de près: une grosse perf peut faire décoller la valeur et les offres.");
+    suggestions.push("Suivre le Tournoi Mondial de près: une grosse perf peut faire décoller la valeur et les offres.");
   }
   if ((state.roster ?? []).some((player) => getEuropeanCompetition(player, currentSeason))) {
     suggestions.push('Exploiter les coupes européennes: un grand match en Europe change le poids d’un dossier.');

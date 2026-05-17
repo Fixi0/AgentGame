@@ -35,11 +35,11 @@ const _PASSIVE_BASE = [
   // ─── ÉPIQUE BON ─────────────────────────────────────────────────
   { id: 'hat_trick_cl', rarity: 'epic', type: 'performance', label: 'Triplé en Ligue des Champions', good: true, money: 20000, rep: 12, val: 1.22, moral: 18, trust: 3, chance: 0.006 },
   { id: 'record_goal', rarity: 'epic', type: 'performance', label: '100e but en carrière professionnelle', good: true, money: 16000, rep: 10, val: 1.15, moral: 15, trust: 2, chance: 0.004 },
-  { id: 'ballon_dor_shortlist', rarity: 'epic', type: 'media', label: "Nominé Ballon d'Or / Trophées FIFA", good: true, money: 24000, rep: 15, val: 1.4, moral: 20, trust: 3, chance: 0.003 },
+  { id: 'ballon_dor_shortlist', rarity: 'epic', type: 'media', label: "Nominé Ballon Global / Trophées Global Football Board", good: true, money: 24000, rep: 15, val: 1.4, moral: 20, trust: 3, chance: 0.003 },
 
   // ─── LÉGENDAIRE BON — gardés élevés pour le sentiment de jackpot ─────────────────────
-  { id: 'world_cup_hero', rarity: 'legendary', type: 'media', label: 'Héros de la Coupe du Monde', good: true, money: 60000, rep: 30, val: 1.8, moral: 25, trust: 5, chance: 0.0005 },
-  { id: 'ballon_dor_winner', rarity: 'legendary', type: 'media', label: "Remporte le Ballon d'Or", good: true, money: 80000, rep: 50, val: 2.5, moral: 30, trust: 5, chance: 0.0003 },
+  { id: 'world_cup_hero', rarity: 'legendary', type: 'media', label: 'Héros de le Tournoi Mondial', good: true, money: 60000, rep: 30, val: 1.8, moral: 25, trust: 5, chance: 0.0005 },
+  { id: 'ballon_dor_winner', rarity: 'legendary', type: 'media', label: "Remporte le Ballon Global", good: true, money: 80000, rep: 50, val: 2.5, moral: 30, trust: 5, chance: 0.0003 },
 
   // ─── COMMUN MAUVAIS ─────────────────────────────────────────────
   { id: 'inj_mild', rarity: 'common', type: 'media', label: 'Blessure légère (2 semaines)', good: false, money: -3000, rep: -1, val: 0.92, moral: -5, trust: -1, chance: 0.07, injury: 2 },
@@ -518,7 +518,7 @@ const _INTERACTIVE_BASE = [
     types: ['media'],
     wcOnly: true,
     title: '🌍 Avant la CdM — lobbying pour la sélection',
-    description: "La liste pour la Coupe du Monde est sur le point d'être publiée. Ton joueur mérite sa place mais le sélectionneur hésite. Tu as 48h pour agir.",
+    description: "La liste pour le Tournoi Mondial est sur le point d'être publiée. Ton joueur mérite sa place mais le sélectionneur hésite. Tu as 48h pour agir.",
     choices: [
       { label: 'Appel direct au sélectionneur', cost: 0, effects: { rep: 5, moral: 12, trust: 8, val: 1.06 }, desc: 'Mettre toute ta réputation dans la balance', flag: 'wc_selection_boost' },
       { label: 'Envoyer les stats compilées par ton staff', cost: 3000, effects: { rep: 3, moral: 8, trust: 6 }, desc: 'Arguments factuels et professionnels', flag: 'wc_selection_boost' },
@@ -546,7 +546,7 @@ const _INTERACTIVE_BASE = [
     types: ['scandal'],
     wcOnly: true,
     title: '🌍 CdM — l\'envers du décor',
-    description: "La Coupe du Monde polarise tout. Une interview de ton joueur dans le village des médias est mal interprétée. En quelques heures, c'est viral. Des pays entiers réagissent.",
+    description: "Le Tournoi Mondial polarise tout. Une interview de ton joueur dans le village des médias est mal interprétée. En quelques heures, c'est viral. Des pays entiers réagissent.",
     choices: [
       { label: 'Conférence de presse de clarification', cost: 5000, effects: { rep: 3, moral: -3, trust: 5 }, desc: 'Calmera la presse internationale' },
       { label: 'Message vidéo personnel — humaniser', cost: 0, effects: { rep: 6, moral: 5, trust: 7, val: 1.04 }, desc: 'L\'authenticité désamorce tout' },
@@ -560,7 +560,7 @@ const _INTERACTIVE_BASE = [
     types: ['media'],
     wcOnly: true,
     title: '🌍 CdM — jouer blessé pour son pays',
-    description: "Ton joueur est touché à l'entraînement. Blessure légère mais réelle. Il veut jouer quand même — c'est la Coupe du Monde. Le médecin te conseille le repos.",
+    description: "Ton joueur est touché à l'entraînement. Blessure légère mais réelle. Il veut jouer quand même — c'est le Tournoi Mondial. Le médecin te conseille le repos.",
     choices: [
       { label: 'Le laisser décider — c\'est son rêve', cost: 0, effects: { rep: 4, moral: 18, trust: 14 }, desc: 'Respecter sa passion — risque de rechute', injury: 2 },
       { label: 'Le convaincre de se reposer', cost: 0, effects: { rep: -4, moral: -20, trust: -15 }, desc: 'Raisonnable mais il ne te le pardonnera pas' },

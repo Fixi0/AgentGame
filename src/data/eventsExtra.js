@@ -34,7 +34,7 @@ export const EXTRA_PASSIVE_EVENTS = [
   { id: 'season_record_holder', rarity: 'rare', type: 'performance', label: 'Recordman de buts du club sur une saison', good: true, money: 11200, rep: 10, val: 1.16, moral: 16, trust: 3, chance: 0.012 },
   { id: 'goal_century', rarity: 'rare', type: 'performance', label: '50e but pour son club — palmarès historique', good: true, money: 9600, rep: 8, val: 1.13, moral: 14, trust: 2, chance: 0.014 },
   { id: 'team_of_year', rarity: 'rare', type: 'performance', label: 'Équipe-type du championnat', good: true, money: 9200, rep: 9, val: 1.14, moral: 12, trust: 2, chance: 0.016 },
-  { id: 'world_xi', rarity: 'rare', type: 'media', label: 'FIFA / FIFPro World XI', good: true, money: 14000, rep: 12, val: 1.2, moral: 16, trust: 3, chance: 0.008 },
+  { id: 'world_xi', rarity: 'rare', type: 'media', label: 'Onze Mondial des Joueurs', good: true, money: 14000, rep: 12, val: 1.2, moral: 16, trust: 3, chance: 0.008 },
 
   // ─── Médias — bons ──────────────────────────────────────────────
   { id: 'tv_show_appearance', rarity: 'common', type: 'media', label: 'Invité d’honneur sur un grand plateau TV', good: true, money: 3200, rep: 5, val: 1.04, moral: 6, trust: 1, chance: 0.05 },

@@ -761,11 +761,11 @@ const hydrateStateFromTables = (fallbackState = {}, tables = {}) => {
     contacts: rowsToRawList(tables.contacts, 'raw').length ? rowsToRawList(tables.contacts, 'raw') : fallbackState.contacts ?? [],
     decisionHistory: rowsToRawList(tables.decision_history, 'raw').length ? rowsToRawList(tables.decision_history, 'raw') : fallbackState.decisionHistory ?? [],
     news: rowsToRawList(tables.news_posts, 'raw_news').length ? rowsToRawList(tables.news_posts, 'raw_news') : fallbackState.news ?? [],
-    nextFixtures: rowsToRawList((tables.fixtures ?? []).filter((row) => row.source === 'nextFixtures'), 'raw').length
-      ? rowsToRawList((tables.fixtures ?? []).filter((row) => row.source === 'nextFixtures'), 'raw')
+    nextFixtures: rowsToRawList((tables.fixtures ?? []).filter((row) => ['nextFixtures', 'scheduled'].includes(row.source)), 'raw').length
+      ? rowsToRawList((tables.fixtures ?? []).filter((row) => ['nextFixtures', 'scheduled'].includes(row.source)), 'raw')
       : fallbackState.nextFixtures ?? [],
-    lastFixtures: rowsToRawList((tables.fixtures ?? []).filter((row) => row.source === 'lastFixtures'), 'raw').length
-      ? rowsToRawList((tables.fixtures ?? []).filter((row) => row.source === 'lastFixtures'), 'raw')
+    lastFixtures: rowsToRawList((tables.fixtures ?? []).filter((row) => ['lastFixtures', 'played'].includes(row.source)), 'raw').length
+      ? rowsToRawList((tables.fixtures ?? []).filter((row) => ['lastFixtures', 'played'].includes(row.source)), 'raw')
       : fallbackState.lastFixtures ?? [],
     leagueTables: rebuildLeagueTables(tables.league_table_rows ?? [], fallbackState.leagueTables ?? {}),
     leagueSeasonData: (tables.league_seasons ?? []).reduce((data, row) => ({
