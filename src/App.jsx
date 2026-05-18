@@ -2035,19 +2035,27 @@ export default function FootballAgentGame() {
       <div style={isDashboardView ? { ...S.scrollArea, overflowY: 'hidden', overscrollBehavior: 'none', WebkitOverflowScrolling: 'auto' } : S.scrollArea}>
       <header style={isDashboardView ? { ...S.header, paddingTop: 'calc(4px + var(--agent-safe-top))', paddingBottom: 2 } : S.header}>
         <div style={S.brandRow}>
-          <div style={isDashboardView ? { display: 'flex', alignItems: 'center', gap: 8 } : S.logo}>
-            <div style={{ ...(isDashboardView ? { width: 36, height: 36, borderRadius: 999, overflow: 'hidden', border: '1px solid var(--af-border)', background: 'oklch(14% 0.03 258)' } : S.logoMark), background: agencyProfile.color || 'var(--af-grass)' }}>
-              <img src={agencyEmblemSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
+          <div style={isDashboardView ? { display: 'flex', alignItems: 'center', gap: 10 } : S.logo}>
+            {isDashboardView ? (
+              <div style={{ position: 'relative', width: 42, height: 42, borderRadius: 999, padding: 2, background: 'conic-gradient(from 140deg, oklch(74% 0.18 215), oklch(64% 0.22 295), oklch(74% 0.18 215))', boxShadow: '0 0 18px oklch(64% 0.20 270 / .45)' }}>
+                <div style={{ width: '100%', height: '100%', borderRadius: 999, overflow: 'hidden', background: 'oklch(8% 0.02 258)', display: 'grid', placeItems: 'center' }}>
+                  <img src={agencyEmblemSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              </div>
+            ) : (
+              <div style={{ ...S.logoMark, background: agencyProfile.color || 'var(--af-grass)' }}>
+                <img src={agencyEmblemSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
             {!isDashboardView ? (
               <div>
                 <div style={S.brandName}>{agencyProfile.name}</div>
                 <div style={S.brandSub}>{agencyProfile.city} · {agencyProfile.ownerName}</div>
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: 1 }}>
-                <div style={{ fontSize: 13, letterSpacing: '.2em', color: 'var(--af-text)', fontWeight: 860, textTransform: 'uppercase' }}>{agencyProfile.name}</div>
-                <div style={{ fontSize: 8, letterSpacing: '.16em', color: 'var(--af-dim)', fontWeight: 760, textTransform: 'uppercase' }}>Agency</div>
+              <div style={{ display: 'grid', gap: 2 }}>
+                <div style={{ fontSize: 15, letterSpacing: '.32em', color: 'var(--af-text)', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1 }}>{agencyProfile.name}</div>
+                <div style={{ fontSize: 8.5, letterSpacing: '.42em', color: 'oklch(72% 0.14 295)', fontWeight: 600, textTransform: 'uppercase', lineHeight: 1 }}>Agency</div>
               </div>
             )}
           </div>
@@ -2066,9 +2074,9 @@ export default function FootballAgentGame() {
               </span>
             )}
             {isDashboardView ? (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid color-mix(in oklch, var(--af-cyan) 42%, transparent)', borderRadius: 999, padding: '5px 10px', background: 'oklch(15% 0.05 220 / .34)', backdropFilter: 'blur(16px)' }}>
-                <div style={{ width: 17, height: 17, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'var(--af-cyan)', color: 'oklch(12% 0.02 258)', fontSize: 11, fontWeight: 900 }}>€</div>
-                <div style={{ color: 'var(--af-text)', fontWeight: 900, letterSpacing: '.02em', fontSize: 13 }}>{formatMoneyCompact(databaseState.money)}</div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid oklch(78% 0.12 155 / .35)', borderRadius: 999, padding: '6px 12px 6px 6px', background: 'oklch(12% 0.04 165 / .50)', backdropFilter: 'blur(18px)', boxShadow: '0 0 22px oklch(64% 0.18 155 / .22)' }}>
+                <div style={{ width: 22, height: 22, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, oklch(78% 0.18 155), oklch(62% 0.20 158))', color: 'oklch(10% 0.04 165)', fontSize: 12, fontWeight: 900, boxShadow: '0 2px 8px oklch(50% 0.18 158 / .5)' }}>$</div>
+                <div style={{ color: 'var(--af-text)', fontWeight: 700, letterSpacing: '.01em', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{formatMoneyCompact(databaseState.money)}</div>
               </div>
             ) : (
               <>
@@ -2171,21 +2179,21 @@ export default function FootballAgentGame() {
             onClick={() => setView(key === 'more' ? 'more' : key)}
             style={{
               ...S.navBtn,
-              color: active ? 'oklch(86% 0.14 210)' : 'rgba(255,255,255,.56)',
-              transform: active ? 'translateY(-1px)' : 'none',
+              color: active ? 'oklch(78% 0.18 295)' : 'rgba(220,220,235,.55)',
             }}
           >
             <span style={{
-              width: 34, height: 34, borderRadius: 10,
+              width: 30, height: 30, borderRadius: 10,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: active ? 'linear-gradient(135deg, oklch(44% 0.14 214 / .34), oklch(30% 0.10 230 / .26))' : 'transparent',
-              border: active ? '1px solid oklch(82% 0.14 220 / .40)' : '1px solid transparent',
-              boxShadow: active ? '0 0 16px oklch(66% 0.16 214 / .26)' : 'none',
-              transition: 'all .2s ease',
+              filter: active ? 'drop-shadow(0 0 10px oklch(64% 0.22 295 / .55))' : 'none',
+              transition: 'all .22s ease',
             }}>
-              <Icon size={20} strokeWidth={2.4} fill={active ? 'currentColor' : 'none'} color="currentColor" />
+              <Icon size={22} strokeWidth={active ? 2.2 : 1.9} fill={active ? 'currentColor' : 'none'} color="currentColor" />
             </span>
-            <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.06em', marginTop: -2 }}>{item.label}</span>
+            <span style={{ fontSize: 10.5, fontWeight: active ? 700 : 500, letterSpacing: '.005em', marginTop: 0 }}>{item.label}</span>
+            {active && (
+              <span style={{ position: 'absolute', bottom: -2, width: 22, height: 2.5, borderRadius: 2, background: 'oklch(72% 0.20 295)', boxShadow: '0 0 10px oklch(68% 0.22 295 / .8)' }} />
+            )}
             {key === 'messages' && pendingCounts.total > 0 && <span style={S.navBadge}>{pendingCounts.total}</span>}
           </button>
           );

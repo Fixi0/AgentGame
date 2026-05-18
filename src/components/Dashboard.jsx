@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, Handshake, Mail, Newspaper } from 'lucide-react';
+import { ChevronRight, Handshake, Mail, Newspaper, Users, LayoutGrid, BadgeCheck } from 'lucide-react';
 import { getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
 import { getCalendarSnapshot, getWeekDailySnapshots } from '../systems/seasonSystem';
 import { getPostImage } from '../utils/eventImages';
 
-const WEEKDAY_LABELS_FR = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI', 'DIMANCHE'];
+const WEEKDAY_LABELS_EN = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 const MONTH_LABELS_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
@@ -20,75 +20,86 @@ function buildHeaderDate(state) {
   const date = new Date(Date.UTC(year, clamp(monthIndex, 0, 11), dayNumber + (day - 1)));
 
   return {
-    weekday: WEEKDAY_LABELS_FR[day - 1],
+    weekday: WEEKDAY_LABELS_EN[day - 1],
     dayNumber: String(date.getUTCDate()).padStart(2, '0'),
     month: MONTH_LABELS_EN[date.getUTCMonth()] ?? 'JUL',
   };
 }
 
-function ActionRow({ icon: Icon, title, subtitle, onClick, highlighted = false }) {
+function ActionRow({ icon: Icon, iconTint, title, subtitle, onClick, highlighted = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={highlighted ? 'dashboard-card dashboard-action-card dashboard-card-active' : 'dashboard-card dashboard-action-card'}
+      className={highlighted ? 'dashboard-card dashboard-card-active' : 'dashboard-card'}
       style={{
         width: '100%',
         textAlign: 'left',
-        borderRadius: 13,
-        padding: '9px 11px',
+        padding: '14px 16px',
         cursor: 'pointer',
         display: 'grid',
-        gridTemplateColumns: '30px 1fr 14px',
+        gridTemplateColumns: '40px 1fr 16px',
         alignItems: 'center',
-        gap: 10,
+        gap: 14,
+        border: highlighted ? undefined : '1px solid oklch(82% 0.05 270 / .12)',
       }}
     >
-      <div className={highlighted ? 'dashboard-icon dashboard-icon-active' : 'dashboard-icon'}>
-        <Icon size={16} color={highlighted ? 'var(--ui-accent)' : 'oklch(82% 0.13 208)'} />
+      <div style={{
+        width: 40, height: 40, borderRadius: 10,
+        display: 'grid', placeItems: 'center',
+        background: 'transparent',
+        border: '1px solid oklch(82% 0.05 270 / .18)',
+      }}>
+        <Icon size={18} strokeWidth={1.8} color={iconTint || 'oklch(78% 0.16 215)'} />
       </div>
       <div style={{ minWidth: 0 }}>
-        <div className="font-display" style={{ color: 'var(--af-text)', fontSize: 13, fontWeight: 780, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ color: 'var(--af-text)', fontSize: 15, fontWeight: 700, letterSpacing: '-.005em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {title}
         </div>
         {subtitle ? (
-          <div style={{ color: 'oklch(80% 0.02 255 / .78)', fontSize: 10, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ color: 'oklch(70% 0.02 265 / .8)', fontSize: 11.5, marginTop: 2, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {subtitle}
           </div>
         ) : null}
       </div>
-      <ChevronRight size={14} color="oklch(68% 0.02 255 / .82)" />
+      <ChevronRight size={16} color="oklch(72% 0.02 265 / .7)" strokeWidth={2} />
     </button>
   );
 }
 
 function SocialPostCard({ post, showNew = false }) {
   return (
-    <article className="dashboard-card dashboard-post-card" style={{ borderRadius: 15, overflow: 'hidden', borderColor: 'oklch(66% 0.05 258 / .28)' }}>
-      <div style={{ padding: '7px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ color: 'var(--af-text)', fontWeight: 850, fontSize: 11.5, letterSpacing: '.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {post.accountName}
+    <article className="dashboard-card" style={{ borderRadius: 18, overflow: 'hidden', padding: 0 }}>
+      <div style={{ position: 'relative', height: 180, backgroundImage: `url(${post.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, oklch(8% 0.02 258 / .55) 0%, transparent 32%, transparent 55%, oklch(6% 0.015 262 / .92) 100%)' }} />
+        <div style={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 7, background: 'linear-gradient(135deg, oklch(54% 0.20 295), oklch(40% 0.18 280))', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: '0 4px 12px oklch(40% 0.20 290 / .5)' }}>
+              <BadgeCheck size={16} color="#fff" />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#fff', fontWeight: 800, fontSize: 13, letterSpacing: '.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 2px 6px rgba(0,0,0,.5)' }}>
+                <span>{(post.accountName || '').toUpperCase()}</span>
+                <BadgeCheck size={12} color="oklch(78% 0.16 215)" />
+              </div>
+              <div style={{ color: 'rgba(255,255,255,.72)', fontSize: 11, fontWeight: 500, textShadow: '0 1px 4px rgba(0,0,0,.5)' }}>{post.dateLabel}</div>
+            </div>
           </div>
-          <div style={{ color: 'oklch(80% 0.02 255 / .78)', fontSize: 10 }}>{post.dateLabel}</div>
+          {showNew ? (
+            <div style={{ borderRadius: 8, padding: '5px 11px', background: 'oklch(88% 0.18 105)', color: 'oklch(16% 0.04 260)', fontSize: 11, fontWeight: 800, letterSpacing: '.01em', boxShadow: '0 4px 12px oklch(70% 0.18 105 / .4)' }}>
+              New
+            </div>
+          ) : null}
         </div>
-        {showNew ? (
-          <div style={{ borderRadius: 999, padding: '2px 8px', background: 'oklch(84% 0.16 102)', color: 'oklch(14% 0.03 258)', fontSize: 9.5, fontWeight: 850 }}>
-            New
-          </div>
-        ) : null}
       </div>
-
-      <div className="dashboard-post-image" style={{ backgroundImage: `url(${post.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-
-      <div style={{ padding: '8px 10px 9px' }}>
-        <div className="dashboard-post-copy" style={{ color: 'var(--af-text)', lineHeight: 1.28, fontSize: 11.8 }}>
+      <div style={{ padding: '14px 16px 16px' }}>
+        <div style={{ color: '#fff', lineHeight: 1.4, fontSize: 13.5, fontWeight: 500, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {post.text}
         </div>
-        <div style={{ display: 'flex', gap: 14, marginTop: 7, color: 'oklch(80% 0.02 255 / .86)', fontSize: 10.8, fontWeight: 700 }}>
-          <span>{post.likes}K</span>
-          <span>{post.comments}</span>
-          <span style={{ marginLeft: 'auto' }}>Voir commentaires</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 12, color: 'oklch(78% 0.02 265 / .85)', fontSize: 12, fontWeight: 600 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>♡ {post.likes}K</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>💬 {post.comments}</span>
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, color: 'oklch(80% 0.02 265 / .85)' }}>Show Comments</span>
         </div>
       </div>
     </article>
@@ -140,65 +151,82 @@ export default function Dashboard({ state, onPlay, onNav }) {
 
   const actionItems = [
     {
-      icon: Handshake,
-      title: 'Offres en attente',
-      subtitle: `${openOffers.length} dossier${openOffers.length > 1 ? 's' : ''} à traiter`,
+      icon: LayoutGrid,
+      iconTint: 'oklch(82% 0.16 215)',
+      title: 'Select Tactical Vision',
+      subtitle: null,
       highlighted: true,
-      onClick: () => onNav('dossiers'),
-      visible: openOffers.length > 0,
+      onClick: onPlay,
+      visible: true,
+    },
+    {
+      icon: Users,
+      iconTint: 'oklch(76% 0.18 158)',
+      title: 'Meet Your Clients',
+      subtitle: null,
+      onClick: () => onNav('roster'),
+      visible: true,
     },
     {
       icon: Mail,
+      iconTint: 'oklch(70% 0.20 270)',
       title: 'New Message',
-      subtitle: pendingCounts.total > 0 ? `${pendingCounts.total} réponse${pendingCounts.total > 1 ? 's' : ''} en attente` : 'Assistant Manager',
+      subtitle: pendingCounts.total > 0 ? `${pendingCounts.total} en attente` : 'From Assistant Manager',
       onClick: () => onNav('messages'),
-      visible: pendingCounts.total > 0,
+      visible: true,
     },
     {
       icon: Newspaper,
+      iconTint: 'oklch(78% 0.14 200)',
       title: 'News Feed',
       subtitle: 'Stay up to date with the latest',
       onClick: () => onNav('social'),
       visible: (state.news ?? []).length > 0,
     },
-  ].filter((item) => item.visible);
+    openOffers.length > 0 ? {
+      icon: Handshake,
+      iconTint: 'oklch(82% 0.16 83)',
+      title: 'Offres en attente',
+      subtitle: `${openOffers.length} dossier${openOffers.length > 1 ? 's' : ''} à traiter`,
+      onClick: () => onNav('dossiers'),
+      visible: true,
+    } : null,
+  ].filter(Boolean).filter((item) => item.visible).slice(0, 4);
 
   return (
-    <div className="af-page dashboard-shell" style={{ padding: '0 30px', display: 'grid', gap: 7, maxWidth: 468, minHeight: 0, overflow: 'hidden' }}>
-      <section style={{ padding: '0 1px' }}>
-        <h1 className="font-display" style={{ margin: 0, color: 'var(--af-text)', fontSize: '28px', lineHeight: 1, letterSpacing: '0' }}>
+    <div className="af-page dashboard-shell" style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 468, minHeight: 0, overflow: 'hidden' }}>
+      <section style={{ paddingTop: 4 }}>
+        <h1 style={{
+          margin: 0,
+          color: 'var(--af-text)',
+          fontSize: 'clamp(34px, 9vw, 44px)',
+          lineHeight: .95,
+          letterSpacing: '-.015em',
+          fontWeight: 900,
+          fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+        }}>
           {dateHeader.weekday}, {dateHeader.month} {dateHeader.dayNumber}
         </h1>
-        <div style={{ marginTop: 2, color: 'oklch(82% 0.02 255 / .86)', fontSize: 12.5 }}>
-          Next Event in <span style={{ color: 'var(--af-cyan)', fontWeight: 800 }}>{nextMilestone == null ? 'N/A' : `${nextMilestone} day${nextMilestone > 1 ? 's' : ''}`}</span>
+        <div style={{ marginTop: 10, color: 'oklch(78% 0.02 265 / .82)', fontSize: 14, fontWeight: 500 }}>
+          Next Event in <span style={{ color: 'oklch(78% 0.18 158)', fontWeight: 700 }}>{nextMilestone == null ? 'N/A' : `${nextMilestone} day${nextMilestone > 1 ? 's' : ''}`}</span>
         </div>
+        <div style={{ marginTop: 12, height: 1, background: 'linear-gradient(90deg, transparent, oklch(82% 0.05 270 / .25), transparent)' }} />
       </section>
 
-      {actionItems.length > 0 ? (
-        <section style={{ display: 'grid', gap: 6 }}>
-          {actionItems.map((item) => (
-            <ActionRow key={item.title} {...item} />
-          ))}
-        </section>
-      ) : null}
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {actionItems.map((item) => (
+          <ActionRow key={item.title} {...item} />
+        ))}
+      </section>
 
-      <section style={{ display: 'grid', gap: 5, marginTop: 0, minHeight: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 0 }}>
-          <button
-            type="button"
-            onClick={onPlay}
-            className="dashboard-continue"
-          >
-            Continuer
-          </button>
-        </div>
-        {posts.length ? (
+      {posts.length ? (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0, flex: '1 1 auto' }}>
           <div
             className="dashboard-carousel"
-            style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', gap: 8, WebkitOverflowScrolling: 'touch' }}
+            style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', gap: 12, WebkitOverflowScrolling: 'touch' }}
             onScroll={(event) => {
               const target = event.currentTarget;
-              const cardWidth = target.clientWidth + 8;
+              const cardWidth = target.clientWidth + 12;
               const index = Math.round(target.scrollLeft / cardWidth);
               setActivePost(clamp(index, 0, posts.length - 1));
             }}
@@ -209,17 +237,23 @@ export default function Dashboard({ state, onPlay, onNav }) {
               </div>
             ))}
           </div>
-        ) : null}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 7, padding: '0 0 2px' }}>
-          {Array.from({ length: Math.max(1, posts.length || 0) }).map((_, index) => (
-            <span
-              className={index === activePost ? 'dashboard-dot dashboard-dot-active' : 'dashboard-dot'}
-              key={`dot-${index}`}
-              style={{}}
-            />
-          ))}
-        </div>
-      </section>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '4px 0 0' }}>
+            {Array.from({ length: Math.max(1, posts.length || 0) }).map((_, index) => (
+              <span
+                key={`dot-${index}`}
+                style={{
+                  width: index === activePost ? 20 : 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: index === activePost ? 'oklch(72% 0.20 295)' : 'oklch(50% 0.02 265 / .55)',
+                  boxShadow: index === activePost ? '0 0 10px oklch(68% 0.22 295 / .6)' : 'none',
+                  transition: 'all .25s ease',
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
