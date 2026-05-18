@@ -2171,21 +2171,21 @@ export default function FootballAgentGame() {
             onClick={() => setView(key === 'more' ? 'more' : key)}
             style={{
               ...S.navBtn,
-              color: active ? 'oklch(86% 0.14 210)' : 'rgba(255,255,255,.56)',
-              transform: active ? 'translateY(-1px)' : 'none',
+              color: active ? 'oklch(78% 0.18 295)' : 'rgba(220,220,235,.55)',
             }}
           >
             <span style={{
-              width: 34, height: 34, borderRadius: 10,
+              width: 30, height: 30, borderRadius: 10,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: active ? 'linear-gradient(135deg, oklch(44% 0.14 214 / .34), oklch(30% 0.10 230 / .26))' : 'transparent',
-              border: active ? '1px solid oklch(82% 0.14 220 / .40)' : '1px solid transparent',
-              boxShadow: active ? '0 0 16px oklch(66% 0.16 214 / .26)' : 'none',
-              transition: 'all .2s ease',
+              filter: active ? 'drop-shadow(0 0 10px oklch(64% 0.22 295 / .55))' : 'none',
+              transition: 'all .22s ease',
             }}>
-              <Icon size={20} strokeWidth={2.4} fill={active ? 'currentColor' : 'none'} color="currentColor" />
+              <Icon size={22} strokeWidth={active ? 2.2 : 1.9} fill={active ? 'currentColor' : 'none'} color="currentColor" />
             </span>
-            <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '.06em', marginTop: -2 }}>{item.label}</span>
+            <span style={{ fontSize: 10.5, fontWeight: active ? 700 : 500, letterSpacing: '.005em', marginTop: 0 }}>{item.label}</span>
+            {active && (
+              <span style={{ position: 'absolute', bottom: -2, width: 22, height: 2.5, borderRadius: 2, background: 'oklch(72% 0.20 295)', boxShadow: '0 0 10px oklch(68% 0.22 295 / .8)' }} />
+            )}
             {key === 'messages' && pendingCounts.total > 0 && <span style={S.navBadge}>{pendingCounts.total}</span>}
           </button>
           );
