@@ -2035,19 +2035,27 @@ export default function FootballAgentGame() {
       <div style={isDashboardView ? { ...S.scrollArea, overflowY: 'hidden', overscrollBehavior: 'none', WebkitOverflowScrolling: 'auto' } : S.scrollArea}>
       <header style={isDashboardView ? { ...S.header, paddingTop: 'calc(4px + var(--agent-safe-top))', paddingBottom: 2 } : S.header}>
         <div style={S.brandRow}>
-          <div style={isDashboardView ? { display: 'flex', alignItems: 'center', gap: 8 } : S.logo}>
-            <div style={{ ...(isDashboardView ? { width: 36, height: 36, borderRadius: 999, overflow: 'hidden', border: '1px solid var(--af-border)', background: 'oklch(14% 0.03 258)' } : S.logoMark), background: agencyProfile.color || 'var(--af-grass)' }}>
-              <img src={agencyEmblemSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
+          <div style={isDashboardView ? { display: 'flex', alignItems: 'center', gap: 10 } : S.logo}>
+            {isDashboardView ? (
+              <div style={{ position: 'relative', width: 42, height: 42, borderRadius: 999, padding: 2, background: 'conic-gradient(from 140deg, oklch(74% 0.18 215), oklch(64% 0.22 295), oklch(74% 0.18 215))', boxShadow: '0 0 18px oklch(64% 0.20 270 / .45)' }}>
+                <div style={{ width: '100%', height: '100%', borderRadius: 999, overflow: 'hidden', background: 'oklch(8% 0.02 258)', display: 'grid', placeItems: 'center' }}>
+                  <img src={agencyEmblemSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              </div>
+            ) : (
+              <div style={{ ...S.logoMark, background: agencyProfile.color || 'var(--af-grass)' }}>
+                <img src={agencyEmblemSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
             {!isDashboardView ? (
               <div>
                 <div style={S.brandName}>{agencyProfile.name}</div>
                 <div style={S.brandSub}>{agencyProfile.city} · {agencyProfile.ownerName}</div>
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: 1 }}>
-                <div style={{ fontSize: 13, letterSpacing: '.2em', color: 'var(--af-text)', fontWeight: 860, textTransform: 'uppercase' }}>{agencyProfile.name}</div>
-                <div style={{ fontSize: 8, letterSpacing: '.16em', color: 'var(--af-dim)', fontWeight: 760, textTransform: 'uppercase' }}>Agency</div>
+              <div style={{ display: 'grid', gap: 2 }}>
+                <div style={{ fontSize: 15, letterSpacing: '.32em', color: 'var(--af-text)', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1 }}>{agencyProfile.name}</div>
+                <div style={{ fontSize: 8.5, letterSpacing: '.42em', color: 'oklch(72% 0.14 295)', fontWeight: 600, textTransform: 'uppercase', lineHeight: 1 }}>Agency</div>
               </div>
             )}
           </div>
