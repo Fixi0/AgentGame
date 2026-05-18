@@ -1,8 +1,7 @@
-import React, { useMemo } from 'react';
-import { CalendarDays, ChevronRight, Mail, Newspaper, Users, WandSparkles } from 'lucide-react';
-import { getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
+import React, { useMemo, useState } from 'react';
+import { ChevronRight, Handshake, Mail, Newspaper } from 'lucide-react';
+import { getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
 import { getCalendarSnapshot, getWeekDailySnapshots } from '../systems/seasonSystem';
-import { formatMoneyCompact } from '../utils/format';
 import { getPostImage } from '../utils/eventImages';
 
 const WEEKDAY_LABELS_FR = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI', 'DIMANCHE'];
@@ -32,61 +31,61 @@ function ActionRow({ icon: Icon, title, subtitle, onClick, highlighted = false }
     <button
       type="button"
       onClick={onClick}
-      className={highlighted ? 'premium-card-elev' : 'premium-card'}
+      className={highlighted ? 'dashboard-card dashboard-action-card dashboard-card-active' : 'dashboard-card dashboard-action-card'}
       style={{
         width: '100%',
         textAlign: 'left',
-        borderRadius: 16,
-        padding: 14,
+        borderRadius: 13,
+        padding: '9px 11px',
         cursor: 'pointer',
         display: 'grid',
-        gridTemplateColumns: '42px 1fr 16px',
+        gridTemplateColumns: '30px 1fr 14px',
         alignItems: 'center',
-        gap: 12,
+        gap: 10,
       }}
     >
-      <div className="premium-icon-tile tone-cyan" style={highlighted ? { boxShadow: '0 0 20px oklch(70% 0.24 295 / .4)' } : undefined}>
-        <Icon size={20} color={highlighted ? 'var(--neon-violet)' : 'var(--neon-cyan)'} />
+      <div className={highlighted ? 'dashboard-icon dashboard-icon-active' : 'dashboard-icon'}>
+        <Icon size={16} color={highlighted ? 'var(--ui-accent)' : 'oklch(82% 0.13 208)'} />
       </div>
       <div style={{ minWidth: 0 }}>
-        <div className="font-display" style={{ color: 'var(--af-text)', fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div className="font-display" style={{ color: 'var(--af-text)', fontSize: 13, fontWeight: 780, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {title}
         </div>
         {subtitle ? (
-          <div style={{ color: 'var(--af-muted)', fontSize: 11, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ color: 'oklch(80% 0.02 255 / .78)', fontSize: 10, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {subtitle}
           </div>
         ) : null}
       </div>
-      <ChevronRight size={16} color="var(--af-dim)" />
+      <ChevronRight size={14} color="oklch(68% 0.02 255 / .82)" />
     </button>
   );
 }
 
 function SocialPostCard({ post, showNew = false }) {
   return (
-    <article className="premium-card" style={{ borderRadius: 18, overflow: 'hidden' }}>
-      <div style={{ padding: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+    <article className="dashboard-card dashboard-post-card" style={{ borderRadius: 15, overflow: 'hidden', borderColor: 'oklch(66% 0.05 258 / .28)' }}>
+      <div style={{ padding: '7px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ color: 'var(--af-text)', fontWeight: 900, fontSize: 12, letterSpacing: '.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ color: 'var(--af-text)', fontWeight: 850, fontSize: 11.5, letterSpacing: '.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {post.accountName}
           </div>
-          <div style={{ color: 'var(--af-muted)', fontSize: 11 }}>{post.dateLabel}</div>
+          <div style={{ color: 'oklch(80% 0.02 255 / .78)', fontSize: 10 }}>{post.dateLabel}</div>
         </div>
         {showNew ? (
-          <div style={{ borderRadius: 999, padding: '3px 10px', background: 'oklch(88% 0.17 102)', color: 'oklch(16% 0.03 258)', fontSize: 11, fontWeight: 900 }}>
+          <div style={{ borderRadius: 999, padding: '2px 8px', background: 'oklch(84% 0.16 102)', color: 'oklch(14% 0.03 258)', fontSize: 9.5, fontWeight: 850 }}>
             New
           </div>
         ) : null}
       </div>
 
-      <div style={{ aspectRatio: '1.5', backgroundImage: `url(${post.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+      <div className="dashboard-post-image" style={{ backgroundImage: `url(${post.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
 
-      <div style={{ padding: 12 }}>
-        <div style={{ color: 'var(--af-text)', lineHeight: 1.45, fontSize: 13 }}>
+      <div style={{ padding: '8px 10px 9px' }}>
+        <div className="dashboard-post-copy" style={{ color: 'var(--af-text)', lineHeight: 1.28, fontSize: 11.8 }}>
           {post.text}
         </div>
-        <div style={{ display: 'flex', gap: 18, marginTop: 10, color: 'var(--af-muted)', fontSize: 12, fontWeight: 700 }}>
+        <div style={{ display: 'flex', gap: 14, marginTop: 7, color: 'oklch(80% 0.02 255 / .86)', fontSize: 10.8, fontWeight: 700 }}>
           <span>{post.likes}K</span>
           <span>{post.comments}</span>
           <span style={{ marginLeft: 'auto' }}>Voir commentaires</span>
@@ -97,9 +96,10 @@ function SocialPostCard({ post, showNew = false }) {
 }
 
 export default function Dashboard({ state, onPlay, onNav }) {
+  const [activePost, setActivePost] = useState(0);
   const pendingCounts = getPendingMessageCounts(state);
   const urgentMessages = (state.messages ?? []).filter(messageNeedsResponse);
-  const activePlayerCount = state.roster?.length ?? 0;
+  const openOffers = getMarketOfferQueue(state).filter((offer) => offer.status === 'open');
   const dateHeader = buildHeaderDate(state);
 
   const nextMilestone = useMemo(() => {
@@ -140,74 +140,86 @@ export default function Dashboard({ state, onPlay, onNav }) {
 
   const actionItems = [
     {
-      icon: WandSparkles,
-      title: 'Select Tactical Vision',
-      subtitle: 'Définir le plan de semaine',
+      icon: Handshake,
+      title: 'Offres en attente',
+      subtitle: `${openOffers.length} dossier${openOffers.length > 1 ? 's' : ''} à traiter`,
       highlighted: true,
-      onClick: () => onNav('office'),
-    },
-    {
-      icon: Users,
-      title: 'Meet Your Clients',
-      subtitle: `${activePlayerCount} joueur${activePlayerCount > 1 ? 's' : ''} à suivre`,
-      onClick: () => onNav('roster'),
+      onClick: () => onNav('dossiers'),
+      visible: openOffers.length > 0,
     },
     {
       icon: Mail,
       title: 'New Message',
       subtitle: pendingCounts.total > 0 ? `${pendingCounts.total} réponse${pendingCounts.total > 1 ? 's' : ''} en attente` : 'Assistant Manager',
       onClick: () => onNav('messages'),
+      visible: pendingCounts.total > 0,
     },
     {
       icon: Newspaper,
       title: 'News Feed',
       subtitle: 'Stay up to date with the latest',
       onClick: () => onNav('social'),
+      visible: (state.news ?? []).length > 0,
     },
-  ];
+  ].filter((item) => item.visible);
 
   return (
-    <div className="af-page" style={{ paddingTop: 12, display: 'grid', gap: 12, maxWidth: 720 }}>
-      <section style={{ padding: '4px 2px 2px' }}>
-        <h1 className="font-display" style={{ margin: 0, color: 'var(--af-text)', fontSize: 'clamp(38px, 10vw, 56px)', lineHeight: 1, letterSpacing: '-0.03em' }}>
+    <div className="af-page dashboard-shell" style={{ padding: '0 30px', display: 'grid', gap: 7, maxWidth: 468, minHeight: 0, overflow: 'hidden' }}>
+      <section style={{ padding: '0 1px' }}>
+        <h1 className="font-display" style={{ margin: 0, color: 'var(--af-text)', fontSize: '28px', lineHeight: 1, letterSpacing: '0' }}>
           {dateHeader.weekday}, {dateHeader.month} {dateHeader.dayNumber}
         </h1>
-        <div style={{ marginTop: 7, color: 'var(--af-muted)', fontSize: 16 }}>
-          Next Event in <span style={{ color: 'var(--neon-green)', fontWeight: 800 }}>{nextMilestone == null ? 'N/A' : `${nextMilestone} day${nextMilestone > 1 ? 's' : ''}`}</span>
+        <div style={{ marginTop: 2, color: 'oklch(82% 0.02 255 / .86)', fontSize: 12.5 }}>
+          Next Event in <span style={{ color: 'var(--af-cyan)', fontWeight: 800 }}>{nextMilestone == null ? 'N/A' : `${nextMilestone} day${nextMilestone > 1 ? 's' : ''}`}</span>
         </div>
       </section>
 
-      <section style={{ display: 'grid', gap: 9 }}>
-        {actionItems.map((item) => (
-          <ActionRow key={item.title} {...item} />
-        ))}
-      </section>
+      {actionItems.length > 0 ? (
+        <section style={{ display: 'grid', gap: 6 }}>
+          {actionItems.map((item) => (
+            <ActionRow key={item.title} {...item} />
+          ))}
+        </section>
+      ) : null}
 
-      <section style={{ display: 'grid', gap: 10, marginTop: 4 }}>
-        {posts.length ? posts.map((post, index) => <SocialPostCard key={post.id} post={post} showNew={index === 0} />) : null}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, padding: '2px 0 6px' }}>
-          {Array.from({ length: Math.max(4, posts.length || 0) }).map((_, index) => (
+      <section style={{ display: 'grid', gap: 5, marginTop: 0, minHeight: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 0 }}>
+          <button
+            type="button"
+            onClick={onPlay}
+            className="dashboard-continue"
+          >
+            Continuer
+          </button>
+        </div>
+        {posts.length ? (
+          <div
+            className="dashboard-carousel"
+            style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', gap: 8, WebkitOverflowScrolling: 'touch' }}
+            onScroll={(event) => {
+              const target = event.currentTarget;
+              const cardWidth = target.clientWidth + 8;
+              const index = Math.round(target.scrollLeft / cardWidth);
+              setActivePost(clamp(index, 0, posts.length - 1));
+            }}
+          >
+            {posts.map((post, index) => (
+              <div key={post.id} style={{ minWidth: '100%', scrollSnapAlign: 'start' }}>
+                <SocialPostCard post={post} showNew={index === 0} />
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 7, padding: '0 0 2px' }}>
+          {Array.from({ length: Math.max(1, posts.length || 0) }).map((_, index) => (
             <span
+              className={index === activePost ? 'dashboard-dot dashboard-dot-active' : 'dashboard-dot'}
               key={`dot-${index}`}
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 999,
-                background: index === 0 ? 'var(--neon-violet)' : 'oklch(62% 0.02 265 / .55)',
-              }}
+              style={{}}
             />
           ))}
         </div>
       </section>
-
-      <button
-        type="button"
-        onClick={onPlay}
-        className="af-btn-primary"
-        style={{ width: '100%', padding: '16px 18px', borderRadius: 16, fontSize: 15 }}
-      >
-        Continuer · {formatMoneyCompact(state.money ?? 0)}
-      </button>
     </div>
   );
 }

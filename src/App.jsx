@@ -2018,6 +2018,7 @@ export default function FootballAgentGame() {
   });
   const agencyProfile = state.agencyProfile;
   const agencyEmblemSrc = agencyProfile.emblemSrc || assetPath('branding/agent-foot-logo.png');
+  const isDashboardView = view === 'dashboard';
 
   if (forceOnboarding || !agencyProfile.onboarded) {
     return (
@@ -2031,19 +2032,26 @@ export default function FootballAgentGame() {
   return (
     <div style={S.app}>
       <style>{CSS}</style>
-      <div style={S.scrollArea}>
-      <header style={S.header}>
+      <div style={isDashboardView ? { ...S.scrollArea, overflowY: 'hidden', overscrollBehavior: 'none', WebkitOverflowScrolling: 'auto' } : S.scrollArea}>
+      <header style={isDashboardView ? { ...S.header, paddingTop: 'calc(4px + var(--agent-safe-top))', paddingBottom: 2 } : S.header}>
         <div style={S.brandRow}>
-          <div style={S.logo}>
-            <div style={{ ...S.logoMark, background: agencyProfile.color || 'var(--af-grass)' }}>
+          <div style={isDashboardView ? { display: 'flex', alignItems: 'center', gap: 8 } : S.logo}>
+            <div style={{ ...(isDashboardView ? { width: 36, height: 36, borderRadius: 999, overflow: 'hidden', border: '1px solid var(--af-border)', background: 'oklch(14% 0.03 258)' } : S.logoMark), background: agencyProfile.color || 'var(--af-grass)' }}>
               <img src={agencyEmblemSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
-            <div>
-              <div style={S.brandName}>{agencyProfile.name}</div>
-              <div style={S.brandSub}>{agencyProfile.city} · {agencyProfile.ownerName}</div>
-            </div>
+            {!isDashboardView ? (
+              <div>
+                <div style={S.brandName}>{agencyProfile.name}</div>
+                <div style={S.brandSub}>{agencyProfile.city} · {agencyProfile.ownerName}</div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 1 }}>
+                <div style={{ fontSize: 13, letterSpacing: '.2em', color: 'var(--af-text)', fontWeight: 860, textTransform: 'uppercase' }}>{agencyProfile.name}</div>
+                <div style={{ fontSize: 8, letterSpacing: '.16em', color: 'var(--af-dim)', fontWeight: 760, textTransform: 'uppercase' }}>Agency</div>
+              </div>
+            )}
           </div>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {hasEuroMatchToday && (
               <button
                 onClick={() => setView('europe')}
@@ -2052,48 +2060,61 @@ export default function FootballAgentGame() {
                 Match euro ce soir
               </button>
             )}
-            {saveFlash && (
+            {!isDashboardView && saveFlash && (
               <span style={{ fontSize: 10, fontWeight: 900, color: 'var(--af-grass)', background: 'oklch(70% 0.19 155 / .10)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', transition: 'opacity .3s' }}>
                 Sauvegardé
               </span>
             )}
-            <button onClick={handleManualSave} style={S.iconBtn}>
-              <Save size={16} />
-            </button>
-            <button onClick={handleReturnToMenu} style={S.iconBtn}>
-              <LogOut size={16} />
-            </button>
-          </div>
-        </div>
-        <div style={{ ...S.seasonBar, cursor: 'default' }} onClick={handleSeasonHeaderTap} title="Debug saison caché">
-          <div>
-            <div style={S.seasonLabel}>{t('SAISON')} {phase.season} · S{phase.seasonWeek}/38</div>
-            <div style={S.seasonDate}>{calendarSnapshot.dateLabel} · {calendarSnapshot.weekRangeLabel}</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {state.activePeriod && (
-              <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--af-gold)', background: 'oklch(82% 0.16 83 / .10)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif' }}>
-                {state.activePeriod.label}
-              </span>
+            {isDashboardView ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid color-mix(in oklch, var(--af-cyan) 42%, transparent)', borderRadius: 999, padding: '5px 10px', background: 'oklch(15% 0.05 220 / .34)', backdropFilter: 'blur(16px)' }}>
+                <div style={{ width: 17, height: 17, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'var(--af-cyan)', color: 'oklch(12% 0.02 258)', fontSize: 11, fontWeight: 900 }}>€</div>
+                <div style={{ color: 'var(--af-text)', fontWeight: 900, letterSpacing: '.02em', fontSize: 13 }}>{formatMoneyCompact(databaseState.money)}</div>
+              </div>
+            ) : (
+              <>
+                <button onClick={handleManualSave} style={S.iconBtn}>
+                  <Save size={16} />
+                </button>
+                <button onClick={handleReturnToMenu} style={S.iconBtn}>
+                  <LogOut size={16} />
+                </button>
+              </>
             )}
-            <div style={S.seasonPhase}>{t(phase.phase).toUpperCase()}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'stretch', background: 'oklch(14% 0.03 258 / .85)', border: '1px solid var(--af-border)', borderRadius: 10, padding: '4px', overflow: 'hidden' }}>
-          {[
-            { label: 'Capital', value: formatMoneyCompact(databaseState.money), accent: 'var(--af-grass)' },
-            { label: 'Réputation', value: `${databaseState.reputation}`, accent: 'var(--af-gold)' },
-            { label: 'Effectif', value: `${databaseState.roster.length}/${getAgencyCapacity(databaseState.agencyLevel)}`, accent: 'var(--af-cyan)' },
-            { label: 'Messages', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#f59e7a' : 'var(--af-muted)' },
-          ].map((chip, i, arr) => (
-            <div key={chip.label} style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRight: i < arr.length - 1 ? '1px solid var(--af-border)' : 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ fontSize: 9, color: 'var(--af-dim)', fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', lineHeight: 1, fontFamily: 'system-ui,sans-serif' }}>{chip.label}</div>
-              <div style={{ fontSize: 13, fontWeight: 900, color: chip.accent, lineHeight: 1.2, letterSpacing: '-.02em', whiteSpace: 'nowrap' }}>{chip.value}</div>
+        {isDashboardView ? null : (
+          <>
+            <div style={{ ...S.seasonBar, cursor: 'default' }} onClick={handleSeasonHeaderTap} title="Debug saison caché">
+              <div>
+                <div style={S.seasonLabel}>{t('SAISON')} {phase.season} · S{phase.seasonWeek}/38</div>
+                <div style={S.seasonDate}>{calendarSnapshot.dateLabel} · {calendarSnapshot.weekRangeLabel}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {state.activePeriod && (
+                  <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--af-gold)', background: 'oklch(82% 0.16 83 / .10)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif' }}>
+                    {state.activePeriod.label}
+                  </span>
+                )}
+                <div style={S.seasonPhase}>{t(phase.phase).toUpperCase()}</div>
+              </div>
             </div>
-          ))}
-        </div>
+            <div style={{ display: 'flex', alignItems: 'stretch', background: 'oklch(14% 0.03 258 / .85)', border: '1px solid var(--af-border)', borderRadius: 10, padding: '4px', overflow: 'hidden' }}>
+              {[
+                { label: 'Capital', value: formatMoneyCompact(databaseState.money), accent: 'var(--af-grass)' },
+                { label: 'Réputation', value: `${databaseState.reputation}`, accent: 'var(--af-gold)' },
+                { label: 'Effectif', value: `${databaseState.roster.length}/${getAgencyCapacity(databaseState.agencyLevel)}`, accent: 'var(--af-cyan)' },
+                { label: 'Messages', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#f59e7a' : 'var(--af-muted)' },
+              ].map((chip, i, arr) => (
+                <div key={chip.label} style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRight: i < arr.length - 1 ? '1px solid var(--af-border)' : 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ fontSize: 9, color: 'var(--af-dim)', fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', lineHeight: 1, fontFamily: 'system-ui,sans-serif' }}>{chip.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: chip.accent, lineHeight: 1.2, letterSpacing: '-.02em', whiteSpace: 'nowrap' }}>{chip.value}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </header>
-      <main style={S.main}>
+      <main style={isDashboardView ? { ...S.main, overflow: 'hidden' } : S.main}>
         {view === 'dashboard' && <Dashboard state={databaseState} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} onOpenPlayer={showPlayerDetails} onOpenOffer={handleAcceptOffer} />}
         {view === 'market' && <Market state={databaseState} market={databaseState.market} freeAgents={databaseState.freeAgents} money={databaseState.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
         {view === 'roster' && <Roster state={databaseState} roster={databaseState.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
@@ -2150,15 +2171,17 @@ export default function FootballAgentGame() {
             onClick={() => setView(key === 'more' ? 'more' : key)}
             style={{
               ...S.navBtn,
-              color: active ? 'var(--af-grass)' : 'rgba(255,255,255,.62)',
-              borderBottom: active ? '2px solid var(--af-grass)' : '2px solid transparent',
+              color: active ? 'oklch(86% 0.14 210)' : 'rgba(255,255,255,.56)',
+              transform: active ? 'translateY(-1px)' : 'none',
             }}
           >
             <span style={{
-              width: 36, height: 36, borderRadius: 10,
+              width: 34, height: 34, borderRadius: 10,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: active ? 'oklch(70% 0.19 155 / .18)' : 'transparent',
-              transition: 'background .2s',
+              background: active ? 'linear-gradient(135deg, oklch(44% 0.14 214 / .34), oklch(30% 0.10 230 / .26))' : 'transparent',
+              border: active ? '1px solid oklch(82% 0.14 220 / .40)' : '1px solid transparent',
+              boxShadow: active ? '0 0 16px oklch(66% 0.16 214 / .26)' : 'none',
+              transition: 'all .2s ease',
             }}>
               <Icon size={20} strokeWidth={2.4} fill={active ? 'currentColor' : 'none'} color="currentColor" />
             </span>
