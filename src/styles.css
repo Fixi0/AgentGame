@@ -291,28 +291,29 @@ button {
 .dashboard-card {
   position: relative;
   background:
-    linear-gradient(150deg, oklch(18% 0.04 255 / .42), oklch(9% 0.03 258 / .34)),
-    radial-gradient(circle at 18% 0%, oklch(70% 0.13 210 / .06), transparent 42%);
-  border: 1px solid oklch(78% 0.07 255 / .17);
+    linear-gradient(155deg, oklch(16% 0.03 258 / .55), oklch(8% 0.018 262 / .42));
+  border: 1px solid oklch(82% 0.05 270 / .12);
+  border-radius: 18px;
   box-shadow:
-    0 13px 28px rgba(0, 0, 0, .30),
-    0 0 24px oklch(66% 0.12 214 / .055),
-    inset 0 1px 0 oklch(96% 0.02 250 / .065);
-  backdrop-filter: blur(22px) saturate(1.08);
-  -webkit-backdrop-filter: blur(22px) saturate(1.08);
-  transition: transform .16s ease, box-shadow .24s ease, border-color .24s ease;
+    0 12px 32px rgba(0, 0, 0, .42),
+    inset 0 1px 0 oklch(96% 0.02 270 / .06);
+  backdrop-filter: blur(26px) saturate(1.1);
+  -webkit-backdrop-filter: blur(26px) saturate(1.1);
+  transition: transform .18s ease, box-shadow .26s ease, border-color .26s ease;
 }
 
-.dashboard-card:active {
-  transform: scale(.988);
-}
+.dashboard-card:active { transform: scale(.985); }
 
+/* Highlighted: gradient cyan -> violet animated border */
 .dashboard-card-active {
-  border-color: oklch(76% 0.12 215 / .48);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(155deg, oklch(16% 0.04 240 / .60), oklch(8% 0.02 270 / .50)) padding-box,
+    linear-gradient(135deg, oklch(78% 0.18 215), oklch(70% 0.22 295)) border-box;
   box-shadow:
-    0 15px 32px rgba(0,0,0,.36),
-    0 0 22px oklch(66% 0.16 214 / .18),
-    inset 0 1px 0 oklch(96% 0.02 250 / .08);
+    0 14px 38px rgba(0,0,0,.48),
+    0 0 28px oklch(64% 0.20 270 / .35),
+    inset 0 1px 0 oklch(96% 0.04 270 / .10);
 }
 
 .dashboard-action-card {
