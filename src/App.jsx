@@ -2074,9 +2074,9 @@ export default function FootballAgentGame() {
               </span>
             )}
             {isDashboardView ? (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '1px solid color-mix(in oklch, var(--af-cyan) 42%, transparent)', borderRadius: 999, padding: '5px 10px', background: 'oklch(15% 0.05 220 / .34)', backdropFilter: 'blur(16px)' }}>
-                <div style={{ width: 17, height: 17, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'var(--af-cyan)', color: 'oklch(12% 0.02 258)', fontSize: 11, fontWeight: 900 }}>€</div>
-                <div style={{ color: 'var(--af-text)', fontWeight: 900, letterSpacing: '.02em', fontSize: 13 }}>{formatMoneyCompact(databaseState.money)}</div>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid oklch(78% 0.12 155 / .35)', borderRadius: 999, padding: '6px 12px 6px 6px', background: 'oklch(12% 0.04 165 / .50)', backdropFilter: 'blur(18px)', boxShadow: '0 0 22px oklch(64% 0.18 155 / .22)' }}>
+                <div style={{ width: 22, height: 22, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, oklch(78% 0.18 155), oklch(62% 0.20 158))', color: 'oklch(10% 0.04 165)', fontSize: 12, fontWeight: 900, boxShadow: '0 2px 8px oklch(50% 0.18 158 / .5)' }}>$</div>
+                <div style={{ color: 'var(--af-text)', fontWeight: 700, letterSpacing: '.01em', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{formatMoneyCompact(databaseState.money)}</div>
               </div>
             ) : (
               <>
