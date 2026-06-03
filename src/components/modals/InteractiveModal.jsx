@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { formatMoney } from '../../utils/format';
 import { getEventImage } from '../../utils/eventImages';
 import { getChoiceImage } from '../../utils/choiceImages';
+import { t } from '../../utils/i18n';
 import { S } from '../styles';
 
 const RARITY_COLORS = {
@@ -134,10 +135,10 @@ function OutcomeScreen({ event, player, choice, onConfirm, onClose }) {
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.78))' }} />
             <div style={{ position: 'absolute', left: 12, right: 12, bottom: 10 }}>
               <div style={{ fontSize: 9, letterSpacing: '.22em', color: verdict.color, fontWeight: 900, marginBottom: 4 }}>
-                {verdict.emoji} {verdict.label}
+                {verdict.emoji} {t(verdict.label)}
               </div>
               <div style={{ fontSize: 15, color: '#fff', fontWeight: 900, lineHeight: 1.15 }}>{choice.label}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.78)', marginTop: 2 }}>{choice.desc}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.78)', marginTop: 2 }}>{t(choice.desc)}</div>
             </div>
           </div>
 
@@ -145,7 +146,7 @@ function OutcomeScreen({ event, player, choice, onConfirm, onClose }) {
           {hasAnyEffect && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 10, letterSpacing: '.18em', color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 850, marginBottom: 8 }}>
-                EFFETS SUR {player.firstName.toUpperCase()} {player.lastName.toUpperCase()}
+                {t('EFFETS SUR')} {player.firstName.toUpperCase()} {player.lastName.toUpperCase()}
               </div>
               <div style={{ background: 'oklch(16% 0.035 258 / .78)', border: '1px solid var(--af-border)', borderRadius: 8, padding: '2px 12px' }}>
                 <EffectLine emoji="💪" label="Moral"         value={effects.moral}  positive={(effects.moral ?? 0) > 0} />
@@ -181,14 +182,14 @@ function OutcomeScreen({ event, player, choice, onConfirm, onClose }) {
             <div style={{ fontSize: 10, letterSpacing: '.14em', color: '#00a676', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>
               {player.firstName} {player.lastName} · {player.club}
             </div>
-            <div style={{ fontSize: 13, color: 'var(--af-text)', fontStyle: 'italic', lineHeight: 1.55 }}>{reaction}</div>
+            <div style={{ fontSize: 13, color: 'var(--af-text)', fontStyle: 'italic', lineHeight: 1.55 }}>{t(reaction)}</div>
           </div>
 
           {/* Badge rareté */}
           {rarityLabel && (
             <div style={{ textAlign: 'center', marginBottom: 14 }}>
               <span style={{ fontSize: 9, letterSpacing: '.22em', color: rarityColor, fontFamily: 'system-ui,sans-serif', fontWeight: 900, background: `${rarityColor}18`, padding: '4px 10px', borderRadius: 20, border: `1px solid ${rarityColor}30` }}>
-                ÉVÉNEMENT {rarityLabel}
+                {t('ÉVÉNEMENT')} {t(rarityLabel)}
               </span>
             </div>
           )}
@@ -197,7 +198,7 @@ function OutcomeScreen({ event, player, choice, onConfirm, onClose }) {
             onClick={onConfirm}
             style={{ ...S.primaryBtn, marginBottom: 0, background: `linear-gradient(135deg,${verdict.color === '#00a676' ? '#00a676,#20c997' : verdict.color === '#b45309' ? '#b45309,#d97706' : '#dc2626,#ef4444'})` }}
           >
-            CONFIRMER ET CONTINUER →
+            {t('CONFIRMER ET CONTINUER →')}
           </button>
         </div>
       </div>
@@ -234,7 +235,7 @@ export default function InteractiveModal({ event, player, money, onChoose, onClo
         <div style={S.mHead}>
           <AlertCircle size={16} color="#00a676" />
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: 1 }}>
-            <span>DÉCISION</span>
+            <span>{t('DÉCISION')}</span>
             {rarityLabel && (
               <span style={{
                 fontSize: 8, letterSpacing: '.15em', color: rarityColor,
@@ -307,7 +308,7 @@ export default function InteractiveModal({ event, player, money, onChoose, onClo
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={S.chLabel}>{choice.label}</div>
-                    <div style={S.chDesc}>{choice.desc}</div>
+                    <div style={S.chDesc}>{t(choice.desc)}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
                     {choice.cost > 0 && <div style={S.chCost}>−{formatMoney(choice.cost)}</div>}
@@ -320,7 +321,7 @@ export default function InteractiveModal({ event, player, money, onChoose, onClo
               );
             })}
           </div>
-          <button onClick={onClose} style={{ ...S.secBtn, marginTop: 4 }}>IGNORER POUR CETTE SEMAINE</button>
+          <button onClick={onClose} style={{ ...S.secBtn, marginTop: 4 }}>{t('IGNORER POUR CETTE SEMAINE')}</button>
         </div>
       </div>
     </div>

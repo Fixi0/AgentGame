@@ -413,6 +413,270 @@ export const simulateWorldCupMatch = (player, phase, wcState) => {
   };
 };
 
+const getWcCountry = (code = '') => NATIONAL_TEAMS.find((team) => team.code === code) ?? { code, name: code, flag: '🌍' };
+
+const buildWorldCupPlayerFromEntry = (entry = {}, rosterById = new Map()) => {
+  const live = rosterById.get(entry.playerId);
+  if (live) return live;
+  return {
+    id: entry.playerId,
+    firstName: String(entry.playerName ?? 'Joueur').split(' ')[0] ?? 'Joueur',
+    lastName: String(entry.playerName ?? '').split(' ').slice(1).join(' '),
+    countryCode: entry.countryCode,
+    countryFlag: entry.countryFlag,
+    club: entry.club ?? 'Club mondial',
+    rating: entry.rating ?? 130,
+    form: entry.form ?? 60,
+    moral: entry.moral ?? 50,
+    position: entry.position ?? 'MIL',
+  };
+};
+
+const seededMinutes = (seed, starterChance = 0.6) => {
+  const value = (hashString(seed) % 10_000) / 10_000;
+  if (value > starterChance) return value > 0.92 ? 0 : 20 + Math.floor(value * 30);
+  return 62 + Math.floor(value * 28);
+};
+
+const distributeContributions = (players = [], goalsFor = 0, phase = 'groupes', year = 2026) => {
+  const goalsByPlayer = new Map();
+  const assistsByPlayer = new Map();
+  let remainingGoals = goalsFor;
+  let remainingAssists = goalsFor;
+  const goalOrder = [...players].sort((a, b) => {
+    const aScore = (a.position === 'ATT' ? 0.34 : a.position === 'MIL' ? 0.16 : 0.05) + (hashString(`wc-g:${a.id}:${phase}:${year}`) % 1000) / 1000;
+    const bScore = (b.position === 'ATT' ? 0.34 : b.position === 'MIL' ? 0.16 : 0.05) + (hashString(`wc-g:${b.id}:${phase}:${year}`) % 1000) / 1000;
+    return bScore - aScore;
+  });
+  const assistOrder = [...players].sort((a, b) => (hashString(`wc-a:${b.id}:${phase}:${year}`) % 1000) - (hashString(`wc-a:${a.id}:${phase}:${year}`) % 1000));
+
+  goalOrder.forEach((player) => {
+    if (remainingGoals <= 0) return;
+    const chance = player.position === 'ATT' ? 0.72 : player.position === 'MIL' ? 0.38 : 0.14;
+    if (((hashString(`wc-goal-share:${player.id}:${phase}:${year}`) % 1000) / 1000) < chance) {
+      goalsByPlayer.set(player.id, 1);
+      remainingGoals -= 1;
+    }
+  });
+  assistOrder.forEach((player) => {
+    if (remainingAssists <= 0) return;
+    if ((goalsByPlayer.get(player.id) ?? 0) > 0 && players.length > 1) return;
+    const chance = player.position === 'MIL' ? 0.52 : player.position === 'ATT' ? 0.34 : 0.16;
+    if (((hashString(`wc-assist-share:${player.id}:${phase}:${year}`) % 1000) / 1000) < chance) {
+      assistsByPlayer.set(player.id, 1);
+      remainingAssists -= 1;
+    }
+  });
+
+  return { goalsByPlayer, assistsByPlayer };
+};
+
+const getCountrySquadStrength = (entries = []) => {
+  if (!entries.length) return 70;
+  const average = entries.reduce((sum, entry) => sum + (entry.rating ?? 120) + ((entry.form ?? 60) - 60) * 0.12, 0) / entries.length;
+  const favoriteBonus = FAVORITES.has(entries[0]?.countryCode) ? 6 : 0;
+  return clampNumber(58 + average * 0.18 + favoriteBonus, 62, 94);
+};
+
+const pairWorldCupCountries = (countryCodes = [], phase = 'groupes', year = 2026) => {
+  const ordered = [...countryCodes].sort((a, b) => (hashString(`wc-order:${a}:${phase}:${year}`) % 10000) - (hashString(`wc-order:${b}:${phase}:${year}`) % 10000));
+  const pairs = [];
+  for (let index = 0; index < ordered.length; index += 2) {
+    if (ordered[index] && ordered[index + 1]) pairs.push([ordered[index], ordered[index + 1]]);
+  }
+  return pairs;
+};
+
+export const simulateWorldCupPhase = (wcState = {}, roster = []) => {
+  if (!wcState || wcState.phase === 'done') return { wcState, playerResults: [], countryResults: [] };
+  const phase = wcState.phase;
+  const year = wcState.year ?? 2026;
+  const rosterById = new Map((Array.isArray(roster) ? roster : []).map((player) => [player.id, player]));
+  const entries = (wcState.selectedPlayers ?? []).filter((entry) => !entry.eliminated && !entry.champion);
+  const entriesByCountry = entries.reduce((map, entry) => {
+    if (!entry.countryCode) return map;
+    const list = map.get(entry.countryCode) ?? [];
+    list.push(entry);
+    map.set(entry.countryCode, list);
+    return map;
+  }, new Map());
+  const activeCodes = [...entriesByCountry.keys()];
+  if (!activeCodes.length) {
+    return { wcState: { ...wcState, phase: 'done' }, playerResults: [], countryResults: [] };
+  }
+
+  const pairs = pairWorldCupCountries(activeCodes, phase, year);
+  const playerResults = [];
+  const countryResults = [];
+  const countryPhaseRecords = new Map();
+  const knockoutWinners = new Set();
+
+  pairs.forEach(([homeCode, awayCode]) => {
+    const homeTeam = getWcCountry(homeCode);
+    const awayTeam = getWcCountry(awayCode);
+    const homeEntries = entriesByCountry.get(homeCode) ?? [];
+    const awayEntries = entriesByCountry.get(awayCode) ?? [];
+    const homeStrength = getCountrySquadStrength(homeEntries);
+    const awayStrength = getCountrySquadStrength(awayEntries);
+    const simulation = simulateMatch({
+      homePlayers: buildVirtualSquad(Math.round(homeStrength), `${homeCode}_${phase}_${year}_h`),
+      awayPlayers: buildVirtualSquad(Math.round(awayStrength), `${awayCode}_${phase}_${year}_a`),
+      homeTeamName: homeTeam.name,
+      awayTeamName: awayTeam.name,
+      seed: hashString(`${homeCode}:${awayCode}:${year}:${phase}:worldcup-phase`),
+    });
+    let homeGoals = simulation.homeGoals;
+    let awayGoals = simulation.awayGoals;
+    let homeResult = homeGoals > awayGoals ? 'win' : homeGoals < awayGoals ? 'loss' : 'draw';
+    let awayResult = homeResult === 'win' ? 'loss' : homeResult === 'loss' ? 'win' : 'draw';
+    let winnerCode = null;
+    let decidedBy = null;
+
+    if (phase !== 'groupes') {
+      if (homeGoals === awayGoals) {
+        const tieSeed = hashString(`${homeCode}:${awayCode}:${year}:${phase}:shootout`);
+        const homeTie = homeStrength + (tieSeed % 16);
+        const awayTie = awayStrength + ((tieSeed >> 4) % 16);
+        winnerCode = homeTie >= awayTie ? homeCode : awayCode;
+        decidedBy = tieSeed % 3 === 0 ? 'extra_time' : 'penalties';
+      } else {
+        winnerCode = homeGoals > awayGoals ? homeCode : awayCode;
+      }
+      knockoutWinners.add(winnerCode);
+      homeResult = winnerCode === homeCode ? 'win' : 'loss';
+      awayResult = winnerCode === awayCode ? 'win' : 'loss';
+    }
+
+    const scoreLabel = decidedBy === 'extra_time'
+      ? `${homeGoals + (winnerCode === homeCode ? 1 : 0)}-${awayGoals + (winnerCode === awayCode ? 1 : 0)} a.p.`
+      : decidedBy === 'penalties'
+        ? `${homeGoals}-${awayGoals} (${winnerCode === homeCode ? homeTeam.name : awayTeam.name} tab)`
+        : `${homeGoals}-${awayGoals}`;
+    const countryMatchId = `wc_${year}_${phase}_${homeCode}_${awayCode}`;
+    countryResults.push({
+      id: countryMatchId,
+      phase,
+      homeCode,
+      awayCode,
+      homeName: homeTeam.name,
+      awayName: awayTeam.name,
+      homeGoals,
+      awayGoals,
+      score: scoreLabel,
+      winnerCode: phase === 'groupes' ? null : winnerCode,
+      decidedBy,
+    });
+    [
+      { code: homeCode, goalsFor: homeGoals, goalsAgainst: awayGoals, result: homeResult },
+      { code: awayCode, goalsFor: awayGoals, goalsAgainst: homeGoals, result: awayResult },
+    ].forEach((record) => {
+      countryPhaseRecords.set(record.code, {
+        points: record.result === 'win' ? 3 : record.result === 'draw' ? 1 : 0,
+        goalDiff: record.goalsFor - record.goalsAgainst,
+        goalsFor: record.goalsFor,
+      });
+    });
+
+    [
+      { code: homeCode, team: homeTeam, opponent: awayTeam, goalsFor: homeGoals, goalsAgainst: awayGoals, result: homeResult, entries: homeEntries },
+      { code: awayCode, team: awayTeam, opponent: homeTeam, goalsFor: awayGoals, goalsAgainst: homeGoals, result: awayResult, entries: awayEntries },
+    ].forEach((side) => {
+      const players = side.entries.map((entry) => buildWorldCupPlayerFromEntry(entry, rosterById));
+      const { goalsByPlayer, assistsByPlayer } = distributeContributions(players, side.goalsFor, phase, year);
+      players.forEach((player) => {
+        const entry = side.entries.find((item) => item.playerId === player.id) ?? {};
+        const minutes = seededMinutes(`wc-min:${player.id}:${phase}:${year}`, entry.starterChance ?? 0.6);
+        if (minutes <= 0) return;
+        const goals = goalsByPlayer.get(player.id) ?? 0;
+        const assists = assistsByPlayer.get(player.id) ?? 0;
+        const matchRating = Number(clampNumber(
+          6.2 + goals * 0.9 + assists * 0.55 + (side.result === 'win' ? 0.4 : side.result === 'loss' ? -0.3 : 0)
+          + (((hashString(`wc-rate:${player.id}:${phase}:${year}`) % 1000) / 1000) - 0.5),
+          4.5,
+          10,
+        ).toFixed(1));
+        playerResults.push({
+          id: makeId('wc'),
+          sharedMatchId: countryMatchId,
+          playerId: player.id,
+          playerName: `${player.firstName} ${player.lastName}`,
+          countryCode: side.team.code,
+          countryFlag: side.team.flag,
+          countryName: side.team.name,
+          opponentCode: side.opponent.code,
+          opponentFlag: side.opponent.flag,
+          opponent: side.opponent.name,
+          phase,
+          score: `${side.goalsFor}-${side.goalsAgainst}`,
+          goalsFor: side.goalsFor,
+          goalsAgainst: side.goalsAgainst,
+          result: side.result,
+          decidedBy,
+          minutes,
+          goals,
+          assists,
+          keyPasses: player.position === 'ATT' || player.position === 'MIL' ? hashString(`wc-kp:${player.id}:${phase}:${year}`) % 5 : hashString(`wc-kp:${player.id}:${phase}:${year}`) % 2,
+          matchRating,
+          isEliminated: false,
+          isChampion: false,
+          starter: minutes >= 45,
+          matchReport: `Note ${matchRating}/10 · ${goals} but${goals > 1 ? 's' : ''}${assists ? ` · ${assists} passe${assists > 1 ? 's' : ''}` : ''}`,
+        });
+      });
+    });
+  });
+
+  const advancingCountries = phase === 'groupes'
+    ? new Set([...countryPhaseRecords.entries()]
+      .sort((a, b) => (b[1].points - a[1].points) || (b[1].goalDiff - a[1].goalDiff) || (b[1].goalsFor - a[1].goalsFor) || (getCountrySquadStrength(entriesByCountry.get(b[0]) ?? []) - getCountrySquadStrength(entriesByCountry.get(a[0]) ?? [])))
+      .slice(0, Math.min(16, countryPhaseRecords.size))
+      .map(([code]) => code))
+    : knockoutWinners;
+  const championCode = phase === 'finale' ? [...advancingCountries][0] ?? null : null;
+  const championTeam = championCode ? getWcCountry(championCode) : null;
+  const updatedSelectedPlayers = (wcState.selectedPlayers ?? []).map((entry) => {
+    if (!entriesByCountry.has(entry.countryCode) || entry.eliminated || entry.champion) return entry;
+    const playerMatches = playerResults.filter((match) => match.playerId === entry.playerId);
+    const played = playerMatches.length;
+    const goals = playerMatches.reduce((sum, match) => sum + (match.goals ?? 0), 0);
+    const assists = playerMatches.reduce((sum, match) => sum + (match.assists ?? 0), 0);
+    const avg = played
+      ? ((entry.avgRating ?? 0) * (entry.appearances ?? 0) + playerMatches.reduce((sum, match) => sum + (match.matchRating ?? 0), 0)) / ((entry.appearances ?? 0) + played)
+      : entry.avgRating;
+    const eliminated = !advancingCountries.has(entry.countryCode);
+    const champion = championCode === entry.countryCode;
+    return {
+      ...entry,
+      goals: (entry.goals ?? 0) + goals,
+      assists: (entry.assists ?? 0) + assists,
+      avgRating: avg,
+      appearances: (entry.appearances ?? 0) + played,
+      eliminated: entry.eliminated || eliminated,
+      champion: entry.champion || champion,
+    };
+  });
+  const enrichedPlayerResults = playerResults.map((match) => ({
+    ...match,
+    isEliminated: !advancingCountries.has(match.countryCode),
+    isChampion: championCode === match.countryCode,
+  }));
+  const storedPlayerResults = enrichedPlayerResults.filter((match) => rosterById.has(match.playerId));
+  const advancedState = phase === 'finale'
+    ? { ...wcState, phase: 'done', champion: championTeam ? { code: championTeam.code, name: championTeam.name, flag: championTeam.flag } : null }
+    : advanceWorldCupPhase(wcState);
+
+  return {
+    wcState: {
+      ...advancedState,
+      selectedPlayers: updatedSelectedPlayers,
+      results: [...(wcState.results ?? []), ...countryResults, ...storedPlayerResults].slice(-120),
+      countryResults: [...(wcState.countryResults ?? []), ...countryResults].slice(-40),
+    },
+    playerResults: enrichedPlayerResults,
+    countryResults,
+  };
+};
+
 /**
  * Avance la phase de la CdM.
  */

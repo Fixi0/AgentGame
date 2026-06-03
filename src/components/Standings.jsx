@@ -5,13 +5,19 @@ import { getClubProfile } from '../systems/clubSystem';
 import { getLeagueReputationLabel } from '../systems/leagueReputationSystem';
 import { getSortedTable } from '../systems/leagueSystem';
 import {
+  buildEuropeanLeagueSnapshot,
   EURO_CUP_LABELS,
   getClubEuropeanCompetition,
+  getEuropeanCompetition,
+  getEuropeanFixtureList,
+  getEuropeanMatchdayIndex,
   getEuropeanPhaseLabel,
   getEuropeanStage,
 } from '../systems/europeanCupSystem';
+import { EUROPEAN_SCHEDULE } from '../systems/competitionCalendarSystem';
 import { ClubCrest } from '../utils/clubCrests';
 import { getLeagueTopStats } from '../systems/topScorersSystem';
+import { getWeekDailySnapshots } from '../systems/seasonSystem';
 import { getPlayerPortrait } from '../utils/playerPortraits';
 import { S } from './styles';
 
@@ -61,7 +67,7 @@ const EuropeTicker = ({ databaseView, season }) => {
           return (
             <span key={i} style={{ fontSize: 11, color: 'var(--af-text)', fontFamily: 'system-ui,sans-serif' }}>
               <span style={{ color: cup?.color, fontWeight: 900 }}>{cup?.icon} {cup?.short}</span>
-              {' · '}{m.home_club_name ?? '?'} <strong>{m.score}</strong> {m.away_club_name ?? '?'}
+              {' · '}{getClubDisplayName(m.home_club_name ?? '?')} <strong>{m.score}</strong> {getClubDisplayName(m.away_club_name ?? '?')}
             </span>
           );
         })}
@@ -81,9 +87,57 @@ const EURO_STAGE_TRACKER = [
   { key: 'final', label: 'Finale', hint: 'Match unique' },
 ];
 
+const EURO_EXPECTED_FACEOFFS = {
+  playoff: 8,
+  roundOf16: 8,
+  quarters: 4,
+  semis: 2,
+  final: 1,
+};
+
 const getSeasonFromWeek = (week = 1) => Math.floor(((week - 1) / 38)) + 1;
 const getSeasonWeekFromWeek = (week = 1) => ((week - 1) % 38) + 1;
 const getSeasonId = (season = 1) => `season_${season}`;
+const hashText = (value = '') => {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
+const getEuropeanFixtureDayIndex = (fixture = {}, competition = '') => {
+  if ([2, 3].includes(fixture.simulatedDay)) return fixture.simulatedDay;
+  const seed = `${fixture.week ?? ''}:${fixture.home ?? ''}:${competition || fixture.competition || ''}`;
+  return hashText(seed) % 2 === 0 ? 2 : 3;
+};
+const getEuropeanFixtureDateLabel = (fixture = {}, competition = '', season = 1) => {
+  if (!Number.isFinite(Number(fixture.week))) return '';
+  const absoluteWeek = (Math.max(1, season) - 1) * 38 + Number(fixture.week);
+  const dayIndex = getEuropeanFixtureDayIndex(fixture, competition);
+  const snap = getWeekDailySnapshots(absoluteWeek)[dayIndex - 1];
+  if (!snap) return `S${fixture.week}`;
+  const weekday = snap.weekdayLabel
+    ? `${snap.weekdayLabel.charAt(0).toUpperCase()}${snap.weekdayLabel.slice(1)}`
+    : (dayIndex === 2 ? 'Mardi' : 'Mercredi');
+  return `${weekday} ${snap.dateLabel}`;
+};
+const getEuropeanDisplayStage = (seasonWeek, competition) => {
+  const scheduled = getEuropeanStage(seasonWeek, competition);
+  if (scheduled !== 'league') return scheduled;
+  const schedule = EUROPEAN_SCHEDULE[competition] ?? EUROPEAN_SCHEDULE.CL;
+  if (seasonWeek >= schedule.final[0]) return 'final';
+  if (seasonWeek >= schedule.semis[0]) return 'semis';
+  if (seasonWeek >= schedule.quarters[0]) return 'quarters';
+  if (seasonWeek >= schedule.roundOf16[0]) return 'roundOf16';
+  if (seasonWeek >= schedule.playoff[0]) return 'playoff';
+  return 'league';
+};
+const getEuropeanDisplayPhaseLabel = (stageKey, seasonWeek, competition) => {
+  const scheduled = getEuropeanStage(seasonWeek, competition);
+  if (scheduled === stageKey) return getEuropeanPhaseLabel(seasonWeek, competition);
+  return EURO_STAGE_TRACKER.find((stage) => stage.key === stageKey)?.label ?? getEuropeanPhaseLabel(seasonWeek, competition);
+};
 
 const mapDbLeagueRow = (row) => ({
   club: row.club_name,
@@ -108,6 +162,29 @@ const parseScore = (score = '0-0') => {
   };
 };
 
+const getEuropeHistoryKey = (entry = {}, fallbackClub = '') => {
+  // Le classement européen est un classement club, pas joueur.
+  // Sur les anciennes sauvegardes, plusieurs joueurs du même club pouvaient
+  // écrire le même match avec un score différent. On déduplique donc par affiche.
+  return [
+    entry.week ?? '',
+    entry.competition ?? '',
+    entry.club ?? fallbackClub ?? '',
+    entry.opponent ?? entry.opponentName ?? '',
+    entry.stage ?? entry.phase ?? '',
+  ].join('|');
+};
+
+const uniqueEuropeMatches = (matches = [], fallbackClub = '') => {
+  const seen = new Set();
+  return matches.filter((entry) => {
+    const key = getEuropeHistoryKey(entry, fallbackClub);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const getClubHistoryMap = (state, databaseView, season) => {
   const dbRows = databaseView?.clubSeasonHistory?.filter((row) => row.season_id === getSeasonId(season)) ?? [];
   if (dbRows.length) {
@@ -117,11 +194,14 @@ const getClubHistoryMap = (state, databaseView, season) => {
       countryCode: row.country_code,
       competition: row.european_competition,
       league: row.league_history ?? [],
-      europe: row.europe_history ?? [],
+      europe: uniqueEuropeMatches(row.europe_history ?? [], row.club_name),
       summary: row.summary ?? [],
     }]));
   }
-  return state.clubSeasonHistory ?? {};
+  return Object.fromEntries(Object.entries(state.clubSeasonHistory ?? {}).map(([clubName, history]) => [
+    clubName,
+    { ...history, europe: uniqueEuropeMatches(history?.europe ?? [], clubName) },
+  ]));
 };
 
 // Stats déterministes de secours pour les clubs européens dont aucun match
@@ -174,38 +254,92 @@ const synthesizeEuropeStats = (club, competition, season, seasonWeek) => {
 
 const buildEuropeRows = (state, competition, season, databaseView = null) => {
   const roster = state.roster ?? [];
+  const compData = getEuropeCompData(state, databaseView, competition, season);
   const clubHistory = getClubHistoryMap(state, databaseView, season);
   const seasonWeek = ((state.week ?? 1) - 1) % 38 + 1;
-  const rows = CLUBS
-    .filter((club) => getClubEuropeanCompetition(club, season) === competition)
-    .map((club) => {
+  const historyMatches = Object.values(clubHistory ?? {})
+    .flatMap((history) => (history?.europe ?? [])
+      .filter((entry) => entry.competition === competition)
+      .map((entry) => ({ ...entry, club: entry.club ?? history.club })));
+  const midweekMatches = state?.midweekEuropean?.week === state.week
+    ? (state.midweekEuropean.results ?? []).filter((entry) => entry.competition === competition)
+    : [];
+  const agentMatches = [...historyMatches, ...midweekMatches];
+  const currentMatchdayIndex = getEuropeanMatchdayIndex(seasonWeek, competition);
+  const hasCurrentWeekResult = agentMatches.some((match) =>
+    Number(match.simulatedWeek ?? match.week ?? -1) === Number(state.week ?? -2)
+    || (currentMatchdayIndex >= 0 && Number(match.matchdayIndex ?? -1) === currentMatchdayIndex),
+  );
+  const snapshot = buildEuropeanLeagueSnapshot({
+    competition,
+    season,
+    seasonWeek,
+    compData,
+    agentMatches,
+    agentClubNames: [...new Set(roster
+      .filter((player) => getEuropeanCompetition(player, season) === competition)
+      .map((player) => player.club)
+      .filter(Boolean))],
+    includeCurrentMatchday: hasCurrentWeekResult,
+  });
+  const canonicalFixtures = getEuropeanFixtureList(compData)
+    .filter((fixture) => {
+      if (fixture?.stage === 'league') {
+        const md = Number(fixture.matchdayIndex ?? -1);
+        if (md < 0) return false;
+        return hasCurrentWeekResult ? md <= currentMatchdayIndex : md < currentMatchdayIndex;
+      }
+      return Number(fixture.week ?? 0) <= seasonWeek;
+    })
+    .sort((a, b) => Number(b.simulatedWeek ?? b.week ?? 0) - Number(a.simulatedWeek ?? a.week ?? 0)
+      || Number(b.matchdayIndex ?? -1) - Number(a.matchdayIndex ?? -1));
+  const latestByClub = new Map();
+  canonicalFixtures.forEach((fixture) => {
+    [fixture.home, fixture.away].forEach((clubName) => {
+      if (!clubName || latestByClub.has(clubName)) return;
+      const isHome = fixture.home === clubName;
+      const goalsFor = isHome ? Number(fixture.homeGoals ?? 0) : Number(fixture.awayGoals ?? 0);
+      const goalsAgainst = isHome ? Number(fixture.awayGoals ?? 0) : Number(fixture.homeGoals ?? 0);
+      latestByClub.set(clubName, {
+        fixtureId: fixture.id ?? fixture.fixtureId,
+        competition,
+        week: fixture.week,
+        matchdayIndex: fixture.matchdayIndex,
+        stage: fixture.stage,
+        dateLabel: getEuropeanFixtureDateLabel(fixture, competition, season),
+        opponent: isHome ? fixture.away : fixture.home,
+        score: `${goalsFor}-${goalsAgainst}`,
+        goalsFor,
+        goalsAgainst,
+        result: goalsFor > goalsAgainst ? 'win' : goalsFor < goalsAgainst ? 'loss' : 'draw',
+      });
+    });
+  });
+  const rows = snapshot
+    .map((snapshotRow) => {
+      const club = snapshotRow.club ?? CLUBS.find((item) => item.name === snapshotRow.name) ?? { name: snapshotRow.name, countryCode: null };
       const history = clubHistory?.[club.name] ?? null;
       const matches = (history?.europe ?? [])
         .filter((entry) => entry.competition === competition)
         .map((entry) => ({ ...entry }));
-      const realStats = matches.reduce((acc, match) => {
-        const { home, away } = parseScore(match.score);
-        acc.played += 1;
-        acc.win += home > away ? 1 : 0;
-        acc.draw += home === away ? 1 : 0;
-        acc.loss += home < away ? 1 : 0;
-        acc.goalsFor += home;
-        acc.goalsAgainst += away;
-        acc.points += home > away ? 3 : home === away ? 1 : 0;
-        return acc;
-      }, { played: 0, win: 0, draw: 0, loss: 0, goalsFor: 0, goalsAgainst: 0, points: 0 });
       const rosterCount = roster.filter((player) => player.club === club.name).length;
-      // Si aucun match réel : on synthétise pour donner du contexte au classement.
-      const stats = realStats.played > 0
-        ? { ...realStats, form: matches.slice(-5).map((m) => {
-          const { home, away } = parseScore(m.score);
-          return home > away ? 'W' : home === away ? 'D' : 'L';
-        }) }
-        : synthesizeEuropeStats(club, competition, season, seasonWeek);
-      const latest = matches[matches.length - 1] ?? null;
+      const latest = latestByClub.get(club.name) ?? snapshotRow.latest ?? matches[matches.length - 1] ?? null;
       const flag = COUNTRIES.find((c) => c.code === club.countryCode)?.flag ?? '🌍';
       return {
-        club, flag, history, matches, latest, rosterCount, ...stats,
+        club,
+        flag,
+        history,
+        matches: matches.length ? matches : (snapshotRow.matches ?? []),
+        latest,
+        rosterCount,
+        played: snapshotRow.played ?? 0,
+        win: snapshotRow.win ?? 0,
+        draw: snapshotRow.draw ?? 0,
+        loss: snapshotRow.loss ?? 0,
+        goalsFor: snapshotRow.goalsFor ?? 0,
+        goalsAgainst: snapshotRow.goalsAgainst ?? 0,
+        points: snapshotRow.points ?? 0,
+        form: snapshotRow.form ?? [],
       };
     })
     .sort((a, b) =>
@@ -218,10 +352,369 @@ const buildEuropeRows = (state, competition, season, databaseView = null) => {
   return rows;
 };
 
+const getEuropeCompData = (state, databaseView, competition, season) => {
+  const stateData = state?.europeanCupData?.[`${competition}:${season}`];
+  if (stateData) return stateData;
+  const seasonId = getSeasonId(season);
+  const dbRow = (databaseView?.europeanCompetitions ?? []).find((row) =>
+    row.competition === competition && row.season_id === seasonId);
+  if (!dbRow) return null;
+  return {
+    competition,
+    season,
+    opponentHistory: dbRow.opponent_history ?? {},
+    koPath: dbRow.ko_path ?? {},
+    bracketClubs: dbRow.bracket_clubs ?? dbRow.raw?.bracketClubs ?? null,
+    bracketState: dbRow.bracket_state ?? dbRow.raw?.bracketState ?? null,
+    leagueTable: dbRow.raw?.leagueTable ?? null,
+    leagueFixtures: dbRow.raw?.leagueFixtures ?? null,
+    fixtures: dbRow.raw?.fixtures ?? {},
+    winner: dbRow.winner ?? dbRow.raw?.winner ?? dbRow.raw?.champion ?? null,
+  };
+};
+
+const getClubFlag = (clubName = '') => {
+  const club = CLUBS.find((item) => item.name === clubName);
+  return COUNTRIES.find((c) => c.code === club?.countryCode)?.flag ?? '🌍';
+};
+
+const getKnockoutStageLabel = (stageKey = '') =>
+  EURO_STAGE_TRACKER.find((stage) => stage.key === stageKey)?.label ?? 'Tour européen';
+
+const splitScore = (score = '') => {
+  const parsed = parseScore(score);
+  return {
+    home: Number.isFinite(parsed.home) ? parsed.home : null,
+    away: Number.isFinite(parsed.away) ? parsed.away : null,
+  };
+};
+
+const buildPlayoffFallbackFaceoffs = (rows = []) => {
+  const ranked = rows
+    .slice()
+    .sort((a, b) => b.points - a.points
+      || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst)
+      || b.goalsFor - a.goalsFor
+      || a.club.name.localeCompare(b.club.name));
+  const playoff = ranked.slice(8, 24);
+  const faceoffs = [];
+  let left = 0;
+  let right = playoff.length - 1;
+  while (left < right) {
+    const homeRow = playoff[left];
+    const awayRow = playoff[right];
+    if (homeRow && awayRow) {
+      faceoffs.push({
+        id: `fallback_playoff_${homeRow.club.name}_${awayRow.club.name}`,
+        stage: 'playoff',
+        leg: 0,
+        isDecider: false,
+        status: 'scheduled',
+        home: homeRow.club.name,
+        away: awayRow.club.name,
+        homeFlag: homeRow.flag,
+        awayFlag: awayRow.flag,
+        homeRank: left + 9,
+        awayRank: right + 9,
+        isAgent: homeRow.rosterCount > 0 || awayRow.rosterCount > 0,
+      });
+    }
+    left += 1;
+    right -= 1;
+  }
+  return faceoffs;
+};
+
+const uniqueFallbackClubs = (clubs = []) => {
+  const seen = new Set();
+  return clubs.filter((club) => {
+    const name = typeof club === 'string' ? club : club?.name ?? club?.club?.name;
+    if (!name || seen.has(name)) return false;
+    seen.add(name);
+    return true;
+  });
+};
+
+const normalizeFallbackClub = (club, rows = []) => {
+  if (!club) return null;
+  const clubName = typeof club === 'string' ? club : club.name ?? club.club?.name ?? club;
+  const row = rows.find((item) => item.club.name === clubName);
+  return {
+    name: clubName,
+    flag: club.country ?? row?.flag ?? getClubFlag(clubName),
+    rank: club.rank ?? row?.rank ?? null,
+    rosterCount: row?.rosterCount ?? 0,
+  };
+};
+
+const buildGenericFallbackFaceoffs = (clubs = [], stage = 'roundOf16', rosterClubs = new Set(), rows = []) => {
+  const normalized = uniqueFallbackClubs(clubs)
+    .map((club) => normalizeFallbackClub(club, rows))
+    .filter(Boolean);
+  const faceoffs = [];
+  let left = 0;
+  let right = normalized.length - 1;
+  while (left < right) {
+    const home = normalized[left];
+    const away = normalized[right];
+    faceoffs.push({
+      id: `fallback_${stage}_${home.name}_${away.name}`,
+      stage,
+      leg: 0,
+      isDecider: false,
+      status: 'scheduled',
+      home: home.name,
+      away: away.name,
+      homeFlag: home.flag,
+      awayFlag: away.flag,
+      homeRank: home.rank,
+      awayRank: away.rank,
+      isAgent: rosterClubs.has(home.name) || rosterClubs.has(away.name) || home.rosterCount > 0 || away.rosterCount > 0,
+    });
+    left += 1;
+    right -= 1;
+  }
+  return faceoffs;
+};
+
+const buildKnockoutFallbackFaceoffs = ({ compData, currentStageKey, rows, rosterClubs }) => {
+  const eliminated = new Set(compData?.bracketState?.eliminatedClubs ?? []);
+  const clean = (clubs = []) => uniqueFallbackClubs(clubs)
+    .filter((club) => !eliminated.has(typeof club === 'string' ? club : club?.name ?? club?.club?.name ?? club));
+
+  if (currentStageKey === 'playoff') return buildPlayoffFallbackFaceoffs(rows);
+  if (currentStageKey === 'roundOf16') {
+    const direct = rows.slice(0, 8).map((row) => ({ name: row.club.name, country: row.flag, rank: row.club.rank ?? row.rank, rosterCount: row.rosterCount }));
+    const winners = compData?.bracketState?.stageWinners?.playoff ?? [];
+    const clubs = winners.length >= 8 ? [...direct, ...winners.slice(0, 8)] : rows.slice(0, 16).map((row) => ({ name: row.club.name, country: row.flag, rosterCount: row.rosterCount }));
+    return buildGenericFallbackFaceoffs(clean(clubs), currentStageKey, rosterClubs, rows);
+  }
+  const previousStage = {
+    quarters: 'roundOf16',
+    semis: 'quarters',
+    final: 'semis',
+  }[currentStageKey];
+  const fallbackCount = currentStageKey === 'quarters' ? 8 : currentStageKey === 'semis' ? 4 : 2;
+  const winners = compData?.bracketState?.stageWinners?.[previousStage] ?? [];
+  const clubs = winners.length >= fallbackCount
+    ? winners.slice(0, fallbackCount)
+    : rows.slice(0, fallbackCount).map((row) => ({ name: row.club.name, country: row.flag, rosterCount: row.rosterCount }));
+  return buildGenericFallbackFaceoffs(clean(clubs), currentStageKey, rosterClubs, rows);
+};
+
+const buildKnockoutFaceoffs = ({ state, databaseView, competition, season, currentStageKey, rows }) => {
+  const compData = getEuropeCompData(state, databaseView, competition, season);
+  const rounds = compData?.bracketState?.rounds ?? {};
+  const rosterClubs = new Set((state?.roster ?? []).map((player) => player.club).filter(Boolean));
+  const expectedCount = EURO_EXPECTED_FACEOFFS[currentStageKey] ?? 0;
+  const fallbackFaceoffs = buildKnockoutFallbackFaceoffs({ compData, currentStageKey, rows, rosterClubs });
+  const stageRounds = Object.entries(rounds)
+    .map(([roundKey, round]) => ({ roundKey, ...round }))
+    .filter((round) => round.stage === currentStageKey)
+    .sort((a, b) => (b.week ?? 0) - (a.week ?? 0) || (b.leg ?? 0) - (a.leg ?? 0));
+  const latestRoundWeek = stageRounds[0]?.week ?? null;
+
+  const faceoffs = stageRounds
+    .filter((round) => latestRoundWeek === null || round.week === latestRoundWeek)
+    .sort((a, b) =>
+      (a.leg ?? 0) - (b.leg ?? 0))
+    .flatMap((round) => (round.matches ?? []).map((match, index) => {
+      const score = splitScore(match.score);
+      return {
+        id: `${round.roundKey}_${index}_${match.home}_${match.away}`,
+        stage: match.stage ?? round.stage,
+        leg: match.leg ?? round.leg ?? 0,
+        isDecider: Boolean(match.isDecider ?? round.isDecider),
+        status: match.score ? 'played' : 'scheduled',
+        home: match.home,
+        away: match.away,
+        homeFlag: match.homeCountry ?? getClubFlag(match.home),
+        awayFlag: match.awayCountry ?? getClubFlag(match.away),
+        homeGoals: Number.isFinite(match.homeGoals) ? match.homeGoals : score.home,
+        awayGoals: Number.isFinite(match.awayGoals) ? match.awayGoals : score.away,
+        aggregate: match.aggregate,
+        winner: match.winner,
+        loser: match.loser,
+        decidedByPenalties: match.decidedByPenalties,
+        week: match.week ?? round.week,
+        dateLabel: getEuropeanFixtureDateLabel({ ...match, week: match.week ?? round.week }, competition, season),
+        isAgent: rosterClubs.has(match.home) || rosterClubs.has(match.away),
+      };
+    }));
+
+  if (!faceoffs.length) return fallbackFaceoffs;
+  if (expectedCount && faceoffs.length < expectedCount && fallbackFaceoffs.length >= expectedCount) {
+    return fallbackFaceoffs;
+  }
+  return faceoffs;
+};
+
+function KnockoutTeamLine({ clubName, flag, goals, qualified, eliminated, cupColor, align = 'left' }) {
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: align === 'right' ? '34px 1fr' : '1fr 34px',
+      gap: 8,
+      alignItems: 'center',
+      color: qualified ? '#ffffff' : eliminated ? 'var(--af-muted)' : 'var(--af-text)',
+      opacity: eliminated ? .58 : 1,
+    }}>
+      {align === 'left' ? (
+        <>
+          <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>{flag}</span>
+            <span style={{ fontSize: 13, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <ClubCrest club={clubName} size={18} style={{ marginRight: 2 }} />
+              {getClubDisplayName(clubName)}
+            </span>
+          </div>
+          <strong style={{ fontSize: 20, textAlign: 'right', color: qualified ? cupColor : 'var(--af-text)', lineHeight: 1 }}>
+            {Number.isFinite(goals) ? goals : '-'}
+          </strong>
+        </>
+      ) : (
+        <>
+          <strong style={{ fontSize: 20, textAlign: 'left', color: qualified ? cupColor : 'var(--af-text)', lineHeight: 1 }}>
+            {Number.isFinite(goals) ? goals : '-'}
+          </strong>
+          <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+            <span style={{ fontSize: 13, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {getClubDisplayName(clubName)}
+            </span>
+            <span>{flag}</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function KnockoutFaceoffCard({ match, cup, onClubDetails }) {
+  const homeQualified = match.winner === match.home;
+  const awayQualified = match.winner === match.away;
+  const homeEliminated = match.loser === match.home;
+  const awayEliminated = match.loser === match.away;
+  const played = match.status === 'played';
+  const legLabel = match.stage === 'final'
+    ? 'Match unique'
+    : match.leg > 0
+      ? `Manche ${match.leg}${match.isDecider ? ' · décisive' : ''}`
+      : 'Affiche à venir';
+  return (
+    <div
+      style={{
+        border: `1px solid ${match.isAgent ? '#00a676' : 'var(--af-border)'}`,
+        borderLeft: `4px solid ${match.isAgent ? '#00a676' : cup.color}`,
+        borderRadius: 12,
+        padding: 12,
+        background: match.isAgent
+          ? 'linear-gradient(135deg, oklch(28% 0.10 155 / .38), oklch(12% 0.035 258 / .92))'
+          : 'linear-gradient(135deg, oklch(17% 0.045 258 / .92), oklch(10% 0.025 262 / .90))',
+        boxShadow: match.isAgent ? '0 10px 26px rgba(0,166,118,.16)' : '0 10px 24px rgba(0,0,0,.18)',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ fontSize: 9, fontWeight: 950, color: cup.color, letterSpacing: '.14em', textTransform: 'uppercase', fontFamily: 'system-ui,sans-serif' }}>
+          {getKnockoutStageLabel(match.stage)}
+        </div>
+        <div style={{ fontSize: 9, color: 'var(--af-muted)', fontWeight: 800, fontFamily: 'system-ui,sans-serif', textTransform: 'uppercase' }}>
+          {match.dateLabel ? `${match.dateLabel} · ` : ''}{played ? legLabel : 'Programmé'}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onClubDetails?.(match.home)}
+        style={{ display: 'block', width: '100%', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left' }}
+      >
+        <KnockoutTeamLine
+          clubName={match.home}
+          flag={match.homeFlag}
+          goals={match.homeGoals}
+          qualified={homeQualified}
+          eliminated={homeEliminated}
+          cupColor={cup.color}
+        />
+      </button>
+      <div style={{ height: 1, background: 'var(--af-border)', margin: '9px 0' }} />
+      <button
+        type="button"
+        onClick={() => onClubDetails?.(match.away)}
+        style={{ display: 'block', width: '100%', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left' }}
+      >
+        <KnockoutTeamLine
+          clubName={match.away}
+          flag={match.awayFlag}
+          goals={match.awayGoals}
+          qualified={awayQualified}
+          eliminated={awayEliminated}
+          cupColor={cup.color}
+        />
+      </button>
+
+      {(match.aggregate || match.winner || match.decidedByPenalties || match.homeRank) && (
+        <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          {match.aggregate && (
+            <span style={{ fontSize: 10, color: 'var(--af-muted)', border: '1px solid var(--af-border)', borderRadius: 999, padding: '3px 7px', fontWeight: 850 }}>
+              Cumul {match.aggregate}
+            </span>
+          )}
+          {match.winner && (
+            <span style={{ fontSize: 10, color: '#ffffff', background: '#00a676', borderRadius: 999, padding: '3px 7px', fontWeight: 900 }}>
+              Qualifié : {getClubDisplayName(match.winner)}
+            </span>
+          )}
+          {match.decidedByPenalties && (
+            <span style={{ fontSize: 10, color: 'oklch(88% 0.16 83)', border: '1px solid oklch(82% 0.16 83 / .35)', borderRadius: 999, padding: '3px 7px', fontWeight: 850 }}>
+              Tirs au but
+            </span>
+          )}
+          {match.homeRank && match.awayRank && (
+            <span style={{ fontSize: 10, color: 'var(--af-muted)', border: '1px solid var(--af-border)', borderRadius: 999, padding: '3px 7px', fontWeight: 850 }}>
+              #{match.homeRank} vs #{match.awayRank}
+            </span>
+          )}
+          {match.isAgent && (
+            <span style={{ fontSize: 9, fontWeight: 900, background: '#00a676', color: '#ffffff', borderRadius: 999, padding: '3px 7px', letterSpacing: '.06em' }}>
+              MON CLUB
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KnockoutFaceoffBoard({ state, databaseView, competition, season, currentStageKey, rows, cup, onClubDetails }) {
+  const faceoffs = buildKnockoutFaceoffs({ state, databaseView, competition, season, currentStageKey, rows });
+  if (!faceoffs.length) {
+    return (
+      <div style={S.emptySmall}>
+        Les affiches de ce tour apparaîtront quand le tirage sera validé.
+      </div>
+    );
+  }
+
+  const visibleFaceoffs = faceoffs.filter((match) => match.stage === currentStageKey);
+
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      {visibleFaceoffs.map((match) => (
+        <KnockoutFaceoffCard
+          key={match.id}
+          match={match}
+          cup={cup}
+          onClubDetails={onClubDetails}
+        />
+      ))}
+    </div>
+  );
+}
+
 function EuropeCompetitionCard({ state, databaseView, competition, season, seasonWeek, onClubDetails }) {
   const cup = EURO_CUP_LABELS[competition];
-  const currentStageKey = getEuropeanStage(seasonWeek, competition);
-  const currentStageLabel = getEuropeanPhaseLabel(seasonWeek, competition);
+  const currentStageKey = getEuropeanDisplayStage(seasonWeek, competition);
+  const currentStageLabel = getEuropeanDisplayPhaseLabel(currentStageKey, seasonWeek, competition);
   const stageIndex = EURO_STAGE_TRACKER.findIndex((stage) => stage.key === currentStageKey);
   const rows = buildEuropeRows(state, competition, season, databaseView);
 
@@ -285,7 +778,18 @@ function EuropeCompetitionCard({ state, databaseView, competition, season, seaso
         <strong>{rows.length} club{rows.length > 1 ? 's' : ''} engagés</strong>
       </div>
 
-      {rows.length ? (
+      {currentStageKey !== 'league' ? (
+        <KnockoutFaceoffBoard
+          state={state}
+          databaseView={databaseView}
+          competition={competition}
+          season={season}
+          currentStageKey={currentStageKey}
+          rows={rows}
+          cup={cup}
+          onClubDetails={onClubDetails}
+        />
+      ) : rows.length ? (
         <div style={{ display: 'grid', gap: 6 }}>
           {rows.map((row, index) => {
             const goalDiff = row.goalsFor - row.goalsAgainst;
@@ -342,7 +846,7 @@ function EuropeCompetitionCard({ state, databaseView, competition, season, seaso
                         </span>
                         {row.latest && (
                           <span style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif' }}>
-                            {latestStage} · {row.latest.score} vs {row.latest.opponent ?? '?'}
+                            {row.latest.dateLabel ? `${row.latest.dateLabel} · ` : ''}{latestStage} · {row.latest.score} vs {row.latest.opponent ?? '?'}
                           </span>
                         )}
                       </div>
@@ -354,7 +858,16 @@ function EuropeCompetitionCard({ state, databaseView, competition, season, seaso
                     )}
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 20, fontWeight: 950, color: row.played > 0 ? cup.color : 'var(--af-dim)', lineHeight: 1 }}>{row.points}</div>
+                    <div style={{
+                      minWidth: 32,
+                      fontSize: 24,
+                      fontWeight: 950,
+                      color: row.played > 0 ? '#f4f7ff' : 'var(--af-dim)',
+                      lineHeight: 1,
+                      textShadow: row.played > 0 ? `0 0 14px ${cup.color}66` : 'none',
+                    }}>
+                      {row.points}
+                    </div>
                     <div style={{ fontSize: 9, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', letterSpacing: '.06em', textTransform: 'uppercase', marginTop: 1 }}>MJ {row.played}</div>
                   </div>
                 </div>
@@ -628,7 +1141,7 @@ export default function Standings({ state, databaseView = null, onClubDetails })
               {selectedClubContext && (
                 <>
                   <div style={S.sumRow}><span style={S.sumK}>Saison</span><strong>{selectedClubContext.position ?? '-'}e/{selectedClubContext.totalClubs ?? '-'} · {selectedClubContext.points ?? 0} pts</strong></div>
-                  <div style={S.sumRow}><span style={S.sumK}>Objectif</span><strong>{selectedClubContext.objective ?? 'saison stable'}</strong></div>
+                  <div style={S.sumRow}><span style={S.sumK}>Forme</span><strong>{selectedClubContext.formTrend ?? 'stable'}</strong></div>
                 </>
               )}
               <div style={S.sumRow}><span style={S.sumK}>Budget</span><strong>{clubProfile.budget}/100</strong></div>

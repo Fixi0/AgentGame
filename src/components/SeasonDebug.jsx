@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, AlertTriangle, CalendarDays, Shield, Shuffle, Users } from 'lucide-react';
 import { MATCH_STATUS, calendarMatchToFixture } from '../systems/matchCalendarSystem';
 import { getWeekDailySnapshots } from '../systems/seasonSystem';
+import { getClubDisplayName } from '../data/clubs';
 import { S } from './styles';
 
 const countBy = (items = [], picker) => items.reduce((map, item) => {
@@ -69,7 +70,7 @@ export default function SeasonDebug({ state }) {
       <DebugBlock icon={AlertTriangle} title="Anomalies calendrier">
         {selfMatches.length ? selfMatches.map((match) => (
           <div key={match.id} style={{ ...S.fixtureRow, borderLeft: '3px solid #f87171' }}>
-            Auto-match détecté: {match.homeClub?.name} · S{match.week} · {dayName(match.week, match.day)}
+            Auto-match détecté: {getClubDisplayName(match.homeClub?.name)} · S{match.week} · {dayName(match.week, match.day)}
           </div>
         )) : <div style={S.emptySmall}>Aucune anomalie auto-match détectée.</div>}
       </DebugBlock>
@@ -85,7 +86,7 @@ export default function SeasonDebug({ state }) {
           const fixture = calendarMatchToFixture(match);
           return (
             <div key={match.id} style={S.fixtureRow}>
-              <strong>{fixture.homeClub?.name} {fixture.homeGoals}-{fixture.awayGoals} {fixture.awayClub?.name}</strong>
+              <strong>{getClubDisplayName(fixture.homeClub?.name)} {fixture.homeGoals}-{fixture.awayGoals} {getClubDisplayName(fixture.awayClub?.name)}</strong>
               <div style={S.fixtureMeta}>{dayName(match.week, match.day)} · {match.competitionLabel ?? match.competition}</div>
             </div>
           );
@@ -96,7 +97,7 @@ export default function SeasonDebug({ state }) {
         {injured.length ? injured.map((player) => (
           <div key={player.id} style={S.fixtureRow}>
             <strong>{player.firstName} {player.lastName}</strong>
-            <div style={S.fixtureMeta}>{player.club} · {player.injured} semaine(s) · {player.injuryReason ?? 'raison non précisée'}</div>
+            <div style={S.fixtureMeta}>{getClubDisplayName(player.club)} · {player.injured} semaine(s) · {player.injuryReason ?? 'raison non précisée'}</div>
           </div>
         )) : <div style={S.emptySmall}>Aucun blessé dans l’effectif agence.</div>}
       </DebugBlock>
@@ -105,7 +106,7 @@ export default function SeasonDebug({ state }) {
         {transfers.length ? transfers.map((item, index) => (
           <div key={`${item.debugType}_${item.id ?? item.offerId ?? index}`} style={S.fixtureRow}>
             <strong>{item.playerName ?? item.label ?? 'Dossier transfert'}</strong>
-            <div style={S.fixtureMeta}>{item.debugType} · S{item.week ?? item.createdWeek ?? state.week} · {item.detail ?? item.club ?? item.toClub ?? 'suivi'}</div>
+            <div style={S.fixtureMeta}>{item.debugType} · S{item.week ?? item.createdWeek ?? state.week} · {item.detail ?? getClubDisplayName(item.club ?? item.toClub ?? 'suivi')}</div>
           </div>
         )) : <div style={S.emptySmall}>Aucun transfert récent ou en attente.</div>}
       </DebugBlock>

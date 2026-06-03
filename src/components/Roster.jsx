@@ -3,66 +3,10 @@ import { BriefcaseBusiness, Search, Shield, SlidersHorizontal, TrendingUp, UserR
 import PlayerDossier from './PlayerDossier';
 import { getAgencyCapacity } from '../systems/agencySystem';
 import { formatMoney } from '../utils/format';
-import { getPlayerPortrait } from '../utils/playerPortraits';
+import CardPlayer from './CardPlayer';
 
 const fullName = (player = {}) => `${player.firstName ?? ''} ${player.lastName ?? ''}`.trim();
 
-const COUNTRY_FLAGS = {
-  FRA: '🇫🇷', ESP: '🇪🇸', ITA: '🇮🇹', GER: '🇩🇪', ENG: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', BRA: '🇧🇷', ARG: '🇦🇷',
-  POR: '🇵🇹', NED: '🇳🇱', BEL: '🇧🇪', USA: '🇺🇸', JPN: '🇯🇵', SEN: '🇸🇳', MAR: '🇲🇦', ALG: '🇩🇿',
-};
-
-const ratingTier = (rating = 0) => {
-  if (rating >= 88) return 'tier-legend';
-  if (rating >= 80) return 'tier-elite';
-  if (rating >= 72) return 'tier-gold';
-  return '';
-};
-
-function PlayerFutTile({ player, onOpen }) {
-  const portrait = getPlayerPortrait(player);
-  const tier = ratingTier(player.rating);
-  const flag = player.countryFlag || COUNTRY_FLAGS[player.countryCode] || '🏳️';
-  const trust = Math.max(0, Math.min(100, player.trust ?? 50));
-  const form = Math.max(0, Math.min(100, player.form ?? 50));
-
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={`af-fut-card af-hover-lift af-anim-fade-up ${tier}`}
-      style={{ textAlign: 'left', padding: 0, font: 'inherit' }}
-    >
-      <div className="af-fut-portrait" style={{ backgroundImage: `url(${portrait})` }}>
-        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 3, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 999, background: 'oklch(8% 0.025 258 / .72)', border: '1px solid oklch(78% 0.16 215 / .35)', backdropFilter: 'blur(8px)', color: '#fff', fontSize: 10, fontWeight: 900, letterSpacing: '.1em' }}>
-          <span>{flag}</span>
-          <span style={{ color: 'var(--af-cyan)' }}>{player.roleShort ?? player.clubRole ?? player.position}</span>
-        </div>
-        {player.injured > 0 && (
-          <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 3, padding: '3px 7px', borderRadius: 6, background: 'oklch(40% 0.16 25)', color: '#fff', fontSize: 9, fontWeight: 900, letterSpacing: '.08em' }}>
-            SOINS
-          </div>
-        )}
-      </div>
-      <div className="af-fut-foot">
-        <div className="af-fut-name">{fullName(player)}</div>
-        <div className="af-fut-club">{player.club || 'Libre'}</div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-          <span style={{ flex: 1, height: 4, borderRadius: 999, background: 'rgba(255,255,255,.12)', position: 'relative', overflow: 'hidden' }}>
-            <span style={{ position: 'absolute', inset: 0, width: `${form}%`, background: 'var(--af-grass)', borderRadius: 'inherit' }} />
-          </span>
-          <span style={{ flex: 1, height: 4, borderRadius: 999, background: 'rgba(255,255,255,.12)', position: 'relative', overflow: 'hidden' }}>
-            <span style={{ position: 'absolute', inset: 0, width: `${trust}%`, background: 'var(--af-cyan)', borderRadius: 'inherit' }} />
-          </span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,.6)', fontSize: 10, fontWeight: 800, marginTop: 4 }}>
-          <span>{formatMoney(player.value ?? 0)}</span>
-          <span>{(player.contractWeeksLeft ?? 0)}s</span>
-        </div>
-      </div>
-    </button>
-  );
-}
 
 export default function Roster({ state, roster, onNego, onDetails }) {
   const [query, setQuery] = useState('');
@@ -155,7 +99,7 @@ export default function Roster({ state, roster, onNego, onDetails }) {
       {filtered.length ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 168px), 1fr))', gap: 14 }}>
           {filtered.map((player) => (
-            <PlayerFutTile key={player.id} player={player} onOpen={() => setLocalDossier(player)} />
+            <CardPlayer key={player.id} player={player} onOpen={(openedPlayer) => setLocalDossier(openedPlayer ?? player)} />
           ))}
         </div>
       ) : (

@@ -12,7 +12,7 @@
  *   2. Pools de noms étendus par nationalité (~50 noms/pays)
  *   3. Attributs physiques (foot, physique, style de jeu)
  *   4. Jeunes prospects (U21) dédiés
- *   5. IDs stables entre saisons + évolution stats (âge/note)
+ *   5. Seniors stables entre saisons + cohortes de prospects renouvelées
  */
 
 import { CLUBS, COUNTRIES, getClubDisplayName } from './clubs';
@@ -40,6 +40,34 @@ const UGO_MOXWMO_SEED = 0x8b17e2c4;
 export const UGO_MOXWMO_ID = 'sig_ugo_moxwmo';
 export const YOHAN_ZENOXX_ID = 'sig_yohan_zenoxx';
 
+export const isGabrielFixioPlayer = (player = {}) =>
+  player?.id === GABRIEL_FIXIO_ID
+  || (`${player?.firstName ?? ''}`.trim().toLowerCase() === 'gabriel'
+    && `${player?.lastName ?? ''}`.trim().toLowerCase() === 'fixio');
+
+export const ensureGabrielFixioPower = (player) => {
+  if (!isGabrielFixioPlayer(player)) return player;
+  return {
+    ...player,
+    id: GABRIEL_FIXIO_ID,
+    firstName: 'Gabriel',
+    lastName: 'Fixio',
+    rating: 200,
+    potential: 200,
+    catalogBaseRating: 200,
+    catalogBasePotential: 200,
+    clubRole: 'Star',
+    signaturePlayer: true,
+    superstarGenerational: true,
+    brandValue: Math.max(player.brandValue ?? 0, 100),
+    form: Math.max(player.form ?? 0, 90),
+    moral: Math.max(player.moral ?? 0, 88),
+    developmentCurve: 'superstar_gem',
+    hasBallonDor: true,
+    ballonDorWins: Math.max(player.ballonDorWins ?? 0, 1),
+  };
+};
+
 const getMarseilleClub = () =>
   CLUBS.find((club) => club.name === GABRIEL_FIXIO_CLUB) ?? CLUBS[0];
 
@@ -49,10 +77,10 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     ?? POSITION_ROLES.MIL?.[0]
     ?? POSITION_ROLES.ATT?.[0];
   const baseAge = 20;
-  const baseRating = 130; // Converted from 65 on 1-200 scale
-  const potential = 198; // Converted from 99 on 1-200 scale
+  const baseRating = 200;
+  const potential = 200;
   const rating = evolveRating(baseRating, baseAge, potential, season);
-  const age = baseAge + (season - 1);
+  const age = clamp(baseAge + (season - 1), 16, 41);
   const countryData = COUNTRIES.find((c) => c.code === 'FR') ?? COUNTRIES[0];
   const value = estimateValue(rating, potential, age, 1);
   const weeklySalary = Math.max(2500, Math.floor(value / 140));
@@ -121,6 +149,8 @@ const buildGabrielFixio = (club = getMarseilleClub(), season = 1) => {
     foot: 'G',
     developmentBoost: 0.055,
     developmentCurve: 'superstar_gem',
+    hasBallonDor: true,
+    ballonDorWins: 1,
     signaturePlayer: false,
     hiddenPotential: true,
     attributes: generatePlayerAttributes({ rating, potential, position: 'MIL' }, roleObj),
@@ -138,7 +168,7 @@ const buildUgoMoxwmo = (club = getMarseilleClub(), season = 1) => {
   const baseRating = 128;
   const potential = 192; // Un peu moins de plafond que Gabriel
   const rating = evolveRating(baseRating, baseAge, potential, season);
-  const age = baseAge + (season - 1);
+  const age = clamp(baseAge + (season - 1), 16, 41);
   const countryData = COUNTRIES.find((c) => c.code === 'FR') ?? COUNTRIES[0];
   const value = estimateValue(rating, potential, age, 1);
   const weeklySalary = Math.max(2200, Math.floor(value / 145));
@@ -224,7 +254,7 @@ const buildYohanZenoxx = (club = getMarseilleClub(), season = 1) => {
   const baseRating = 118;
   const potential = 196;
   const rating = evolveRating(baseRating, baseAge, potential, season);
-  const age = baseAge + (season - 1);
+  const age = clamp(baseAge + (season - 1), 16, 41);
   const countryData = COUNTRIES.find((c) => c.code === 'FR') ?? COUNTRIES[0];
   const value = estimateValue(rating, potential, age, 1);
   const weeklySalary = Math.max(2200, Math.floor(value / 145));
@@ -304,10 +334,10 @@ const buildYohanZenoxx = (club = getMarseilleClub(), season = 1) => {
 // Plages resserrées : la majorité des joueurs sont 2-4 étoiles,
 // les 5 étoiles (≥176) restent rares et plafonnés par limitEliteRatings.
 const TIER_RATING = {
-  1: { starterMin: 156, starterMax: 178, benchMin: 138, benchMax: 158 },
-  2: { starterMin: 138, starterMax: 162, benchMin: 124, benchMax: 144 },
-  3: { starterMin: 122, starterMax: 146, benchMin: 110, benchMax: 130 },
-  4: { starterMin: 104, starterMax: 130, benchMin: 94, benchMax: 118 },
+  1: { starterMin: 168, starterMax: 190, benchMin: 150, benchMax: 168 },
+  2: { starterMin: 146, starterMax: 170, benchMin: 130, benchMax: 150 },
+  3: { starterMin: 124, starterMax: 146, benchMin: 110, benchMax: 132 },
+  4: { starterMin: 100, starterMax: 126, benchMin: 90, benchMax: 116 },
 };
 
 // ── Physique & Style de jeu ─────────────────────────────────────────────────
@@ -398,9 +428,10 @@ const YOUTH_SLOTS = [
 // ── RNG déterministe ──────────────────────────────────────────────────────────
 
 const hashStr = (str) => {
+  const normalized = String(str ?? '');
   let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
+  for (let i = 0; i < normalized.length; i++) {
+    h ^= normalized.charCodeAt(i);
     h = Math.imul(h, 16777619) >>> 0;
   }
   return h;
@@ -420,7 +451,7 @@ const sBool  = (seed, n, prob) => seededFloat(seed, n) < prob;
 // ── Valeur marchande ──────────────────────────────────────────────────────────
 
 const estimateValue = (rating, potential, age, tier) => {
-  const r = Math.min(198, Math.max(100, rating)); // 1-200 scale
+  const r = Math.min(200, Math.max(100, rating)); // 1-200 scale
   const ratingFactor = Math.exp((r - 130) / 18.4); // Adjusted for 1-200 scale
   const ageFactor = age <= 20 ? 1.15 : age <= 24 ? 1.05 : age <= 27 ? 0.94 : age <= 30 ? 0.80 : 0.58;
   const potFactor  = 1 + Math.min(0.2, Math.max(0, (potential - rating) / 36)); // Doubled for 1-200 scale
@@ -429,12 +460,12 @@ const estimateValue = (rating, potential, age, tier) => {
   return Math.round(Math.min(280_000_000, Math.max(250_000, raw)) / 1000) * 1000;
 };
 
-// Limite les "5 étoiles" (≥176) à une poignée de joueurs dans tout le catalogue.
-// Les joueurs signature (sig_*) sont exemptés. Les autres sont ramenés à 174 (4 étoiles).
-const limitEliteRatings = (catalog = [], maxElite = 8) => {
+// Garde une hiérarchie crédible: les gros clubs doivent avoir plusieurs vrais cadres,
+// sans transformer tous les championnats en effectifs 5 étoiles.
+const limitEliteRatings = (catalog = [], maxElite = 36) => {
   const isSignature = (player) => typeof player?.id === 'string' && player.id.startsWith('sig_');
   const ELITE_THRESHOLD = 176;
-  const ELITE_CAP = 174;
+  const ELITE_CAP = 184;
 
   const eliteIds = new Set(
     [...catalog]
@@ -489,7 +520,7 @@ const evolveRating = (baseRating, baseAge, potential, season) => {
     }
     a++;
   }
-  return Math.min(198, Math.max(100, r));
+  return Math.min(200, Math.max(100, r));
 };
 
 // ── Rôle du contrat (Club Role) ────────────────────────────────────────────────
@@ -617,9 +648,17 @@ const buildSquadPlayer = (club, slotIdx, season) => {
   if (club?.name === GABRIEL_FIXIO_CLUB && slotIdx === 14) {
     return buildYohanZenoxx(club, season);
   }
-  // Seed STABLE (sans saison) → même joueur d'une saison à l'autre
-  const baseSeed = hashStr(`${club.name}:${slotIdx}`);
   const slot     = SQUAD_SLOTS[slotIdx];
+  const originalSeed = hashStr(`${club.name}:${slotIdx}`);
+  const originalBaseAge = slot.starter ? sInt(originalSeed, 1, 21, 32) : sInt(originalSeed, 1, 17, 27);
+  const originalAge = originalBaseAge + (season - 1);
+  const generation = originalAge > 34 ? 1 + Math.floor((originalAge - 35) / 12) : 0;
+  const relativeSeason = generation > 0 ? ((originalAge - 35) % 12) + 1 : season;
+  // Les joueurs non suivis par l'agence sont renouvelés par cycles, pour éviter
+  // un monde où tout le catalogue finit avec des titulaires de 45-50 ans.
+  const baseSeed = generation > 0
+    ? hashStr(`${club.name}:${slotIdx}:senior_regen:${generation}`)
+    : originalSeed;
   const tier     = club.tier ?? 4;
   const ranges   = TIER_RATING[tier] ?? TIER_RATING[4];
 
@@ -633,13 +672,15 @@ const buildSquadPlayer = (club, slotIdx, season) => {
     slot.starter ? ranges.starterMin : ranges.benchMin,
     slot.starter ? ranges.starterMax : ranges.benchMax,
   );
-  const baseAge = slot.starter ? sInt(baseSeed, 1, 21, 32) : sInt(baseSeed, 1, 17, 27);
+  const baseAge = generation > 0
+    ? (slot.starter ? sInt(baseSeed, 1, 20, 27) : sInt(baseSeed, 1, 17, 24))
+    : originalBaseAge;
   const potentialCeil = slot.starter ? 190 : 174;
   const potential = Math.min(potentialCeil, baseRating + sInt(baseSeed, 2, 0, baseAge <= 22 ? 12 : 6));
 
   // Évolution inter-saisons
-  const rating = evolveRating(baseRating, baseAge, potential, season);
-  const age    = baseAge + (season - 1);
+  const rating = evolveRating(baseRating, baseAge, potential, relativeSeason);
+  const age    = clamp(baseAge + (relativeSeason - 1), 17, 34);
 
   // Attributs stables
   const personality    = sPick(baseSeed, 3, PERSONALITIES);
@@ -667,8 +708,9 @@ const buildSquadPlayer = (club, slotIdx, season) => {
   const value = estimateValue(rating, potential, age, tier);
 
   return {
-    // ID stable (sans saison) pour continuité entre saisons
-    id: `sq_${hashStr(club.name).toString(36)}_${slotIdx}`,
+    // ID stable par cycle de carrière: continuité tant que le joueur existe,
+    // puis nouveau joueur quand le slot est régénéré.
+    id: `sq_${hashStr(club.name).toString(36)}_${generation ? `g${generation}_` : ''}${slotIdx}`,
     firstName,
     lastName,
     position:    slot.position,
@@ -732,7 +774,10 @@ const buildSquadPlayer = (club, slotIdx, season) => {
 // ── Génération d'un prospect U21 ─────────────────────────────────────────────
 
 const buildYouthPlayer = (club, youthSlotIdx, season) => {
-  const baseSeed = hashStr(`${club.name}:youth:${youthSlotIdx}`);
+  // Les prospects doivent représenter une nouvelle génération chaque saison.
+  // Les joueurs signés conservent ensuite leur trajectoire dans la sauvegarde.
+  const cohortSeason = Math.max(1, Number(season) || 1);
+  const baseSeed = hashStr(`${club.name}:youth:${cohortSeason}:${youthSlotIdx}`);
   const slot     = YOUTH_SLOTS[youthSlotIdx];
   const tier     = club.tier ?? 4;
 
@@ -740,11 +785,11 @@ const buildYouthPlayer = (club, youthSlotIdx, season) => {
     ?? POSITION_ROLES[slot.position]?.[0];
 
   const baseAge = sInt(baseSeed, 1, slot.ageMin, slot.ageMax);
-  const age     = baseAge + (season - 1);
+  const age     = clamp(baseAge, 16, 21);
   // Prospects : rating bas, potential élevé
   const baseRating = TIER_RATING[tier].benchMin - 10 + sInt(baseSeed, 0, 0, 10);
-  const rating     = evolveRating(baseRating, baseAge, 174, season);
-  const potential  = Math.min(190, baseRating + sInt(baseSeed, 2, 10, 22));
+  const potential  = clamp(baseRating + sInt(baseSeed, 2, 10, 28), baseRating + 4, 190);
+  const rating     = clamp(evolveRating(baseRating, baseAge, potential, 1), 60, potential);
 
   const personality = sPick(baseSeed, 3, PERSONALITIES);
   const countryCode = pickNationality(club, baseSeed, 10);
@@ -758,7 +803,7 @@ const buildYouthPlayer = (club, youthSlotIdx, season) => {
   const value     = estimateValue(rating, potential, age, tier);
 
   return {
-    id: `sq_youth_${hashStr(club.name).toString(36)}_${youthSlotIdx}`,
+    id: `sq_youth_${hashStr(club.name).toString(36)}_${cohortSeason}_${youthSlotIdx}`,
     firstName:  sPick(baseSeed, 20, namePool.first),
     lastName:   sPick(baseSeed, 21, namePool.last),
     position:   slot.position,
@@ -822,19 +867,39 @@ const buildYouthPlayer = (club, youthSlotIdx, season) => {
 // ── API publique ─────────────────────────────────────────────────────────────
 
 /** Effectif senior complet d'un club (16 joueurs). */
+const normalizeClubInput = (club) => {
+  if (!club) return CLUBS[0];
+  if (typeof club === 'string') {
+    return CLUBS.find((item) => item.name === club) ?? { name: club, tier: 4, countryCode: 'FR', city: '' };
+  }
+  if (typeof club === 'object') {
+    if (club.name) {
+      const canonical = CLUBS.find((item) => item.name === club.name);
+      if (canonical) return canonical;
+      return {
+        name: club.name,
+        tier: club.tier ?? 4,
+        countryCode: club.countryCode ?? 'FR',
+        city: club.city ?? '',
+      };
+    }
+  }
+  return CLUBS[0];
+};
+
 export const getClubSquad = (club, season = 1) =>
-  SQUAD_SLOTS.map((_, idx) => buildSquadPlayer(club, idx, season));
+  SQUAD_SLOTS.map((_, idx) => buildSquadPlayer(normalizeClubInput(club), idx, season));
 
 /** Joueurs senior d'un club pour un poste donné. */
 export const getClubSquadByPosition = (club, position, season = 1) =>
   SQUAD_SLOTS
     .map((slot, idx) => ({ slot, idx }))
     .filter(({ slot }) => slot.position === position)
-    .map(({ idx }) => buildSquadPlayer(club, idx, season));
+    .map(({ idx }) => buildSquadPlayer(normalizeClubInput(club), idx, season));
 
 /** Prospects U21 d'un club (4 joueurs). */
 export const getClubYouthPlayers = (club, season = 1) =>
-  YOUTH_SLOTS.map((_, idx) => buildYouthPlayer(club, idx, season));
+  YOUTH_SLOTS.map((_, idx) => buildYouthPlayer(normalizeClubInput(club), idx, season));
 
 const evolveDatabaseCatalogPlayer = (player, season = 1) => {
   const catalogSeason = player.catalogSeason ?? 1;
@@ -850,12 +915,16 @@ const evolveDatabaseCatalogPlayer = (player, season = 1) => {
   if (potential > 0 && potential <= 100) {
     potential = potential * 2;
   }
-  const age = baseAge + Math.max(0, relativeSeason - 1);
-  const rating = evolveRating(baseRating, baseAge, potential, relativeSeason);
+  const age = clamp(baseAge + Math.max(0, relativeSeason - 1), 16, 41);
+  let rating = evolveRating(baseRating, baseAge, potential, relativeSeason);
+  if (age >= 35) rating -= Math.max(0, age - 34) * 1.5;
+  const safePotential = clamp(potential, 70, 200);
+  rating = clamp(Math.round(rating), 60, Math.min(200, safePotential));
   return {
     ...player,
     age,
     rating,
+    potential: safePotential,
     previousRating: player.previousRating ?? null,
   };
 };
@@ -930,7 +999,7 @@ export const getCatalogPlayerById = (playerId, season = 1) => {
 export const reconcilePlayerWithCatalog = (player, season = 1) => {
   if (!player?.id) return player;
   const catalogPlayer = getCatalogPlayerById(player.id, season);
-  if (!catalogPlayer) return player;
+  if (!catalogPlayer) return ensureGabrielFixioPower(player);
   const liveRating = Number.isFinite(player.rating) ? player.rating : null;
   const catalogRating = Number.isFinite(catalogPlayer.rating) ? catalogPlayer.rating : null;
   const merged = {
@@ -969,7 +1038,7 @@ export const reconcilePlayerWithCatalog = (player, season = 1) => {
       : catalogPlayer.attributes,
     clubRole: player.id === GABRIEL_FIXIO_ID ? catalogPlayer.clubRole : player.clubRole ?? catalogPlayer.clubRole,
   };
-  return merged;
+  return ensureGabrielFixioPower(merged);
 };
 
 const chooseCatalogPlayer = ({ catalog, position, targetRating, usedIds, usedClubsThisBatch, eligibleClubs, allowedCountryCodes = null, maxRating = 198, salt = 0 }) => {

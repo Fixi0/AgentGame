@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Zap } from 'lucide-react';
 import { getEventImage } from '../../utils/eventImages';
+import { getClubDisplayName } from '../../data/clubs';
 
 // Map kind de timeline -> type pour récupérer une image thématique
 const KIND_TO_IMAGE_TYPE = {
@@ -66,9 +67,9 @@ function buildLegacyItems(report, activePeriod) {
       tone: 'calm',
       day: `Match ${index + 1}`,
       icon: '⚽',
-      title: `${fixture.homeTeam ?? 'Club'} ${fixture.homeGoals ?? 0} - ${fixture.awayGoals ?? 0} ${fixture.awayTeam ?? 'Adversaire'}`,
+      title: `${getClubDisplayName(fixture.homeTeam ?? 'Club')} ${fixture.homeGoals ?? 0} - ${fixture.awayGoals ?? 0} ${getClubDisplayName(fixture.awayTeam ?? 'Adversaire')}`,
       text: fixture.competition ?? 'Championnat',
-      chips: [fixture.homeTeam ?? 'Domicile', fixture.awayTeam ?? 'Extérieur'],
+      chips: [getClubDisplayName(fixture.homeTeam ?? 'Domicile'), getClubDisplayName(fixture.awayTeam ?? 'Extérieur')],
     });
   });
 
@@ -106,7 +107,7 @@ function buildLegacyItems(report, activePeriod) {
     day: 'Messages',
     icon: '💬',
     title: messages > 0 ? `${messages} message${messages > 1 ? 's' : ''} prioritaire${messages > 1 ? 's' : ''}` : 'Aucun nouveau message',
-    text: messages > 0 ? 'La file reste compacte pour garder le rythme.' : 'Semaine calme du cote des messages.',
+    text: messages > 0 ? 'Les échanges importants sont prêts à être traités.' : 'Semaine calme du cote des messages.',
     chips: [`File ${report.messageQueueCount ?? 0}`],
   });
 

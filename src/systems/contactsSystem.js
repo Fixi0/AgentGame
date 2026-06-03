@@ -1,13 +1,15 @@
 import { makeId, pick, rand } from '../utils/helpers';
 import { getPlayerLevelText } from '../utils/playerStars';
 import { normalizeAgencyReputation } from './reputationSystem';
+import { getClubId, getClubName } from './identitySystem';
+import { allocateNextPlayerIdentity } from './integritySystem';
 
 const COOLDOWN_WEEKS = 2;
 
 export function createDefaultContacts() {
   return [
     {
-      id: 'ds_france', type: 'ds', name: 'Marc Delacroix', club: 'Sporting FC', country: 'FR',
+      id: 'ds_france', type: 'ds', name: 'Marc Delacroix', clubId: getClubId('Sporting FC'), club: 'Sporting FC', country: 'FR',
       trust: 40, cooldownWeek: 0, specialty: 'insider',
       bio: "Directeur sportif d'un club de L1. Te donne des infos sur les joueurs qu'ils suivent.",
     },
@@ -44,16 +46,37 @@ export function createDefaultContacts() {
   ];
 }
 
+export const normalizeContact = (contact = {}) => {
+  const clubId = contact.clubId ?? getClubId(contact.club);
+  return {
+    ...contact,
+    clubId: clubId ?? null,
+    club: clubId ? getClubName(clubId) : (contact.club ?? null),
+  };
+};
+
+export const normalizeContacts = (contacts = []) => (Array.isArray(contacts) ? contacts : []).map(normalizeContact);
+
 function applyContactResult(state, contact) {
   let result = { message: '', stateDelta: {} };
 
   switch (contact.type) {
     case 'ds': {
       const hasRoster = state.roster?.length > 0;
+      const contactClubId = contact.clubId ?? getClubId(contact.club);
+      const contactClubName = getClubName(contactClubId ?? contact.club);
       if (hasRoster && Math.random() < 0.55) {
         const player = pick(state.roster);
-        result.message = `${contact.name} te signale un intérêt de ${contact.club} pour ${player.firstName} ${player.lastName}.`;
-        const offer = { id: makeId('offer'), playerId: player.id, club: contact.club, fee: Math.round(player.value * rand(90, 110) / 100), source: 'contact', week: state.week };
+        result.message = `${contact.name} te signale un intérêt de ${contactClubName} pour ${player.firstName} ${player.lastName}.`;
+        const offer = {
+          id: makeId('offer'),
+          playerId: player.id,
+          clubId: contactClubId,
+          club: contactClubName,
+          fee: Math.round(player.value * rand(90, 110) / 100),
+          source: 'contact',
+          week: state.week,
+        };
         result.stateDelta = { clubOffers: [...(state.clubOffers ?? []), offer] };
       } else {
         const target = pick(state.roster ?? [{ firstName: 'un joueur', lastName: 'suivi' }]);
@@ -79,8 +102,10 @@ function applyContactResult(state, contact) {
       break;
     }
     case 'scout': {
+      const nextPlayerIdentity = allocateNextPlayerIdentity(state);
       const hiddenPlayer = {
-        id: makeId('p'),
+        id: nextPlayerIdentity.id,
+        permanentId: nextPlayerIdentity.permanentId,
         firstName: pick(['Amadou', 'Kofi', 'Ibrahim', 'Seydou', 'Cheikh']),
         lastName: pick(['Diallo', 'Traoré', 'Cissé', 'Koné', 'Touré']),
         rating: rand(124, 148),
@@ -96,7 +121,10 @@ function applyContactResult(state, contact) {
         source: 'scout_contact',
       };
       result.message = `${contact.name} t'envoie le profil de ${hiddenPlayer.firstName} ${hiddenPlayer.lastName} (${hiddenPlayer.age} ans, ${getPlayerLevelText(hiddenPlayer.rating)}).`;
-      result.stateDelta = { scoutedPlayers: [...(state.scoutedPlayers ?? []), hiddenPlayer] };
+      result.stateDelta = {
+        scoutedPlayers: [...(state.scoutedPlayers ?? []), hiddenPlayer],
+        idRegistry: nextPlayerIdentity.idRegistry,
+      };
       break;
     }
     case 'sponsor': {
@@ -125,7 +153,7 @@ function applyContactResult(state, contact) {
 }
 
 export function callContact(state, contactId) {
-  const contacts = state.contacts ?? createDefaultContacts();
+  const contacts = normalizeContacts(state.contacts ?? createDefaultContacts());
   const idx = contacts.findIndex((c) => c.id === contactId);
   if (idx === -1) return { state, result: { message: 'Contact introuvable.', error: true } };
 
@@ -145,13 +173,14 @@ export function callContact(state, contactId) {
 }
 
 export function getContactTip(contact, state) {
+  const normalizedContact = normalizeContact(contact);
   const rep = normalizeAgencyReputation(state.reputation ?? 300);
   const week = state.week ?? 1;
-  const highTrust = contact.trust >= 50;
+  const highTrust = normalizedContact.trust >= 50;
 
   switch (contact.type) {
     case 'ds':
-      return highTrust ? `${contact.name} te signale que ${contact.club} cherche un milieu de terrain.` : 'Améliorez votre relation pour débloquer des infos exclusives.';
+      return highTrust ? `${normalizedContact.name} te signale que ${normalizedContact.club} cherche un milieu de terrain.` : 'Améliorez votre relation pour débloquer des infos exclusives.';
     case 'journaliste':
       if (contact.stance === 'protecteur') return rep < 40 ? 'Elle peut relancer ton image avec un papier favorable.' : 'Elle protège souvent les dossiers bien gérés.';
       if (contact.stance === 'agressif') return 'Il attaque les dossiers fragiles et amplifie les écarts.';

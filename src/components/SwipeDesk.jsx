@@ -1,12 +1,13 @@
 import { BadgeCheck } from 'lucide-react';
 import React from 'react';
+import { getClubDisplayName } from '../data/clubs';
 import { S } from './styles';
 
 export default function SwipeDesk({ state, onNav, onNegotiateOffer }) {
   const cards = [
     ...(state.clubOffers ?? []).filter((offer) => offer.status === 'open').map((offer) => ({
       id: offer.id,
-      title: `${offer.club} appelle`,
+      title: `${getClubDisplayName(offer.club) || offer.club} appelle`,
       body: `${offer.playerName} · offre à traiter avant S${offer.expiresWeek}`,
       actions: [
         { label: 'Négocier', onClick: () => onNegotiateOffer(offer.id) },

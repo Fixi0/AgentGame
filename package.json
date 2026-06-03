@@ -7,6 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "test:europe": "node scripts/validate-europe-engine.mjs",
+    "test:identity": "node scripts/validate-identity-coherence.mjs",
+    "test:topstats": "node scripts/validate-topstats-coherence.mjs",
+    "test:longrun": "node scripts/validate-entity-db-longrun.mjs",
+    "test:qa": "node scripts/qa-full-season.mjs",
+    "test:audit": "node scripts/audit-game-full.mjs",
+    "test:invariants": "node scripts/validate-simulation-invariants.mjs",
+    "test:sim": "npm run test:invariants && npm run test:europe && npm run test:identity && npm run test:topstats && npm run test:longrun && npm run test:qa && npm run test:audit",
+    "test:canon": "node scripts/stress-canonization.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

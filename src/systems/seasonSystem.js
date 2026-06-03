@@ -1,11 +1,13 @@
 import { CLUBS, getCountry } from '../data/clubs';
 import { makeId, pick, rand } from '../utils/helpers';
+import { getClubId } from './identitySystem';
 import { isEnglish } from '../utils/i18n';
 import { getWorldStateOfferModifier } from './worldStateSystem';
 import { normalizeAgencyReputation } from './reputationSystem';
+import { getClubSquad } from '../data/squadDatabase';
 
-const SEASON_START_MONTH = 7; // August (0-indexed month)
-const SEASON_START_DAY = 1;
+const SEASON_START_MONTH = 8; // September (0-indexed month)
+const SEASON_START_DAY = 8;
 
 const getSeasonStartMonday = (year) => {
   const date = new Date(Date.UTC(year, SEASON_START_MONTH, SEASON_START_DAY));
@@ -15,7 +17,7 @@ const getSeasonStartMonday = (year) => {
   return date;
 };
 
-const getWeekDate = (week) => {
+export const getWeekDate = (week) => {
   const season = Math.floor((week - 1) / 38) + 1;
   const dayOffset = ((week - 1) % 38) * 7;
   // Chaque saison démarre sur un lundi pour garder des semaines cohérentes Lundi→Dimanche.
@@ -23,6 +25,20 @@ const getWeekDate = (week) => {
   const date = new Date(seasonStart);
   date.setUTCDate(seasonStart.getUTCDate() + dayOffset);
   return date;
+};
+
+const getMonthNumber = (date) => (date?.getUTCMonth?.() ?? 0) + 1;
+const getMonthLabelFr = (date) => ([
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+][(date?.getUTCMonth?.() ?? 0)] ?? 'Janvier');
+
+const findNextWeekMatchingMonth = (week, targetMonth) => {
+  for (let offset = 1; offset <= 10; offset += 1) {
+    const date = getWeekDate(week + offset);
+    if (getMonthNumber(date) === targetMonth) return week + offset;
+  }
+  return null;
 };
 
 export const getCalendarSnapshot = (week) => {
@@ -64,6 +80,9 @@ export const getWeekDailySnapshots = (week) => {
 };
 
 const getEligibleBuyerTiers = (player) => {
+  const value = Number(player.value ?? 0);
+  if (value >= 120_000_000 || player.rating >= 188 || player.potential >= 195) return [1];
+  if (value >= 60_000_000 || player.rating >= 176 || player.potential >= 186) return [1, 2];
   if (player.rating >= 168 || player.potential >= 180) return [1, 2];
   if (player.rating >= 154 || player.potential >= 170) return [2, 3];
   if (player.rating >= 136 || player.potential >= 158) return [3, 4];
@@ -77,18 +96,59 @@ const isTransferCandidate = (player) => {
   return false;
 };
 
+const buildClubNeedScore = (club, player, season = 1) => {
+  if (!club || !player) return -Infinity;
+  const squad = getClubSquad(club, season) ?? [];
+  const samePosition = squad.filter((p) => p?.position === player.position);
+  const sameRole = squad.filter((p) => p?.roleId === player.roleId);
+  const avgPosRating = samePosition.length
+    ? samePosition.reduce((sum, p) => sum + (p.rating ?? 120), 0) / samePosition.length
+    : 118;
+  const ageingCount = samePosition.filter((p) => (p.age ?? 24) >= 31).length;
+  const weakCount = samePosition.filter((p) => (p.rating ?? 120) + 8 < (player.rating ?? 130)).length;
+  const shortage = Math.max(0, 3 - samePosition.length);
+  const tierFit = club.tier <= 2 && (player.rating ?? 130) < 152
+    ? -10
+    : club.tier >= 3 && (player.rating ?? 130) > 182
+      ? -9
+      : 0;
+  const roleFit = sameRole.length === 0 ? 3 : 0;
+  return (
+    shortage * 7
+    + weakCount * 4
+    + ageingCount * 2.5
+    + ((player.rating ?? 130) - avgPosRating) * 0.4
+    + roleFit
+    + tierFit
+  );
+};
+
+const pickSmartDestinationClub = (player, possibleClubs = [], season = 1) => {
+  if (!possibleClubs.length) return null;
+  const scored = possibleClubs
+    .map((club) => ({ club, score: buildClubNeedScore(club, player, season) + (Math.random() * 4 - 2) }))
+    .sort((a, b) => b.score - a.score);
+  const top = scored.slice(0, Math.min(4, scored.length));
+  return pick(top)?.club ?? scored[0]?.club ?? null;
+};
+
 export const getSeasonContext = (week) => {
   const seasonWeek = ((week - 1) % 38) + 1;
   const season = Math.floor((week - 1) / 38) + 1;
-  const month = [
-    'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai',
-  ][Math.min(9, Math.floor((seasonWeek - 1) / 4))];
+  const date = getWeekDate(week);
+  const monthNum = getMonthNumber(date);
+  const month = getMonthLabelFr(date);
+  const nextWeekMonth = getMonthNumber(getWeekDate(week + 1));
 
+  if (monthNum === 1) {
+    return { phase: 'Mercato hiver', season, seasonWeek, month, mercato: true, window: 'hiver', deadlineDay: nextWeekMonth !== 1 };
+  }
+  if (monthNum === 6) {
+    return { phase: 'Mercato été', season, seasonWeek, month, mercato: true, window: 'été', deadlineDay: nextWeekMonth !== 6 };
+  }
   if (seasonWeek <= 18) return { phase: '1ère partie', season, seasonWeek, month, mercato: false, window: null, deadlineDay: false };
-  if (seasonWeek <= 20) return { phase: 'Mercato hiver', season, seasonWeek, month: 'Janvier', mercato: true, window: 'hiver', deadlineDay: seasonWeek === 20 };
   if (seasonWeek <= 37) return { phase: '2nde partie', season, seasonWeek, month, mercato: false, window: null, deadlineDay: false };
-  return { phase: 'Mercato été', season, seasonWeek, month: 'Juin', mercato: true, window: 'été', deadlineDay: true };
+  return { phase: 'Intersaison', season, seasonWeek, month, mercato: false, window: null, deadlineDay: false };
 };
 
 export const getSeasonMilestones = (week) => {
@@ -119,18 +179,56 @@ export const getSeasonMilestones = (week) => {
 };
 
 const getApproachWindow = (week) => {
-  const seasonWeek = ((week - 1) % 38) + 1;
-  if (seasonWeek >= 16 && seasonWeek <= 18) {
-    return { window: 'hiver', effectiveWeek: week + (19 - seasonWeek) };
+  const date = getWeekDate(week);
+  const monthNum = getMonthNumber(date);
+  if (monthNum === 12) {
+    const effectiveWeek = findNextWeekMatchingMonth(week, 1);
+    if (effectiveWeek) return { window: 'hiver', effectiveWeek };
   }
-  if (seasonWeek >= 35 && seasonWeek <= 37) {
-    return { window: 'été', effectiveWeek: week + (38 - seasonWeek) };
+  if (monthNum === 5) {
+    const effectiveWeek = findNextWeekMatchingMonth(week, 6);
+    if (effectiveWeek) return { window: 'été', effectiveWeek };
   }
   return null;
 };
 
+export const sanitizeOfferForContext = (offer = null, { roster = [], week = 1 } = {}) => {
+  if (!offer || typeof offer !== 'object') return null;
+  const player = (Array.isArray(roster) ? roster : []).find((p) => p.id === offer.playerId);
+  if (!player) return null;
+  const club = CLUBS.find((c) => c.id === offer.clubId || c.name === offer.club);
+  if (!club) return null;
+
+  const playerValue = Math.max(150000, Number(player.value ?? 150000));
+  const playerRating = Number(player.rating ?? 120);
+  const playerPotential = Number(player.potential ?? playerRating);
+  if (club.tier >= 3 && (playerRating >= 182 || playerPotential >= 190)) return null;
+
+  const maxPremium = club.tier === 1 ? 1.7 : club.tier === 2 ? 1.38 : club.tier === 3 ? 1.18 : 1.08;
+  const minDiscount = club.tier === 1 ? 0.72 : club.tier === 2 ? 0.64 : club.tier === 3 ? 0.54 : 0.45;
+  const price = Math.round(Math.max(playerValue * minDiscount, Math.min(playerValue * maxPremium, Number(offer.price ?? playerValue))));
+  const salMult = Math.max(0.95, Math.min(club.tier === 1 ? 2.0 : 1.7, Number(offer.salMult ?? 1.1)));
+
+  return {
+    ...offer,
+    week: Number.isFinite(offer.week) ? offer.week : week,
+    expiresWeek: Math.max(week + 1, Number(offer.expiresWeek ?? (week + 2))),
+    price,
+    salMult,
+    clubId: getClubId(club),
+    club: club.name,
+    clubTier: club.tier,
+    clubCountryCode: club.countryCode,
+    clubCountry: getCountry(club.countryCode).flag,
+    clubCity: club.city,
+  };
+};
+
+export const getUpcomingMercatoWindow = (week) => getApproachWindow(week);
+
 export const generateClubOffers = ({ roster, week, reputation, existingOffers = [], worldState = null, cooldowns = {}, lockedPlayerIds = [] }) => {
   const phase = getSeasonContext(week);
+  const currentSeason = phase.season ?? Math.floor((week - 1) / 38) + 1;
   const approachWindow = !phase.mercato ? getApproachWindow(week) : null;
   if ((!phase.mercato && !approachWindow) || !roster.length) return [];
 
@@ -181,7 +279,7 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
     const possibleClubs = CLUBS.filter(
       (club) => club.name !== player.club && allowedTiers.includes(club.tier),
     );
-    const club = pick(possibleClubs.length ? possibleClubs : CLUBS);
+    const club = pickSmartDestinationClub(player, possibleClubs.length ? possibleClubs : CLUBS, currentSeason) ?? pick(CLUBS);
     const country = getCountry(club.countryCode);
 
     // Multiplicateur prix : worldState économie impacte les montants
@@ -208,6 +306,7 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
       effectiveWeek: isPreWindow ? approachWindow.effectiveWeek : week,
       playerId: player.id,
       playerName: `${player.firstName} ${player.lastName}`,
+      clubId: getClubId(club),
       club: club.name,
       clubTier: club.tier,
       clubCountry: country.flag,
@@ -219,12 +318,15 @@ export const generateClubOffers = ({ roster, week, reputation, existingOffers = 
     });
   }
 
-  return offers;
+  return offers
+    .map((offer) => sanitizeOfferForContext(offer, { roster, week }))
+    .filter(Boolean);
 };
 
 // Offre d'urgence uniquement pendant une fenêtre officielle.
 export const generateSurpriseOffer = ({ roster, week, reputation, worldState = null, cooldowns = {}, lockedPlayerIds = [] }) => {
   const phase = getSeasonContext(week);
+  const currentSeason = phase.season ?? Math.floor((week - 1) / 38) + 1;
   if (!phase.mercato) return null;
 
   const baseChance = (phase.deadlineDay ? 0.12 : 0.04) + (worldState?.economie === 'boom' ? 0.03 : 0);
@@ -241,14 +343,14 @@ export const generateSurpriseOffer = ({ roster, week, reputation, worldState = n
   const player = pick(candidates);
   const allowedTiers = getEligibleBuyerTiers(player);
   const possibleClubs = CLUBS.filter((c) => c.name !== player.club && allowedTiers.includes(c.tier));
-  const club = pick(possibleClubs.length ? possibleClubs : CLUBS);
+  const club = pickSmartDestinationClub(player, possibleClubs.length ? possibleClubs : CLUBS, currentSeason) ?? pick(CLUBS);
   const country = getCountry(club.countryCode);
 
   // Offre surprise = urgence = prix premium (+20 à +45%)
   const priceMult = rand(120, 145) / 100;
   const price = Math.max(1000, Math.floor(player.value * priceMult));
 
-  return {
+  const rawOffer = {
     id: makeId('offer'),
     week,
     expiresWeek: week + 1,
@@ -256,6 +358,7 @@ export const generateSurpriseOffer = ({ roster, week, reputation, worldState = n
     isSurprise: true,
     playerId: player.id,
     playerName: `${player.firstName} ${player.lastName}`,
+    clubId: getClubId(club),
     club: club.name,
     clubTier: club.tier,
     clubCountry: country.flag,
@@ -265,4 +368,5 @@ export const generateSurpriseOffer = ({ roster, week, reputation, worldState = n
     salMult: rand(130, 180) / 100,
     status: 'open',
   };
+  return sanitizeOfferForContext(rawOffer, { roster, week });
 };

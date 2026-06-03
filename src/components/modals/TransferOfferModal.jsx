@@ -1,9 +1,11 @@
 import { ArrowUpRight, Handshake, X } from 'lucide-react';
 import React from 'react';
+import { getClubDisplayName } from '../../data/clubs';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
 export default function TransferOfferModal({ offer, player, readiness, onClose, onAccept, onNegotiate, onReject }) {
+  const clubLabel = getClubDisplayName(offer.club) || offer.club;
   const toneColor = readiness?.tone === 'good' ? '#00a676' : readiness?.tone === 'warn' ? '#b45309' : '#b42318';
   const toneBg = readiness?.tone === 'good' ? '#f0fdf8' : readiness?.tone === 'warn' ? '#fffbeb' : '#fef2f2';
 
@@ -16,7 +18,7 @@ export default function TransferOfferModal({ offer, player, readiness, onClose, 
           <button onClick={onClose} style={S.mClose}><X size={16} /></button>
         </div>
         <div style={S.mBody}>
-          <h2 style={S.mTitle}>{offer.club}</h2>
+          <h2 style={S.mTitle}>{clubLabel}</h2>
           <div style={S.mPlayer}>{player.firstName} {player.lastName} · {offer.preWindow ? 'pré-accord' : 'offre active'}</div>
 
           <div style={S.objCard}>

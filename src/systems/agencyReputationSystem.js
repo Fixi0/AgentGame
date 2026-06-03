@@ -1,5 +1,5 @@
 import { COUNTRIES } from '../data/clubs';
-import { getClubMemoryScore } from './clubSystem';
+import { getClubMemoryEntry, getClubMemoryScore, getClubRelationScore } from './clubSystem';
 import { clamp, makeId, pick, rand } from '../utils/helpers';
 import { normalizeAgencyReputation } from './reputationSystem';
 
@@ -135,9 +135,10 @@ export const getPlayerSegment = (player) => {
 
 export const getNegotiationContextModifier = (state, player, clubName) => {
   const countryRep = state.countryReputation?.[player.clubCountryCode] ?? state.leagueReputation?.[player.clubCountryCode] ?? 0;
-  const clubRep = state.clubRelations?.[clubName || player.club] ?? 0;
-  const clubMemory = getClubMemoryScore(state.clubMemory, clubName || player.club);
-  const clubMemoryEntry = state.clubMemory?.[clubName || player.club] ?? {};
+  const clubRef = clubName || player.clubId || player.club;
+  const clubRep = getClubRelationScore(state.clubRelations, clubRef);
+  const clubMemory = getClubMemoryScore(state.clubMemory, clubRef);
+  const clubMemoryEntry = getClubMemoryEntry(state.clubMemory, clubRef);
   const segmentRep = state.playerSegmentReputation?.[getPlayerSegment(player)] ?? 0;
   const credibility = state.credibility ?? 50;
 

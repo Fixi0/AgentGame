@@ -145,6 +145,31 @@ const POOL = [
 ];
 
 const POSITION_FALLBACK = { GK: gk, DEF: def0, DF: def0, MIL: mid, MID: mid, MF: mid, ATT: att, FW: att, ST: att };
+const CUTOUTS = import.meta.glob('../assets/portraits-cutout/*.png', { eager: true, import: 'default' });
+
+const getCutoutByName = (name) => CUTOUTS[`../assets/portraits-cutout/${name}.png`] ?? null;
+
+const POOL_CUTOUT = Array.from({ length: 120 }, (_, index) => {
+  const id = String(index + 1).padStart(2, '0');
+  return getCutoutByName(`p${id}`);
+});
+
+const POSITION_FALLBACK_CUTOUT = {
+  GK: getCutoutByName('gk'),
+  DEF: getCutoutByName('def'),
+  DF: getCutoutByName('def'),
+  MIL: getCutoutByName('mid'),
+  MID: getCutoutByName('mid'),
+  MF: getCutoutByName('mid'),
+  ATT: getCutoutByName('att'),
+  FW: getCutoutByName('att'),
+  ST: getCutoutByName('att'),
+};
+
+const CUTOUT_OVERRIDES = {
+  sig_gabriel_fixio: getCutoutByName('gabriel-fixio'),
+  sig_yohan_zenoxx: getCutoutByName('p58'),
+};
 
 // deterministic hash from a player id (string or number)
 const hashId = (id) => {
@@ -192,3 +217,25 @@ export const getPlayerPortrait = (positionOrPlayer) => {
 };
 
 export const getPortraitForPlayer = getPlayerPortrait;
+
+export const getPlayerCutoutPortrait = (positionOrPlayer) => {
+  if (typeof positionOrPlayer === 'string') {
+    return POSITION_FALLBACK_CUTOUT[positionOrPlayer.toUpperCase()]
+      ?? POSITION_FALLBACK[positionOrPlayer.toUpperCase()]
+      ?? POOL[0];
+  }
+
+  const player = positionOrPlayer ?? {};
+  if (player.id != null && CUTOUT_OVERRIDES[player.id]) {
+    return CUTOUT_OVERRIDES[player.id];
+  }
+  if (player.id != null) {
+    const bucket = bucketFor(player.age);
+    const idx = bucket.start + (hashId(player.id) % bucket.size);
+    return POOL_CUTOUT[idx % POOL_CUTOUT.length] ?? POOL[idx % POOL.length];
+  }
+
+  return POSITION_FALLBACK_CUTOUT[String(player.position || '').toUpperCase()]
+    ?? POSITION_FALLBACK[String(player.position || '').toUpperCase()]
+    ?? POOL[0];
+};

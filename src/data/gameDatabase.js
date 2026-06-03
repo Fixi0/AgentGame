@@ -5,8 +5,10 @@ import { createPlayerCatalog } from './squadDatabase';
 import { getPlayerProfileSummary } from '../systems/playerProfileSystem';
 import { STAFF_ROLES, createDefaultStaff } from '../systems/staffSystem';
 import { createDefaultClubMemory, createDefaultClubRelations, getClubProfile } from '../systems/clubSystem';
-import { getAgencyCapacity } from '../systems/agencySystem';
+import { getAgencyCapacity, normalizeAgencyName } from '../systems/agencySystem';
+import { getClubId, getClubName } from '../systems/identitySystem';
 import { MATCH_STATUS, calendarMatchToFixture } from '../systems/matchCalendarSystem';
+import { createNarrativeTemplateRows } from './narrativeTemplates';
 
 const slugId = (value) => String(value ?? '')
   .toLowerCase()
@@ -31,7 +33,7 @@ const getSeasonWeekFromWeek = (week = 1) => (((week ?? 1) - 1) % 38) + 1;
 
 const getSeasonId = (season = 1) => `season_${season}`;
 
-const clubIdFromName = (name) => (name && name !== 'Libre' ? `club_${slugId(name)}` : null);
+const clubIdFromName = (name) => getClubId(name);
 
 const playerName = (player = {}) => {
   const record = player ?? {};
@@ -94,9 +96,9 @@ const REGION_BY_COUNTRY = {
 const LEAGUE_LABELS = {
   FR: 'Ligue 1',
   ES: 'La Liga',
-  GB: 'Premier League',
-  DE: 'Bundesliga',
-  IT: 'Serie A',
+  GB: 'Championnat anglais',
+  DE: 'Championnat allemand',
+  IT: 'Championnat italien',
   NL: 'Eredivisie',
   PT: 'Primeira Liga',
   BR: 'Brasileirão',
@@ -448,7 +450,7 @@ const buildNegotiationRows = (state = {}, players = [], season = 1, week = 1) =>
   agency_id: defaultAgency.id,
   player_id: offer.playerId,
   player_name: offer.playerName ?? players.find((player) => player.id === offer.playerId)?.full_name ?? null,
-  club_id: clubIdFromName(offer.club),
+  club_id: offer.clubId ?? null,
   club_name: offer.club ?? null,
   type: offer.offerType ?? offer.type ?? 'transfer',
   status: offer.status ?? 'open',
@@ -633,12 +635,12 @@ const buildMarketSnapshotRows = (state = {}, season = 1, week = 1, agencyId = de
 
 const buildTransferRows = (state = {}, season = 1, week = 1) => {
   const completed = safeArray(state.transferHistory).map((transfer) => ({
-    id: transfer.id ?? `transfer_${transfer.playerId ?? 'player'}_${transfer.season ?? season}_${transfer.week ?? week}_${transfer.toClub ?? 'club'}`,
+    id: transfer.id ?? `transfer_${transfer.playerId ?? 'player'}_${transfer.season ?? season}_${transfer.week ?? week}_${transfer.toClubId ?? 'club'}`,
     player_id: transfer.playerId ?? null,
     player_name: transfer.playerName ?? null,
-    from_club_id: transfer.fromClubId ?? clubIdFromName(transfer.fromClub),
+    from_club_id: transfer.fromClubId ?? null,
     from_club_name: transfer.fromClub ?? null,
-    to_club_id: transfer.toClubId ?? clubIdFromName(transfer.toClub),
+    to_club_id: transfer.toClubId ?? null,
     to_club_name: transfer.toClub ?? null,
     transfer_type: transfer.type ?? 'transfer',
     fee: transfer.fee ?? transfer.amount ?? 0,
@@ -649,12 +651,12 @@ const buildTransferRows = (state = {}, season = 1, week = 1) => {
     context: transfer.context ?? transfer.comment ?? '',
   }));
   const pending = safeArray(state.pendingTransfers).map((transfer) => ({
-    id: transfer.id ?? `transfer_${transfer.playerId ?? 'player'}_${transfer.effectiveWeek ?? week}_${transfer.offer?.club ?? 'club'}`,
+    id: transfer.id ?? `transfer_${transfer.playerId ?? 'player'}_${transfer.effectiveWeek ?? week}_${transfer.offer?.clubId ?? 'club'}`,
     player_id: transfer.playerId ?? null,
     player_name: transfer.playerName ?? null,
-    from_club_id: transfer.offer?.fromClubId ?? null,
+    from_club_id: transfer.offer?.fromClubId ?? transfer.fromClubId ?? null,
     from_club_name: transfer.offer?.fromClub ?? null,
-    to_club_id: transfer.offer?.club ? `club_${slugId(transfer.offer.club)}` : null,
+    to_club_id: transfer.offer?.clubId ?? transfer.toClubId ?? null,
     to_club_name: transfer.offer?.club ?? null,
     transfer_type: transfer.offer?.type ?? 'transfer',
     fee: transfer.offer?.amount ?? 0,
@@ -724,11 +726,11 @@ const buildClubOfferRows = (state = {}, season = 1, week = 1, agencyId = default
     const player = findStatePlayer(state, offer.playerId);
     const fee = offer.fee ?? offer.amount ?? offer.signingCost ?? 0;
     return {
-      id: offer.id ?? `offer_${offer.playerId ?? 'player'}_${slugId(offer.club ?? 'club')}_${index}`,
+      id: offer.id ?? `offer_${offer.playerId ?? 'player'}_${offer.clubId ?? 'club'}_${index}`,
       agency_id: agencyId,
       player_id: offer.playerId ?? null,
       player_name: offer.playerName ?? (playerName(player) || null),
-      club_id: clubIdFromName(offer.club),
+      club_id: offer.clubId ?? null,
       club_name: offer.club ?? null,
       status: offer.status ?? 'open',
       type: offer.type ?? offer.offerType ?? 'transfer',
@@ -810,8 +812,19 @@ const inferCompetitionLabel = (match = {}) => {
 const buildMatchResultRows = (state = {}, season = 1, week = 1) => {
   const rosterRows = safeArray(state.roster).flatMap((player) => safeArray(player.matchHistory).map((match, index) => {
     const matchWeek = match.week ?? week;
+    const clubName = match.club ?? player.club;
+    const opponentName = match.opponentName ?? match.opponent ?? null;
+    const clubId = clubIdFromName(clubName);
+    const opponentId = clubIdFromName(opponentName);
+    const isHome = match.homeAway === 'Domicile' || match.homeAway === 'Home';
+    const homeClubId = isHome ? clubId : opponentId;
+    const awayClubId = isHome ? opponentId : clubId;
+    const homeGoals = isHome ? match.goalsFor : match.goalsAgainst;
+    const awayGoals = isHome ? match.goalsAgainst : match.goalsFor;
     return {
       id: `match_${player.id}_${match.fixtureId ?? match.id ?? slugId(match.competition ?? 'league')}_${matchWeek}_${index}`,
+      fixture_id: match.fixtureId ?? match.matchId ?? match.id ?? null,
+      match_id: match.matchId ?? match.fixtureId ?? match.id ?? null,
       player_id: player.id,
       player_name: match.playerName ?? playerName(player),
       week: matchWeek,
@@ -821,9 +834,15 @@ const buildMatchResultRows = (state = {}, season = 1, week = 1) => {
       competition_label: inferCompetitionLabel(match),
       phase: match.phase ?? null,
       stage: match.stage ?? null,
-      club_id: clubIdFromName(match.club ?? player.club),
-      club_name: match.club ?? player.club ?? null,
-      opponent: match.opponentName ?? match.opponent ?? null,
+      club_id: clubId,
+      club_name: clubName ?? null,
+      opponent_id: opponentId,
+      opponent: opponentName,
+      home_club_id: homeClubId,
+      away_club_id: awayClubId,
+      home_goals: Number.isFinite(homeGoals) ? homeGoals : null,
+      away_goals: Number.isFinite(awayGoals) ? awayGoals : null,
+      canonical_score: Number.isFinite(homeGoals) && Number.isFinite(awayGoals) ? `${homeGoals}-${awayGoals}` : null,
       opponent_country: match.opponentCountry ?? null,
       home_away: match.homeAway ?? null,
       score: match.score ?? null,
@@ -1089,9 +1108,12 @@ const buildClubSeasonHistoryRows = (state = {}, season = 1) =>
   }));
 
 const buildClubMemoryRows = (state = {}) =>
-  Object.entries(state.clubMemory ?? {}).map(([clubName, memory]) => ({
-    id: `club_memory_${slugId(clubName)}`,
-    club_id: clubIdFromName(clubName),
+  Object.entries(state.clubMemory ?? {}).map(([clubKey, memory]) => {
+    const clubId = getClubId(clubKey);
+    const clubName = getClubName(clubId ?? clubKey);
+    return {
+    id: `club_memory_${slugId(clubId ?? clubName)}`,
+    club_id: clubId ?? null,
     club_name: clubName,
     trust: memory?.trust ?? 50,
     blocks: memory?.blocks ?? 0,
@@ -1099,16 +1121,21 @@ const buildClubMemoryRows = (state = {}) =>
     promises_broken: memory?.promisesBroken ?? 0,
     last_week: memory?.lastWeek ?? 0,
     raw: memory ?? {},
-  }));
+    };
+  });
 
 const buildClubRelationRows = (state = {}) =>
-  Object.entries(state.clubRelations ?? {}).map(([clubName, score]) => ({
-    id: `club_relation_${slugId(clubName)}`,
-    club_id: clubIdFromName(clubName),
+  Object.entries(state.clubRelations ?? {}).map(([clubKey, score]) => {
+    const clubId = getClubId(clubKey);
+    const clubName = getClubName(clubId ?? clubKey);
+    return {
+    id: `club_relation_${slugId(clubId ?? clubName)}`,
+    club_id: clubId ?? null,
     club_name: clubName,
     relation_score: score ?? 0,
     raw_score: score ?? 0,
-  }));
+    };
+  });
 
 const buildDossierMemoryRows = (state = {}) => {
   const memory = state.dossierMemory ?? {};
@@ -1121,11 +1148,13 @@ const buildDossierMemoryRows = (state = {}) => {
   return buckets.flatMap(([scope, entries]) =>
     Object.entries(entries ?? {}).flatMap(([key, entry]) => {
       const recent = safeArray(entry?.recent);
+      const clubId = scope === 'club' ? getClubId(key) : null;
+      const clubName = scope === 'club' ? getClubName(clubId ?? key) : null;
       const base = {
         scope,
         player_id: scope === 'player' ? key : null,
-        club_id: scope === 'club' ? clubIdFromName(key) : null,
-        club_name: scope === 'club' ? key : null,
+        club_id: clubId,
+        club_name: clubName,
         media_id: scope === 'media' ? key : null,
         heat: entry?.heat ?? 50,
         last_week: entry?.lastWeek ?? 0,
@@ -1175,8 +1204,8 @@ const buildContactRows = (state = {}) =>
     id: contact.id ?? `contact_${slugId(contact.name)}`,
     type: contact.type ?? null,
     name: contact.name ?? '',
-    club_id: clubIdFromName(contact.club),
-    club_name: contact.club ?? null,
+    club_id: contact.clubId ?? null,
+    club_name: contact.clubId ? getClubName(contact.clubId) : (contact.club ?? null),
     country_code: contact.country ?? null,
     trust: contact.trust ?? 0,
     cooldown_week: contact.cooldownWeek ?? 0,
@@ -1314,6 +1343,7 @@ export const createGameCatalog = () => {
     players: catalogPlayers,
     personalities: createPersonalityRows(),
     event_templates: createEventTemplateRows(),
+    narrative_templates: createNarrativeTemplateRows(),
     staff_roles: Object.entries(STAFF_ROLES).map(([key, role]) => ({
       id: key,
       label: role.label,
@@ -1331,7 +1361,7 @@ export const createGameDatabaseSnapshot = (state = {}) => {
   const season = getSeasonNumberFromWeek(week);
   const agency = createDefaultAgencyRecord({
     id: state.agencyProfile?.id ?? defaultAgency.id,
-    name: state.agencyProfile?.name ?? defaultAgency.name,
+    name: normalizeAgencyName(state.agencyProfile?.name, defaultAgency.name),
     country: state.agencyProfile?.country ?? state.agencyProfile?.countryLabel ?? defaultAgency.country,
     country_code: state.agencyProfile?.countryCode ?? defaultAgency.country_code,
     city: state.agencyProfile?.city ?? defaultAgency.city,
@@ -1432,48 +1462,9 @@ export const createGameDatabaseSnapshot = (state = {}) => {
     negotiations,
     negotiation_turns: buildNegotiationTurnRows(state, season, week),
     seasons: buildSeasonRows(state, week),
-    objectives: [
-      ...safeArray(state.seasonObjectives).map((objective, index) => ({
-        id: objective.id ?? `objective_${index}`,
-        agency_id: agency.id,
-        season_id: getSeasonId(season),
-        type_objectif: objective.type ?? objective.metric ?? 'generic',
-        label: objective.label ?? '',
-        target_value: objective.target ?? objective.targetValue ?? 0,
-        current_value: objective.current ?? objective.currentValue ?? 0,
-        reward_money: objective.rewardMoney ?? objective.reward ?? objective.reward?.money ?? 0,
-        reward_reputation: objective.rewardReputation ?? objective.reward?.rep ?? 0,
-        completed: Boolean(objective.completed),
-        completed_at: objective.completedAt ?? objective.completedAtWeek ?? null,
-      })),
-      ...safeArray(state.dailyObjectives).map((objective, index) => ({
-        id: objective.id ?? `daily_objective_${index}`,
-        agency_id: agency.id,
-        season_id: `daily_${state.dailyObjectiveDateKey ?? makeGameStamp(season, week)}`,
-        type_objectif: `daily_${objective.type ?? objective.metric ?? 'generic'}`,
-        label: objective.label ?? '',
-        target_value: objective.target ?? objective.targetValue ?? 0,
-        current_value: objective.current ?? objective.currentValue ?? 0,
-        reward_money: objective.reward?.money ?? 0,
-        reward_reputation: objective.reward?.rep ?? 0,
-        completed: Boolean(objective.completed),
-        completed_at: objective.completedAtWeek ?? null,
-      })),
-      ...safeArray(state.achievements).map((achievement, index) => ({
-        id: achievement.id ?? `achievement_${index}`,
-        agency_id: agency.id,
-        season_id: 'achievements',
-        type_objectif: `achievement_${achievement.metric ?? 'generic'}`,
-        label: achievement.label ?? '',
-        target_value: achievement.target ?? 0,
-        current_value: achievement.current ?? 0,
-        reward_money: achievement.reward?.money ?? 0,
-        reward_reputation: achievement.reward?.rep ?? 0,
-        completed: Boolean(achievement.unlocked),
-        completed_at: achievement.unlockedAtWeek ?? null,
-      })),
-    ],
+    objectives: [],
     event_templates: createEventTemplateRows(),
+    narrative_templates: createNarrativeTemplateRows(),
     event_instances: eventInstances,
     messages,
     message_choices: buildMessageChoiceRows(state),
@@ -1508,7 +1499,7 @@ export const createGameDatabaseSnapshot = (state = {}) => {
     dossier_memory: buildDossierMemoryRows(state),
     decision_history: buildDecisionHistoryRows(state, season, week),
     contacts: buildContactRows(state),
-    agency_goals: buildAgencyGoalRows(state, agency.id),
+    agency_goals: [],
     world_states: buildWorldStateRows(state, season, week),
     world_cups: buildWorldCupRows(state, season, week),
     european_competitions: buildEuropeanCompetitionRows(state, season),

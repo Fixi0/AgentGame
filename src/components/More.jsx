@@ -1,19 +1,13 @@
 import React from 'react';
-import { Activity, Briefcase, FileText, ShoppingBag, Telescope, Trophy, Timer, Layers, Sparkles, Building2, Award } from 'lucide-react';
+import { FileText, Home, Save, ShoppingBag, Trophy, Layers, Award } from 'lucide-react';
 import { getAppLanguage, setAppLanguage, t } from '../utils/i18n';
 
 // One tile per feature — no sub-sections, no duplicate buttons.
 const TILE_META = {
-  office:       { icon: Building2,  accent: '#10b981', tint: 'oklch(28% 0.10 158 / .35)' },
   standings:    { icon: Trophy,     accent: '#facc15', tint: 'oklch(30% 0.12 90  / .30)' },
   shop:         { icon: ShoppingBag, accent: '#fbbf24', tint: 'oklch(30% 0.14 75  / .30)' },
   achievements: { icon: Award,      accent: '#f59e0b', tint: 'oklch(30% 0.12 75  / .35)' },
-  social:       { icon: Sparkles,   accent: '#e879f9', tint: 'oklch(30% 0.14 320 / .30)' },
-  engineHistory:{ icon: Activity,   accent: '#38bdf8', tint: 'oklch(28% 0.10 230 / .35)' },
-  scouting:     { icon: Telescope,  accent: '#22d3ee', tint: 'oklch(28% 0.10 200 / .35)' },
-  contracts:    { icon: Briefcase,  accent: '#94a3b8', tint: 'oklch(22% 0.03 258 / .55)' },
   dossiers:     { icon: FileText,   accent: '#fb923c', tint: 'oklch(30% 0.12 50  / .30)' },
-  deadline:     { icon: Timer,      accent: '#f87171', tint: 'oklch(30% 0.14 25  / .30)' },
 };
 
 function Tile({ item, onNav }) {
@@ -51,7 +45,7 @@ function Tile({ item, onNav }) {
   );
 }
 
-export default function More({ items, onNav }) {
+export default function More({ items, onNav, onSave, onMenu }) {
   const language = getAppLanguage();
   return (
     <div className="af-page" style={{ display: 'grid', gap: 18 }}>
@@ -62,6 +56,20 @@ export default function More({ items, onNav }) {
 
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
         {items.map((item) => <Tile key={item.key} item={item} onNav={onNav} />)}
+      </section>
+
+      <section className="af-panel" style={{ padding: 14, display: 'grid', gap: 10 }}>
+        <div className="af-kicker">SYSTÈME</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <button type="button" onClick={onSave} className="af-btn-secondary" style={{ padding: '13px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 11 }}>
+            <Save size={15} />
+            Sauvegarder
+          </button>
+          <button type="button" onClick={onMenu} className="af-btn-secondary" style={{ padding: '13px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 11 }}>
+            <Home size={15} />
+            Accueil
+          </button>
+        </div>
       </section>
 
       <section className="af-panel" style={{ padding: 14, display: 'grid', gap: 10 }}>

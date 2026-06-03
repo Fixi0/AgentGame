@@ -1,6 +1,6 @@
-import { AlertTriangle, Clock3, FileText, Shield, Users } from 'lucide-react';
+import { AlertTriangle, Briefcase, Clock3, FileText, Shield, Timer, Users } from 'lucide-react';
 import React, { useMemo } from 'react';
-import { CLUBS } from '../data/clubs';
+import { CLUBS, getClubDisplayName } from '../data/clubs';
 import { getClubMemorySummary, getClubProfile } from '../systems/clubSystem';
 import { getMarketOfferQueue, getPendingMessageCounts, getPlayerDossierStatus, getRelevantDecisionHistory, getMessageQueueLabel, messageNeedsResponse } from '../systems/dossierSystem';
 import { S } from './styles';
@@ -75,6 +75,19 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
         <MiniKpi icon={<Users size={16} />} label="Total" value={counts.total} accent="var(--af-text)" />
       </div>
 
+      <div style={{ ...S.quickActs, gridTemplateColumns: '1fr 1fr', marginBottom: 16 }}>
+        <button type="button" onClick={() => onNav?.('contracts')} style={S.quickCard}>
+          <Briefcase size={18} color="oklch(72% 0.20 295)" />
+          <div style={S.qLabel}>Contrats</div>
+          <div style={S.qSub}>Prolongations, salaires, dossiers actifs</div>
+        </button>
+        <button type="button" onClick={() => onNav?.('deadline')} style={S.quickCard}>
+          <Timer size={18} color="oklch(72% 0.20 295)" />
+          <div style={S.qLabel}>Deadline Day</div>
+          <div style={S.qSub}>Offres ouvertes et appels mercato</div>
+        </button>
+      </div>
+
       <div style={S.objCard}>
         <div style={S.secTitle}>FILE D'ATTENTE</div>
         {queueMessages.length ? queueMessages.map((message) => (
@@ -122,7 +135,7 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
                 </span>
               </div>
               <div style={S.fixtureMeta}>
-                {offer.club} · {offer.price.toLocaleString('fr-FR')} € · {offer.preWindow ? `pré-accord S${offer.effectiveWeek}` : `expire S${offer.expiresWeek}`}
+                {getClubDisplayName(offer.club) || offer.club} · {offer.price.toLocaleString('fr-FR')} € · {offer.preWindow ? `pré-accord S${offer.effectiveWeek}` : `expire S${offer.expiresWeek}`}
               </div>
               <div style={S.qSub}>{offer.queueStatus?.detail ?? 'Dossier suivi dans la file mercato.'}</div>
             </div>
@@ -176,7 +189,7 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
                 </div>
               </span>
               <strong style={{ color: STATUS_COLORS[status.tone] ?? 'var(--af-text)' }}>
-                {context?.objective ?? 'saison stable'}
+                {context ? `${context.points ?? 0} pts` : 'suivi en cours'}
               </strong>
             </button>
           );
@@ -191,7 +204,7 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
             <button key={injury.id} onClick={() => player && onOpenPlayer?.(player)} style={S.decisionRow}>
               <span>
                 {injury.player_name}
-                <div style={S.fixtureMeta}>{injury.club_name} · {injury.reason}</div>
+                <div style={S.fixtureMeta}>{getClubDisplayName(injury.club_name) || injury.club_name} · {injury.reason}</div>
               </span>
               <strong>{injury.remaining_weeks} sem.</strong>
             </button>
@@ -204,7 +217,7 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
         {recentCompetitionRows.length ? recentCompetitionRows.map((match) => (
           <button key={match.id} onClick={() => onClubDetails?.(match.club_name)} style={S.decisionRow}>
             <span>
-              {match.club_name} {match.score ?? '-'} {match.opponent_name}
+              {getClubDisplayName(match.club_name) || match.club_name} {match.score ?? '-'} {getClubDisplayName(match.opponent_name) || match.opponent_name}
               <div style={S.fixtureMeta}>S{match.week} · {match.competition_label ?? match.competition}</div>
             </span>
             <strong>{match.result}</strong>
@@ -216,7 +229,7 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
         <div style={S.secTitle}>TRANSFERTS HISTORISES</div>
         {recentTransfers.length ? recentTransfers.map((transfer) => (
           <div key={transfer.id} style={S.promiseRow}>
-            <span>{transfer.player_name ?? transfer.player_id} · {transfer.from_club_name ? `${transfer.from_club_name} → ` : ''}{transfer.to_club_name ?? 'club'}</span>
+            <span>{transfer.player_name ?? transfer.player_id} · {transfer.from_club_name ? `${getClubDisplayName(transfer.from_club_name) || transfer.from_club_name} → ` : ''}{getClubDisplayName(transfer.to_club_name) || transfer.to_club_name || 'club'}</span>
             <strong>{transfer.result ?? 'en cours'}</strong>
           </div>
         )) : <div style={S.emptySmall}>Aucun transfert enregistré en base.</div>}
@@ -229,7 +242,7 @@ export default function Dossiers({ state, databaseView = null, onOpenPlayer, onC
           return (
             <button key={club.name} onClick={() => onClubDetails?.(club.name)} style={S.decisionRow}>
               <span>
-                {club.name}
+                {getClubDisplayName(club.name) || club.name}
                 <div style={S.fixtureMeta}>
                   {getClubMemorySummary(state.clubMemory, club.name)} · {profile.style}
                 </div>

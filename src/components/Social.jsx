@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Heart, MessageCircle, Send, BadgeCheck, Sparkles, Flame, Megaphone, Hash, Repeat2 } from 'lucide-react';
+import { Heart, MessageCircle, BadgeCheck, Sparkles, Flame, Hash, Repeat2 } from 'lucide-react';
 import Messages from './Messages';
 import { getPlayerPortrait } from '../utils/playerPortraits';
 import { getPostImage } from '../utils/eventImages';
 import { formatMoney } from '../utils/format';
+import { CLUBS, getClubDisplayName } from '../data/clubs';
 
 const fullName = (p = {}) => `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || 'Joueur';
 const handleOf = (p) => '@' + (`${p.firstName ?? ''}${p.lastName ?? ''}`.toLowerCase().replace(/[^a-z0-9]/g, '')) + (p.id ? String(p.id).slice(-2) : '');
-const clubHandle = (name) => '@' + String(name || 'club').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14) + '_off';
+const clubHandle = (name) => '@' + String(getClubDisplayName(name) || name || 'club').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14) + '_off';
 const weekAgo = (w, now) => {
   const d = Math.max(0, (now ?? 0) - (w ?? 0));
   if (d === 0) return "à l'instant";
@@ -15,11 +16,11 @@ const weekAgo = (w, now) => {
   return `il y a ${d} sem.`;
 };
 
-const POST_COST = 25000;
-
 const seedHash = (s) => { let h = 2166136261 >>> 0; const str = String(s); for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h; };
 const pick = (arr, seed) => arr[seedHash(seed) % arr.length];
 const num = (seed, max) => seedHash(seed) % max;
+const renderTokenTemplate = (template = '', vars = {}) =>
+  String(template).replace(/\{([a-zA-Z0-9_]+)\}/g, (_m, key) => String(vars[key] ?? ''));
 
 // ============= TEMPLATES (centralisés dans src/data/socialDatabase.js) =============
 import {
@@ -47,9 +48,10 @@ import {
   DM_TONES_EN,
   PULSE_HASHTAGS_EN,
 } from '../data/socialDatabase.en';
-import { isEnglish } from '../utils/i18n';
+import { isEnglish, t } from '../utils/i18n';
 
 const EN = isEnglish();
+const LANG_KEY = EN ? 'en' : 'fr';
 const PLAYER_POST_TEMPLATES = EN ? PLAYER_POST_TEMPLATES_EN : PLAYER_POST_TEMPLATES_FR;
 const CLUB_POST_TEMPLATES = EN ? CLUB_POST_TEMPLATES_EN : CLUB_POST_TEMPLATES_FR;
 const PRESS_POST_TEMPLATES = EN ? PRESS_POST_TEMPLATES_EN : PRESS_POST_TEMPLATES_FR;
@@ -79,6 +81,284 @@ const ctxFor = (player, seed) => {
   return { p: player, partner: mateName, rival: mateName };
 };
 
+const normalizeTemplateText = (entry, vars = {}) => {
+  if (!entry) return '';
+  if (typeof entry === 'function') return entry(vars);
+  if (typeof entry?.text === 'function') return entry.text(vars);
+  if (typeof entry?.text === 'string') {
+    const player = vars?.p ?? {};
+    return renderTokenTemplate(entry.text, {
+      firstName: player.firstName ?? '',
+      lastName: player.lastName ?? '',
+      playerName: fullName(player),
+      club: player.club ?? vars?.club ?? '',
+      goals: player?.seasonStats?.goals ?? '?',
+      rating: Math.round(player?.rating ?? 0),
+      partner: vars?.partner ?? '',
+      rival: vars?.rival ?? '',
+      rank: vars?.rank ?? '',
+    });
+  }
+  return '';
+};
+
+const resolveRuntimeTemplatePool = (state, domain, fallbackPool = []) => {
+  const fromDb = state?.narrativeTemplates?.[`${domain}:${LANG_KEY}`];
+  return Array.isArray(fromDb) && fromDb.length ? fromDb : fallbackPool;
+};
+
+const SOCIAL_TEXT_REPLACEMENTS = [
+  ["Ligue 1 McDonald's", 'Championnat français'],
+  ['Ligue 1', 'Championnat français'],
+  ['LALIGA EA Sports', 'Championnat espagnol'],
+  ['LaLiga', 'Championnat espagnol'],
+  ['Premier League', 'Championnat anglais'],
+  ['Bundesliga', 'Championnat allemand'],
+  ['Serie A TIM', 'Championnat italien'],
+  ['Serie A', 'Championnat italien'],
+  ['Liga Portugal', 'Championnat portugais'],
+  ['Brasileirão', 'Championnat brésilien'],
+  ['Eredivisie', 'Championnat néerlandais'],
+  ['UEFA', 'Europe Football Board'],
+  ['#UCL', '#Europe'],
+  ['UCL', 'Europe'],
+  ['Champions League', 'Ligue des Champions'],
+  ['Europa League', 'Ligue Europa'],
+  ['Conference League', 'Ligue Conférence'],
+  ["L'Équipe Mercato", 'Mercato Desk'],
+  ["L'Équipe", 'Le Journal Foot'],
+  ['FootMercato', 'Mercato Live'],
+  ['RMC Sport', 'Radio Sport'],
+  ['Téléfoot', 'Télé Sport'],
+  ['BeIN Sports', 'Be Sport'],
+  ['Canal Football Desk', 'Football Desk'],
+  ['Canal Football', 'Football Desk'],
+  ['France Football Desk', 'Ballon Magazine'],
+  ['France Football', 'Ballon Magazine'],
+  ['Goal France', 'FootNews FR'],
+  ['SofaScore', 'DataScore'],
+  ['Paris Saint-Germain', 'Paris'],
+  ['Real de Madrid', 'Madrid'],
+];
+
+const CLUB_REPLACEMENTS = CLUBS
+  .map((club) => [club.name, getClubDisplayName(club.name)])
+  .filter(([name, display]) => name && display && name !== display)
+  .sort((a, b) => b[0].length - a[0].length);
+
+const replaceAllSafe = (value, from, to) =>
+  String(value).replace(new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), to);
+
+const sanitizeSocialText = (value) => {
+  if (typeof value !== 'string') return value;
+  const safeValue = value
+    .replace(/\bundefined\b/g, 'un club')
+    .replace(/\bnull\b/g, 'un club');
+  const cleanedClubNames = CLUB_REPLACEMENTS.reduce((text, [from, to]) => replaceAllSafe(text, from, to), safeValue);
+  return SOCIAL_TEXT_REPLACEMENTS.reduce((text, [from, to]) => replaceAllSafe(text, from, to), cleanedClubNames);
+};
+
+const sanitizeSocialList = (list) => {
+  if (!list) return list;
+  const sanitizeItem = (item) => ({
+    ...item,
+    name: sanitizeSocialText(item.name),
+    club: sanitizeSocialText(item.club),
+  });
+  return {
+    ...list,
+    title: sanitizeSocialText(list.title),
+    ranked: Array.isArray(list.ranked) ? list.ranked.map(sanitizeItem) : list.ranked,
+    groups: Array.isArray(list.groups)
+      ? list.groups.map((group) => ({
+        ...group,
+        label: sanitizeSocialText(group.label),
+        items: Array.isArray(group.items) ? group.items.map(sanitizeItem) : group.items,
+      }))
+      : list.groups,
+  };
+};
+
+const sanitizeSocialPost = (post = {}) => ({
+  ...post,
+  authorName: t(sanitizeSocialText(post.authorName)),
+  handle: t(sanitizeSocialText(post.handle)),
+  tag: t(sanitizeSocialText(post.tag)),
+  text: t(sanitizeSocialText(post.text)),
+  account: post.account ? { ...post.account, name: sanitizeSocialText(post.account.name) } : post.account,
+  commentsList: Array.isArray(post.commentsList)
+    ? post.commentsList.map((comment) => ({
+      ...comment,
+      handle: t(sanitizeSocialText(comment.handle)),
+      text: t(sanitizeSocialText(comment.text)),
+    }))
+    : post.commentsList,
+  list: sanitizeSocialList(post.list),
+});
+
+const sanitizePulse = (pulse = {}) => ({
+  ...pulse,
+  authorName: t(sanitizeSocialText(pulse.authorName)),
+  handle: t(sanitizeSocialText(pulse.handle)),
+  text: t(sanitizeSocialText(pulse.text)),
+  hashtag: t(sanitizeSocialText(pulse.hashtag)),
+  replies: Array.isArray(pulse.replies)
+    ? pulse.replies.map((reply) => ({
+      ...reply,
+      handle: t(sanitizeSocialText(reply.handle)),
+      text: t(sanitizeSocialText(reply.text)),
+    }))
+    : pulse.replies,
+});
+
+export function ensureInstaPostImage(post, index = 0, week = 1, used = null) {
+  const seed = `${post?.id ?? 'social'}-${week}-${index}`;
+  const tag = post?.tag ?? (post?.kind === 'club' ? 'matchday' : post?.kind === 'press' ? 'press' : 'training');
+  return {
+    ...post,
+    image: post?.image || getPostImage({ kind: post?.kind ?? 'player', tag, seed, used }) || getPostImage({ kind: 'club', tag: 'matchday', seed: `fallback-${seed}`, used }),
+    sortScore: Number(post?.sortScore ?? post?.week ?? week) + (String(post?.timeLabel ?? '').includes("instant") ? 0.9 : 0),
+  };
+}
+
+export function buildInstaProPosts({ state, week = state?.week ?? 1, roster = state?.roster ?? [], featured = null } = {}) {
+  const featuredPlayers = featured ?? [...roster].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 14);
+  const playerPostTemplates = resolveRuntimeTemplatePool(state, 'social_player_post', PLAYER_POST_TEMPLATES);
+  const clubPostTemplates = resolveRuntimeTemplatePool(state, 'social_club_post', CLUB_POST_TEMPLATES);
+  const pressPostTemplates = resolveRuntimeTemplatePool(state, 'social_press_post', PRESS_POST_TEMPLATES);
+  const fanPostTemplates = resolveRuntimeTemplatePool(state, 'social_fan_post', FAN_POST_TEMPLATES);
+  const commentTemplates = resolveRuntimeTemplatePool(state, 'social_comment', COMMENT_POOL);
+  const result = [];
+  const officialNews = [...(state?.news ?? [])]
+      .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
+      .slice(0, 12)
+      .map((post, idx) => {
+        const seed = `official-news-${post.id ?? idx}-${week}`;
+        const alertMedia = String(post.text ?? '').toLowerCase().includes('alerte médias')
+          || String(post.text ?? '').toLowerCase().includes('presse')
+          || String(post.text ?? '').toLowerCase().includes('médias')
+          || String(post.text ?? '').toLowerCase().includes('media');
+        return {
+          id: `official-news-${post.id ?? idx}`,
+          kind: 'press',
+          player: null,
+          authorName: post.accountName ?? 'Canal Football Desk',
+          handle: `@${String(post.accountName ?? 'football').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+          tag: alertMedia ? 'ALERTE MÉDIAS' : 'NEWS OFFICIELLE',
+          text: post.text ?? '',
+          image: getPostImage({ kind: 'press', tag: alertMedia ? 'press' : 'matchday', seed }),
+          likes: post.likes ?? (250 + num(seed + 'l', 2500)),
+          comments: post.comments ?? (12 + num(seed + 'c', 160)),
+          timeLabel: weekAgo(week - (post.week ?? week), week),
+          commentsList: [
+            { handle: pick(PRESS_AUTHORS, seed + 'a').handle, text: alertMedia ? 'La communication du clan va être décisive.' : 'Breaking confirmé.' },
+            { handle: pick(FAN_AUTHORS, seed + 'b').handle, text: alertMedia ? 'On veut la version du joueur.' : 'Ça va impacter le prochain match.' },
+          ],
+        };
+      });
+  result.push(...officialNews);
+  featuredPlayers.forEach((player, idx) => {
+      // 2 posts joueurs par joueur (variations différentes)
+      for (let v = 0; v < 2; v++) {
+        const sP = `post-${player.id}-${week}-${v}`;
+        const tplP = pick(playerPostTemplates, sP);
+        result.push({
+          id: sP, kind: 'player', player, authorName: fullName(player), handle: handleOf(player),
+          tag: tplP.tag ?? tplP.category ?? 'player', text: normalizeTemplateText(tplP, ctxFor(player, sP)),
+          image: getPostImage({ kind: 'player', tag: tplP.tag, seed: sP }),
+          likes: 200 + num(sP + 'l', 12000), comments: 4 + num(sP + 'c', 200),
+          timeLabel: weekAgo(week - ((idx + v) % 4), week),
+          commentsList: [
+            { handle: pick(FAN_AUTHORS, sP + 'a').handle, text: normalizeTemplateText(pick(commentTemplates, sP + 'b'), { p: player }) },
+            { handle: pick(FAN_AUTHORS, sP + 'c').handle, text: normalizeTemplateText(pick(commentTemplates, sP + 'd'), { p: player }) },
+            { handle: pick(FAN_AUTHORS, sP + 'e').handle, text: normalizeTemplateText(pick(commentTemplates, sP + 'f'), { p: player }) },
+          ],
+        });
+      }
+      // club post à chaque joueur (au lieu d'1 sur 2)
+      if (player.club) {
+        const sC = `club-${player.club}-${week}-${idx}`;
+        const tplC = pick(clubPostTemplates, sC);
+        result.push({
+          id: sC, kind: 'club', player: null, authorName: player.club, handle: clubHandle(player.club),
+          tag: tplC.tag ?? tplC.category ?? 'club', text: normalizeTemplateText(tplC, { club: player.club, ...ctxFor(player, sC) }),
+          image: getPostImage({ kind: 'club', tag: tplC.tag, seed: sC }),
+          likes: 800 + num(sC + 'l', 8000), comments: 12 + num(sC + 'c', 300),
+          timeLabel: weekAgo(week - (idx % 3), week),
+          commentsList: [
+            { handle: pick(FAN_AUTHORS, sC + 'a').handle, text: normalizeTemplateText(pick(commentTemplates, sC + 'b'), { p: player }) },
+            { handle: pick(FAN_AUTHORS, sC + 'c').handle, text: normalizeTemplateText(pick(commentTemplates, sC + 'd'), { p: player }) },
+          ],
+        });
+      }
+      // press post 2 sur 3 (au lieu d'1 sur 3)
+      if (idx % 3 !== 2) {
+        const sR = `press-${player.id}-${week}`;
+        const author = pick(PRESS_AUTHORS, sR);
+        const tplR = pick(pressPostTemplates, sR);
+        result.push({
+          id: sR, kind: 'press', player, authorName: author.name, handle: author.handle,
+          tag: tplR.tag ?? tplR.category ?? 'press', text: normalizeTemplateText(tplR, ctxFor(player, sR)),
+          image: getPostImage({ kind: 'press', tag: tplR.tag, seed: sR }),
+          likes: 150 + num(sR + 'l', 3000), comments: 8 + num(sR + 'c', 100),
+          timeLabel: weekAgo(week - (idx % 4), week),
+          commentsList: [
+            { handle: pick(FAN_AUTHORS, sR + 'a').handle, text: normalizeTemplateText(pick(commentTemplates, sR + 'b'), { p: player }) },
+            { handle: pick(FAN_AUTHORS, sR + 'c').handle, text: normalizeTemplateText(pick(commentTemplates, sR + 'd'), { p: player }) },
+          ],
+        });
+      }
+      // fan post 1 sur 2 (au lieu d'1 sur 4)
+      if (idx % 2 === 1) {
+        const sF = `fan-${player.id}-${week}`;
+        const author = pick(FAN_AUTHORS, sF);
+        const tplF = pick(fanPostTemplates, sF);
+        result.push({
+          id: sF, kind: 'fan', player, authorName: author.name, handle: author.handle,
+          tag: tplF.tag ?? tplF.category ?? 'fan', text: normalizeTemplateText(tplF, ctxFor(player, sF)),
+          image: getPostImage({ kind: 'fan', tag: tplF.tag, seed: sF }),
+          likes: 30 + num(sF + 'l', 800), comments: 2 + num(sF + 'c', 40),
+          timeLabel: weekAgo(week - (idx % 5), week),
+          commentsList: [{ handle: pick(FAN_AUTHORS, sF + 'x').handle, text: normalizeTemplateText(pick(commentTemplates, sF + 'y'), { p: player }) }],
+        });
+      }
+  });
+    // ---- BOND-DRIVEN POSTS (duos & rivalités) ----
+  try {
+      const bondPosts = generateBondSocialPosts(state?.playerBonds ?? {}, roster, { week, max: 4 });
+      bondPosts.forEach((bp, k) => {
+        const author = bp.kind === 'press' ? PRESS_AUTHORS[k % PRESS_AUTHORS.length] : FAN_AUTHORS[k % FAN_AUTHORS.length];
+        const sB = `bond-${bp.players[0].id}-${bp.players[1].id}-${week}-${k}`;
+        const tag = bp.tone === 'duo' ? 'fan' : 'press';
+        result.push({
+          id: sB, kind: bp.kind, player: bp.players[0],
+          authorName: author.name, handle: author.handle,
+          tag, text: bp.text,
+          image: getPostImage({ kind: bp.kind, tag, seed: sB }),
+          likes: 400 + num(sB + 'l', 8000), comments: 12 + num(sB + 'c', 200),
+          timeLabel: weekAgo(week - (k % 3), week),
+          commentsList: [
+            { handle: pick(FAN_AUTHORS, sB + 'a').handle, text: bp.tone === 'duo' ? 'Le duo en or 🥹' : 'Ça sent le clash sah 👀' },
+            { handle: pick(FAN_AUTHORS, sB + 'b').handle, text: bp.tone === 'duo' ? 'Inarrêtables ces deux-là.' : 'Le coach doit gérer ça vite.' },
+          ],
+        });
+      });
+  } catch { /* bonds optional */ }
+    // ---- LIVING POSTS (sélections nationales, classements, UEFA, clubs) ----
+  try {
+      const season = Math.floor((week - 1) / 38) + 1;
+      const agentPlayerIds = new Set(roster.map((p) => p?.id).filter(Boolean));
+      const agentClubs = new Set(roster.map((p) => p?.club).filter(Boolean));
+      const livingPosts = generateLivingFeedPosts({ state, week, season, agentPlayerIds, agentClubs });
+      result.push(...livingPosts);
+  } catch (e) { /* living feed optional */ }
+  const usedImages = new Set();
+  return result
+    .map((post, index) => ensureInstaPostImage(post, index, week, usedImages))
+    .map(sanitizeSocialPost)
+    .sort((a, b) => (b.sortScore ?? 0) - (a.sortScore ?? 0) || seedHash(a.id + 'sort') - seedHash(b.id + 'sort'));
+}
+
 // ============= UI =============
 function Avatar({ player, label, size = 38, color = 'oklch(20% 0.04 258)' }) {
   const src = player ? getPlayerPortrait(player) : null;
@@ -90,15 +370,25 @@ function Avatar({ player, label, size = 38, color = 'oklch(20% 0.04 258)' }) {
 }
 
 // ============= INSTAPRO FEED =============
-function InstaFeed({ posts, liked, onLike, onComment, onPublish, brandValue, money }) {
-  const [draft, setDraft] = useState('');
-  const canAfford = money >= POST_COST;
+function InstaFeed({ posts, liked, onLike, onComment }) {
+  const storyPosts = useMemo(() => {
+    const seen = new Set();
+    return posts
+      .filter((p) => p.kind === 'player' && p.player)
+      .filter((p) => {
+        const key = p.player.id ?? `${p.player.firstName ?? ''}-${p.player.lastName ?? ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 8);
+  }, [posts]);
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       {/* Story bar */}
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6 }}>
-        {posts.filter((p) => p.kind === 'player').slice(0, 8).map((p) => (
+        {storyPosts.map((p) => (
           <div key={'st-' + p.id} style={{ display: 'grid', justifyItems: 'center', gap: 4, minWidth: 64 }}>
             <div style={{ padding: 2, borderRadius: '50%', background: 'conic-gradient(from 0deg, #f59e0b, #ef4444, #ec4899, #8b5cf6, #f59e0b)' }}>
               <Avatar player={p.player} size={56} />
@@ -106,30 +396,6 @@ function InstaFeed({ posts, liked, onLike, onComment, onPublish, brandValue, mon
             <div style={{ fontSize: 9, color: 'var(--af-muted)', maxWidth: 64, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.player.firstName}</div>
           </div>
         ))}
-      </div>
-
-      {/* Composer */}
-      <div className="af-panel" style={{ padding: 12, display: 'grid', gap: 8 }}>
-        <div className="af-kicker" style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span><Megaphone size={11} style={{ verticalAlign: 'middle' }} /> Post sponsorisé agence</span>
-          <span style={{ color: 'var(--af-gold)' }}>Marque {brandValue}</span>
-        </div>
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={`Publie au nom de ton agence (+3 marque, -${formatMoney(POST_COST)})…`}
-          rows={2}
-          style={{ width: '100%', resize: 'none', background: 'oklch(12% 0.03 258)', border: '1px solid var(--af-border)', borderRadius: 8, color: 'var(--af-text)', padding: 10, fontSize: 12, fontFamily: 'inherit' }}
-        />
-        <button
-          type="button"
-          disabled={!draft.trim() || !canAfford}
-          onClick={() => { onPublish(draft.trim()); setDraft(''); }}
-          className="af-btn-primary"
-          style={{ padding: 10, opacity: (draft.trim() && canAfford) ? 1 : 0.5 }}
-        >
-          {canAfford ? `Publier (-${formatMoney(POST_COST)})` : `Fonds insuffisants (${formatMoney(POST_COST)})`}
-        </button>
       </div>
 
       {posts.map((post) => <FeedCard key={post.id} post={post} liked={liked} onLike={onLike} onComment={onComment} />)}
@@ -283,7 +549,7 @@ function WhatsCallChat({ thread, onReply, onBack, onJumpToMessages }) {
         <Avatar player={thread.player} size={36} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 900, fontSize: 13 }}>{thread.title}</div>
-          <div style={{ fontSize: 10, color: 'var(--af-muted)' }}>{thread.player?.club ?? ''} · {linked ? 'lié à Messages' : 'en ligne'}</div>
+          <div style={{ fontSize: 10, color: 'var(--af-muted)' }}>{getClubDisplayName(thread.player?.club ?? '')} · {linked ? 'lié à Messages' : 'en ligne'}</div>
         </div>
       </header>
       <div style={{ padding: 12, display: 'grid', gap: 8, alignContent: 'start', background: 'oklch(8% 0.02 258)' }}>
@@ -370,138 +636,11 @@ export default function Social({ state, onSocialAction, onToast, onJumpToMessage
   const featured = useMemo(() => [...roster].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 14), [roster]);
 
   // ---- FEED (player + club + press + fan posts) — beaucoup plus dense ----
-  const posts = useMemo(() => {
-    const result = [];
-    const used = new Set(); // garantit zéro doublon de visuel dans tout le feed
-    const officialNews = [...(state?.news ?? [])]
-      .sort((a, b) => (b.week ?? 0) - (a.week ?? 0))
-      .slice(0, 12)
-      .map((post, idx) => {
-        const seed = `official-news-${post.id ?? idx}-${week}`;
-        const alertMedia = String(post.text ?? '').toLowerCase().includes('alerte médias')
-          || String(post.text ?? '').toLowerCase().includes('presse')
-          || String(post.text ?? '').toLowerCase().includes('médias')
-          || String(post.text ?? '').toLowerCase().includes('media');
-        return {
-          id: `official-news-${post.id ?? idx}`,
-          kind: 'press',
-          player: null,
-          authorName: post.accountName ?? 'Canal Football Desk',
-          handle: `@${String(post.accountName ?? 'football').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-          tag: alertMedia ? 'ALERTE MÉDIAS' : 'NEWS OFFICIELLE',
-          text: post.text ?? '',
-          image: getPostImage({ kind: 'press', tag: alertMedia ? 'press' : 'matchday', seed }),
-          likes: post.likes ?? (250 + num(seed + 'l', 2500)),
-          comments: post.comments ?? (12 + num(seed + 'c', 160)),
-          timeLabel: weekAgo(week - (post.week ?? week), week),
-          commentsList: [
-            { handle: pick(PRESS_AUTHORS, seed + 'a').handle, text: alertMedia ? 'La communication du clan va être décisive.' : 'Breaking confirmé.' },
-            { handle: pick(FAN_AUTHORS, seed + 'b').handle, text: alertMedia ? 'On veut la version du joueur.' : 'Ça va impacter le prochain match.' },
-          ],
-        };
-      });
-    result.push(...officialNews);
-    featured.forEach((player, idx) => {
-      // 2 posts joueurs par joueur (variations différentes)
-      for (let v = 0; v < 2; v++) {
-        const sP = `post-${player.id}-${week}-${v}`;
-        const tplP = pick(PLAYER_POST_TEMPLATES, sP);
-        result.push({
-          id: sP, kind: 'player', player, authorName: fullName(player), handle: handleOf(player),
-          tag: tplP.tag, text: tplP.text(ctxFor(player, sP)),
-          image: getPostImage({ kind: 'player', tag: tplP.tag, seed: sP }),
-          likes: 200 + num(sP + 'l', 12000), comments: 4 + num(sP + 'c', 200),
-          timeLabel: weekAgo(week - ((idx + v) % 4), week),
-          commentsList: [
-            { handle: pick(FAN_AUTHORS, sP + 'a').handle, text: pick(COMMENT_POOL, sP + 'b')({ p: player }) },
-            { handle: pick(FAN_AUTHORS, sP + 'c').handle, text: pick(COMMENT_POOL, sP + 'd')({ p: player }) },
-            { handle: pick(FAN_AUTHORS, sP + 'e').handle, text: pick(COMMENT_POOL, sP + 'f')({ p: player }) },
-          ],
-        });
-      }
-      // club post à chaque joueur (au lieu d'1 sur 2)
-      if (player.club) {
-        const sC = `club-${player.club}-${week}-${idx}`;
-        const tplC = pick(CLUB_POST_TEMPLATES, sC);
-        result.push({
-          id: sC, kind: 'club', player: null, authorName: player.club, handle: clubHandle(player.club),
-          tag: tplC.tag, text: tplC.text({ club: player.club, ...ctxFor(player, sC) }),
-          image: getPostImage({ kind: 'club', tag: tplC.tag, seed: sC }),
-          likes: 800 + num(sC + 'l', 8000), comments: 12 + num(sC + 'c', 300),
-          timeLabel: weekAgo(week - (idx % 3), week),
-          commentsList: [
-            { handle: pick(FAN_AUTHORS, sC + 'a').handle, text: pick(COMMENT_POOL, sC + 'b')({ p: player }) },
-            { handle: pick(FAN_AUTHORS, sC + 'c').handle, text: pick(COMMENT_POOL, sC + 'd')({ p: player }) },
-          ],
-        });
-      }
-      // press post 2 sur 3 (au lieu d'1 sur 3)
-      if (idx % 3 !== 2) {
-        const sR = `press-${player.id}-${week}`;
-        const author = pick(PRESS_AUTHORS, sR);
-        const tplR = pick(PRESS_POST_TEMPLATES, sR);
-        result.push({
-          id: sR, kind: 'press', player, authorName: author.name, handle: author.handle,
-          tag: tplR.tag, text: tplR.text(ctxFor(player, sR)),
-          image: getPostImage({ kind: 'press', tag: tplR.tag, seed: sR }),
-          likes: 150 + num(sR + 'l', 3000), comments: 8 + num(sR + 'c', 100),
-          timeLabel: weekAgo(week - (idx % 4), week),
-          commentsList: [
-            { handle: pick(FAN_AUTHORS, sR + 'a').handle, text: pick(COMMENT_POOL, sR + 'b')({ p: player }) },
-            { handle: pick(FAN_AUTHORS, sR + 'c').handle, text: pick(COMMENT_POOL, sR + 'd')({ p: player }) },
-          ],
-        });
-      }
-      // fan post 1 sur 2 (au lieu d'1 sur 4)
-      if (idx % 2 === 1) {
-        const sF = `fan-${player.id}-${week}`;
-        const author = pick(FAN_AUTHORS, sF);
-        const tplF = pick(FAN_POST_TEMPLATES, sF);
-        result.push({
-          id: sF, kind: 'fan', player, authorName: author.name, handle: author.handle,
-          tag: tplF.tag, text: tplF.text(ctxFor(player, sF)),
-          image: getPostImage({ kind: 'fan', tag: tplF.tag, seed: sF }),
-          likes: 30 + num(sF + 'l', 800), comments: 2 + num(sF + 'c', 40),
-          timeLabel: weekAgo(week - (idx % 5), week),
-          commentsList: [{ handle: pick(FAN_AUTHORS, sF + 'x').handle, text: pick(COMMENT_POOL, sF + 'y')({ p: player }) }],
-        });
-      }
-    });
-    // ---- BOND-DRIVEN POSTS (duos & rivalités) ----
-    try {
-      const bondPosts = generateBondSocialPosts(state?.playerBonds ?? {}, roster, { week, max: 4 });
-      bondPosts.forEach((bp, k) => {
-        const author = bp.kind === 'press' ? PRESS_AUTHORS[k % PRESS_AUTHORS.length] : FAN_AUTHORS[k % FAN_AUTHORS.length];
-        const sB = `bond-${bp.players[0].id}-${bp.players[1].id}-${week}-${k}`;
-        const tag = bp.tone === 'duo' ? 'fan' : 'press';
-        result.push({
-          id: sB, kind: bp.kind, player: bp.players[0],
-          authorName: author.name, handle: author.handle,
-          tag, text: bp.text,
-          image: getPostImage({ kind: bp.kind, tag, seed: sB }),
-          likes: 400 + num(sB + 'l', 8000), comments: 12 + num(sB + 'c', 200),
-          timeLabel: weekAgo(week - (k % 3), week),
-          commentsList: [
-            { handle: pick(FAN_AUTHORS, sB + 'a').handle, text: bp.tone === 'duo' ? 'Le duo en or 🥹' : 'Ça sent le clash sah 👀' },
-            { handle: pick(FAN_AUTHORS, sB + 'b').handle, text: bp.tone === 'duo' ? 'Inarrêtables ces deux-là.' : 'Le coach doit gérer ça vite.' },
-          ],
-        });
-      });
-    } catch { /* bonds optional */ }
-    // ---- LIVING POSTS (sélections nationales, classements, UEFA, clubs) ----
-    try {
-      const season = Math.floor((week - 1) / 38) + 1;
-      const agentPlayerIds = new Set(roster.map((p) => p?.id).filter(Boolean));
-      const agentClubs = new Set(roster.map((p) => p?.club).filter(Boolean));
-      const livingPosts = generateLivingFeedPosts({ state, week, season, agentPlayerIds, agentClubs });
-      result.push(...livingPosts);
-    } catch (e) { /* living feed optional */ }
-    // shuffle by deterministic seed for varied feed
-    return result.sort((a, b) => seedHash(a.id + 'sort') - seedHash(b.id + 'sort'));
-  }, [featured, week, roster, state]);
+  const posts = useMemo(() => buildInstaProPosts({ state, week, roster, featured }), [featured, week, roster, state]);
 
   // ---- WHATSCALL THREADS (inbox messages first, then generated stress threads) ----
   const threads = useMemo(() => {
+    const dmTones = resolveRuntimeTemplatePool(state, 'social_dm_tone', DM_TONES);
     const out = [];
     const seenPlayers = new Set();
     // inbox
@@ -525,36 +664,41 @@ export default function Social({ state, onSocialAction, onToast, onJumpToMessage
       .slice(0, 4);
     candidates.forEach((player, i) => {
       const seed = `dm-${player.id}-${week}`;
-      const tpl = pick(DM_TONES, seed);
+      const tpl = pick(dmTones, seed);
       out.push({
         id: seed, source: 'generated', player, title: fullName(player),
-        subject: null, preview: tpl.text,
+        subject: null, preview: normalizeTemplateText(tpl, { p: player }),
         timeLabel: weekAgo(week - (i % 3), week),
         unread: !repliedThreads.has(seed), replied: repliedThreads.has(seed), replyText: null,
       });
     });
     return out;
-  }, [messagesInbox, roster, week, repliedThreads]);
+  }, [messagesInbox, roster, week, repliedThreads, state]);
 
   // ---- CHIRP PULSES — beaucoup plus dense ----
   const pulses = useMemo(() => {
+    const pulseTemplates = resolveRuntimeTemplatePool(state, 'social_pulse', PULSE_TEMPLATES);
+    const pulseStatic = resolveRuntimeTemplatePool(state, 'social_pulse_static', PULSE_NO_PLAYER);
+    const commentTemplates = resolveRuntimeTemplatePool(state, 'social_comment', COMMENT_POOL);
+    const hashtagTemplates = resolveRuntimeTemplatePool(state, 'social_hashtag', PULSE_HASHTAGS);
     const result = [];
     // 2 pulses par joueur featured (12 joueurs => 24 pulses joueurs)
     featured.forEach((player, i) => {
       for (let v = 0; v < 2; v++) {
         const seed = `pulse-${player.id}-${week}-${v}`;
-        const tplIdx = seedHash(seed) % PULSE_TEMPLATES.length;
+        const tplIdx = seedHash(seed) % Math.max(1, pulseTemplates.length);
         const author = pick(PULSE_AUTHORS, seed + 'a');
         const replies = [
-          { handle: pick(FAN_AUTHORS, seed + 'r1').handle, text: pick(COMMENT_POOL, seed + 'r1t')({ p: player }) },
-          { handle: pick(FAN_AUTHORS, seed + 'r2').handle, text: pick(COMMENT_POOL, seed + 'r2t')({ p: player }) },
-          { handle: pick(FAN_AUTHORS, seed + 'r3').handle, text: pick(COMMENT_POOL, seed + 'r3t')({ p: player }) },
+          { handle: pick(FAN_AUTHORS, seed + 'r1').handle, text: normalizeTemplateText(pick(commentTemplates, seed + 'r1t'), { p: player }) },
+          { handle: pick(FAN_AUTHORS, seed + 'r2').handle, text: normalizeTemplateText(pick(commentTemplates, seed + 'r2t'), { p: player }) },
+          { handle: pick(FAN_AUTHORS, seed + 'r3').handle, text: normalizeTemplateText(pick(commentTemplates, seed + 'r3t'), { p: player }) },
         ];
+        const selectedTemplate = pulseTemplates[tplIdx] ?? pulseTemplates[0];
         result.push({
           id: seed, player, author, authorName: author.name, handle: author.handle,
-          text: PULSE_TEMPLATES[tplIdx]({ p: player }),
+          text: normalizeTemplateText(selectedTemplate, { p: player }),
           likes: 80 + num(seed + 'l', 4000), reposts: 12 + num(seed + 'rp', 800),
-          hashtag: pick(PULSE_HASHTAGS, seed),
+          hashtag: normalizeTemplateText(pick(hashtagTemplates, seed), { p: player }),
           timeLabel: weekAgo(week - ((i + v) % 6), week),
           replies,
           verified: author.verified,
@@ -562,18 +706,20 @@ export default function Social({ state, onSocialAction, onToast, onJumpToMessage
       }
     });
     // generic non-player posts
-    PULSE_NO_PLAYER.forEach((entry, i) => {
+    pulseStatic.forEach((entry, i) => {
       const seed = `pulse-gen-${i}-${week}`;
       result.push({
         id: seed, player: null, author: null, authorName: entry.name, handle: entry.handle,
-        text: entry.text, likes: 50 + num(seed + 'l', 2000), reposts: 5 + num(seed + 'rp', 200),
-        hashtag: pick(PULSE_HASHTAGS, seed),
+        text: normalizeTemplateText(entry, { p: featured[0] ?? { firstName: 'Joueur', lastName: 'X' } }), likes: 50 + num(seed + 'l', 2000), reposts: 5 + num(seed + 'rp', 200),
+        hashtag: normalizeTemplateText(pick(hashtagTemplates, seed), { p: featured[0] ?? { firstName: 'Joueur', lastName: 'X' } }),
         timeLabel: weekAgo(week - i, week),
-        replies: [{ handle: pick(FAN_AUTHORS, seed + 'r').handle, text: pick(COMMENT_POOL, seed + 'rt')({ p: featured[0] ?? { firstName: 'Joueur', lastName: 'X' } }) }],
+        replies: [{ handle: pick(FAN_AUTHORS, seed + 'r').handle, text: normalizeTemplateText(pick(commentTemplates, seed + 'rt'), { p: featured[0] ?? { firstName: 'Joueur', lastName: 'X' } }) }],
       });
     });
-    return result.sort((a, b) => seedHash(a.id + 'srt') - seedHash(b.id + 'srt'));
-  }, [featured, week]);
+    return result
+      .map(sanitizePulse)
+      .sort((a, b) => seedHash(a.id + 'srt') - seedHash(b.id + 'srt'));
+  }, [featured, week, state]);
 
   // ---- HANDLERS ----
   const handleLikePost = (post) => {
@@ -589,11 +735,6 @@ export default function Social({ state, onSocialAction, onToast, onJumpToMessage
   const handleComment = (post) => {
     onToast?.('Commentaire envoyé.', 'info');
     if (post.player) onSocialAction?.({ type: 'comment_post', playerId: post.player.id });
-  };
-  const handlePublish = (text) => {
-    if ((state?.money ?? 0) < POST_COST) { onToast?.('Fonds insuffisants', 'error'); return; }
-    onSocialAction?.({ type: 'publish_sponsored', text, cost: POST_COST });
-    onToast?.(`Post publié. +3 marque, -${formatMoney(POST_COST)}`, 'success');
   };
   const handleReply = (thread, tone) => {
     setRepliedThreads((s) => new Set(s).add(thread.id));
@@ -646,7 +787,7 @@ export default function Social({ state, onSocialAction, onToast, onJumpToMessage
         ))}
       </div>
 
-      {tab === 'feed' && <InstaFeed posts={posts} liked={liked} onLike={handleLikePost} onComment={handleComment} onPublish={handlePublish} brandValue={brandValue} money={money} />}
+      {tab === 'feed' && <InstaFeed posts={posts} liked={liked} onLike={handleLikePost} onComment={handleComment} />}
       {tab === 'chats' && (
         <div className="af-panel" style={{ padding: 0, overflow: 'hidden', background: 'oklch(10% 0.02 258)' }}>
           <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--af-border)', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>

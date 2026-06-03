@@ -5,6 +5,7 @@
  */
 
 import { clamp, rand } from '../utils/helpers';
+import { getClubRelationScore } from './clubSystem';
 
 // ─── VISIBILITY LEVELS ────────────────────────────────────────
 
@@ -60,7 +61,7 @@ export const getBaseVisibility = (player, state = {}) => {
   if (scoutCount >= 3) visibility = Math.max(visibility, VISIBILITY_LEVELS.EVALUATED);
 
   // Contacts with club improve visibility
-  const clubRelation = state.clubRelations?.[player.club] ?? 0;
+  const clubRelation = getClubRelationScore(state.clubRelations, player.clubId ?? player.club);
   if (clubRelation >= 50) visibility = Math.max(visibility, VISIBILITY_LEVELS.SCOUTED);
   if (clubRelation >= 80) visibility = Math.max(visibility, VISIBILITY_LEVELS.ANALYZED);
 

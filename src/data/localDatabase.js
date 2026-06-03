@@ -1,9 +1,12 @@
 import { createGameCatalog, createGameDatabaseSnapshot } from './gameDatabase';
-import { setDatabasePlayerCatalog } from './squadDatabase';
+import { stripRuntimeEntityDb } from '../systems/entityStoreSystem';
+import { ensureGabrielFixioPower, setDatabasePlayerCatalog } from './squadDatabase';
 import { STORAGE_KEY } from '../game/gameLogic';
+import { applyRuntimeIntegrity } from '../systems/integritySystem';
+import { normalizeAgencyName } from '../systems/agencySystem';
 
 const DB_NAME = 'agent_foot_local_db';
-const DB_VERSION = 6;
+const DB_VERSION = 8;
 const SAVE_ID = 'active_save';
 const CATALOG_ID = 'catalog_v2';
 const SAVE_SLOT_MIN = 1;
@@ -20,6 +23,7 @@ const STATIC_TABLES = [
   'clubs',
   'personalities',
   'event_templates',
+  'narrative_templates',
   'staff_roles',
   'agency_defaults',
   'catalog_players',
@@ -89,6 +93,7 @@ const STORE_DEFINITIONS = [
   { name: 'clubs', keyPath: 'id', indexes: [{ name: 'country_id', keyPath: 'country_id' }, { name: 'league_id', keyPath: 'league_id' }] },
   { name: 'personalities', keyPath: 'id', indexes: [{ name: 'code', keyPath: 'code', unique: true }] },
   { name: 'event_templates', keyPath: 'id', indexes: [{ name: 'type', keyPath: 'type' }] },
+  { name: 'narrative_templates', keyPath: 'id', indexes: [{ name: 'domain_period', keyPath: ['domain', 'period_key'] }] },
   { name: 'staff_roles', keyPath: 'id' },
   { name: 'agency_defaults', keyPath: 'id' },
   { name: 'catalog_players', keyPath: 'id', indexes: [
@@ -156,8 +161,23 @@ const STORE_DEFINITIONS = [
     { name: 'market_type', keyPath: 'market_type' },
     { name: 'expires_week', keyPath: 'expires_week' },
   ] },
-  { name: 'fixtures', keyPath: 'id', indexes: [{ name: 'week', keyPath: 'week' }, { name: 'club_id', keyPath: 'club_id' }, { name: 'status', keyPath: 'status' }] },
-  { name: 'match_results', keyPath: 'id', indexes: [{ name: 'player_id', keyPath: 'player_id' }, { name: 'week', keyPath: 'week' }, { name: 'competition', keyPath: 'competition' }] },
+  { name: 'fixtures', keyPath: 'id', indexes: [
+    { name: 'week', keyPath: 'week' },
+    { name: 'club_id', keyPath: 'club_id' },
+    { name: 'home_club_id', keyPath: 'home_club_id' },
+    { name: 'away_club_id', keyPath: 'away_club_id' },
+    { name: 'competition', keyPath: 'competition' },
+    { name: 'status', keyPath: 'status' },
+  ] },
+  { name: 'match_results', keyPath: 'id', indexes: [
+    { name: 'fixture_id', keyPath: 'fixture_id' },
+    { name: 'match_id', keyPath: 'match_id' },
+    { name: 'player_id', keyPath: 'player_id' },
+    { name: 'club_id', keyPath: 'club_id' },
+    { name: 'opponent_id', keyPath: 'opponent_id' },
+    { name: 'week', keyPath: 'week' },
+    { name: 'competition', keyPath: 'competition' },
+  ] },
   { name: 'competition_history', keyPath: 'id', indexes: [
     { name: 'season_id', keyPath: 'season_id' },
     { name: 'week', keyPath: 'week' },
@@ -203,6 +223,221 @@ const getRecordSlot = (record = null) => {
 };
 
 const supportsIndexedDb = () => typeof indexedDB !== 'undefined';
+const SQLITE_DB_NAME = 'agent_foot_mobile_db';
+const SQLITE_TABLE = 'af_store';
+const SQLITE_MIGRATION_KEY = 'sqlite_migrated_from_idb_v1';
+const SQLITE_REL_PREFIX = 'af_rel_';
+let sqliteReadyPromise = null;
+
+const isNativeCapacitorRuntime = () => {
+  if (typeof window === 'undefined') return false;
+  const platform = window.Capacitor?.getPlatform?.();
+  if (platform === 'ios' || platform === 'android') return true;
+  return Boolean(window.Capacitor?.isNativePlatform?.());
+};
+
+const getSQLitePlugin = () => {
+  if (!isNativeCapacitorRuntime()) return null;
+  return window.Capacitor?.Plugins?.CapacitorSQLite ?? null;
+};
+
+const getIndexKeyPath = (storeName, indexName) => {
+  const def = STORE_DEFINITIONS.find((entry) => entry.name === storeName);
+  return def?.indexes?.find((index) => index.name === indexName)?.keyPath ?? null;
+};
+
+const extractByKeyPath = (row, keyPath) => {
+  if (Array.isArray(keyPath)) return keyPath.map((key) => row?.[key]);
+  return row?.[keyPath];
+};
+
+const isIndexMatch = (row, keyPath, value) => {
+  const rowValue = extractByKeyPath(row, keyPath);
+  if (Array.isArray(rowValue) && Array.isArray(value)) {
+    if (rowValue.length !== value.length) return false;
+    return rowValue.every((item, idx) => item === value[idx]);
+  }
+  return rowValue === value;
+};
+
+const runSql = async (connection, statement, values = []) => {
+  if (typeof connection?.run === 'function') return connection.run(statement, values);
+  return connection.execute(statement, values);
+};
+
+const querySql = async (connection, statement, values = []) => {
+  if (typeof connection?.query === 'function') {
+    const result = await connection.query(statement, values);
+    return result?.values ?? [];
+  }
+  const result = await connection.execute(statement, values);
+  return result?.values ?? [];
+};
+
+const initSQLite = async () => {
+  const plugin = getSQLitePlugin();
+  if (!plugin) return null;
+  if (sqliteReadyPromise) return sqliteReadyPromise;
+  sqliteReadyPromise = (async () => {
+    try {
+      await plugin.checkConnectionsConsistency?.();
+      const hasConnection = await plugin.isConnection?.({ database: SQLITE_DB_NAME, readonly: false });
+      if (!hasConnection?.result) {
+        await plugin.createConnection?.({
+          database: SQLITE_DB_NAME,
+          version: 1,
+          encrypted: false,
+          mode: 'no-encryption',
+          readonly: false,
+        });
+      }
+      const connection = await plugin.retrieveConnection?.({ database: SQLITE_DB_NAME, readonly: false });
+      await connection.open?.();
+      await runSql(connection, 'PRAGMA foreign_keys = ON;');
+      await runSql(
+        connection,
+        `CREATE TABLE IF NOT EXISTS ${SQLITE_TABLE} (
+          store_name TEXT NOT NULL,
+          row_id TEXT NOT NULL,
+          row_json TEXT NOT NULL,
+          updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+          PRIMARY KEY (store_name, row_id)
+        );`,
+      );
+      await runSql(
+        connection,
+        `CREATE TABLE IF NOT EXISTS ${SQLITE_REL_PREFIX}clubs (
+          id TEXT PRIMARY KEY NOT NULL,
+          name TEXT
+        );`,
+      );
+      await runSql(
+        connection,
+        `CREATE TABLE IF NOT EXISTS ${SQLITE_REL_PREFIX}players (
+          id TEXT PRIMARY KEY NOT NULL,
+          club_id TEXT,
+          FOREIGN KEY (club_id) REFERENCES ${SQLITE_REL_PREFIX}clubs(id) ON DELETE SET NULL
+        );`,
+      );
+      await runSql(
+        connection,
+        `CREATE TABLE IF NOT EXISTS ${SQLITE_REL_PREFIX}offers (
+          id TEXT PRIMARY KEY NOT NULL,
+          player_id TEXT NOT NULL,
+          club_id TEXT NOT NULL,
+          FOREIGN KEY (player_id) REFERENCES ${SQLITE_REL_PREFIX}players(id) ON DELETE CASCADE,
+          FOREIGN KEY (club_id) REFERENCES ${SQLITE_REL_PREFIX}clubs(id) ON DELETE CASCADE
+        );`,
+      );
+      await runSql(
+        connection,
+        `CREATE TABLE IF NOT EXISTS ${SQLITE_REL_PREFIX}transfers (
+          id TEXT PRIMARY KEY NOT NULL,
+          player_id TEXT NOT NULL,
+          from_club_id TEXT,
+          to_club_id TEXT,
+          FOREIGN KEY (player_id) REFERENCES ${SQLITE_REL_PREFIX}players(id) ON DELETE CASCADE,
+          FOREIGN KEY (from_club_id) REFERENCES ${SQLITE_REL_PREFIX}clubs(id) ON DELETE SET NULL,
+          FOREIGN KEY (to_club_id) REFERENCES ${SQLITE_REL_PREFIX}clubs(id) ON DELETE SET NULL
+        );`,
+      );
+      await runSql(
+        connection,
+        `CREATE TABLE IF NOT EXISTS ${SQLITE_REL_PREFIX}contracts (
+          id TEXT PRIMARY KEY NOT NULL,
+          player_id TEXT NOT NULL,
+          club_id TEXT,
+          FOREIGN KEY (player_id) REFERENCES ${SQLITE_REL_PREFIX}players(id) ON DELETE CASCADE,
+          FOREIGN KEY (club_id) REFERENCES ${SQLITE_REL_PREFIX}clubs(id) ON DELETE SET NULL
+        );`,
+      );
+      await runSql(
+        connection,
+        `CREATE TABLE IF NOT EXISTS ${SQLITE_REL_PREFIX}fixtures (
+          id TEXT PRIMARY KEY NOT NULL,
+          home_club_id TEXT,
+          away_club_id TEXT,
+          FOREIGN KEY (home_club_id) REFERENCES ${SQLITE_REL_PREFIX}clubs(id) ON DELETE SET NULL,
+          FOREIGN KEY (away_club_id) REFERENCES ${SQLITE_REL_PREFIX}clubs(id) ON DELETE SET NULL
+        );`,
+      );
+      await runSql(
+        connection,
+        `CREATE TABLE IF NOT EXISTS ${SQLITE_REL_PREFIX}match_results (
+          id TEXT PRIMARY KEY NOT NULL,
+          player_id TEXT,
+          fixture_id TEXT,
+          club_id TEXT,
+          opponent_id TEXT,
+          FOREIGN KEY (player_id) REFERENCES ${SQLITE_REL_PREFIX}players(id) ON DELETE SET NULL,
+          FOREIGN KEY (fixture_id) REFERENCES ${SQLITE_REL_PREFIX}fixtures(id) ON DELETE SET NULL,
+          FOREIGN KEY (club_id) REFERENCES ${SQLITE_REL_PREFIX}clubs(id) ON DELETE SET NULL,
+          FOREIGN KEY (opponent_id) REFERENCES ${SQLITE_REL_PREFIX}clubs(id) ON DELETE SET NULL
+        );`,
+      );
+      return connection;
+    } catch (error) {
+      console.warn('[AgentFoot] SQLite unavailable, fallback to IndexedDB', error);
+      sqliteReadyPromise = null;
+      return null;
+    }
+  })();
+  return sqliteReadyPromise;
+};
+
+const syncSqlRelationalMirror = async (state = {}) => {
+  const sqlite = await initSQLite();
+  if (!sqlite) return;
+  const snapshot = createGameDatabaseSnapshot(state);
+  const clubs = (snapshot.clubs ?? []).filter((row) => row?.id);
+  const players = (snapshot.players ?? []).filter((row) => row?.id);
+  const offers = (snapshot.club_offers ?? []).filter((row) => row?.id && row?.player_id && row?.club_id);
+  const transfers = (snapshot.transfers ?? []).filter((row) => row?.id && row?.player_id);
+  const contracts = (snapshot.contracts ?? []).filter((row) => row?.id && row?.player_id);
+  const fixtures = (snapshot.fixtures ?? []).filter((row) => row?.id);
+  const matchResults = (snapshot.match_results ?? []).filter((row) => row?.id);
+
+  await runSql(sqlite, 'BEGIN IMMEDIATE TRANSACTION;');
+  try {
+    await runSql(sqlite, `DELETE FROM ${SQLITE_REL_PREFIX}match_results;`);
+    await runSql(sqlite, `DELETE FROM ${SQLITE_REL_PREFIX}fixtures;`);
+    await runSql(sqlite, `DELETE FROM ${SQLITE_REL_PREFIX}contracts;`);
+    await runSql(sqlite, `DELETE FROM ${SQLITE_REL_PREFIX}transfers;`);
+    await runSql(sqlite, `DELETE FROM ${SQLITE_REL_PREFIX}offers;`);
+    await runSql(sqlite, `DELETE FROM ${SQLITE_REL_PREFIX}players;`);
+    await runSql(sqlite, `DELETE FROM ${SQLITE_REL_PREFIX}clubs;`);
+
+    for (const club of clubs) {
+      await runSql(sqlite, `INSERT INTO ${SQLITE_REL_PREFIX}clubs (id, name) VALUES (?, ?)`, [club.id, club.name ?? null]);
+    }
+    for (const player of players) {
+      await runSql(sqlite, `INSERT INTO ${SQLITE_REL_PREFIX}players (id, club_id) VALUES (?, ?)`, [player.id, player.club_current_id ?? null]);
+    }
+    for (const offer of offers) {
+      await runSql(sqlite, `INSERT INTO ${SQLITE_REL_PREFIX}offers (id, player_id, club_id) VALUES (?, ?, ?)`, [offer.id, offer.player_id, offer.club_id]);
+    }
+    for (const transfer of transfers) {
+      await runSql(sqlite, `INSERT INTO ${SQLITE_REL_PREFIX}transfers (id, player_id, from_club_id, to_club_id) VALUES (?, ?, ?, ?)`, [transfer.id, transfer.player_id, transfer.from_club_id ?? null, transfer.to_club_id ?? null]);
+    }
+    for (const contract of contracts) {
+      await runSql(sqlite, `INSERT INTO ${SQLITE_REL_PREFIX}contracts (id, player_id, club_id) VALUES (?, ?, ?)`, [contract.id, contract.player_id, contract.club_id ?? null]);
+    }
+    for (const fixture of fixtures) {
+      await runSql(sqlite, `INSERT INTO ${SQLITE_REL_PREFIX}fixtures (id, home_club_id, away_club_id) VALUES (?, ?, ?)`, [fixture.id, fixture.home_club_id ?? null, fixture.away_club_id ?? null]);
+    }
+    for (const result of matchResults) {
+      await runSql(
+        sqlite,
+        `INSERT INTO ${SQLITE_REL_PREFIX}match_results (id, player_id, fixture_id, club_id, opponent_id) VALUES (?, ?, ?, ?, ?)`,
+        [result.id, result.player_id ?? null, result.fixture_id ?? null, result.club_id ?? null, result.opponent_id ?? null],
+      );
+    }
+    await runSql(sqlite, 'COMMIT;');
+  } catch (error) {
+    await runSql(sqlite, 'ROLLBACK;');
+    throw error;
+  }
+};
 
 const legacyPreviewFromState = (state) => ({
   agencyName: state?.agencyProfile?.name ?? 'Agent FC',
@@ -243,7 +478,59 @@ const openDb = () => {
   });
 };
 
+const getRawIdbStoreNames = (db) => Array.from(db.objectStoreNames ?? []);
+
+const migrateIndexedDbToSQLiteIfNeeded = async (connection) => {
+  if (!connection || !supportsIndexedDb()) return;
+  const migratedRows = await querySql(
+    connection,
+    `SELECT row_json FROM ${SQLITE_TABLE} WHERE store_name = ? AND row_id = ? LIMIT 1`,
+    ['meta', SQLITE_MIGRATION_KEY],
+  );
+  if (migratedRows.length) return;
+
+  const db = await openDb();
+  if (!db) return;
+  const storeNames = getRawIdbStoreNames(db).filter((name) => STORE_NAMES.includes(name));
+  for (const storeName of storeNames) {
+    const rows = await new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const req = tx.objectStore(storeName).getAll();
+      req.onsuccess = () => resolve(req.result ?? []);
+      req.onerror = () => reject(req.error);
+    });
+    for (const row of rows) {
+      if (!row?.id) continue;
+      await runSql(
+        connection,
+        `INSERT OR REPLACE INTO ${SQLITE_TABLE} (store_name, row_id, row_json, updated_at) VALUES (?, ?, ?, ?)`,
+        [storeName, String(row.id), JSON.stringify(row), Date.now()],
+      );
+    }
+  }
+  await runSql(
+    connection,
+    `INSERT OR REPLACE INTO ${SQLITE_TABLE} (store_name, row_id, row_json, updated_at) VALUES (?, ?, ?, ?)`,
+    ['meta', SQLITE_MIGRATION_KEY, JSON.stringify({ id: SQLITE_MIGRATION_KEY, doneAt: Date.now() }), Date.now()],
+  );
+};
+
 const idbRead = async (storeName, key) => {
+  const sqlite = await initSQLite();
+  if (sqlite) {
+    await migrateIndexedDbToSQLiteIfNeeded(sqlite);
+    const rows = await querySql(
+      sqlite,
+      `SELECT row_json FROM ${SQLITE_TABLE} WHERE store_name = ? AND row_id = ? LIMIT 1`,
+      [storeName, String(key)],
+    );
+    if (!rows.length) return null;
+    try {
+      return JSON.parse(rows[0].row_json);
+    } catch {
+      return null;
+    }
+  }
   const db = await openDb();
   if (!db || !db.objectStoreNames.contains(storeName)) return null;
   return new Promise((resolve, reject) => {
@@ -358,6 +645,18 @@ const normalizeRow = (storeName, row) => {
 };
 
 const idbWrite = async (storeName, value) => {
+  const sqlite = await initSQLite();
+  if (sqlite) {
+    await migrateIndexedDbToSQLiteIfNeeded(sqlite);
+    const row = normalizeRow(storeName, value, 0);
+    if (!row) return null;
+    await runSql(
+      sqlite,
+      `INSERT OR REPLACE INTO ${SQLITE_TABLE} (store_name, row_id, row_json, updated_at) VALUES (?, ?, ?, ?)`,
+      [storeName, String(row.id), JSON.stringify(row), Date.now()],
+    );
+    return true;
+  }
   const db = await openDb();
   if (!db || !db.objectStoreNames.contains(storeName)) return null;
   const row = normalizeRow(storeName, value, 0);
@@ -371,6 +670,12 @@ const idbWrite = async (storeName, value) => {
 };
 
 const idbDelete = async (storeName, key) => {
+  const sqlite = await initSQLite();
+  if (sqlite) {
+    await migrateIndexedDbToSQLiteIfNeeded(sqlite);
+    await runSql(sqlite, `DELETE FROM ${SQLITE_TABLE} WHERE store_name = ? AND row_id = ?`, [storeName, String(key)]);
+    return true;
+  }
   const db = await openDb();
   if (!db || !db.objectStoreNames.contains(storeName)) return null;
   return new Promise((resolve, reject) => {
@@ -382,6 +687,20 @@ const idbDelete = async (storeName, key) => {
 };
 
 const idbGetAll = async (storeName) => {
+  const sqlite = await initSQLite();
+  if (sqlite) {
+    await migrateIndexedDbToSQLiteIfNeeded(sqlite);
+    const rows = await querySql(sqlite, `SELECT row_json FROM ${SQLITE_TABLE} WHERE store_name = ?`, [storeName]);
+    return rows
+      .map((row) => {
+        try {
+          return JSON.parse(row.row_json);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  }
   const db = await openDb();
   if (!db || !db.objectStoreNames.contains(storeName)) return [];
   return new Promise((resolve, reject) => {
@@ -407,6 +726,13 @@ const sortRows = (rows = [], sortBy = null, direction = 'asc') => {
 };
 
 const idbGetAllByIndex = async (storeName, indexName, value) => {
+  const sqlite = await initSQLite();
+  if (sqlite) {
+    const rows = await idbGetAll(storeName);
+    const keyPath = getIndexKeyPath(storeName, indexName);
+    if (!keyPath) return [];
+    return rows.filter((row) => isIndexMatch(row, keyPath, value));
+  }
   const db = await openDb();
   if (!db || !db.objectStoreNames.contains(storeName)) return [];
   return new Promise((resolve, reject) => {
@@ -423,6 +749,26 @@ const idbGetAllByIndex = async (storeName, indexName, value) => {
 };
 
 const idbWriteTables = async (tables = {}, { clear = true } = {}) => {
+  const sqlite = await initSQLite();
+  if (sqlite) {
+    await migrateIndexedDbToSQLiteIfNeeded(sqlite);
+    const entries = Object.entries(tables)
+      .map(([name, rows]) => [SNAPSHOT_TABLE_MAP[name] ?? name, Array.isArray(rows) ? rows : []]);
+    for (const [storeName, rows] of entries) {
+      if (!STORE_NAMES.includes(storeName)) continue;
+      if (clear) await runSql(sqlite, `DELETE FROM ${SQLITE_TABLE} WHERE store_name = ?`, [storeName]);
+      for (const row of rows) {
+        const normalized = normalizeRow(storeName, row);
+        if (!normalized) continue;
+        await runSql(
+          sqlite,
+          `INSERT OR REPLACE INTO ${SQLITE_TABLE} (store_name, row_id, row_json, updated_at) VALUES (?, ?, ?, ?)`,
+          [storeName, String(normalized.id), JSON.stringify(normalized), Date.now()],
+        );
+      }
+    }
+    return true;
+  }
   const db = await openDb();
   if (!db) return null;
   const entries = Object.entries(tables)
@@ -446,6 +792,15 @@ const idbWriteTables = async (tables = {}, { clear = true } = {}) => {
 };
 
 const idbClearStores = async (storeNames = []) => {
+  const sqlite = await initSQLite();
+  if (sqlite) {
+    await migrateIndexedDbToSQLiteIfNeeded(sqlite);
+    for (const storeName of storeNames) {
+      if (!STORE_NAMES.includes(storeName)) continue;
+      await runSql(sqlite, `DELETE FROM ${SQLITE_TABLE} WHERE store_name = ?`, [storeName]);
+    }
+    return true;
+  }
   const db = await openDb();
   if (!db) return null;
   const names = storeNames.filter((storeName) => db.objectStoreNames.contains(storeName));
@@ -490,16 +845,19 @@ const removeLegacySave = () => {
 
 const buildSaveRecord = (state, slot = 1) => {
   const normalizedSlot = normalizeSaveSlot(slot);
-  const preview = legacyPreviewFromState(state);
+  const serializableState = stripRuntimeEntityDb(applyRuntimeIntegrity(state));
+  const preview = legacyPreviewFromState(serializableState);
   const season = preview.season;
-  const week = state?.week ?? 1;
-  const snapshot = createGameDatabaseSnapshot(state ?? {});
+  const week = serializableState?.week ?? 1;
+  const snapshot = createGameDatabaseSnapshot(serializableState ?? {});
   return {
     id: getSaveRecordId(normalizedSlot),
     slot: normalizedSlot,
     updatedAt: Date.now(),
-    state,
+    state: serializableState,
     snapshot,
+    entityDatabase: snapshot,
+    entityDatabaseSchemaVersion: DB_VERSION,
     catalogId: CATALOG_ID,
     catalogVersion: DB_VERSION,
     preview,
@@ -683,8 +1041,9 @@ const rebuildLeagueTables = (rows = [], fallback = {}) => {
 const rebuildClubMap = (rows = [], rawKey, fallback = {}) => {
   if (!rows.length) return fallback;
   return rows.reduce((map, row) => {
-    if (!row.club_name) return map;
-    return { ...map, [row.club_name]: row[rawKey] ?? row.raw ?? row.relation_score ?? row };
+    const key = row.club_id ?? row.club_name;
+    if (!key) return map;
+    return { ...map, [key]: row[rawKey] ?? row.raw ?? row.relation_score ?? row };
   }, fallback);
 };
 
@@ -697,18 +1056,41 @@ const rebuildDossierMemory = (rows = [], fallback = {}) => {
   };
   rows.forEach((row) => {
     if (row.scope === 'player' && row.player_id && row.raw_entry) next.players[row.player_id] = row.raw_entry;
-    if (row.scope === 'club' && row.club_name && row.raw_entry) next.clubs[row.club_name] = row.raw_entry;
+    if (row.scope === 'club' && row.raw_entry) {
+      const key = row.club_id ?? row.club_name;
+      if (key) next.clubs[key] = row.raw_entry;
+    }
     if (row.scope === 'media' && row.media_id && row.raw_entry) next.media[row.media_id] = row.raw_entry;
   });
   return next;
 };
 
+const rebuildNarrativeTemplates = (rows = [], fallback = {}) => {
+  if (!rows.length) return fallback;
+  return rows.reduce((index, row) => {
+    const domain = row.domain;
+    const periodKey = row.period_key ?? 'global';
+    if (!domain) return index;
+    const key = `${domain}:${periodKey}`;
+    const template = row.payload ?? {
+      category: row.category ?? null,
+      subject: row.subject ?? null,
+      body: row.body ?? null,
+      text: row.text ?? null,
+    };
+    return {
+      ...index,
+      [key]: [...(index[key] ?? []), template],
+    };
+  }, fallback);
+};
+
 const hydrateStateFromTables = (fallbackState = {}, tables = {}) => {
   const players = tables.players ?? [];
   const rawPlayers = players.filter((row) => row?.raw_player);
-  const roster = rawPlayers.filter((row) => row.market_status === 'roster' || row.source === 'roster').map((row) => row.raw_player);
-  const market = rawPlayers.filter((row) => row.market_status === 'market' || row.source === 'market').map((row) => row.raw_player);
-  const freeAgents = rawPlayers.filter((row) => row.market_status === 'free_agent' || row.source === 'freeAgent').map((row) => ({ ...row.raw_player, freeAgent: true }));
+  const roster = rawPlayers.filter((row) => row.market_status === 'roster' || row.source === 'roster').map((row) => ensureGabrielFixioPower(row.raw_player));
+  const market = rawPlayers.filter((row) => row.market_status === 'market' || row.source === 'market').map((row) => ensureGabrielFixioPower(row.raw_player));
+  const freeAgents = rawPlayers.filter((row) => row.market_status === 'free_agent' || row.source === 'freeAgent').map((row) => ensureGabrielFixioPower({ ...row.raw_player, freeAgent: true }));
   const rawMessages = (tables.messages ?? []).filter((row) => row?.raw_message);
   const inboxMessages = rawMessages.filter((row) => row.source !== 'queue').map((row) => row.raw_message);
   const queuedMessages = rawMessages.filter((row) => row.source === 'queue').map((row) => row.raw_message);
@@ -726,7 +1108,7 @@ const hydrateStateFromTables = (fallbackState = {}, tables = {}) => {
     agencyProfile: agency ? {
       ...(fallbackState.agencyProfile ?? {}),
       id: agency.id,
-      name: agency.name,
+      name: normalizeAgencyName(agency.name, fallbackState.agencyProfile?.name ?? 'Agent FC'),
       country: agency.country,
       countryCode: agency.country_code ?? agency.countryCode,
       city: agency.city,
@@ -776,7 +1158,7 @@ const hydrateStateFromTables = (fallbackState = {}, tables = {}) => {
     clubMemory: rebuildClubMap(tables.club_memory ?? [], 'raw', fallbackState.clubMemory ?? {}),
     clubRelations: rebuildClubMap(tables.club_relations ?? [], 'raw_score', fallbackState.clubRelations ?? {}),
     dossierMemory: rebuildDossierMemory(tables.dossier_memory ?? [], fallbackState.dossierMemory ?? {}),
-    agencyGoals: rowsToRawList(tables.agency_goals, 'raw_goal').length ? rowsToRawList(tables.agency_goals, 'raw_goal') : fallbackState.agencyGoals ?? [],
+    agencyGoals: [],
     worldState: worldState ?? fallbackState.worldState,
     worldCupState: worldCupState ?? fallbackState.worldCupState,
     europeanCupData,
@@ -785,6 +1167,7 @@ const hydrateStateFromTables = (fallbackState = {}, tables = {}) => {
       const seasonKey = String(row.season_id ?? '').replace('season_', '');
       return seasonKey ? { ...awards, [seasonKey]: row.raw_awards ?? row.awards ?? {} } : awards;
     }, fallbackState.seasonAwards ?? {}),
+    narrativeTemplates: rebuildNarrativeTemplates(tables.narrative_templates ?? [], fallbackState.narrativeTemplates ?? {}),
     databaseHydrated: true,
   };
 };
@@ -797,6 +1180,7 @@ const hydrateSavedRecordFromDatabase = async (record) => {
   return {
     ...record,
     state: hydrateStateFromTables(record.state, tables),
+    entityDatabase: record.entityDatabase ?? record.snapshot ?? null,
     databaseTables: tables,
   };
 };
@@ -955,6 +1339,7 @@ export const saveLocalGameProgress = async (state, slot = 1) => {
     await ensureLocalGameDatabase();
     const normalizedSlot = normalizeSaveSlot(slot);
     const record = buildSaveRecord(state, normalizedSlot);
+    await syncSqlRelationalMirror(record.state);
     await idbWrite('saves', record);
     await idbWriteTables(buildSnapshotTables(record.snapshot), { clear: true });
     await persistActiveSaveMeta(record);
@@ -1041,6 +1426,7 @@ export const importLocalGameSlot = async (slot = 1, payload = null, { activate =
     preview: importedRecord.preview ?? legacyPreviewFromState(importedRecord.state),
     snapshot: importedRecord.snapshot ?? createGameDatabaseSnapshot(importedRecord.state),
   };
+  await syncSqlRelationalMirror(record.state);
   await idbWrite('saves', record);
   if (activate) {
     await restoreSnapshotForRecord(record);
@@ -1089,7 +1475,7 @@ export const getLocalGameDatabaseView = async () => {
     negotiations: tables.negotiations ?? [],
     negotiationTurns: tables.negotiation_turns ?? [],
     seasons: tables.seasons ?? [],
-    objectives: tables.objectives ?? [],
+    objectives: [],
     eventInstances: tables.event_instances ?? [],
     fixtures: tables.fixtures ?? [],
     matchResults: tables.match_results ?? [],
@@ -1116,7 +1502,7 @@ export const getLocalGameDatabaseView = async () => {
     dossierMemory: tables.dossier_memory ?? [],
     decisionHistory: tables.decision_history ?? [],
     contacts: tables.contacts ?? [],
-    agencyGoals: tables.agency_goals ?? [],
+    agencyGoals: [],
     narrativeArcs: tables.narrative_arcs ?? [],
     seasonAwards: tables.season_awards ?? [],
     saveSlots: tables.save_slots ?? [],

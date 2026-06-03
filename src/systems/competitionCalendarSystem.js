@@ -1,29 +1,29 @@
-export const INTERNATIONAL_BREAK_WEEKS = [6, 11, 18, 30];
+export const INTERNATIONAL_BREAK_WEEKS = [6, 11, 18];
 
 export const EUROPEAN_SCHEDULE = {
   CL: {
-    league: [3, 5, 7, 9, 11, 13, 15, 17],
-    playoff: [20, 21],
-    roundOf16: [23, 24],
-    quarters: [26, 27],
-    semis: [29, 30],
-    final: [33],
+    league: [4, 6, 8, 10, 12, 14, 16, 18],
+    playoff: [22, 23],
+    roundOf16: [26, 27],
+    quarters: [30, 31],
+    semis: [34, 35],
+    final: [37],
   },
   EL: {
     league: [4, 6, 8, 10, 12, 14, 16, 18],
-    playoff: [20, 21],
-    roundOf16: [23, 24],
-    quarters: [26, 27],
-    semis: [29, 30],
-    final: [33],
+    playoff: [22, 23],
+    roundOf16: [26, 27],
+    quarters: [30, 31],
+    semis: [34, 35],
+    final: [37],
   },
   ECL: {
-    league: [5, 7, 9, 11, 13, 15],
-    playoff: [20, 21],
-    roundOf16: [23, 24],
-    quarters: [26, 27],
-    semis: [29, 30],
-    final: [33],
+    league: [6, 8, 10, 12, 14, 16],
+    playoff: [22, 23],
+    roundOf16: [26, 27],
+    quarters: [30, 31],
+    semis: [34, 35],
+    final: [37],
   },
 };
 

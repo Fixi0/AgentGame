@@ -67,6 +67,7 @@ const agencyStyles = [
 export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeStaff, onUpdateAgencyProfile, onStartScoutingMission }) {
   const [profile, setProfile] = useState(state.agencyProfile);
   const [flash, setFlash] = useState(null); // { key, ts }
+  const [section, setSection] = useState('identity');
   const availableCities = useMemo(() => getCitiesForCountry(profile.countryCode), [profile.countryCode]);
   const progression = getAgencyProgressSnapshot(state);
   const getModuleEffect = (key, level) => OFFICE_UPGRADE_EFFECTS[key]?.[level] ?? 'Niveau maximum';
@@ -123,6 +124,12 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
     setProfile(nextProfile);
   };
   const saveProfile = () => onUpdateAgencyProfile(profile);
+  const sections = [
+    { key: 'identity', label: 'Identité' },
+    { key: 'structure', label: 'Structure' },
+    { key: 'staff', label: 'Staff' },
+    { key: 'scouting', label: 'Scouting' },
+  ];
 
 
   return (
@@ -137,10 +144,28 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
         label={getOfficeStageLabel(state.agencyLevel)}
         title={profile.name}
         subtitle={`${profile.city} · ${COUNTRIES.find((country) => country.code === profile.countryCode)?.label} · Niv. ${state.agencyLevel}/10`}
-        height={170}
+        height={132}
       />
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7, marginBottom: 12 }}>
+        {sections.map((item) => {
+          const active = section === item.key;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setSection(item.key)}
+              className={`af-chip ${active ? 'is-active' : ''}`}
+              style={{ padding: '9px 6px', fontSize: 9.5, letterSpacing: '.06em' }}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+
       <div style={S.cardList}>
+        {section === 'identity' && (
         <div style={S.offCard}>
           <div style={S.offHead}>
             <div style={{ ...S.agencyAvatar, background: profile.color }}>{profile.name.slice(0, 2).toUpperCase()}</div>
@@ -205,7 +230,10 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
           </div>
           <button onClick={saveProfile} style={S.upBtn}>ENREGISTRER L'IDENTITE</button>
         </div>
+        )}
 
+        {section === 'structure' && (
+        <>
         <div style={S.offCard}>
           <div style={S.offHead}>
             <Briefcase size={22} color="#00a676" />
@@ -221,35 +249,13 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
           <div style={S.sumRow}><span style={S.sumK}>Récompense</span><strong>{progression.stageReward}</strong></div>
           <div style={S.progBar}><div style={{ ...S.progFill, width: `${progression.progress}%` }} /></div>
           <div style={{ fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', marginTop: 8, lineHeight: 1.45 }}>
-            {progression.nextStage ? `Prochain palier: ${progression.nextStage}` : 'Tu as atteint le palier le plus haut.'}
+            {progression.nextStage ? `Prochaine étape: ${progression.nextStage}` : 'Progression maximale atteinte.'}
           </div>
-          <div style={{ marginTop: 10, display: 'grid', gap: 6 }}>
-            <div style={S.promiseRow}><span>Réputation</span><strong>{progression.metrics.reputation}/1000</strong></div>
+          <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 7 }}>
+            <div style={S.promiseRow}><span>Réputation</span><strong>{progression.metrics.reputation}</strong></div>
             <div style={S.promiseRow}><span>Structure</span><strong>{progression.metrics.officeLevel}/30</strong></div>
             <div style={S.promiseRow}><span>Staff</span><strong>{progression.metrics.staffLevel}/40</strong></div>
-            <div style={S.promiseRow}><span>Agence</span><strong>{progression.metrics.agencyLevel}/10</strong></div>
-            <div style={S.promiseRow}><span>Complétion agence</span><strong>{progression.metrics.agencyCompletion}/100</strong></div>
             <div style={S.promiseRow}><span>Portefeuille</span><strong>{formatMoney(progression.metrics.portfolioValue)}</strong></div>
-            <div style={S.promiseRow}><span>Confiance clubs</span><strong>{progression.metrics.relationScore}/100</strong></div>
-            <div style={S.promiseRow}><span>Occupation</span><strong>{progression.metrics.utilization}%</strong></div>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 10, letterSpacing: '.14em', color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>NIVEAUX D'AGENCE</div>
-            {progression.levelRewards.map((level) => (
-              <div key={level.level} style={{ ...S.promiseRow, opacity: level.reached ? 1 : 0.5 }}>
-                <span>Niveau {level.level}</span>
-                <strong>{level.reward}</strong>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 10, letterSpacing: '.14em', color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>PALIERS</div>
-            {progression.rewards.map((stage) => (
-              <div key={stage.label} style={{ ...S.promiseRow, opacity: stage.reached ? 1 : 0.5 }}>
-                <span>{stage.label}</span>
-                <strong>{stage.reward}</strong>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -302,8 +308,10 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             {flash?.key === item.key && <FlashBurst />}
           </div>
         ))}
+        </>
+        )}
 
-
+        {section === 'staff' && (
         <div style={S.offCard}>
           <div style={S.offHead}>
             <Briefcase size={22} color="#00a676" />
@@ -353,7 +361,9 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             })}
           </div>
         </div>
+        )}
 
+        {section === 'scouting' && (
         <div style={S.offCard}>
           <VisualHeader
             src={scoutingMission}
@@ -380,6 +390,7 @@ export default function Office({ state, onUpgrade, onUpgradeAgency, onUpgradeSta
             </>
           )}
         </div>
+        )}
       </div>
     </div>
   );

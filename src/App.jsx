@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, Briefcase, CalendarDays, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Newspaper, Play, Save, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle } from 'lucide-react';
+import { Activity, Briefcase, CalendarDays, ChevronLeft, DollarSign, FileText, Home, Layers, LogOut, MessageCircle, Network, Play, Save, Search, Shield, ShoppingBag, Star, Telescope, Timer, Trophy, UserCircle } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import AgencyProfile from './components/AgencyProfile';
-import Achievements from './components/Achievements';
+import Achievements, { BADGE_CATALOG } from './components/Achievements';
 import Calendar from './components/Calendar';
 import Dossiers from './components/Dossiers';
 import ContractDashboard from './components/ContractDashboard';
@@ -23,8 +23,6 @@ import Scouting from './components/Scouting';
 import Standings from './components/Standings';
 import NationalSelections from './components/NationalSelections';
 import EuropeanBracket from './components/EuropeanBracket';
-import HallOfFame from './components/HallOfFame';
-import EngineHistory from './components/EngineHistory';
 import SeasonDebug from './components/SeasonDebug';
 
 import CinematicMoment from './components/CinematicMoment';
@@ -80,6 +78,7 @@ import {
 import { getAgencyCapacity } from './systems/agencySystem';
 import { addDecisionHistory, applyCredibilityChange, applyMediaRelation, getNegotiationContextModifier } from './systems/agencyReputationSystem';
 import { applyClubRelation, recordClubMemory } from './systems/clubSystem';
+import { ensureGabrielFixioPower } from './data/squadDatabase';
 import { applyReputationChange } from './systems/reputationSystem';
 import { getCalendarSnapshot } from './systems/seasonSystem';
 import { isEuropeanMatchWeek, EURO_CUP_LABELS } from './systems/europeanCupSystem';
@@ -91,7 +90,6 @@ import { recordDossierEvent } from './systems/coherenceSystem';
 import { recruitPlayer } from './systems/recruitmentSystem';
 import { NO_ADS_PRODUCT_ID, grantAdReward, grantIapPurchase, purchaseShopItem, recordInterstitialAdView, shouldShowInterstitialAd } from './systems/shopSystem';
 import { showInterstitialAd, showRewardedAd } from './services/adService';
-import { syncProgressionSystems } from './systems/objectivesSystem';
 import { createManualNewsPost } from './systems/newsSystem';
 import { simulateAITransfersForWeek } from './systems/aiTransferPersistenceSystem';
 import { applyWeeklySponsorIncome } from './systems/sponsorSystem';
@@ -208,7 +206,7 @@ const buildResponseContextTail = ({ message, player, responseAction }) => {
   if (participant.role === 'staff') followLines.push(`Je garde ${targetLabel === 'direction' ? 'la direction' : `le ${targetLabel}`} dans la boucle.`);
   const clubContext = player?.clubSeasonContext;
   const clubLine = clubContext
-    ? `\n\nJe prends aussi en compte la saison du club: ${player.club} est ${clubContext.position ?? '?'}e/${clubContext.totalClubs ?? '?'} et vise ${clubContext.objective ?? 'une saison stable'}.`
+    ? `\n\nJe prends aussi en compte la saison du club: ${player.club} est ${clubContext.position ?? '?'}e/${clubContext.totalClubs ?? '?'} avec ${clubContext.points ?? 0} points.`
     : '';
   const injuryLine = (player?.injured ?? 0) > 0
     ? `\nPour le physique, tu es encore absent ${player.injured} semaine${player.injured > 1 ? 's' : ''}${player.injuryReason ? ` pour ${String(player.injuryReason).toLowerCase()}` : ''}.`
@@ -225,15 +223,12 @@ const views = {
   contracts: { label: 'Contrats', icon: Briefcase },
   calendar: { label: 'Calend.', icon: CalendarDays },
   standings: { label: 'Ligues', icon: Trophy },
-  news: { label: 'News', icon: Newspaper },
-  media: { label: 'Médias', icon: Newspaper },
   deadline: { label: 'Deadline', icon: Timer },
   scouting: { label: 'Scout', icon: Telescope },
   office: { label: 'Agence', icon: Briefcase },
   profile: { label: 'Profil', icon: UserCircle },
   messages: { label: 'Messages', icon: MessageCircle },
-  achievements: { label: 'Succès', icon: Trophy },
-  engineHistory: { label: 'Moteur', icon: Activity },
+  achievements: { label: 'Badges', icon: Trophy },
   debugSeason: { label: 'Debug', icon: Activity },
 };
 
@@ -241,7 +236,7 @@ const mainNav = [
   ['dashboard', views.dashboard],
   ['roster', views.roster],
   ['market', views.market],
-  ['messages', views.messages],
+  ['social', { label: 'Social', icon: MessageCircle }],
   ['more', { label: 'Plus', icon: Layers }],
 ];
 
@@ -249,41 +244,84 @@ const MAIN_NAV_ASSETS = {
   dashboard: assetPath('tycoon-assets/menu_home.png'),
   roster: assetPath('tycoon-assets/menu_players.png'),
   market: assetPath('tycoon-assets/menu_transfer.png'),
-  messages: assetPath('tycoon-assets/menu_messages.png'),
+  social: assetPath('tycoon-assets/menu_messages.png'),
   more: assetPath('tycoon-assets/menu_settings.png'),
+};
+
+const BADGE_CATALOG_BY_ID = new Map(BADGE_CATALOG.map((badge) => [badge.id, badge]));
+
+const triggerHaptic = (pattern = 8) => {
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(pattern);
+  } catch {
+    // Optional mobile feedback only.
+  }
+};
+
+const playUiTone = (kind = 'tap') => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const now = ctx.currentTime;
+    const freq = kind === 'badge' ? 740 : kind === 'advance' ? 440 : 520;
+    osc.frequency.setValueAtTime(freq, now);
+    osc.frequency.exponentialRampToValueAtTime(kind === 'badge' ? 1180 : freq * 1.18, now + 0.12);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(kind === 'badge' ? 0.055 : 0.025, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + (kind === 'badge' ? 0.28 : 0.09));
+    osc.type = kind === 'badge' ? 'triangle' : 'sine';
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + (kind === 'badge' ? 0.30 : 0.10));
+    setTimeout(() => ctx.close?.(), 420);
+  } catch {
+    // Web Audio may be blocked until user interaction; no hard dependency.
+  }
+};
+
+const playUiFeedback = (kind = 'tap') => {
+  triggerHaptic(kind === 'badge' ? [18, 35, 24] : kind === 'advance' ? [10, 18, 10] : 8);
+  playUiTone(kind);
+};
+
+const reportGameCenterAchievement = (achievementId, percentComplete = 100) => {
+  try {
+    if (!achievementId || typeof window === 'undefined') return;
+    const payload = { type: 'achievement', achievementId, percentComplete };
+    window.webkit?.messageHandlers?.gamecenter?.postMessage(payload);
+    window.Capacitor?.Plugins?.AgentFootGameCenter?.reportAchievement?.(payload);
+  } catch {
+    // Game Center is only available in the signed native app.
+  }
 };
 
 // Menu Plus simplifié : un seul bouton par fonctionnalité (pas de doublon).
 // - "Agence" couvre identité + staff + profil (Office.jsx contient déjà tout).
 // - "Compétitions" regroupe ligues, coupes Euro et calendrier (Standings.jsx).
 const moreItems = [
-  { key: 'office',       label: 'Agence',       desc: 'Identité, staff et bilan',     icon: Briefcase },
   { key: 'standings',    label: 'Compétitions', desc: 'Ligues, Europe et calendrier', icon: Trophy },
-  { key: 'selections',   label: 'Sélections',   desc: 'Listes des 23 par nation',     icon: Trophy },
   { key: 'shop',         label: 'Boutique',     desc: 'Gemmes et bonus',              icon: ShoppingBag },
-  { key: 'achievements', label: 'Succès',       desc: '120 exploits à débloquer',     icon: Trophy },
-  { key: 'engineHistory', label: 'Historique moteur', desc: 'Matchs simulés et stats', icon: Activity },
-  { key: 'social',       label: 'Hub Social',   desc: 'InstaPro · WhatsCall · Chirp', icon: Network },
-  { key: 'scouting',     label: 'Scouting',     desc: 'Missions et rapports',         icon: Telescope },
-  { key: 'contracts',    label: 'Contrats',     desc: "Vue d'ensemble des contrats",  icon: Briefcase },
-  { key: 'dossiers',     label: 'Dossiers',     desc: 'Messages, tensions, mémoire',  icon: FileText },
-  { key: 'deadline',     label: 'Deadline Day', desc: 'Appels mercato',               icon: Timer },
-  
-  { key: 'hallOfFame',   label: 'Hall of Fame', desc: 'Sponsors, trophées, légendes', icon: Trophy },
+  { key: 'dossiers',     label: 'Dossiers',     desc: 'Contrats, offres, deadline',   icon: FileText },
+  { key: 'achievements', label: 'Badges',       desc: 'Collection et trophées débloqués', icon: Trophy },
 ];
+const moreNavViews = new Set(['more', ...moreItems.map((item) => item.key), 'contracts', 'deadline']);
 
 const playerFromDatabaseRow = (row = {}) => {
   if (row.raw_player) {
-    return {
+    return ensureGabrielFixioPower({
       ...row.raw_player,
       databaseRowId: row.id,
       databaseSource: row.source ?? row.market_status,
-    };
+    });
   }
   // Calculate clubRole if missing using intelligent function
   const clubRole = row.club_role ?? assignIntelligentClubRole(row);
 
-  return {
+  return ensureGabrielFixioPower({
     id: row.id,
     firstName: row.first_name ?? '',
     lastName: row.last_name ?? '',
@@ -331,7 +369,7 @@ const playerFromDatabaseRow = (row = {}) => {
     playerProfile: row.player_profile,
     databaseRowId: row.id,
     databaseSource: row.source ?? row.market_status,
-  };
+  });
 };
 
 const messageFromDatabaseRow = (row = {}) => {
@@ -389,6 +427,7 @@ const rebuildClubMapFromDb = (rows = [], rawKey, fallback = {}) => {
     return { ...map, [row.club_name]: row[rawKey] ?? row.raw ?? row.relation_score ?? row };
   }, {});
 };
+
 
 const buildStateFromDatabaseView = (fallbackState, databaseView) => {
   if (!fallbackState || !databaseView?.tables) return fallbackState;
@@ -461,14 +500,17 @@ export default function FootballAgentGame() {
   const [activeMessageThreadKey, setActiveMessageThreadKey] = useState(null);
   const [weekTickerData, setWeekTickerData] = useState(null);
   const [saveFlash, setSaveFlash] = useState(false);
+  const [saveActionLoading, setSaveActionLoading] = useState(false);
   const [lastWeekError, setLastWeekError] = useState(null);
   const [forceOnboarding, setForceOnboarding] = useState(false);
   const [databaseView, setDatabaseView] = useState(null);
   const [iapPendingProductId, setIapPendingProductId] = useState(null);
   const [iapProducts, setIapProducts] = useState({});
   const [seasonDebugTapCount, setSeasonDebugTapCount] = useState(0);
+  const [badgeReward, setBadgeReward] = useState(null);
   const startupActionLockRef = useRef(false);
   const importInputRef = useRef(null);
+  const knownBadgeIdsRef = useRef(null);
 
   const buildPreviewFromState = (stateValue, fallback = null) => ({
     agencyName: stateValue?.agencyProfile?.name ?? fallback?.agencyName ?? 'Agent FC',
@@ -599,6 +641,43 @@ export default function FootballAgentGame() {
     setTimeout(() => setToast(null), 2500);
   };
 
+  useEffect(() => {
+    const onPointerUp = (event) => {
+      if (event.target?.closest?.('button,a,[role="button"],input,textarea,select')) {
+        playUiFeedback('tap');
+      }
+    };
+    window.addEventListener('pointerup', onPointerUp, { passive: true });
+    return () => window.removeEventListener('pointerup', onPointerUp);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded || !state) return;
+    const currentIds = new Set((state.badges ?? []).map((badge) => badge?.id).filter(Boolean));
+    if (!knownBadgeIdsRef.current) {
+      knownBadgeIdsRef.current = currentIds;
+      return;
+    }
+    const unlockedId = [...currentIds].find((id) => !knownBadgeIdsRef.current.has(id));
+    knownBadgeIdsRef.current = currentIds;
+    if (!unlockedId) return;
+    const savedBadge = (state.badges ?? []).find((badge) => badge?.id === unlockedId) ?? {};
+    const catalogBadge = BADGE_CATALOG_BY_ID.get(unlockedId) ?? {};
+    const reward = {
+      ...catalogBadge,
+      ...savedBadge,
+      title: catalogBadge.title ?? savedBadge.title ?? 'Badge débloqué',
+      desc: savedBadge.detail ?? catalogBadge.desc ?? 'Nouvelle récompense agence.',
+      gameCenterRewardId: savedBadge.gameCenterRewardId ?? catalogBadge.gameCenterRewardId ?? `agentfc_badge_${unlockedId}`,
+    };
+    setBadgeReward(reward);
+    reportGameCenterAchievement(reward.gameCenterRewardId);
+    playUiFeedback('badge');
+    showToast(`Badge débloqué : ${reward.title}`, 'success');
+    const timer = setTimeout(() => setBadgeReward(null), 3600);
+    return () => clearTimeout(timer);
+  }, [loaded, state?.badges]);
+
   const handleSeasonHeaderTap = () => {
     setSeasonDebugTapCount((count) => {
       const next = count + 1;
@@ -680,33 +759,6 @@ export default function FootballAgentGame() {
     };
   }, []);
 
-  const progressionSyncRef = useRef(false);
-  useEffect(() => {
-    if (!loaded || !state) return;
-    if (progressionSyncRef.current) {
-      progressionSyncRef.current = false;
-      return;
-    }
-    const result = syncProgressionSystems(state);
-    if (!result.changed) return;
-    progressionSyncRef.current = true;
-    setState(result.state);
-    if (result.summary.dailyCompleted.length > 0) {
-      showToast(`Objectif quotidien validé: ${result.summary.dailyCompleted[0]}`, 'success');
-    } else if (result.summary.achievementsUnlocked.length > 0) {
-      showToast(`Exploit débloqué: ${result.summary.achievementsUnlocked[0]}`, 'success');
-    }
-  }, [
-    state?.week,
-    state?.stats?.playersSigned,
-    state?.stats?.transfersDone,
-    state?.stats?.totalEarned,
-    state?.reputation,
-    state?.shopStats?.purchasesTotal,
-    state?.shopStats?.gemsSpentTotal,
-    loaded,
-  ]);
-
   const commitResult = (result, successMessage) => {
     if (result.error) {
       showToast(result.error, 'error');
@@ -754,18 +806,18 @@ export default function FootballAgentGame() {
           day: 'Lundi',
           icon: '📅',
           tone: 'warn',
-          title: 'Semaine de secours',
-          text: `${nextDate.dateLabel} · la simulation principale a rencontré un blocage, mais la semaine avance quand même.`,
-          chips: ['Fallback actif', 'Aucun dossier perdu'],
+          title: 'Semaine agitée',
+          text: `${nextDate.dateLabel} · l'agence garde le cap malgré une semaine plus confuse que prévu.`,
+          chips: ['Agenda maintenu', 'Dossiers protégés'],
         },
         {
           id: 'fallback-mardi',
           day: 'Mardi',
           icon: '💬',
           tone: 'calm',
-          title: 'Messagerie compacte',
-          text: 'On garde les messages en file et on continue sur une base propre.',
-          chips: [`File ${safeState.messageQueue?.length ?? 0}`],
+          title: 'Messages à suivre',
+          text: 'Les échanges importants restent prêts pour la prochaine journée.',
+          chips: [`${safeState.messageQueue?.length ?? 0} échanges`],
         },
         {
           id: 'fallback-dimanche',
@@ -773,8 +825,8 @@ export default function FootballAgentGame() {
           icon: '📈',
           tone: 'good',
           title: 'Bilan provisoire',
-          text: 'Le moteur sera repris au prochain passage, sans bloquer ta partie.',
-          chips: ['Semaine avancée'],
+          text: 'Le calendrier avance et les priorités de l’agence restent sous contrôle.',
+          chips: ['Calendrier avancé'],
         },
       ],
       week: safeState.week ?? 1,
@@ -953,8 +1005,8 @@ export default function FootballAgentGame() {
       showToast('Recrute au moins 1 joueur', 'error');
       return;
     }
-
     try {
+      playUiFeedback('advance');
       setModal(null);
       setWeekTickerData(null);
       setLastWeekError(null);
@@ -970,7 +1022,6 @@ export default function FootballAgentGame() {
         if ((result.report?.newMessagesCount ?? 0) > 0) {
           showToast(`${result.report.newMessagesCount} nouveau message`, 'info');
         }
-        showToast(`Jour ${result.state.day}/7`, 'info');
         return;
       }
       const interstitialDue = shouldShowInterstitialAd(result.state);
@@ -1053,15 +1104,6 @@ export default function FootballAgentGame() {
           console.warn('[AgentFoot] Interstitial unavailable', error);
         });
       }
-      // Reputation milestone detection
-      const REP_MILESTONES = [50, 100, 200, 350, 500, 750, 1000];
-      const REP_MILESTONE_LABELS = { 50: 'Agent connu', 100: 'Agent solide', 200: 'Agent respecté', 350: 'Agent réputé', 500: 'Agent élite', 750: 'Agent légendaire', 1000: '🏆 Sommet atteint !' };
-      const prevRep = playableState.reputation;
-      const nextRep = nextState.reputation;
-      const crossedMilestone = REP_MILESTONES.find((m) => prevRep < m && nextRep >= m);
-      if (crossedMilestone) {
-        setTimeout(() => showToast(`⭐ Palier réputation ${crossedMilestone} — ${REP_MILESTONE_LABELS[crossedMilestone]}`, 'success'), 800);
-      }
       // Show the week ticker first, then the full results modal
       setWeekTickerData(result.report);
       if (result.report.newMessagesCount > 0) {
@@ -1118,6 +1160,7 @@ export default function FootballAgentGame() {
     if (report?.isDailyStep) return;
     setModal({ type: 'results', data: report });
   };
+
 
   const handleChoice = (event, player, choice) => {
     const actionState = getDatabaseBackedState();
@@ -1709,8 +1752,13 @@ export default function FootballAgentGame() {
   };
 
   const handleContinue = async () => {
-    const ok = await loadSlotIntoSession(selectedSaveSlot, { closeMenu: true });
-    if (!ok) showToast(`Aucune sauvegarde dans le slot ${selectedSaveSlot}`, 'error');
+    setSaveActionLoading(true);
+    try {
+      const ok = await loadSlotIntoSession(selectedSaveSlot, { closeMenu: true });
+      if (!ok) showToast(`Aucune sauvegarde dans le slot ${selectedSaveSlot}`, 'error');
+    } finally {
+      setSaveActionLoading(false);
+    }
   };
 
   const handleExportSlot = async () => {
@@ -1970,6 +2018,7 @@ export default function FootballAgentGame() {
           saveSlots={saveSlots}
           selectedSlot={selectedSaveSlot}
           canReturnToGame={Boolean(state)}
+          loading={saveActionLoading}
           onSelectSlot={setSelectedSaveSlot}
           onContinue={handleContinue}
           onNewGame={handleNewGame}
@@ -2004,7 +2053,6 @@ export default function FootballAgentGame() {
   }
 
   const phase = getPhase(state.week);
-  const calendarSnapshot = getCalendarSnapshot(state.week);
   const pendingCounts = getPendingMessageCounts(databaseState ?? state);
   // Badge "match européen ce soir" — uniquement le vrai jour simulé (mardi/mercredi).
   const currentDayIndex = Number(databaseState?.day ?? state?.day ?? 1);
@@ -2019,6 +2067,12 @@ export default function FootballAgentGame() {
   const agencyProfile = state.agencyProfile;
   const agencyEmblemSrc = agencyProfile.emblemSrc || assetPath('branding/agent-foot-logo.png');
   const isDashboardView = view === 'dashboard';
+  const shouldShowBackButton = !['dashboard', 'roster', 'market', 'social', 'more'].includes(view);
+  const getBackView = () => {
+    if (view === 'contracts' || view === 'deadline') return 'dossiers';
+    if (moreNavViews.has(view)) return 'more';
+    return 'dashboard';
+  };
 
   if (forceOnboarding || !agencyProfile.onboarded) {
     return (
@@ -2033,104 +2087,68 @@ export default function FootballAgentGame() {
     <div style={S.app}>
       <style>{CSS}</style>
       <div style={isDashboardView ? { ...S.scrollArea, overflowY: 'hidden', overscrollBehavior: 'none', WebkitOverflowScrolling: 'auto' } : S.scrollArea}>
-      <header style={isDashboardView ? { ...S.header, paddingTop: 'calc(4px + var(--agent-safe-top))', paddingBottom: 2 } : S.header}>
-        <div style={S.brandRow}>
-          <div style={isDashboardView ? { display: 'flex', alignItems: 'center', gap: 10 } : S.logo}>
-            {isDashboardView ? (
-              <div style={{ position: 'relative', width: 42, height: 42, borderRadius: 999, padding: 2, background: 'conic-gradient(from 140deg, oklch(74% 0.18 215), oklch(64% 0.22 295), oklch(74% 0.18 215))', boxShadow: '0 0 18px oklch(64% 0.20 270 / .45)' }}>
-                <div style={{ width: '100%', height: '100%', borderRadius: 999, overflow: 'hidden', background: 'oklch(8% 0.02 258)', display: 'grid', placeItems: 'center' }}>
-                  <img src={agencyEmblemSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
-              </div>
-            ) : (
-              <div style={{ ...S.logoMark, background: agencyProfile.color || 'var(--af-grass)' }}>
+      <header style={{ ...S.header, paddingTop: 12, paddingBottom: 4 }}>
+        <div style={{ ...S.brandRow, marginBottom: 0 }}>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setView('office')}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setView('office');
+              }
+            }}
+            title="Paramètres agence"
+            style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', minWidth: 0 }}
+          >
+            <div style={{ position: 'relative', width: 42, height: 42, borderRadius: 999, padding: 2, background: 'conic-gradient(from 140deg, oklch(74% 0.18 215), oklch(64% 0.22 295), oklch(74% 0.18 215))', boxShadow: '0 0 18px oklch(64% 0.20 270 / .45)', flexShrink: 0 }}>
+              <div style={{ width: '100%', height: '100%', borderRadius: 999, overflow: 'hidden', background: 'oklch(8% 0.02 258)', display: 'grid', placeItems: 'center' }}>
                 <img src={agencyEmblemSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
-            )}
-            {!isDashboardView ? (
-              <div>
-                <div style={S.brandName}>{agencyProfile.name}</div>
-                <div style={S.brandSub}>{agencyProfile.city} · {agencyProfile.ownerName}</div>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gap: 2 }}>
-                <div style={{ fontSize: 15, letterSpacing: '.32em', color: 'var(--af-text)', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1 }}>{agencyProfile.name}</div>
-                <div style={{ fontSize: 8.5, letterSpacing: '.42em', color: 'oklch(72% 0.14 295)', fontWeight: 600, textTransform: 'uppercase', lineHeight: 1 }}>Agency</div>
-              </div>
-            )}
+            </div>
+            <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+              <div style={{ fontSize: 15, letterSpacing: '.32em', color: 'var(--af-text)', fontWeight: 700, textTransform: 'uppercase', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{agencyProfile.name}</div>
+              <div style={{ fontSize: 8.5, letterSpacing: '.42em', color: 'oklch(72% 0.14 295)', fontWeight: 600, textTransform: 'uppercase', lineHeight: 1 }}>Agency</div>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {hasEuroMatchToday && (
-              <button
-                onClick={() => setView('europe')}
-                style={{ fontSize: 10, fontWeight: 900, color: 'var(--af-blue)', background: 'oklch(62% 0.17 245 / .12)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', cursor: 'pointer', animation: 'pulse 2s infinite' }}
-              >
-                Match euro ce soir
-              </button>
-            )}
-            {!isDashboardView && saveFlash && (
-              <span style={{ fontSize: 10, fontWeight: 900, color: 'var(--af-grass)', background: 'oklch(70% 0.19 155 / .10)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif', letterSpacing: '.04em', transition: 'opacity .3s' }}>
-                Sauvegardé
-              </span>
-            )}
-            {isDashboardView ? (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid oklch(78% 0.12 155 / .35)', borderRadius: 999, padding: '6px 12px 6px 6px', background: 'oklch(12% 0.04 165 / .50)', backdropFilter: 'blur(18px)', boxShadow: '0 0 22px oklch(64% 0.18 155 / .22)' }}>
-                <div style={{ width: 22, height: 22, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, oklch(78% 0.18 155), oklch(62% 0.20 158))', color: 'oklch(10% 0.04 165)', fontSize: 12, fontWeight: 900, boxShadow: '0 2px 8px oklch(50% 0.18 158 / .5)' }}>$</div>
-                <div style={{ color: 'var(--af-text)', fontWeight: 700, letterSpacing: '.01em', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{formatMoneyCompact(databaseState.money)}</div>
-              </div>
-            ) : (
-              <>
-                <button onClick={handleManualSave} style={S.iconBtn}>
-                  <Save size={16} />
-                </button>
-                <button onClick={handleReturnToMenu} style={S.iconBtn}>
-                  <LogOut size={16} />
-                </button>
-              </>
-            )}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid oklch(78% 0.12 155 / .35)', borderRadius: 999, padding: '6px 12px 6px 6px', background: 'oklch(12% 0.04 165 / .50)', backdropFilter: 'blur(18px)', boxShadow: '0 0 22px oklch(64% 0.18 155 / .22)', flexShrink: 0 }}>
+              <div style={{ width: 22, height: 22, borderRadius: 999, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, oklch(78% 0.18 155), oklch(62% 0.20 158))', color: 'oklch(10% 0.04 165)', fontSize: 12, fontWeight: 900, boxShadow: '0 2px 8px oklch(50% 0.18 158 / .5)' }}>$</div>
+              <div style={{ color: 'var(--af-text)', fontWeight: 700, letterSpacing: '.01em', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{formatMoneyCompact(databaseState.money)}</div>
+            </div>
           </div>
         </div>
-        {isDashboardView ? null : (
-          <>
-            <div style={{ ...S.seasonBar, cursor: 'default' }} onClick={handleSeasonHeaderTap} title="Debug saison caché">
-              <div>
-                <div style={S.seasonLabel}>{t('SAISON')} {phase.season} · S{phase.seasonWeek}/38</div>
-                <div style={S.seasonDate}>{calendarSnapshot.dateLabel} · {calendarSnapshot.weekRangeLabel}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {state.activePeriod && (
-                  <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--af-gold)', background: 'oklch(82% 0.16 83 / .10)', border: '1px solid var(--af-border)', borderRadius: 6, padding: '2px 7px', fontFamily: 'system-ui,sans-serif' }}>
-                    {state.activePeriod.label}
-                  </span>
-                )}
-                <div style={S.seasonPhase}>{t(phase.phase).toUpperCase()}</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'stretch', background: 'oklch(14% 0.03 258 / .85)', border: '1px solid var(--af-border)', borderRadius: 10, padding: '4px', overflow: 'hidden' }}>
-              {[
-                { label: 'Capital', value: formatMoneyCompact(databaseState.money), accent: 'var(--af-grass)' },
-                { label: 'Réputation', value: `${databaseState.reputation}`, accent: 'var(--af-gold)' },
-                { label: 'Effectif', value: `${databaseState.roster.length}/${getAgencyCapacity(databaseState.agencyLevel)}`, accent: 'var(--af-cyan)' },
-                { label: 'Messages', value: `${pendingCounts.total}`, accent: pendingCounts.total > 0 ? '#f59e7a' : 'var(--af-muted)' },
-              ].map((chip, i, arr) => (
-                <div key={chip.label} style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRight: i < arr.length - 1 ? '1px solid var(--af-border)' : 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={{ fontSize: 9, color: 'var(--af-dim)', fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', lineHeight: 1, fontFamily: 'system-ui,sans-serif' }}>{chip.label}</div>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: chip.accent, lineHeight: 1.2, letterSpacing: '-.02em', whiteSpace: 'nowrap' }}>{chip.value}</div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
       </header>
       <main style={isDashboardView ? { ...S.main, overflow: 'hidden' } : S.main}>
+        {shouldShowBackButton && (
+          <button
+            type="button"
+            onClick={() => setView(getBackView())}
+            className="af-chip"
+            style={{
+              width: 'fit-content',
+              padding: '8px 12px',
+              margin: '0 0 10px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 7,
+              background: 'oklch(12% 0.035 258 / .76)',
+              border: '1px solid var(--af-border)',
+              color: 'var(--af-text)',
+            }}
+          >
+            <ChevronLeft size={15} />
+            Retour
+          </button>
+        )}
         {view === 'dashboard' && <Dashboard state={databaseState} phase={phase} onPlay={handlePlayWeek} onNav={setView} onAcceptOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} onClubDetails={showClubDetails} onOpenContracts={() => setView('contracts')} onCompareOffers={handleCompareOffers} onOpenPlayer={showPlayerDetails} onOpenOffer={handleAcceptOffer} />}
         {view === 'market' && <Market state={databaseState} market={databaseState.market} freeAgents={databaseState.freeAgents} money={databaseState.money} onSign={handleSignPlayer} onRefresh={handleRefreshMarket} onDetails={showPlayerDetails} />}
         {view === 'roster' && <Roster state={databaseState} roster={databaseState.roster} onRelease={handleReleasePlayer} onNego={startNegotiation} onDetails={showPlayerDetails} />}
         {view === 'messages' && <Social state={databaseState} onSocialAction={handleSocialAction} onToast={showToast} initialTab="chats" messages={databaseState.messages} messageQueue={databaseState.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
-        {view === 'more' && <More items={moreItems} onNav={setView} />}
+        {view === 'more' && <More items={moreItems} onNav={setView} onSave={handleManualSave} onMenu={handleReturnToMenu} />}
         {view === 'social' && <Social state={databaseState} onSocialAction={handleSocialAction} onToast={showToast} messages={databaseState.messages} messageQueue={databaseState.messageQueue ?? []} onRespond={handleMessageResponse} onAction={handleMessageAction} focusThreadKey={activeMessageThreadKey} />}
         {view === 'achievements' && <Achievements state={databaseState} />}
-        {view === 'engineHistory' && <EngineHistory state={databaseState} />}
         {view === 'debugSeason' && <SeasonDebug state={databaseState} />}
         {view === 'shop' && (
           <Shop
@@ -2147,8 +2165,6 @@ export default function FootballAgentGame() {
         {view === 'standings' && <Standings state={databaseState} databaseView={databaseView} onClubDetails={showClubDetails} />}
         {view === 'selections' && <NationalSelections state={databaseState} />}
         {view === 'europe' && <EuropeanBracket state={databaseState} databaseView={databaseView} />}
-        
-        {view === 'hallOfFame' && <HallOfFame state={databaseState} />}
         {view === 'deadline' && <DeadlineDay state={databaseState} phase={phase} onNegotiateOffer={handleAcceptOffer} onRejectOffer={handleRejectOffer} />}
         {view === 'scouting' && <Scouting state={databaseState} onStartMission={handleStartScoutingMission} />}
         {view === 'dossiers' && <Dossiers state={databaseState} databaseView={databaseView} onOpenPlayer={showPlayerDetails} onClubDetails={showClubDetails} onNav={setView} onOpenOffer={handleAcceptOffer} />}
@@ -2171,7 +2187,7 @@ export default function FootballAgentGame() {
         {mainNav.map(([key, item]) => {
           const Icon = item.icon;
           const active = key === 'more'
-            ? !['dashboard', 'roster', 'market', 'messages'].includes(view)
+            ? moreNavViews.has(view)
             : view === key;
           return (
           <button
@@ -2180,6 +2196,7 @@ export default function FootballAgentGame() {
             style={{
               ...S.navBtn,
               color: active ? 'oklch(78% 0.18 295)' : 'rgba(220,220,235,.55)',
+              transform: 'translateY(13px)',
             }}
           >
             <span style={{
@@ -2194,12 +2211,83 @@ export default function FootballAgentGame() {
             {active && (
               <span style={{ position: 'absolute', bottom: -2, width: 22, height: 2.5, borderRadius: 2, background: 'oklch(72% 0.20 295)', boxShadow: '0 0 10px oklch(68% 0.22 295 / .8)' }} />
             )}
-            {key === 'messages' && pendingCounts.total > 0 && <span style={S.navBadge}>{pendingCounts.total}</span>}
+            {key === 'social' && pendingCounts.total > 0 && <span style={S.navBadge}>{pendingCounts.total}</span>}
           </button>
           );
         })}
       </nav>
       <CinematicMoment moment={cinematicMoment} onClose={() => setCinematicMoment(null)} />
+      {badgeReward && (
+        <div
+          role="status"
+          aria-live="polite"
+          onClick={() => setBadgeReward(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 95,
+            display: 'grid',
+            placeItems: 'center',
+            padding: 22,
+            background: 'radial-gradient(circle at 50% 35%, oklch(72% 0.20 295 / .22), transparent 42%), rgba(0,0,0,.62)',
+            backdropFilter: 'blur(14px)',
+            animation: 'fadeIn .22s ease both',
+          }}
+        >
+          <div
+            style={{
+              width: 'min(330px, calc(100vw - 44px))',
+              borderRadius: 30,
+              padding: '24px 20px 20px',
+              textAlign: 'center',
+              border: '1px solid oklch(82% 0.12 295 / .34)',
+              background: 'linear-gradient(150deg, oklch(18% 0.07 260 / .88), oklch(8% 0.025 265 / .94))',
+              boxShadow: '0 30px 90px rgba(0,0,0,.62), 0 0 54px oklch(70% 0.22 295 / .28), inset 0 1px 0 rgba(255,255,255,.10)',
+              animation: 'slideUp .34s ease both',
+            }}
+          >
+            <div style={{ fontSize: 10, letterSpacing: '.22em', textTransform: 'uppercase', color: 'oklch(78% 0.18 295)', fontWeight: 950 }}>
+              Badge débloqué
+            </div>
+            {badgeReward.asset && (
+              <img
+                src={badgeReward.asset}
+                alt=""
+                style={{
+                  width: 136,
+                  height: 136,
+                  objectFit: 'contain',
+                  margin: '12px auto 8px',
+                  filter: 'drop-shadow(0 0 26px oklch(78% 0.18 295 / .42))',
+                  animation: 'badgePop .82s cubic-bezier(.2,1.4,.2,1) both',
+                }}
+              />
+            )}
+            <div style={{ fontSize: 25, lineHeight: 1.05, fontWeight: 950, color: 'var(--af-text)' }}>
+              {badgeReward.title}
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12.5, lineHeight: 1.4, color: 'var(--af-muted)' }}>
+              {badgeReward.detail ?? badgeReward.desc}
+            </div>
+            <div style={{
+              margin: '14px auto 0',
+              width: 'fit-content',
+              maxWidth: '100%',
+              padding: '7px 10px',
+              borderRadius: 999,
+              color: 'oklch(78% 0.18 295)',
+              background: 'oklch(72% 0.20 295 / .12)',
+              border: '1px solid oklch(78% 0.18 295 / .22)',
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: '.08em',
+              overflowWrap: 'anywhere',
+            }}>
+              {badgeReward.gameCenterRewardId}
+            </div>
+          </div>
+        </div>
+      )}
       {weekTickerData && (
         <WeekTickerModal
           report={weekTickerData}
@@ -2401,8 +2489,8 @@ export default function FootballAgentGame() {
           onCancel={() => setConfirmDialog(null)}
         />
       )}
-      {/* Floating Action Button — play day from any view */}
-      {!weekTickerData && !modal && view !== 'dashboard' && loaded && state?.roster?.length > 0 && (
+      {/* Floating Action Button — play day only on dashboard (Accueil) */}
+      {!weekTickerData && !modal && view === 'dashboard' && loaded && state?.roster?.length > 0 && (
         <button
           onClick={handlePlayWeek}
           title={`Jouer le jour (${state?.day ?? 1}/7)`}

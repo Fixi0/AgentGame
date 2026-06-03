@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowUpRight, CheckCircle2, RefreshCcw, X } from 'lucide-react';
+import { getClubDisplayName } from '../../data/clubs';
 import { getPlayerProfileSummary } from '../../systems/playerProfileSystem';
 import { formatMoney } from '../../utils/format';
+import { t } from '../../utils/i18n';
 import { S } from '../styles';
 
 const ROLE_OPTIONS = ['Rotation', 'Titulaire', 'Star', 'Projet jeune'];
@@ -59,29 +61,29 @@ const assessClubReaction = (terms, baseTerms, round, player) => {
   const roleShifted = roleGap !== 0;
   const durationShifted = yearsGap !== 0;
 
-  let label = 'Le club écoute sans valider.';
+  let label = t('Le club écoute sans valider.');
   if (accepted) {
     if (roleShifted && durationShifted) {
-      label = 'Le club accepte le principe du rôle et de la durée. Les détails sont prêts à être signés.';
+      label = t('Le club accepte le principe du rôle et de la durée. Les détails sont prêts à être signés.');
     } else if (roleShifted) {
-      label = 'Le club accepte le principe, mais veut verrouiller le rôle.';
+      label = t('Le club accepte le principe, mais veut verrouiller le rôle.');
     } else if (durationShifted) {
-      label = 'Le club accepte la durée demandée.';
+      label = t('Le club accepte la durée demandée.');
     } else {
-      label = 'Le club valide les termes. Tu peux signer.';
+      label = t('Le club valide les termes. Tu peux signer.');
     }
   } else if (roleShifted) {
     label = `Le club refuse pour l'instant ${terms.role} et veut revenir à ${baseTerms.role}.`;
   } else if (fragileStarRole) {
-    label = 'Le club doute du profil pour porter un statut de star tout de suite.';
+    label = t('Le club doute du profil pour porter un statut de star tout de suite.');
   } else if (riskyStarterRole) {
-    label = 'Le club veut protéger le contrat: le risque physique est jugé trop haut pour ce rôle.';
+    label = t('Le club veut protéger le contrat: le risque physique est jugé trop haut pour ce rôle.');
   } else if (yearsGap > 0) {
     label = `Le club préfère ${baseTerms.contractYears} ans au lieu de ${terms.contractYears}.`;
   } else if (salaryGap > 0.1) {
-    label = 'Le club trouve le salaire trop élevé et demande un effort.';
+    label = t('Le club trouve le salaire trop élevé et demande un effort.');
   } else {
-    label = 'Le club veut un autre tour de discussion.';
+    label = t('Le club veut un autre tour de discussion.');
   }
 
   return { accepted, label, roleShifted, durationShifted, profile };
@@ -257,7 +259,7 @@ export default function OfferContractModal({ offer, player, readiness, mode = 'o
           <button type="button" onClick={onClose} style={S.mClose}><X size={16} /></button>
         </div>
         <div style={S.mBody}>
-          <h2 style={S.mTitle}>{offer.club ?? player.club ?? 'Club'}</h2>
+          <h2 style={S.mTitle}>{getClubDisplayName(offer.club ?? player.club) || offer.club || player.club || 'Club'}</h2>
           <div style={S.mPlayer}>
             {player.firstName} {player.lastName} · {mode === 'extend' ? 'prolongation' : offer.preWindow ? 'pré-accord' : 'offre active'}
           </div>

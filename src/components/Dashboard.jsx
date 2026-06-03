@@ -1,28 +1,148 @@
-import React, { useMemo, useState } from 'react';
-import { ChevronRight, Handshake, Mail, Newspaper, Users, LayoutGrid, BadgeCheck } from 'lucide-react';
-import { getMarketOfferQueue, getPendingMessageCounts, messageNeedsResponse } from '../systems/dossierSystem';
-import { getCalendarSnapshot, getWeekDailySnapshots } from '../systems/seasonSystem';
-import { getPostImage } from '../utils/eventImages';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronRight, Handshake, Mail, BadgeCheck, CircleCheckBig } from 'lucide-react';
+import { getMarketOfferQueue, getPendingMessageCounts } from '../systems/dossierSystem';
+import { EURO_CUP_LABELS, getEuropeanCompetition, isEuropeanMatchWeek } from '../systems/europeanCupSystem';
+import { isEnglish } from '../utils/i18n';
+import { buildInstaProPosts } from './Social';
 
 const WEEKDAY_LABELS_EN = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+const WEEKDAY_LABELS_FR = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI', 'DIMANCHE'];
 const MONTH_LABELS_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+const MONTH_LABELS_FR = ['JANV.', 'FÉVR.', 'MARS', 'AVR.', 'MAI', 'JUIN', 'JUIL.', 'AOÛT', 'SEPT.', 'OCT.', 'NOV.', 'DÉC.'];
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
+function getSeasonStartMonday(year) {
+  const date = new Date(Date.UTC(year, 8, 8));
+  const weekday = date.getUTCDay();
+  const mondayOffset = weekday === 0 ? 1 : (8 - weekday) % 7;
+  date.setUTCDate(date.getUTCDate() + mondayOffset);
+  return date;
+}
+
+function getGameDate(week, day) {
+  const safeWeek = Math.max(1, Number(week ?? 1));
+  const safeDay = clamp(Number(day ?? 1), 1, 7);
+  const season = Math.floor((safeWeek - 1) / 38) + 1;
+  const seasonWeekOffset = ((safeWeek - 1) % 38) * 7;
+  const seasonStart = getSeasonStartMonday(2024 + season);
+  const date = new Date(seasonStart);
+  date.setUTCDate(seasonStart.getUTCDate() + seasonWeekOffset + (safeDay - 1));
+  return date;
+}
+
 function buildHeaderDate(state) {
+  const english = isEnglish();
   const week = Number(state?.week ?? 1);
   const day = clamp(Number(state?.day ?? 1), 1, 7);
-  const start = getWeekDailySnapshots(week)[0];
-  const [dRaw, mRaw, yRaw] = String(start?.dateLabel ?? '').split(/[\s/.-]+/);
-  const dayNumber = Number((dRaw || '').replace(/\D/g, '')) || 1;
-  const monthIndex = Number(mRaw?.replace(/\D/g, '')) ? Number(mRaw) - 1 : 6;
-  const year = Number(yRaw?.replace(/\D/g, '')) || 2025;
-  const date = new Date(Date.UTC(year, clamp(monthIndex, 0, 11), dayNumber + (day - 1)));
+  const date = getGameDate(week, day);
 
   return {
-    weekday: WEEKDAY_LABELS_EN[day - 1],
+    weekday: english ? WEEKDAY_LABELS_EN[day - 1] : WEEKDAY_LABELS_FR[day - 1],
     dayNumber: String(date.getUTCDate()).padStart(2, '0'),
-    month: MONTH_LABELS_EN[date.getUTCMonth()] ?? 'JUL',
+    month: (english ? MONTH_LABELS_EN : MONTH_LABELS_FR)[date.getUTCMonth()] ?? (english ? 'JUL' : 'JUIL.'),
+    english,
+  };
+}
+
+function getMatchClubName(match, side) {
+  const club = side === 'home' ? match?.homeClub : match?.awayClub;
+  return String(club?.name ?? club ?? '').trim();
+}
+
+function getSeasonFromWeek(week = 1) {
+  return Math.floor((Math.max(1, Number(week ?? 1)) - 1) / 38) + 1;
+}
+
+function getSeasonWeekFromWeek(week = 1) {
+  return ((Math.max(1, Number(week ?? 1)) - 1) % 38) + 1;
+}
+
+function getEuropeanSimDayIndex(week = 1, playerId = '') {
+  const seed = `${week}:${playerId}`;
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 2 === 0 ? 2 : 3;
+}
+
+function hasEuropeanResultForPlayer(state, week, playerId) {
+  if (state?.midweekEuropean?.week !== week) return false;
+  return (state.midweekEuropean.results ?? []).some((match) => String(match?.playerId ?? '') === String(playerId ?? ''));
+}
+
+function buildUpcomingEuropeanMatches(state, spanWeeks = 18) {
+  const roster = Array.isArray(state?.roster) ? state.roster : [];
+  const currentWeek = Number(state?.week ?? 1);
+  const currentDay = clamp(Number(state?.day ?? 1), 1, 7);
+  const matches = [];
+
+  for (let offset = 0; offset < spanWeeks; offset += 1) {
+    const week = currentWeek + offset;
+    const season = getSeasonFromWeek(week);
+    const seasonWeek = getSeasonWeekFromWeek(week);
+    roster.forEach((player) => {
+      const competition = getEuropeanCompetition(player, season);
+      if (!competition || !isEuropeanMatchWeek(seasonWeek, competition)) return;
+      const day = getEuropeanSimDayIndex(week, player.id);
+      if (week === currentWeek && day < currentDay) return;
+      if (week === currentWeek && hasEuropeanResultForPlayer(state, week, player.id)) return;
+      matches.push({
+        id: `euro_next_${week}_${day}_${player.id}_${competition}`,
+        week,
+        day,
+        playerId: player.id,
+        competition,
+        competitionLabel: EURO_CUP_LABELS[competition]?.name ?? 'Europe',
+        homeClub: { name: player.club, countryCode: player.clubCountryCode },
+        awayClub: { name: EURO_CUP_LABELS[competition]?.short ?? 'Europe' },
+        status: 'scheduled',
+        source: 'europe',
+      });
+    });
+  }
+
+  return matches;
+}
+
+function findNextAgencyMatch(state) {
+  const roster = Array.isArray(state?.roster) ? state.roster : [];
+  const agencyClubs = new Set(roster.map((player) => String(player?.club ?? '').trim()).filter(Boolean));
+  const playerIds = new Set(roster.map((player) => String(player?.id ?? '').trim()).filter(Boolean));
+  const currentWeek = Number(state?.week ?? 1);
+  const currentDay = clamp(Number(state?.day ?? 1), 1, 7);
+  const calendarMatches = (Array.isArray(state?.matchCalendar) ? state.matchCalendar : [])
+    .filter((match) => {
+      const week = Number(match?.week ?? 0);
+      const day = clamp(Number(match?.day ?? 7), 1, 7);
+      if (week < currentWeek || (week === currentWeek && day < currentDay)) return false;
+      if (match?.status && match.status !== 'scheduled') return false;
+      if (match?.playerId && playerIds.has(String(match.playerId))) return true;
+      return agencyClubs.has(getMatchClubName(match, 'home')) || agencyClubs.has(getMatchClubName(match, 'away'));
+    });
+
+  return [...calendarMatches, ...buildUpcomingEuropeanMatches(state)]
+    .sort((a, b) => (Number(a.week ?? 0) - Number(b.week ?? 0)) || (Number(a.day ?? 7) - Number(b.day ?? 7)))[0] ?? null;
+}
+
+function buildNextMatchLabel(state, english) {
+  const match = findNextAgencyMatch(state);
+  if (!match) {
+    return {
+      prefix: english ? 'Next match' : 'Prochain match',
+      delta: '',
+    };
+  }
+
+  const day = clamp(Number(match.day ?? 7), 1, 7);
+  const daysAway = Math.max(0, ((Number(match.week ?? state?.week ?? 1) - Number(state?.week ?? 1)) * 7) + (day - clamp(Number(state?.day ?? 1), 1, 7)));
+  return {
+    prefix: english ? 'Next match' : 'Prochain match',
+    delta: daysAway === 0
+      ? (english ? 'today' : "aujourd'hui")
+      : (english ? `in ${daysAway} day${daysAway > 1 ? 's' : ''}` : `dans ${daysAway} jour${daysAway > 1 ? 's' : ''}`),
   };
 }
 
@@ -35,17 +155,17 @@ function ActionRow({ icon: Icon, iconTint, title, subtitle, onClick, highlighted
       style={{
         width: '100%',
         textAlign: 'left',
-        padding: '14px 16px',
+        padding: '11px 14px',
         cursor: 'pointer',
         display: 'grid',
-        gridTemplateColumns: '40px 1fr 16px',
+        gridTemplateColumns: '34px 1fr 14px',
         alignItems: 'center',
-        gap: 14,
+        gap: 12,
         border: highlighted ? undefined : '1px solid oklch(82% 0.05 270 / .12)',
       }}
     >
       <div style={{
-        width: 40, height: 40, borderRadius: 10,
+        width: 34, height: 34, borderRadius: 10,
         display: 'grid', placeItems: 'center',
         background: 'transparent',
         border: '1px solid oklch(82% 0.05 270 / .18)',
@@ -67,10 +187,23 @@ function ActionRow({ icon: Icon, iconTint, title, subtitle, onClick, highlighted
   );
 }
 
-function SocialPostCard({ post, showNew = false }) {
+function SocialPostCard({ post, showNew = false, onOpen }) {
+  const english = isEnglish();
   return (
-    <article className="dashboard-card" style={{ borderRadius: 18, overflow: 'hidden', padding: 0 }}>
-      <div style={{ position: 'relative', height: 180, backgroundImage: `url(${post.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+    <article
+      className="dashboard-card dashboard-post-card"
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen?.();
+        }
+      }}
+      style={{ borderRadius: 18, overflow: 'hidden', padding: 0, cursor: 'pointer' }}
+    >
+      <div className="dashboard-post-image" style={{ position: 'relative', backgroundImage: `url(${post.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, oklch(8% 0.02 258 / .55) 0%, transparent 32%, transparent 55%, oklch(6% 0.015 262 / .92) 100%)' }} />
         <div style={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -87,19 +220,19 @@ function SocialPostCard({ post, showNew = false }) {
           </div>
           {showNew ? (
             <div style={{ borderRadius: 8, padding: '5px 11px', background: 'oklch(88% 0.18 105)', color: 'oklch(16% 0.04 260)', fontSize: 11, fontWeight: 800, letterSpacing: '.01em', boxShadow: '0 4px 12px oklch(70% 0.18 105 / .4)' }}>
-              New
+              {english ? 'New' : 'Nouveau'}
             </div>
           ) : null}
         </div>
       </div>
-      <div style={{ padding: '14px 16px 16px' }}>
-        <div style={{ color: '#fff', lineHeight: 1.4, fontSize: 13.5, fontWeight: 500, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+      <div className="dashboard-post-body" style={{ padding: '15px 16px 14px' }}>
+        <div className="dashboard-post-copy" style={{ color: '#fff', lineHeight: 1.34, fontSize: 14, fontWeight: 600 }}>
           {post.text}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 12, color: 'oklch(78% 0.02 265 / .85)', fontSize: 12, fontWeight: 600 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12, color: 'oklch(78% 0.02 265 / .85)', fontSize: 11.5, fontWeight: 600 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>♡ {post.likes}K</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>💬 {post.comments}</span>
-          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, color: 'oklch(80% 0.02 265 / .85)' }}>Show Comments</span>
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, color: 'oklch(80% 0.02 265 / .85)' }}>{english ? 'Show Comments' : 'Commentaires'}</span>
         </div>
       </div>
     </article>
@@ -108,120 +241,103 @@ function SocialPostCard({ post, showNew = false }) {
 
 export default function Dashboard({ state, onPlay, onNav }) {
   const [activePost, setActivePost] = useState(0);
+  const carouselRef = useRef(null);
   const pendingCounts = getPendingMessageCounts(state);
-  const urgentMessages = (state.messages ?? []).filter(messageNeedsResponse);
   const openOffers = getMarketOfferQueue(state).filter((offer) => offer.status === 'open');
   const dateHeader = buildHeaderDate(state);
-
-  const nextMilestone = useMemo(() => {
-    const today = Number(state?.day ?? 1);
-    const scheduled = (state?.matchCalendar ?? [])
-      .filter((match) => match?.week === state.week && match?.status === 'scheduled')
-      .map((match) => Number(match?.day ?? 7))
-      .filter((day) => day >= today)
-      .sort((a, b) => a - b)[0];
-    if (!scheduled) return null;
-    return Math.max(0, scheduled - today);
-  }, [state]);
+  const nextMatchLabel = useMemo(() => buildNextMatchLabel(state, dateHeader.english), [state, dateHeader.english]);
 
   const posts = useMemo(() => {
-    const source = (state.news ?? []).slice(-12).reverse();
-    return source.slice(0, 4).map((entry, index) => {
-      const accountName = entry?.account?.name ?? entry?.authorName ?? 'Novastar FC';
-      const dateLabel = entry?.dateLabel ?? getCalendarSnapshot(entry?.week ?? state.week).dateLabel;
+    const source = buildInstaProPosts({ state }).slice(0, 4);
+    return source.map((entry, index) => {
+      const accountName = entry?.account?.name ?? entry?.accountName ?? entry?.authorName ?? 'Novastar FC';
+      const dateLabel = entry?.dateLabel ?? entry?.timeLabel ?? '';
       const text = String(entry?.text ?? entry?.label ?? 'Nouveau post du club.').slice(0, 160);
-      const image = getPostImage({
-        eventId: entry?.id,
-        type: entry?.type,
-        kind: entry?.kind ?? 'news',
-        good: entry?.good,
-        seed: `${entry?.id ?? 'post'}-${index}-${state.week}`,
-      });
       return {
         id: entry?.id ?? `news-${index}`,
         accountName,
         dateLabel,
         text,
-        image,
-        likes: 3 + ((index * 2 + (state.week % 5)) % 7),
-        comments: 20 + ((index * 11 + state.week) % 60),
+        image: entry.image,
+        likes: entry?.likes ? Math.max(1, Math.round(entry.likes / 100)) : (entry?.likesK ?? (3 + ((index * 2 + (state.week % 5)) % 7))),
+        comments: entry?.comments ?? (20 + ((index * 11 + state.week) % 60)),
       };
     });
   }, [state]);
 
+  useEffect(() => {
+    setActivePost(0);
+    if (carouselRef.current) carouselRef.current.scrollLeft = 0;
+  }, [state.week, state.day, posts[0]?.id]);
+
   const actionItems = [
-    {
-      icon: LayoutGrid,
-      iconTint: 'oklch(82% 0.16 215)',
-      title: 'Select Tactical Vision',
-      subtitle: null,
-      highlighted: true,
-      onClick: onPlay,
-      visible: true,
-    },
-    {
-      icon: Users,
-      iconTint: 'oklch(76% 0.18 158)',
-      title: 'Meet Your Clients',
-      subtitle: null,
-      onClick: () => onNav('roster'),
-      visible: true,
-    },
     {
       icon: Mail,
       iconTint: 'oklch(70% 0.20 270)',
-      title: 'New Message',
-      subtitle: pendingCounts.total > 0 ? `${pendingCounts.total} en attente` : 'From Assistant Manager',
+      title: dateHeader.english ? 'New Message' : 'Nouveau message',
+      subtitle: dateHeader.english ? `${pendingCounts.total} pending` : `${pendingCounts.total} en attente`,
       onClick: () => onNav('messages'),
-      visible: true,
-    },
-    {
-      icon: Newspaper,
-      iconTint: 'oklch(78% 0.14 200)',
-      title: 'News Feed',
-      subtitle: 'Stay up to date with the latest',
-      onClick: () => onNav('social'),
-      visible: (state.news ?? []).length > 0,
+      visible: pendingCounts.total > 0,
     },
     openOffers.length > 0 ? {
       icon: Handshake,
       iconTint: 'oklch(82% 0.16 83)',
-      title: 'Offres en attente',
-      subtitle: `${openOffers.length} dossier${openOffers.length > 1 ? 's' : ''} à traiter`,
+      title: dateHeader.english ? 'Pending offers' : 'Offres en attente',
+      subtitle: dateHeader.english ? `${openOffers.length} file${openOffers.length > 1 ? 's' : ''} to handle` : `${openOffers.length} dossier${openOffers.length > 1 ? 's' : ''} à traiter`,
       onClick: () => onNav('dossiers'),
       visible: true,
     } : null,
-  ].filter(Boolean).filter((item) => item.visible).slice(0, 4);
+  ].filter(Boolean).filter((item) => item.visible);
 
   return (
-    <div className="af-page dashboard-shell" style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 468, minHeight: 0, overflow: 'hidden' }}>
-      <section style={{ paddingTop: 4 }}>
+    <div className="af-page dashboard-shell" style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 468, minHeight: 0, overflow: 'hidden' }}>
+      <section style={{ paddingTop: 20 }}>
         <h1 style={{
           margin: 0,
           color: 'var(--af-text)',
-          fontSize: 'clamp(34px, 9vw, 44px)',
-          lineHeight: .95,
+          fontSize: 'clamp(30px, 8.2vw, 40px)',
+          lineHeight: .90,
           letterSpacing: '-.015em',
           fontWeight: 900,
           fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
         }}>
-          {dateHeader.weekday}, {dateHeader.month} {dateHeader.dayNumber}
+          {dateHeader.english
+            ? `${dateHeader.weekday}, ${dateHeader.month} ${dateHeader.dayNumber}`
+            : `${dateHeader.weekday} ${dateHeader.dayNumber} ${dateHeader.month}`}
         </h1>
-        <div style={{ marginTop: 10, color: 'oklch(78% 0.02 265 / .82)', fontSize: 14, fontWeight: 500 }}>
-          Next Event in <span style={{ color: 'oklch(78% 0.18 158)', fontWeight: 700 }}>{nextMilestone == null ? 'N/A' : `${nextMilestone} day${nextMilestone > 1 ? 's' : ''}`}</span>
+        <div style={{ marginTop: 9, color: 'oklch(78% 0.02 265 / .82)', fontSize: 13, fontWeight: 500, minHeight: 18 }}>
+          {nextMatchLabel.prefix}
+          {nextMatchLabel.delta ? (
+            <>
+              {' · '}
+              <span style={{ color: 'oklch(72% 0.20 295)', fontWeight: 800, textShadow: '0 0 12px oklch(68% 0.22 295 / .35)' }}>
+                {nextMatchLabel.delta}
+              </span>
+            </>
+          ) : null}
         </div>
-        <div style={{ marginTop: 12, height: 1, background: 'linear-gradient(90deg, transparent, oklch(82% 0.05 270 / .25), transparent)' }} />
+        <div style={{ marginTop: 9, height: 1, background: 'linear-gradient(90deg, transparent, oklch(82% 0.05 270 / .25), transparent)' }} />
       </section>
 
-      <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {actionItems.map((item) => (
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+        {actionItems.length > 0 ? actionItems.map((item) => (
           <ActionRow key={item.title} {...item} />
-        ))}
+        )) : (
+          <ActionRow
+            icon={CircleCheckBig}
+            iconTint="oklch(72% 0.20 295)"
+            title={dateHeader.english ? 'No tasks left' : 'Plus aucune tâche'}
+            subtitle={dateHeader.english ? 'Continue the day' : 'Continuer la journée'}
+            onClick={onPlay}
+            highlighted
+          />
+        )}
       </section>
 
       {posts.length ? (
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 0, flex: '1 1 auto' }}>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0, flex: '1 1 auto', marginTop: 6 }}>
           <div
+            ref={carouselRef}
             className="dashboard-carousel"
             style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', gap: 12, WebkitOverflowScrolling: 'touch' }}
             onScroll={(event) => {
@@ -233,11 +349,11 @@ export default function Dashboard({ state, onPlay, onNav }) {
           >
             {posts.map((post, index) => (
               <div key={post.id} style={{ minWidth: '100%', scrollSnapAlign: 'start' }}>
-                <SocialPostCard post={post} showNew={index === 0} />
+                <SocialPostCard post={post} showNew={index === 0} onOpen={() => onNav('social')} />
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '4px 0 0' }}>
+          <div className="dashboard-dots" style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '0 0 6px' }}>
             {Array.from({ length: Math.max(1, posts.length || 0) }).map((_, index) => (
               <span
                 key={`dot-${index}`}

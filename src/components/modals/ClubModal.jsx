@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import React from 'react';
-import { CLUBS, getCountry } from '../../data/clubs';
+import { CLUBS, getClubDisplayName, getCountry } from '../../data/clubs';
 import { getClubMemorySummary, getClubProfile } from '../../systems/clubSystem';
 import { getRelevantDecisionHistory } from '../../systems/dossierSystem';
 import { getClubDossierHistorySummary, getClubRecentDossierEvents } from '../../systems/coherenceSystem';
@@ -10,6 +10,7 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
   const club = CLUBS.find((item) => item.name === clubName);
   if (!club) return null;
   const country = getCountry(club.countryCode);
+  const clubDisplayName = getClubDisplayName(club.name);
   const relation = relations?.[club.name] ?? 50;
   const profile = getClubProfile(club, relation);
   const memory = clubMemory?.[club.name] ?? { trust: 50, blocks: 0, lies: 0, promisesBroken: 0, lastWeek: 0 };
@@ -36,9 +37,9 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
         </div>
         <div style={S.mBody}>
           <div style={S.profileHero}>
-            <div style={{ ...S.agencyAvatar, background: 'oklch(22% 0.045 252 / .85)', width: 72, height: 72 }}>{club.name.slice(0, 2).toUpperCase()}</div>
+            <div style={{ ...S.agencyAvatar, background: 'oklch(22% 0.045 252 / .85)', width: 72, height: 72 }}>{clubDisplayName.slice(0, 2).toUpperCase()}</div>
             <div>
-              <h2 style={S.mTitle}>{club.name}</h2>
+              <h2 style={S.mTitle}>{clubDisplayName}</h2>
               <div style={S.mPlayer}>{country.flag} {country.label} · {club.city}</div>
               <div style={{ ...S.statusPill, marginTop: 8, display: 'inline-flex' }}>
                 {memorySummary}
@@ -81,7 +82,7 @@ export default function ClubModal({ clubName, relations, clubMemory, decisionHis
             {trustedClubs.length ? trustedClubs.map(({ club: trustedClub, memory: trustedMemory, relation: trustedRelation }) => (
               <div key={trustedClub.name} style={S.decisionRow}>
                 <span>
-                  {trustedClub.name}
+                  {getClubDisplayName(trustedClub.name)}
                   <div style={S.fixtureMeta}>
                     {trustedClub.city} · {trustedMemory.trust}/100 · relation {trustedRelation}/100
                   </div>

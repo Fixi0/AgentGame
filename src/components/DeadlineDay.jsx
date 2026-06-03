@@ -1,5 +1,6 @@
 import { Timer } from 'lucide-react';
 import React from 'react';
+import { getClubDisplayName } from '../data/clubs';
 import { formatMoney } from '../utils/format';
 import { S } from './styles';
 
@@ -16,7 +17,7 @@ export default function DeadlineDay({ state, phase, onNegotiateOffer, onRejectOf
       <div style={S.cardList}>
         {offers.map((offer) => (
           <div key={offer.id} style={S.msgCard}>
-            <div style={S.msgSubject}>{offer.club} pour {offer.playerName}</div>
+            <div style={S.msgSubject}>{getClubDisplayName(offer.club) || offer.club} pour {offer.playerName}</div>
             <div style={S.msgBody}>
               Proposition : {formatMoney(offer.price)}
               {offer.preWindow ? ` · pré-accord · arrivée S${offer.effectiveWeek}` : ` · expire S${offer.expiresWeek}`}

@@ -1,6 +1,7 @@
 import { CHAINED_EVENTS, INTERACTIVE_EVENTS, LOCKER_ROOM_EVENTS, PASSIVE_EVENTS } from '../data/events';
 import { PERSONALITY_PROFILES } from '../data/players';
 import { clamp, makeId, pick } from '../utils/helpers';
+import { translateEventPayload } from '../utils/i18n';
 import { getWorldStateEventModifier } from '../systems/worldStateSystem';
 import { getDossierHeat } from '../systems/coherenceSystem';
 
@@ -85,6 +86,10 @@ const isFreeAgent = (player) => player.freeAgent || player.club === 'Libre' || !
 export const rollPassiveEvent = (player, modifiers = {}) => {
   const freeAgent = isFreeAgent(player);
   for (const event of PASSIVE_EVENTS) {
+    // Les événements "action de match" génériques (but, arrêt, penalty, MVP, etc.)
+    // sont trop souvent décorrélés du vrai calendrier. Les faits de match doivent
+    // maintenant venir uniquement des résultats simulés et persistés.
+    if (event.type === 'performance' || MATCH_LINKED_EVENTS.has(event.id)) continue;
     if (CALENDAR_LOCKED_EVENTS.has(event.id) && !modifiers.allowCalendarAwards) continue;
     if (!isEventCompatibleWithMatch(event, modifiers.matchResult)) continue;
     // Skip club-specific events for free agents — a player without a club can't be benched
@@ -93,7 +98,7 @@ export const rollPassiveEvent = (player, modifiers = {}) => {
     const mediaProtection = event.type === 'scandal' ? 1 - (modifiers.scandalReduction ?? 0) : 1;
     const performanceBoost = event.good && event.type === 'performance' ? 1 + (modifiers.performanceBoost ?? 0) : 1;
     if (Math.random() < getEventChance(event, player, modifiers.worldState) * mediaProtection * performanceBoost) {
-      return event;
+      return translateEventPayload(event);
     }
   }
 
@@ -141,12 +146,12 @@ export const chooseInteractiveEvent = (roster, context = {}) => {
     const target = context.topMatch?.playerId && roster.find((item) => item.id === context.topMatch.playerId)
       ? roster.find((item) => item.id === context.topMatch.playerId)
       : pickFragileDossierPlayer(roster, context);
-    return { event: pressConferenceEvent, player: target };
+    return { event: translateEventPayload(pressConferenceEvent), player: target };
   }
 
   const lockerRoomEvent = contextualEvents.find((event) => event.types?.includes('vestiaire'));
   if (lockerRoomEvent && (context.vestiaireTension ?? 0) >= 55 && Math.random() < 0.7) {
-    return { event: lockerRoomEvent, player };
+    return { event: translateEventPayload(lockerRoomEvent), player };
   }
 
   // Pondération par rareté — sélection pondérée pour mieux distribuer la diversité.
@@ -154,13 +159,13 @@ export const chooseInteractiveEvent = (roster, context = {}) => {
   if (!contextualEvents.length) return { event: null, player };
   const weights = contextualEvents.map((event) => getRarityMultiplier(event.rarity));
   const total = weights.reduce((sum, w) => sum + w, 0);
-  if (total <= 0) return { event: pick(contextualEvents), player };
+  if (total <= 0) return { event: translateEventPayload(pick(contextualEvents)), player };
   let roll = Math.random() * total;
   for (let i = 0; i < contextualEvents.length; i++) {
     roll -= weights[i];
-    if (roll <= 0) return { event: contextualEvents[i], player };
+    if (roll <= 0) return { event: translateEventPayload(contextualEvents[i]), player };
   }
-  return { event: contextualEvents[contextualEvents.length - 1], player };
+  return { event: translateEventPayload(contextualEvents[contextualEvents.length - 1]), player };
 };
 
 export const getContractEventForRoster = (roster, currentWeek = 0) => {
@@ -174,7 +179,7 @@ export const getContractEventForRoster = (roster, currentWeek = 0) => {
   if (!expiringPlayer) return null;
 
   return {
-    event: INTERACTIVE_EVENTS.find((event) => event.id === 'contract_exp'),
+    event: translateEventPayload(INTERACTIVE_EVENTS.find((event) => event.id === 'contract_exp')),
     player: expiringPlayer,
   };
 };
@@ -200,7 +205,7 @@ export const processChainedPassiveEvents = (pendingChains, roster, currentWeek) 
   for (const chain of due) {
     const player = roster.find((p) => p.id === chain.playerId);
     const event = PASSIVE_EVENTS.find((e) => e.id === chain.eventId);
-    if (player && event) results.push({ player, event });
+    if (player && event) results.push({ player, event: translateEventPayload(event) });
   }
 
   return results;
@@ -215,5 +220,5 @@ export const pickChainedInteractiveEvent = (pendingChains, roster, currentWeek) 
   const event = INTERACTIVE_EVENTS.find((e) => e.id === chain.eventId);
   if (!player || !event) return null;
 
-  return { event, player, chainId: chain.id };
+  return { event: translateEventPayload(event), player, chainId: chain.id };
 };

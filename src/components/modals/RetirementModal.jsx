@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Award, TrendingUp, Users, Star } from 'lucide-react';
 import { formatMoney } from '../../utils/format';
 import { getPlayerStarsText } from '../../utils/playerStars';
+import { getClubDisplayName } from '../../data/clubs';
 import { S } from '../styles';
 
 const DECISIONS = [
@@ -217,7 +218,7 @@ export default function RetirementModal({ player, week, onDecide, onClose }) {
               {fullName || 'Joueur'}
             </div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', fontFamily: 'system-ui,sans-serif' }}>
-              {age} ans · {player?.position ?? '—'} · {player?.club ?? '—'}
+              {age} ans · {player?.position ?? '—'} · {getClubDisplayName(player?.club ?? '—')}
             </div>
             {age >= 33 && (
               <div style={{

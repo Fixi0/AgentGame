@@ -10,7 +10,7 @@
  * d'un rendu à l'autre.
  */
 
-import { CLUBS, COUNTRIES } from '../data/clubs';
+import { CLUBS, COUNTRIES, getClubDisplayName } from '../data/clubs';
 import { getClubSquad } from '../data/squadDatabase';
 import { getLeagueTopStats, getEuropeanTopStats } from './topScorersSystem';
 import { EURO_CUP_LABELS } from './europeanCupSystem';
@@ -44,17 +44,17 @@ const NATIONAL_TEAMS = [
 const FRIENDLY_OPPONENTS = ['Brésil', 'Argentine', 'Espagne', 'Allemagne', 'Pays-Bas', 'Belgique', 'Croatie', 'Maroc', 'Angleterre', 'Italie'];
 
 const LEAGUE_HANDLES = {
-  FR: { name: 'Ligue 1 McDonald\'s', handle: '@ligue1', color: '#0c1f5b' },
-  ES: { name: 'LALIGA EA Sports', handle: '@laliga', color: '#dc2626' },
-  GB: { name: 'Premier League', handle: '@premierleague', color: '#3d195b' },
-  DE: { name: 'Bundesliga', handle: '@bundesliga_de', color: '#d20515' },
-  IT: { name: 'Serie A TIM', handle: '@seriea', color: '#0066b3' },
-  PT: { name: 'Liga Portugal', handle: '@ligaportugal', color: '#16a34a' },
-  NL: { name: 'Eredivisie', handle: '@eredivisie', color: '#fb923c' },
-  BR: { name: 'Brasileirão', handle: '@brasileirao', color: '#16a34a' },
+  FR: { name: 'Championnat français', handle: '@championnat_fr', color: '#0c1f5b' },
+  ES: { name: 'Championnat espagnol', handle: '@championnat_es', color: '#dc2626' },
+  GB: { name: 'Championnat anglais', handle: '@championnat_en', color: '#3d195b' },
+  DE: { name: 'Championnat allemand', handle: '@championnat_de', color: '#d20515' },
+  IT: { name: 'Championnat italien', handle: '@championnat_it', color: '#0066b3' },
+  PT: { name: 'Championnat portugais', handle: '@championnat_pt', color: '#16a34a' },
+  NL: { name: 'Championnat néerlandais', handle: '@championnat_nl', color: '#fb923c' },
+  BR: { name: 'Championnat brésilien', handle: '@championnat_br', color: '#16a34a' },
 };
 
-const UEFA_AUTHOR = { name: 'UEFA', handle: '@UEFA', color: '#003366' };
+const UEFA_AUTHOR = { name: 'Europe Football Board', handle: '@europe_board', color: '#003366' };
 const GFB_AUTHOR = { name: 'Global Football Board', handle: '@GlobalFootball', color: '#1e40af' };
 
 const ROLE_SHORT = { GK: 'GB', DEF: 'DEF', MIL: 'MIL', ATT: 'ATT' };
@@ -86,7 +86,7 @@ const buildSelectionPost = ({ team, season, week, agentPlayerIds, state }) => {
       byPos[p.position].push({
         id: p.id,
         name: `${p.firstName} ${p.lastName}`.trim(),
-        club: p.club,
+        club: getClubDisplayName(p.club),
         rating: p.rating,
         isMine: agentPlayerIds.has(p.id),
         position: p.position,
@@ -157,7 +157,7 @@ const buildLeagueScorerPost = ({ countryCode, state, week }) => {
         rank: i + 1,
         id: p.id,
         name: `${p.firstName} ${p.lastName}`.trim(),
-        club: p.club,
+        club: getClubDisplayName(p.club),
         goals: p.goals,
         assists: p.assists,
         isMine: p.isMine,
@@ -190,7 +190,7 @@ const buildUefaTeamOfWeekPost = ({ state, week, season, agentPlayerIds }) => {
     authorName: UEFA_AUTHOR.name,
     handle: UEFA_AUTHOR.handle,
     tag: 'TEAM OF THE WEEK',
-    text: `⭐ #UCL Team of the Week\nLe XI de la semaine en ${EURO_CUP_LABELS[competition]?.name ?? 'Champions League'}.${myCount ? `\n${myCount} de ton agence dedans ✨` : ''}`,
+    text: `⭐ Team of the Week\nLe XI de la semaine en Ligue des Champions.${myCount ? `\n${myCount} de ton agence dedans ✨` : ''}`,
     image: null,
     likes: 8000 + num(id + 'l', 40000),
     comments: 150 + num(id + 'c', 1200),
@@ -204,7 +204,7 @@ const buildUefaTeamOfWeekPost = ({ state, week, season, agentPlayerIds }) => {
         rank: i + 1,
         id: p.id,
         name: `${p.firstName} ${p.lastName}`.trim(),
-        club: p.club,
+        club: getClubDisplayName(p.club),
         goals: p.goals,
         assists: p.assists,
         isMine: agentPlayerIds.has(p.id),
@@ -214,11 +214,96 @@ const buildUefaTeamOfWeekPost = ({ state, week, season, agentPlayerIds }) => {
   };
 };
 
+const buildAgencyEuropeanRecapPost = ({ state, week, agentPlayerIds, agentClubs }) => {
+  const rows = (Array.isArray(state?.matchResultStore) ? state.matchResultStore : [])
+    .filter((row) => Number(row?.week) === Number(week))
+    .filter((row) => row?.source === 'europe' || ['CL', 'EL', 'ECL'].includes(row?.competition))
+    .filter((row) => row?.playerId && agentPlayerIds.has(row.playerId));
+  if (!rows.length) return null;
+
+  const dedupedByPlayer = new Map();
+  rows.forEach((row) => {
+    const key = row.playerId;
+    const current = dedupedByPlayer.get(key);
+    if (!current || Number(row.day ?? 0) >= Number(current.day ?? 0)) dedupedByPlayer.set(key, row);
+  });
+  const playedRows = [...dedupedByPlayer.values()].sort((a, b) => (b.stats?.matchRating ?? 0) - (a.stats?.matchRating ?? 0));
+  const playedIds = new Set(playedRows.map((row) => row.playerId));
+  const clubsInvolved = new Set(playedRows.map((row) => row.club).filter(Boolean));
+
+  const roster = Array.isArray(state?.roster) ? state.roster : [];
+  const nonAppeared = roster
+    .filter((player) => player?.id && agentPlayerIds.has(player.id))
+    .filter((player) => clubsInvolved.has(player.club) || agentClubs.has(player.club))
+    .filter((player) => !playedIds.has(player.id))
+    .map((player) => ({
+      id: player.id,
+      firstName: player.firstName,
+      lastName: player.lastName,
+      club: player.club,
+      status: 'Pas apparu',
+    }));
+
+  const id = `agency-europe-${week}`;
+  const list = [
+    ...playedRows.map((row) => ({
+      id: row.playerId,
+      name: row.playerName,
+      club: getClubDisplayName(row.club),
+      score: row.score ?? '-',
+      opponent: row.opponent ?? 'Adversaire',
+      minutes: row.stats?.minutes ?? 0,
+      goals: row.stats?.goals ?? 0,
+      assists: row.stats?.assists ?? 0,
+      note: row.stats?.matchRating ?? null,
+      status: (row.stats?.minutes ?? 0) > 0 ? 'A joué' : 'Pas apparu',
+      isMine: true,
+    })),
+    ...nonAppeared.map((player) => ({
+      id: player.id,
+      name: `${player.firstName} ${player.lastName}`.trim(),
+      club: getClubDisplayName(player.club),
+      score: '-',
+      opponent: '-',
+      minutes: 0,
+      goals: 0,
+      assists: 0,
+      note: null,
+      status: player.status,
+      isMine: true,
+    })),
+  ];
+
+  return {
+    id,
+    kind: 'europe',
+    player: null,
+    authorName: 'Agence',
+    handle: '@agent_report',
+    tag: 'EUROPE',
+    text: `🌍 Bilan Europe — semaine ${((week - 1) % 38) + 1}\nSuivi de tous tes joueurs engagés cette semaine.`,
+    image: null,
+    likes: 1200 + num(id + 'l', 8000),
+    comments: 30 + num(id + 'c', 300),
+    timeLabel: 'à l\'instant',
+    commentsList: [
+      { handle: '@staff', text: 'Vision claire du temps de jeu européen.' },
+    ],
+    list: {
+      title: 'Joueurs agence — Europe',
+      ranked: list.map((entry, index) => ({
+        rank: index + 1,
+        ...entry,
+      })),
+    },
+  };
+};
+
 const getClubName = (club) => club?.name ?? club ?? '';
 
 // ============= POSTS DE VIE DES CLUBS (blessures, prolongations, mercato IA) =============
 
-const handleFor = (club) => '@' + String(club).toLowerCase().replace(/[^a-z0-9]/g, '') + '_off';
+const handleFor = (club) => '@' + String(getClubDisplayName(club) || club).toLowerCase().replace(/[^a-z0-9]/g, '') + '_off';
 
 const pickPlayerFromClub = (club, season, seed) => {
   try {
@@ -292,8 +377,8 @@ const buildAiTransferPost = ({ fromClub, toClub, season, week }) => {
     id: seed,
     kind: 'press',
     player: null,
-    authorName: 'FootMercato',
-    handle: '@footmercato',
+    authorName: 'Mercato Live',
+    handle: '@mercatolive',
     tag: 'OFFICIEL',
     text: `🚨 OFFICIEL — ${p.firstName} ${p.lastName} (${fromClub}) s'engage avec ${toClub}. Transfert estimé à ${fee}M€. Contrat signé pour ${3 + (hash(seed + 'y') % 3)} saisons.`,
     image: null,
@@ -336,8 +421,8 @@ const buildClubLifePosts = ({ state, week, season, agentClubs }) => {
       id: seed,
       kind: 'press',
       player: null,
-      authorName: 'FootMercato',
-      handle: '@footmercato',
+      authorName: 'Mercato Live',
+      handle: '@mercatolive',
       tag: 'OFFICIEL',
       text: `🚨 OFFICIEL — ${t.playerName} (${t.fromClub}) s'engage avec ${t.toClub}. Transfert estimé à ${t.fee}M€. Contrat signé pour ${years} saisons.`,
       image: null,
@@ -522,6 +607,10 @@ export const generateLivingFeedPosts = ({ state, week, season, agentPlayerIds, a
     const post = buildUefaTeamOfWeekPost({ state, week, season, agentPlayerIds });
     if (post) out.push(post);
   }
+
+  // 3b. Récap Europe agence — rend visible tous les joueurs de l'agence impliqués
+  const agencyEuropeRecap = buildAgencyEuropeanRecapPost({ state, week, agentPlayerIds, agentClubs });
+  if (agencyEuropeRecap) out.push(agencyEuropeRecap);
 
   // 4. Posts clubs officiels (toujours quelques-uns mais raisonnable)
   out.push(...buildClubOfficialPosts({ state, week, agentClubs }));

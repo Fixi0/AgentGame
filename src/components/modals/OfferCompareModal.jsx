@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Star, AlertCircle, CheckCircle } from 'lucide-react';
+import { getClubDisplayName } from '../../data/clubs';
 import { formatMoney } from '../../utils/format';
 import { S } from '../styles';
 
@@ -78,7 +79,7 @@ function OfferCard({ offer, isBest, onAccept, onReject }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, marginTop: isBest ? 4 : 0 }}>
         <div>
           <div style={{ fontSize: 18, marginBottom: 2 }}>{offer.clubCountry ?? '🌍'}</div>
-          <div style={{ fontSize: 14, fontWeight: 850, color: 'var(--af-text)', lineHeight: 1.2 }}>{offer.club}</div>
+          <div style={{ fontSize: 14, fontWeight: 850, color: 'var(--af-text)', lineHeight: 1.2 }}>{getClubDisplayName(offer.club) || offer.club}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
           {offer.preWindow && (

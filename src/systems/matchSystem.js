@@ -72,6 +72,11 @@ const buildRoundRobinPairings = (clubs, seed) => {
   return [...pairRounds, ...mirrored];
 };
 
+const getLeagueRoundIndexForSeasonWeek = (seasonWeek = 1) => {
+  if (seasonWeek < 1 || seasonWeek > 38) return null;
+  return seasonWeek;
+};
+
 const getPlayerClub = (player) => ({
   name: player.club,
   tier: player.clubTier,
@@ -79,30 +84,79 @@ const getPlayerClub = (player) => ({
   city: player.clubCity,
 });
 
-const buildFallbackSimulationSquad = (club) => {
-  const baseRating = club.tier <= 1 ? 81 : club.tier === 2 ? 76 : club.tier === 3 ? 72 : 68;
+const CLUB_RATING_OVERRIDES = {
+  PSG: 198,
+  'Real Madrid': 200,
+  Barcelona: 195,
+  Atletico: 190,
+  'Man City': 200,
+  Liverpool: 196,
+  Arsenal: 193,
+  'Man United': 188,
+  Bayern: 199,
+  Dortmund: 190,
+  Leverkusen: 191,
+  Inter: 193,
+  Milan: 188,
+  Juventus: 188,
+  Napoli: 187,
+  Monaco: 184,
+  Marseille: 184,
+  Lyon: 174,
+  Lille: 172,
+  Chelsea: 182,
+  Newcastle: 180,
+  Tottenham: 180,
+  Leipzig: 180,
+  Stuttgart: 170,
+  Roma: 176,
+  Lazio: 174,
+  Atalanta: 176,
+};
+
+const getClubSeasonCycle = (club, season = 1) => {
+  const random = createSeededRandom(hashString(`${club.countryCode}:${club.name}:cycle:${season}`));
+  const raw = random();
+  const ceiling = club.tier <= 1 ? 8 : club.tier === 2 ? 12 : 15;
+  const floor = club.tier <= 1 ? -14 : club.tier === 2 ? -10 : -8;
+  return Math.round(floor + raw * (ceiling - floor));
+};
+
+const getClubBaseRating = (club, season = 1) => {
+  const structuralRating = CLUB_RATING_OVERRIDES[club.name]
+    ?? (club.tier <= 1 ? 186 : club.tier === 2 ? 158 : club.tier === 3 ? 136 : 112);
+  return Math.max(86, Math.min(200, structuralRating + getClubSeasonCycle(club, season)));
+};
+
+const buildFallbackSimulationSquad = (club, season = 1) => {
+  const baseRating = getClubBaseRating(club, season);
   return Array.from({ length: 11 }, (_, index) => ({
     id: `${club.countryCode}_${club.name}_sim_${index + 1}`,
-    rating: baseRating + ((index % 5) - 2),
-    form: 62,
+    rating: baseRating + (index <= 2 ? 2 : index <= 6 ? 0 : -2) + ((index % 3) - 1),
+    form: 64 + (club.tier <= 1 ? 4 : club.tier === 2 ? 2 : 0),
     attributes: {
-      shooting: { current: 10 },
-      passing: { current: 10 },
+      shooting: { current: club.tier <= 1 ? 16 : club.tier === 2 ? 14 : club.tier === 3 ? 12 : 10 },
+      passing: { current: club.tier <= 1 ? 16 : club.tier === 2 ? 14 : club.tier === 3 ? 12 : 10 },
     },
     roleId: index <= 1 ? 'center_back' : index <= 4 ? 'central_mid' : 'striker',
     position: index === 0 ? 'GK' : index <= 4 ? 'DEF' : index <= 7 ? 'MIL' : 'ATT',
   }));
 };
 
-const buildSimulationSquad = (club, knownPlayers = []) =>
-  knownPlayers.length ? knownPlayers : buildFallbackSimulationSquad(club);
+const buildSimulationSquad = (club, knownPlayers = [], season = 1) =>
+  knownPlayers.length
+    ? [
+      ...knownPlayers,
+      ...buildFallbackSimulationSquad(club, season).slice(0, Math.max(0, 11 - knownPlayers.length)),
+    ].slice(0, 11)
+    : buildFallbackSimulationSquad(club, season);
 
-const createFixture = ({ homeClub, awayClub, playersByClub, isFriendly = false, week = 1, season = 1, seasonWeek = 1 }) => {
-  const seed = hashString(`${season}:${seasonWeek}:${homeClub.countryCode}:${homeClub.name}:${awayClub.name}`);
+const createFixture = ({ homeClub, awayClub, playersByClub, isFriendly = false, week = 1, season = 1, seasonWeek = 1, seedSalt = '' }) => {
+  const seed = hashString(`${seedSalt}:${season}:${seasonWeek}:${homeClub.countryCode}:${homeClub.name}:${awayClub.name}`);
   const homePlayers = playersByClub.get(clubKey(homeClub)) ?? [];
   const awayPlayers = playersByClub.get(clubKey(awayClub)) ?? [];
-  const homeSimulationSquad = buildSimulationSquad(homeClub, homePlayers);
-  const awaySimulationSquad = buildSimulationSquad(awayClub, awayPlayers);
+  const homeSimulationSquad = buildSimulationSquad(homeClub, homePlayers, season);
+  const awaySimulationSquad = buildSimulationSquad(awayClub, awayPlayers, season);
   const simulation = simulateMatch({
     homePlayers: homeSimulationSquad,
     awayPlayers: awaySimulationSquad,
@@ -117,6 +171,47 @@ const createFixture = ({ homeClub, awayClub, playersByClub, isFriendly = false, 
     homeGoals = Math.max(0, Math.min(6, homeGoals + (random() < 0.18 ? 1 : 0) - (random() < 0.12 ? 1 : 0)));
     awayGoals = Math.max(0, Math.min(6, awayGoals + (random() < 0.18 ? 1 : 0) - (random() < 0.12 ? 1 : 0)));
   }
+
+  const homeById = new Map(homeSimulationSquad.map((player) => [player.id, player]));
+  const awayById = new Map(awaySimulationSquad.map((player) => [player.id, player]));
+  const timeline = [];
+  timeline.push({
+    id: `ev_kickoff_${week}_${homeClub.name}_${awayClub.name}`,
+    minute: 1,
+    type: 'kickoff',
+    team: 'neutral',
+    scoreHome: 0,
+    scoreAway: 0,
+  });
+  let runningHome = 0;
+  let runningAway = 0;
+  (simulation.events ?? []).forEach((event, index) => {
+    if (event?.type !== 'goal') return;
+    if (event.team === 'home') runningHome += 1;
+    if (event.team === 'away') runningAway += 1;
+    const scorer = event.team === 'home' ? homeById.get(event.scorerId) : awayById.get(event.scorerId);
+    const assist = event.team === 'home' ? homeById.get(event.assistId) : awayById.get(event.assistId);
+    timeline.push({
+      id: `ev_goal_${week}_${index}_${homeClub.name}_${awayClub.name}`,
+      minute: Number(event.minute ?? (10 + index * 7)),
+      type: 'goal',
+      team: event.team,
+      scorerId: event.scorerId ?? null,
+      scorerName: scorer ? `${scorer.firstName ?? ''} ${scorer.lastName ?? ''}`.trim() : null,
+      assistId: event.assistId ?? null,
+      assistName: assist ? `${assist.firstName ?? ''} ${assist.lastName ?? ''}`.trim() : null,
+      scoreHome: runningHome,
+      scoreAway: runningAway,
+    });
+  });
+  timeline.push({
+    id: `ev_fulltime_${week}_${homeClub.name}_${awayClub.name}`,
+    minute: 90,
+    type: 'fulltime',
+    team: 'neutral',
+    scoreHome: homeGoals,
+    scoreAway: awayGoals,
+  });
 
   return {
     fixtureId: `fx_${season}_${seasonWeek}_${homeClub.countryCode}_${hashString(`${homeClub.name}:${awayClub.name}`)}`,
@@ -138,6 +233,7 @@ const createFixture = ({ homeClub, awayClub, playersByClub, isFriendly = false, 
     awayChances: simulation.stats?.away?.chances ?? null,
     isFriendly,
     simulation,
+    timeline,
   };
 };
 
@@ -270,6 +366,7 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
     return { minutes: 0, goals: 0, assists: 0, matchRating: null, selectionStatus: 'blessé', absenceReason: 'blessé' };
   }
 
+  const generationalBonus = player.superstarGenerational || (player.rating ?? 0) >= 198;
   const tierExpectation = player.clubTier <= 1 ? 80 : player.clubTier === 2 ? 74 : player.clubTier === 3 ? 66 : 58;
   const levelGap = player.rating - tierExpectation;
   const promisedRole = player.contractClauses?.rolePromise ?? player.clubRole;
@@ -282,8 +379,8 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
     + attrDelta(player, 'decisionMaking') * 0.04
     + attrDelta(player, 'stamina') * 0.03
     + attrDelta(player, 'consistency') * 0.035;
-  const startChance = Math.max(0.04, Math.min(0.96, 0.42 + levelGap * 0.035 + roleBonus / 100 + formBonus / 100 + contractRoleBonus / 100 + selectionBonus));
-  const squadChance = Math.max(0.12, Math.min(0.98, 0.72 + levelGap * 0.025 + roleBonus / 120 + contractRoleBonus / 140 + selectionBonus / 1.5));
+  const startChance = Math.max(0.04, Math.min(generationalBonus ? 0.995 : 0.96, 0.42 + levelGap * 0.035 + roleBonus / 100 + formBonus / 100 + contractRoleBonus / 100 + selectionBonus + (generationalBonus ? 0.12 : 0)));
+  const squadChance = Math.max(0.12, Math.min(generationalBonus ? 0.999 : 0.98, 0.72 + levelGap * 0.025 + roleBonus / 120 + contractRoleBonus / 140 + selectionBonus / 1.5 + (generationalBonus ? 0.08 : 0)));
   // Use attribute-based quality bonus if attributes exist, otherwise fall back to rating-based
   const qualityBonus = getAttributeQualityBonus(player);
   if (random() > squadChance) {
@@ -298,12 +395,12 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
   const scoringProfile = getPositionScoringProfile(player);
   const availableGoals = Math.max(0, Math.min(teamGoals, remainingGoals));
   const attributeGoalChance = getAttributeGoalChance(player, scoringProfile.goalChance);
-  const goals = availableGoals > 0 && scoringProfile.maxGoals > 0 && random() < attributeGoalChance + qualityBonus + player.form / 1500
-    ? seededInt(random, 1, Math.min(scoringProfile.maxGoals, availableGoals))
+  const goals = availableGoals > 0 && scoringProfile.maxGoals > 0 && random() < attributeGoalChance + qualityBonus + player.form / 1500 + (generationalBonus ? 0.18 : 0)
+    ? seededInt(random, 1, Math.min(scoringProfile.maxGoals + (generationalBonus ? 1 : 0), availableGoals))
     : 0;
   const availableAssists = Math.max(0, Math.min(teamGoals - goals, remainingAssists));
   const attributeAssistChance = getAttributeAssistChance(player, scoringProfile.assistChance);
-  const assists = availableAssists > 0 && scoringProfile.assistChance > 0 && random() < attributeAssistChance + qualityBonus / 2 + player.form / 1100 ? 1 : 0;
+  const assists = availableAssists > 0 && scoringProfile.assistChance > 0 && random() < attributeAssistChance + qualityBonus / 2 + player.form / 1100 + (generationalBonus ? 0.16 : 0) ? 1 : 0;
   const teamResult = teamGoals > opponentGoals ? 'win' : teamGoals < opponentGoals ? 'loss' : 'draw';
   const cleanSheetBonus = opponentGoals === 0 && ['DEF', 'GK'].includes(player.position) ? 0.5 : 0;
   const attributeSaveBonus = getAttributeSaveBonus(player);
@@ -314,7 +411,7 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
   const tackles = player.position === 'DEF' ? seededInt(random, 2, 8) + defenseAttrBonus : HIGH_TACKLE_ROLES.has(player.roleId) ? seededInt(random, 2, 6) + Math.floor(defenseAttrBonus / 2) : seededInt(random, 0, 3);
   // Enhance key passes with passing attribute if available
   const passingAttrBonus = player.attributes?.passing ? Math.floor(attrValue(player, 'passing') / 10 - 1) : 0;
-  const keyPasses = KEY_PASS_ROLES.has(player.roleId) ? seededInt(random, 1, 5) + (player.rating >= 168 ? 1 : 0) + passingAttrBonus : seededInt(random, 0, 2) + Math.floor(passingAttrBonus / 2);
+  const keyPasses = KEY_PASS_ROLES.has(player.roleId) ? seededInt(random, 1, 5) + (player.rating >= 168 ? 1 : 0) + passingAttrBonus + (generationalBonus ? 2 : 0) : seededInt(random, 0, 2) + Math.floor(passingAttrBonus / 2) + (generationalBonus ? 1 : 0);
   const xg = Number(Math.max(0, scoringProfile.xgBase + goals * 0.22 + seededInt(random, -8, 16) / 100).toFixed(2));
   const passBonus = ['playmaker', 'libero'].includes(player.roleId) ? 5 : ['attacking_mid', 'central_mid', 'box_to_box'].includes(player.roleId) ? 2 : 0;
   const passAccuracy = Math.max(58, Math.min(96, seededInt(random, 70, 90) + Math.floor((player.rating - 140) / 6) + passBonus + Math.round(attrDelta(player, 'passing') * 7)));
@@ -353,6 +450,7 @@ const getPlayerOutput = (player, teamGoals, opponentGoals, remainingGoals = team
     + (teamResult === 'win' ? 0.35 : teamResult === 'loss' ? -0.4 : 0)
     + (minutes < 35 ? -0.45 : 0)
     + Math.max(-0.35, Math.min(0.55, levelGap * 0.025))
+    + (generationalBonus ? 0.45 : 0)
     + seededInt(random, -6, 7) / 10 * Math.max(0.45, 1 - Math.max(0, attrDelta(player, 'consistency')) * 0.25)
     - fatiguePenalty;
 
@@ -548,7 +646,8 @@ export const simulateFixtureSquadResults = (fixture, roster = []) => {
 export const simulateFixturePlayerResults = (fixtures = [], roster = []) =>
   fixtures.flatMap((fixture) => simulateFixtureSquadResults(fixture, roster));
 
-export const buildWeeklyFixtures = (roster = [], week = 1) => {
+export const buildWeeklyFixtures = (roster = [], week = 1, options = {}) => {
+  const seedSalt = options.seedSalt ?? '';
   const playersByClub = roster.reduce((map, player) => {
     const key = clubKey(getPlayerClub(player));
     map.set(key, [...(map.get(key) ?? []), player]);
@@ -562,16 +661,18 @@ export const buildWeeklyFixtures = (roster = [], week = 1) => {
   const fixtures = [];
   const season = Math.floor((week - 1) / 38) + 1;
   const seasonWeek = ((week - 1) % 38) + 1;
+  const leagueRoundIndex = getLeagueRoundIndexForSeasonWeek(seasonWeek);
 
   // Le championnat commence dès la semaine 1 pour que le classement visible avance tout de suite.
   const isFriendlyWeek = false;
 
   clubsByCountry.forEach((countryClubs, countryCode) => {
+    if (!leagueRoundIndex) return;
     const rounds = buildRoundRobinPairings(countryClubs, hashString(`${season}:${countryCode}`));
-    const round = rounds[seasonWeek - 1];
+    const round = rounds[leagueRoundIndex - 1];
     if (!round?.length) return;
     round.forEach(({ homeClub, awayClub }) => {
-      fixtures.push(createFixture({ homeClub, awayClub, playersByClub, isFriendly: isFriendlyWeek, week, season, seasonWeek }));
+      fixtures.push(createFixture({ homeClub, awayClub, playersByClub, isFriendly: isFriendlyWeek, week, season, seasonWeek, seedSalt }));
     });
   });
 
@@ -582,7 +683,7 @@ export const buildWeeklyFixtures = (roster = [], week = 1) => {
       const home = findClub(m.homeClub);
       const away = findClub(m.awayClub);
       if (!home || !away) return;
-      const fx = createFixture({ homeClub: home, awayClub: away, playersByClub, isFriendly: false, week, season, seasonWeek });
+      const fx = createFixture({ homeClub: home, awayClub: away, playersByClub, isFriendly: false, week, season, seasonWeek, seedSalt });
       fixtures.push({
         ...fx,
         fixtureId: `cwc_${season}_${seasonWeek}_${home.name}_${away.name}`,

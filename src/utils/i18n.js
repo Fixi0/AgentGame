@@ -1332,11 +1332,169 @@ const REGEX_EN = [
   [/épaule/gi, 'shoulder'],
 ];
 
+const HEURISTIC_FR_EN_PHRASES = [
+  [/tournoi mondial/gi, 'Global Tournament'],
+  [/ligue des champions/gi, 'Champions League'],
+  [/coupe du monde/gi, 'World Cup'],
+  [/conférence de presse/gi, 'press conference'],
+  [/marché des transferts/gi, 'transfer market'],
+  [/mercato/gi, 'transfer window'],
+  [/temps de jeu/gi, 'playing time'],
+  [/salle du conseil/gi, 'boardroom'],
+  [/boîte de réception/gi, 'inbox'],
+  [/dossier explosif/gi, 'explosive story'],
+  [/mise à l’écart/gi, 'being sidelined'],
+  [/mise à l'ecart/gi, 'being sidelined'],
+  [/sous pression/gi, 'under pressure'],
+  [/en sélection nationale/gi, 'in the national team'],
+  [/sélectionneur/gi, 'national team manager'],
+  [/clauses? de contrôle/gi, 'control clauses'],
+  [/clause libératoire/gi, 'release clause'],
+  [/prime à la signature/gi, 'signing bonus'],
+  [/retour de blessure/gi, 'injury comeback'],
+  [/à l'entraînement/gi, 'in training'],
+  [/entraîneur/gi, 'coach'],
+  [/vestiaire/gi, 'dressing room'],
+];
+
+const HEURISTIC_FR_EN_WORDS = new Map(Object.entries({
+  'le': 'the',
+  'la': 'the',
+  'les': 'the',
+  'un': 'a',
+  'une': 'a',
+  'des': '',
+  'de': 'of',
+  'du': 'of the',
+  'au': 'to the',
+  'aux': 'to the',
+  'et': 'and',
+  'ou': 'or',
+  'avec': 'with',
+  'sans': 'without',
+  'pour': 'for',
+  'sur': 'on',
+  'dans': 'in',
+  'par': 'by',
+  'vers': 'toward',
+  'entre': 'between',
+  'après': 'after',
+  'avant': 'before',
+  'toujours': 'always',
+  'jamais': 'never',
+  'plus': 'more',
+  'moins': 'less',
+  'très': 'very',
+  'vite': 'quickly',
+  'joueur': 'player',
+  'joueurs': 'players',
+  'club': 'club',
+  'match': 'match',
+  'matchs': 'matches',
+  'buts': 'goals',
+  'but': 'goal',
+  'passe': 'assist',
+  'passes': 'assists',
+  'décisive': 'decisive',
+  'décisif': 'decisive',
+  'blessure': 'injury',
+  'blessé': 'injured',
+  'entraînement': 'training',
+  'offre': 'offer',
+  'offres': 'offers',
+  'transfert': 'transfer',
+  'contrat': 'contract',
+  'contrats': 'contracts',
+  'salaire': 'salary',
+  'réputation': 'reputation',
+  'confiance': 'trust',
+  'moral': 'morale',
+  'risqué': 'risky',
+  'risque': 'risk',
+  'discret': 'discreet',
+  'discrète': 'discreet',
+  'publique': 'public',
+  'public': 'public',
+  'pro': 'pro',
+  'calmer': 'calm',
+  'pression': 'pressure',
+  'coach': 'coach',
+  'équipe': 'team',
+  'équipe-type': 'team of the season',
+  'capitaine': 'captain',
+  'victoire': 'win',
+  'défaite': 'loss',
+  'nul': 'draw',
+  'supporters': 'fans',
+  'ultras': 'ultras',
+  'presse': 'press',
+  'médias': 'media',
+  'média': 'media',
+  'semaine': 'week',
+  'saison': 'season',
+  'hiver': 'winter',
+  'été': 'summer',
+}));
+
+const REGEX_FR = [
+  [/Global Tournament/gi, 'Tournoi Mondial'],
+  [/transfer window/gi, 'mercato'],
+  [/transfer market/gi, 'marché des transferts'],
+  [/transfer/gi, 'transfert'],
+  [/coach/gi, 'entraîneur'],
+  [/club/gi, 'club'],
+  [/player/gi, 'joueur'],
+  [/players/gi, 'joueurs'],
+  [/starter/gi, 'titulaire'],
+  [/bench/gi, 'banc'],
+  [/injured/gi, 'blessé'],
+  [/injury/gi, 'blessure'],
+  [/matchday/gi, 'journée'],
+  [/goals/gi, 'buts'],
+  [/goal/gi, 'but'],
+  [/assists/gi, 'passes décisives'],
+  [/assist/gi, 'passe décisive'],
+];
+
+const normalizeTextKey = (value = '') => value
+  .normalize('NFC')
+  .replace(/[’`´]/g, "'")
+  .replace(/[‐‑–—]/g, '-')
+  .replace(/\s+/g, ' ')
+  .replace(/\s*([:;!?.,])/g, '$1')
+  .trim();
+
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const applySafePhraseTranslations = (text) => {
+const buildReverseMap = (sourceMap) => {
+  const reversed = new Map();
+  sourceMap.forEach((target, source) => {
+    if (!target || !source) return;
+    if (!reversed.has(target)) reversed.set(target, source);
+  });
+  return reversed;
+};
+
+const buildNormalizedMap = (sourceMap) => {
+  const normalized = new Map();
+  sourceMap.forEach((target, source) => {
+    if (!target || !source) return;
+    const key = normalizeTextKey(source);
+    if (!normalized.has(key)) normalized.set(key, target);
+  });
+  return normalized;
+};
+
+const EXACT_FR = buildReverseMap(EXACT_EN);
+const PHRASE_FR = buildReverseMap(PHRASE_EN);
+const EXACT_EN_NORMALIZED = buildNormalizedMap(EXACT_EN);
+const PHRASE_EN_NORMALIZED = buildNormalizedMap(PHRASE_EN);
+const EXACT_FR_NORMALIZED = buildNormalizedMap(EXACT_FR);
+const PHRASE_FR_NORMALIZED = buildNormalizedMap(PHRASE_FR);
+
+const applySafePhraseTranslations = (text, dictionary) => {
   if (text.includes('#')) return text;
-  return [...PHRASE_EN.entries()]
+  return [...dictionary.entries()]
     .filter(([source]) => source.trim().length >= 4)
     .sort((a, b) => b[0].length - a[0].length)
     .reduce((translated, [source, target]) => {
@@ -1345,22 +1503,76 @@ const applySafePhraseTranslations = (text) => {
     }, text);
 };
 
+const looksFrench = (text) => /[àâäçéèêëîïôöùûüÿœ]/i.test(text)
+  || /\b(le|la|les|des|une|avec|sans|pour|dans|sur|ton|son|joueur|club|match)\b/i.test(text);
+
+const heuristicFrenchToEnglish = (text) => {
+  let next = text;
+  HEURISTIC_FR_EN_PHRASES.forEach(([pattern, replacement]) => {
+    next = next.replace(pattern, replacement);
+  });
+  next = next.replace(/\b([A-Za-zÀ-ÖØ-öø-ÿ'-]+)\b/gu, (word) => {
+    const lower = word.toLowerCase();
+    const translated = HEURISTIC_FR_EN_WORDS.get(lower);
+    if (translated == null) return word;
+    if (!translated) return '';
+    if (word === word.toUpperCase()) return translated.toUpperCase();
+    if (word[0] === word[0]?.toUpperCase()) return translated.charAt(0).toUpperCase() + translated.slice(1);
+    return translated;
+  });
+  next = next.replace(/\s{2,}/g, ' ').replace(/\s+([,.;!?])/g, '$1').trim();
+  return next || text;
+};
+
 export const translateText = (value) => {
-  if (!isEnglish() || typeof value !== 'string') return value;
+  if (typeof value !== 'string') return value;
   const leading = value.match(/^\s*/)?.[0] ?? '';
   const trailing = value.match(/\s*$/)?.[0] ?? '';
   const trimmed = value.trim();
   if (!trimmed) return value;
-  const manual = EXACT_EN.get(trimmed) ?? PHRASE_EN.get(trimmed);
+  const english = isEnglish();
+  const exact = english ? EXACT_EN : EXACT_FR;
+  const phrases = english ? PHRASE_EN : PHRASE_FR;
+  const exactNormalized = english ? EXACT_EN_NORMALIZED : EXACT_FR_NORMALIZED;
+  const phrasesNormalized = english ? PHRASE_EN_NORMALIZED : PHRASE_FR_NORMALIZED;
+  const regex = english ? REGEX_EN : REGEX_FR;
+  const normalizedTrimmed = normalizeTextKey(trimmed);
+  const manual = exact.get(trimmed)
+    ?? phrases.get(trimmed)
+    ?? exactNormalized.get(normalizedTrimmed)
+    ?? phrasesNormalized.get(normalizedTrimmed);
   if (manual) {
     return `${leading}${manual}${trailing}`;
   }
-  const phrased = applySafePhraseTranslations(trimmed);
-  const regexed = REGEX_EN.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), phrased);
-  return regexed === trimmed ? value : `${leading}${regexed}${trailing}`;
+  const phrased = applySafePhraseTranslations(trimmed, phrases);
+  const regexed = regex.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), phrased);
+  if (regexed !== trimmed) return `${leading}${regexed}${trailing}`;
+  if (english && looksFrench(trimmed)) {
+    const heur = heuristicFrenchToEnglish(trimmed);
+    if (heur !== trimmed) return `${leading}${heur}${trailing}`;
+  }
+  return value;
 };
 
 export const t = (value) => translateText(value);
+
+export const translateEventPayload = (event) => {
+  if (!event || typeof event !== 'object') return event;
+  const next = { ...event };
+  if (typeof next.label === 'string') next.label = translateText(next.label);
+  if (typeof next.title === 'string') next.title = translateText(next.title);
+  if (typeof next.description === 'string') next.description = translateText(next.description);
+  if (Array.isArray(next.choices)) {
+    next.choices = next.choices.map((choice) => {
+      if (!choice || typeof choice !== 'object') return choice;
+      const translated = { ...choice };
+      if (typeof translated.label === 'string') translated.label = translateText(translated.label);
+      if (typeof translated.desc === 'string') translated.desc = translateText(translated.desc);
+      return translated;
+    });
+  }
+  return next;
+};
 
 const shouldSkipNode = (node) => {
   const parent = node.parentElement;
@@ -1372,7 +1584,7 @@ const shouldSkipNode = (node) => {
 export const installAutoTranslator = () => {
   const language = getAppLanguage();
   document.documentElement.lang = language;
-  if (language !== 'en') return;
+  if (!['en', 'fr'].includes(language)) return;
 
   const translateNode = (node) => {
     if (node.nodeType === Node.TEXT_NODE) {

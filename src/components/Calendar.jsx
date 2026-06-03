@@ -4,6 +4,7 @@ import { getCalendarSnapshot, getSeasonMilestones } from '../systems/seasonSyste
 import { getUpcomingProgram } from '../systems/competitionCalendarSystem';
 import { buildWeeklyFixtures } from '../systems/matchSystem';
 import { ClubCrest } from '../utils/clubCrests';
+import { getClubDisplayName } from '../data/clubs';
 import { S } from './styles';
 
 const toFixtureFromDb = (row) => ({
@@ -34,10 +35,10 @@ const FixtureRow = ({ fixture, played, onClubDetails, mustWatch }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
       {mustWatch && <Star size={12} style={{ color: '#f59e0b' }} fill="#f59e0b" />}
       <ClubCrest club={fixture.homeClub.name} size={18} />
-      <button onClick={() => onClubDetails?.(fixture.homeClub.name)} style={S.linkBtn}>{fixture.homeClub.name}</button>
+      <button onClick={() => onClubDetails?.(fixture.homeClub.name)} style={S.linkBtn}>{getClubDisplayName(fixture.homeClub.name)}</button>
       <span> vs </span>
       <ClubCrest club={fixture.awayClub.name} size={18} />
-      <button onClick={() => onClubDetails?.(fixture.awayClub.name)} style={S.linkBtn}>{fixture.awayClub.name}</button>
+      <button onClick={() => onClubDetails?.(fixture.awayClub.name)} style={S.linkBtn}>{getClubDisplayName(fixture.awayClub.name)}</button>
     </div>
     <div style={S.fixtureMeta}>
       {played ? `${fixture.homeGoals}-${fixture.awayGoals}` : `${fixture.homeClub.city} · à venir`}

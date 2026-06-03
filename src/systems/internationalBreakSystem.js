@@ -65,11 +65,48 @@ const NATIONAL_OPPONENTS = [
   { name: 'Belgique', code: 'BE' },
   { name: 'Pays-Bas', code: 'NL' },
   { name: 'Croatie', code: 'HR' },
+  { name: 'Ukraine', code: 'UA' },
+  { name: 'Suisse', code: 'CH' },
   { name: 'Maroc', code: 'MA' },
   { name: 'Sénégal', code: 'SN' },
   { name: 'Japon', code: 'JP' },
   { name: 'Mexique', code: 'MX' },
 ];
+
+const getCountryLabel = (countryCode = '') =>
+  NATIONAL_OPPONENTS.find((country) => country.code === countryCode)?.name ?? countryCode;
+
+const buildInternationalPairings = (countryCodes = [], seasonWeek = 1, kind = 'friendly') => {
+  const selectedCodes = [...new Set(countryCodes.filter(Boolean))].sort((a, b) =>
+    hashFloat(`intl-order:${b}:${seasonWeek}:${kind}`) - hashFloat(`intl-order:${a}:${seasonWeek}:${kind}`));
+  const selectedSet = new Set(selectedCodes);
+  const used = new Set();
+  const pairings = new Map();
+  const externalPool = NATIONAL_OPPONENTS
+    .filter((country) => !selectedSet.has(country.code))
+    .sort((a, b) => hashFloat(`intl-ext:${a.code}:${seasonWeek}:${kind}`) - hashFloat(`intl-ext:${b.code}:${seasonWeek}:${kind}`));
+
+  selectedCodes.forEach((countryCode) => {
+    if (used.has(countryCode)) return;
+    const selectedOpponent = selectedCodes.find((candidate) => candidate !== countryCode && !used.has(candidate));
+    const opponent = selectedOpponent
+      ? { code: selectedOpponent, name: getCountryLabel(selectedOpponent) }
+      : externalPool.find((candidate) => !used.has(candidate.code)) ?? NATIONAL_OPPONENTS.find((candidate) => candidate.code !== countryCode);
+    if (!opponent) return;
+    used.add(countryCode);
+    used.add(opponent.code);
+    const pair = {
+      homeCode: countryCode,
+      homeName: getCountryLabel(countryCode),
+      awayCode: opponent.code,
+      awayName: opponent.name,
+    };
+    pairings.set(countryCode, { ...pair, side: 'home' });
+    pairings.set(opponent.code, { ...pair, side: 'away' });
+  });
+
+  return pairings;
+};
 
 /**
  * Simule la semaine internationale pour le roster.
@@ -80,61 +117,129 @@ export const simulateInternationalBreak = (roster = [], { seasonWeek = 1, week =
   const meta = BREAK_LABELS[kind];
   const selectedMatches = [];
   const events = [];
+  const selectedPlayers = roster.filter((player) => isSelected(player, seasonWeek, calledUpMap));
+  const pairings = buildInternationalPairings(selectedPlayers.map((player) => player.countryCode), seasonWeek, kind);
+  const groupedBySelection = selectedPlayers.reduce((groups, player) => {
+    const countryCode = player.countryCode ?? 'INTL';
+    const pairing = pairings.get(countryCode);
+    if (!pairing) return groups;
+    const key = `${pairing.homeCode}:${pairing.awayCode}:${seasonWeek}:${kind}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        homeCode: pairing.homeCode,
+        homeName: pairing.homeName,
+        awayCode: pairing.awayCode,
+        awayName: pairing.awayName,
+        playersByCountry: new Map(),
+      });
+    }
+    const group = groups.get(key);
+    const bucket = group.playersByCountry.get(countryCode) ?? [];
+    bucket.push(player);
+    group.playersByCountry.set(countryCode, bucket);
+    return groups;
+  }, new Map());
 
-  for (const player of roster) {
-    if (!isSelected(player, seasonWeek, calledUpMap)) continue;
-    const seed = hashFloat(`intl:${player.id}:${seasonWeek}`);
-    const opponent = NATIONAL_OPPONENTS[Math.floor(seed * NATIONAL_OPPONENTS.length)];
-    const ownBase = Math.max(66, Math.min(90, (player.rating ?? 70) + ((player.form ?? 60) - 60) * 0.1));
-    const oppBase = Math.max(66, Math.min(90, ownBase + Math.floor((hashFloat(`opp:${opponent.code}:${seasonWeek}`) - 0.5) * 10)));
+  for (const group of groupedBySelection.values()) {
+    const { homeCode, homeName, awayCode, awayName, playersByCountry } = group;
+    const homePlayers = playersByCountry.get(homeCode) ?? [];
+    const awayPlayers = playersByCountry.get(awayCode) ?? [];
+    const averageBase = (players, code) => Math.max(66, Math.min(92,
+      players.length
+        ? players.reduce((sum, player) => sum + ((player.rating ?? 70) + ((player.form ?? 60) - 60) * 0.1), 0) / players.length
+        : 72 + Math.floor(hashFloat(`intl-base:${code}:${seasonWeek}`) * 15),
+    ));
+    const homeBase = averageBase(homePlayers, homeCode);
+    const awayBase = averageBase(awayPlayers, awayCode);
     const simulation = simulateMatch({
-      homePlayers: buildVirtualSquad(Math.round(ownBase), `${player.countryCode}_${seasonWeek}_home`),
-      awayPlayers: buildVirtualSquad(Math.round(oppBase), `${opponent.code}_${seasonWeek}_away`),
-      homeTeamName: player.countryCode ?? 'INTL',
-      awayTeamName: opponent.name,
-      seed: Math.floor(hashFloat(`intl-match:${player.id}:${seasonWeek}:${opponent.code}`) * 1_000_000_000),
+      homePlayers: buildVirtualSquad(Math.round(homeBase), `${homeCode}_${seasonWeek}_home`),
+      awayPlayers: buildVirtualSquad(Math.round(awayBase), `${awayCode}_${seasonWeek}_away`),
+      homeTeamName: homeName,
+      awayTeamName: awayName,
+      seed: Math.floor(hashFloat(`intl-match:${homeCode}:${seasonWeek}:${awayCode}:${kind}`) * 1_000_000_000),
     });
-    const ownGoals = simulation.homeGoals;
-    const oppGoals = simulation.awayGoals;
-    const result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
-    const minutes = seed > 0.7 ? 45 + Math.floor(seed * 45) : 60 + Math.floor(seed * 30);
-    // Performance individuelle simple
-    const playerGoal = (player.position === 'ATT' && hashFloat(`g:${player.id}:${seasonWeek}`) < 0.35 && ownGoals > 0) ? 1 : 0;
-    const playerAssist = hashFloat(`a:${player.id}:${seasonWeek}`) < 0.18 && ownGoals - playerGoal > 0 ? 1 : 0;
-    const matchRating = Number(Math.min(10, Math.max(5,
-      6.2
-      + playerGoal * 0.9
-      + playerAssist * 0.55
-      + (result === 'win' ? 0.3 : result === 'loss' ? -0.25 : 0)
-      + (hashFloat(`r:${player.id}:${seasonWeek}`) - 0.5)
-    )).toFixed(1));
+    for (const [countryCode, players] of playersByCountry.entries()) {
+      const isHome = countryCode === homeCode;
+      const ownGoals = isHome ? simulation.homeGoals : simulation.awayGoals;
+      const oppGoals = isHome ? simulation.awayGoals : simulation.homeGoals;
+      const opponent = isHome
+        ? { code: awayCode, name: awayName }
+        : { code: homeCode, name: homeName };
+      const result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
+      let remainingGoals = ownGoals;
+      let remainingAssists = ownGoals;
+      const goalOrder = [...players].sort((a, b) => {
+      const aScore = (a.position === 'ATT' ? 0.25 : a.position === 'MIL' ? 0.12 : 0.04) + hashFloat(`g:${a.id}:${seasonWeek}`);
+      const bScore = (b.position === 'ATT' ? 0.25 : b.position === 'MIL' ? 0.12 : 0.04) + hashFloat(`g:${b.id}:${seasonWeek}`);
+      return bScore - aScore;
+    });
+    const assistOrder = [...players].sort((a, b) => hashFloat(`a:${b.id}:${seasonWeek}`) - hashFloat(`a:${a.id}:${seasonWeek}`));
+    const goalsByPlayer = new Map();
+    const assistsByPlayer = new Map();
+    goalOrder.forEach((player) => {
+      if (remainingGoals <= 0) return;
+      const chance = player.position === 'ATT' ? 0.62 : player.position === 'MIL' ? 0.34 : 0.16;
+      if (hashFloat(`goal-share:${player.id}:${seasonWeek}`) < chance) {
+        goalsByPlayer.set(player.id, 1);
+        remainingGoals -= 1;
+      }
+    });
+    assistOrder.forEach((player) => {
+      if (remainingAssists <= 0) return;
+      if ((goalsByPlayer.get(player.id) ?? 0) > 0 && players.length > 1) return;
+      const chance = player.position === 'MIL' ? 0.48 : player.position === 'ATT' ? 0.32 : 0.18;
+      if (hashFloat(`assist-share:${player.id}:${seasonWeek}`) < chance) {
+        assistsByPlayer.set(player.id, 1);
+        remainingAssists -= 1;
+      }
+    });
 
-    selectedMatches.push({
-      playerId: player.id,
-      playerName: `${player.firstName} ${player.lastName}`,
-      club: player.club,
-      kind,
-      kindLabel: meta.label,
-      opponent: opponent.name,
-      opponentCode: opponent.code,
-      score: `${ownGoals}-${oppGoals}`,
-      result,
-      minutes,
-      goals: playerGoal,
-      assists: playerAssist,
-      matchRating,
-    });
+    for (const player of players) {
+      const seed = hashFloat(`intl:${player.id}:${seasonWeek}`);
+      const minutes = seed > 0.7 ? 45 + Math.floor(seed * 45) : 60 + Math.floor(seed * 30);
+      const playerGoal = goalsByPlayer.get(player.id) ?? 0;
+      const playerAssist = assistsByPlayer.get(player.id) ?? 0;
+      const matchRating = Number(Math.min(10, Math.max(5,
+        6.2
+        + playerGoal * 0.9
+        + playerAssist * 0.55
+        + (result === 'win' ? 0.3 : result === 'loss' ? -0.25 : 0)
+        + (hashFloat(`r:${player.id}:${seasonWeek}`) - 0.5)
+      )).toFixed(1));
 
-    events.push({
-      id: `intl_${kind}`,
-      label: `${meta.emoji} ${meta.short} avec sa sélection`,
-      good: true,
-      money: playerGoal ? 800 : 200,
-      rep: playerGoal ? 2 : 1,
-      player: `${player.firstName} ${player.lastName}`,
-      playerId: player.id,
-      detail: `${player.firstName} ${player.lastName} · vs ${opponent.name} · ${ownGoals}-${oppGoals} · note ${matchRating}/10${playerGoal ? ' · 1 but' : ''}`,
-    });
+      selectedMatches.push({
+        playerId: player.id,
+        playerName: `${player.firstName} ${player.lastName}`,
+        club: player.countryLabel ?? player.countryCode ?? countryCode,
+        countryName: player.countryLabel ?? player.countryCode ?? countryCode,
+        countryCode,
+        kind,
+        competitionLabel: meta.label,
+        kindLabel: meta.label,
+        opponent: opponent.name,
+        opponentName: opponent.name,
+        opponentCode: opponent.code,
+        score: `${ownGoals}-${oppGoals}`,
+        result,
+        minutes,
+        goals: playerGoal,
+        assists: playerAssist,
+        matchRating,
+        sharedMatchId: `intl_${seasonWeek}_${kind}_${homeCode}_${awayCode}`,
+      });
+
+      events.push({
+        id: `intl_${kind}`,
+        label: `${meta.emoji} ${meta.short} avec sa sélection`,
+        good: true,
+        money: playerGoal ? 800 : 200,
+        rep: playerGoal ? 2 : 1,
+        player: `${player.firstName} ${player.lastName}`,
+        playerId: player.id,
+        detail: `${player.firstName} ${player.lastName} · ${player.countryLabel ?? countryCode} vs ${opponent.name} · ${ownGoals}-${oppGoals} · note ${matchRating}/10${playerGoal ? ' · 1 but' : ''}`,
+      });
+    }
+    }
   }
 
   return {

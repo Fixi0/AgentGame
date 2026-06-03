@@ -5,7 +5,8 @@ import { applyLeagueReputation } from './leagueReputationSystem';
 import { createMessage } from './messageSystem';
 import { hasDossierEventThisWeek, hasRecentDossierEvent, recordDossierEvent } from './coherenceSystem';
 import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
-import { CLUBS, getCountry } from '../data/clubs';
+import { getClubId } from './identitySystem';
+import { CLUBS, getClubDisplayName, getCountry } from '../data/clubs';
 import { clamp, makeId, pick } from '../utils/helpers';
 
 const MEDIA_NAME_TO_ID = MEDIA_RELATION_TEMPLATES.reduce((map, media) => ({
@@ -53,6 +54,7 @@ const buildNarrativeOffer = ({ player, week, context = 'narrative' }) => {
     effectiveWeek: week,
     playerId: player.id,
     playerName: `${player.firstName} ${player.lastName}`,
+    clubId: getClubId(club),
     club: club.name,
     clubTier: club.tier,
     clubCountry: country.flag,
@@ -231,6 +233,7 @@ export const applyNewsConsequences = ({ state, roster, posts, week }) => {
 
       dossierMemory = recordDossierEvent(dossierMemory, {
         playerId: updatedPlayer.id,
+        clubId: updatedPlayer.club && updatedPlayer.club !== 'Libre' ? getClubId(updatedPlayer.clubId ?? updatedPlayer.club) : null,
         clubName: updatedPlayer.club && updatedPlayer.club !== 'Libre' ? updatedPlayer.club : null,
         mediaId,
         week,
@@ -312,7 +315,7 @@ export const generateNarrativeFollowups = ({ state, roster, week }) => {
   if (arc.type === 'transfer_saga') {
     const offer = Math.random() < 0.7 ? buildNarrativeOffer({ player, week, context: arc.id }) : null;
     return {
-      events: [{ title: 'Saga mercato', text: offer ? `Le dossier ${player.firstName} ${player.lastName} s'accélère: ${offer.club} passe à l'action.` : `Le dossier ${player.firstName} ${player.lastName} continue d'agiter les clubs. Un appel sérieux pourrait arriver si les performances suivent.` }],
+      events: [{ title: 'Saga mercato', text: offer ? `Le dossier ${player.firstName} ${player.lastName} s'accélère: ${getClubDisplayName(offer.club) || offer.club} passe à l'action.` : `Le dossier ${player.firstName} ${player.lastName} continue d'agiter les clubs. Un appel sérieux pourrait arriver si les performances suivent.` }],
       messages: [createMessage({ player, type: 'transfer_request', week, context: arc.id })],
       offers: offer ? [offer] : [],
     };
@@ -345,7 +348,7 @@ export const generateNarrativeFollowups = ({ state, roster, week }) => {
   if (arc.type === 'transfer_rumor') {
     const offer = Math.random() < 0.45 ? buildNarrativeOffer({ player, week, context: arc.id }) : null;
     return {
-      events: [{ title: 'Rumeur de départ', text: offer ? `La rumeur prend forme: ${offer.club} prépare une proposition pour ${player.firstName} ${player.lastName}.` : `Une rumeur de départ entoure ${player.firstName} ${player.lastName}. Le prochain message comptera.` }],
+      events: [{ title: 'Rumeur de départ', text: offer ? `La rumeur prend forme: ${getClubDisplayName(offer.club) || offer.club} prépare une proposition pour ${player.firstName} ${player.lastName}.` : `Une rumeur de départ entoure ${player.firstName} ${player.lastName}. Le prochain message comptera.` }],
       messages: [createMessage({ player, type: 'transfer_request', week, context: arc.id })],
       offers: offer ? [offer] : [],
     };

@@ -8,6 +8,7 @@
  */
 
 import { GABRIEL_FIXIO_ID, UGO_MOXWMO_ID } from '../data/squadDatabase';
+import { getClubId } from './identitySystem';
 
 export const BOND_LABELS = [
   { min: 80, label: 'Frères d\'armes', tone: '#ff3da7' },
@@ -71,23 +72,28 @@ export const getBondsForPlayer = (bonds = {}, playerId, roster = []) => {
     const otherId = idA === String(playerId) ? idB : idA;
     const other = roster.find((p) => String(p.id) === otherId);
     if (!other) continue;
+    const current = roster.find((p) => String(p.id) === String(playerId));
+    const sameClub = getClubId(current?.clubId ?? current?.club) && getClubId(current?.clubId ?? current?.club) === getClubId(other?.clubId ?? other?.club);
     out.push({
       key,
       value: bond.value,
       type: bond.type,
       story: bond.story,
       scripted: !!bond.scripted,
+      sameClub,
       partner: other,
     });
   }
-  return out.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  return out
+    .filter((bond) => bond.sameClub)
+    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
 };
 
 /** Seed déterministe d'un bond entre 2 joueurs (la première fois qu'on les voit ensemble). */
 const seedInitialBondValue = (a, b) => {
   const r = hashFloat(`bond:${pairKey(a.id, b.id)}`);
   const sameNationality = a.countryCode && a.countryCode === b.countryCode;
-  const sameClub = a.club && a.club === b.club;
+  const sameClub = getClubId(a.clubId ?? a.club) && getClubId(a.clubId ?? a.club) === getClubId(b.clubId ?? b.club);
   if (!sameClub) return 0;
   // 70% bonds positifs (les coéquipiers s'entendent globalement bien)
   if (r < 0.10) return -25 - Math.floor(hashFloat(`riv:${pairKey(a.id, b.id)}`) * 25); // -25..-50 rivalité
@@ -116,7 +122,7 @@ export const tickBonds = (bonds = {}, roster = [], { week = 1 } = {}) => {
       const a = players[i];
       const b = players[j];
       const key = pairKey(a.id, b.id);
-      const sameClub = a.club && b.club && a.club === b.club;
+      const sameClub = getClubId(a.clubId ?? a.club) && getClubId(a.clubId ?? a.club) === getClubId(b.clubId ?? b.club);
       let existing = next[key];
 
       if (!existing) {
@@ -143,7 +149,7 @@ export const tickBonds = (bonds = {}, roster = [], { week = 1 } = {}) => {
       }
 
       let newValue = existing.value + delta;
-      if (existing.scripted) {
+      if (existing.scripted && sameClub) {
         newValue = Math.max(70, Math.min(100, newValue));
       } else {
         newValue = Math.max(-100, Math.min(100, newValue));
@@ -180,7 +186,7 @@ export const applyBondEffectsToMatchResults = (matchResults = [], roster = [], b
     for (let j = i + 1; j < players.length; j += 1) {
       const a = players[i];
       const b = players[j];
-      if (!a.club || a.club !== b.club) continue;
+      if (!getClubId(a.clubId ?? a.club) || getClubId(a.clubId ?? a.club) !== getClubId(b.clubId ?? b.club)) continue;
       const bond = bonds[pairKey(a.id, b.id)];
       if (!bond) continue;
       const ma = byId.get(a.id);
@@ -237,6 +243,7 @@ export const generateBondSocialPosts = (bonds = {}, roster = [], { week = 1, max
       const a = byId.get(idA);
       const b = byId.get(idB);
       if (!a || !b) return null;
+      if (!getClubId(a.clubId ?? a.club) || getClubId(a.clubId ?? a.club) !== getClubId(b.clubId ?? b.club)) return null;
       return { key, a, b, ...bond };
     })
     .filter(Boolean)

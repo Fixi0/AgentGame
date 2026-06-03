@@ -4,6 +4,13 @@ import { createManualNewsPost } from '../systems/newsSystem';
 import { getCalendarSnapshot, getWeekDailySnapshots } from '../systems/seasonSystem';
 import { generateSeasonAwards, calculateCoherenceScore } from '../systems/weeklyEventsSystem';
 import { pick, rand } from '../utils/helpers';
+import { translateText } from '../utils/i18n';
+
+const renderNarrativeText = (template = '', vars = {}) =>
+  String(template).replace(/\{([a-zA-Z0-9_]+)\}/g, (_m, key) => String(vars[key] ?? ''));
+
+const getNarrativeList = (narrativeTemplates = {}, domain, periodKey) =>
+  narrativeTemplates?.[`${domain}:${periodKey}`] ?? [];
 
 const getSeasonAwardMemory = (seasonAwards, season) => ({
   ...(seasonAwards?.[season] ?? {}),
@@ -26,7 +33,7 @@ const getChampionsLeagueWinner = (leagueTables) => {
   return pick(topClubs.length ? topClubs : rows)?.club ?? pick(CLUBS).name;
 };
 
-export const generateWorldSummary = ({ week, phase, worldState }) => {
+export const generateWorldSummary = ({ week, phase, worldState, narrativeTemplates = {} }) => {
   const europeanClubs = CLUBS.filter((club) => ['FR', 'ES', 'EN', 'IT', 'DE', 'PT', 'NL'].includes(club.countryCode));
   const pickClubName = () => pick(europeanClubs)?.name ?? pick(CLUBS)?.name ?? 'Un grand club européen';
   const losingClub = pickClubName();
@@ -36,24 +43,41 @@ export const generateWorldSummary = ({ week, phase, worldState }) => {
 
   const calmWeek = Math.random() < 0.25 && !phase.mercato && !phase.deadlineDay;
   if (calmWeek) {
+    const calmTemplate = pick(getNarrativeList(narrativeTemplates, 'world_summary', 'calm'))?.text
+      ?? 'Peu de mouvements majeurs dans le monde du foot. Les clubs observent, les agents préparent leurs dossiers.';
     return [{
       type: 'calm',
       title: 'Semaine calme',
-      text: 'Peu de mouvements majeurs dans le monde du foot. Les clubs observent, les agents préparent leurs dossiers.',
+      text: calmTemplate,
     }];
   }
 
-  const pool = [
-    { type: 'match', title: 'Choc européen', text: `${losingClub} s'incline ${score} contre ${winningClub} dans un match très suivi. Plusieurs cadres sont pointés du doigt par la presse et les émissions du soir ouvrent le débat sur l'état du vestiaire.` },
-    { type: 'injury', title: 'Blessure star', text: 'Une star du continent se blesse. Son club pourrait chercher une solution rapide au mercato.' },
-    { type: 'rumor', title: 'Rumeur marché', text: 'Un insider annonce que plusieurs clubs préparent déjà leur prochain numéro 9.' },
-    { type: 'media', title: 'Débat agents', text: 'Les médias débattent du rôle des agents dans les carrières des jeunes talents.' },
-    { type: 'club', title: 'Président sous pression', text: 'Un président promet de recruter après une série de mauvais résultats.' },
-  ];
+  const dbPool = getNarrativeList(narrativeTemplates, 'world_summary', 'pool');
+  const pool = dbPool.length
+    ? dbPool.map((item) => ({
+      type: item.category ?? 'media',
+      title: item.subject ?? 'Info monde',
+      text: renderNarrativeText(item.text ?? '', { losingClub, winningClub, score }),
+    }))
+    : [
+      { type: 'match', title: 'Choc européen', text: `${losingClub} s'incline ${score} contre ${winningClub} dans un match très suivi. Plusieurs cadres sont pointés du doigt par la presse et les émissions du soir ouvrent le débat sur l'état du vestiaire.` },
+      { type: 'injury', title: 'Blessure star', text: 'Une star du continent se blesse. Son club pourrait chercher une solution rapide au mercato.' },
+      { type: 'rumor', title: 'Rumeur marché', text: 'Un insider annonce que plusieurs clubs préparent déjà leur prochain numéro 9.' },
+      { type: 'media', title: 'Débat agents', text: 'Les médias débattent du rôle des agents dans les carrières des jeunes talents.' },
+      { type: 'club', title: 'Président sous pression', text: 'Un président promet de recruter après une série de mauvais résultats.' },
+    ];
 
   const summary = [pick(pool)];
-  if (phase.mercato) summary.push({ type: 'mercato', title: 'Marché actif', text: `Le mercato ${phase.window} accélère. Les clubs testent plusieurs dossiers avant de formuler des offres.` });
-  if (worldState?.scandal_media) summary.push({ type: 'media', title: 'Presse agressive', text: 'Les journalistes cherchent les histoires sensibles. Les petites phrases peuvent devenir des crises.' });
+  if (phase.mercato) {
+    const mercatoTemplate = pick(getNarrativeList(narrativeTemplates, 'world_summary', 'mercato'))?.text
+      ?? 'Le mercato {window} accélère. Les clubs testent plusieurs dossiers avant de formuler des offres.';
+    summary.push({ type: 'mercato', title: 'Marché actif', text: renderNarrativeText(mercatoTemplate, { window: phase.window }) });
+  }
+  if (worldState?.scandal_media) {
+    const mediaTemplate = pick(getNarrativeList(narrativeTemplates, 'world_summary', 'media_pressure'))?.text
+      ?? 'Les journalistes cherchent les histoires sensibles. Les petites phrases peuvent devenir des crises.';
+    summary.push({ type: 'media', title: 'Presse agressive', text: mediaTemplate });
+  }
   return summary.slice(0, 3).map((item) => ({ ...item, week }));
 };
 
@@ -146,7 +170,7 @@ export const resolveAnnualCalendarEvents = ({ roster, leagueTables, phase, seaso
     }
   }
 
-  if (phase.seasonWeek === 36 && !seasonMemory.championsLeagueWinner) {
+  if (phase.seasonWeek === 37 && !seasonMemory.championsLeagueWinner) {
     const club = getChampionsLeagueWinner(leagueTables);
     nextSeasonMemory.championsLeagueWinner = club;
     const clubPlayer = nextRoster
@@ -292,6 +316,7 @@ export const buildWeeklyTimeline = ({
       tone: topEuroMatch.result === 'win' ? 'good' : topEuroMatch.result === 'loss' ? 'danger' : 'warn',
       major: true,
       kind: 'euroResult',
+      match: topEuroMatch,
       title: `${topEuroMatch.competitionLabel ?? EURO_CUP_LABELS[topEuroMatch.competition]?.name ?? topEuroMatch.competition ?? 'Europe'} · ${topEuroMatch.playerName ?? 'Joueur'}`,
       text: `Match européen: ${topEuroMatch.club ?? 'Club'} ${topEuroMatch.score ?? '0-0'} ${topEuroMatch.opponentName ?? topEuroMatch.opponent ?? '—'} · note ${topEuroMatch.matchRating ?? '—'}.`,
       chips: [topEuroMatch.phase ?? 'Europe', `${topEuroMatch.minutes ?? 0} min`, topEuroMatch.result === 'win' ? 'Victoire' : topEuroMatch.result === 'loss' ? 'Défaite' : 'Nul'],
@@ -316,7 +341,7 @@ export const buildWeeklyTimeline = ({
       major: false,
       kind: 'messages',
       title: `Messages du jour`,
-      text: `${messageCount} messages, ${queueSize} en file, ${offerCount} offres et ${fixtureCount} matches suivis cette semaine.`,
+      text: `${messageCount} messages, ${offerCount} offres et ${fixtureCount} rendez-vous sportifs ont animé la semaine.`,
       chips: [
         `${deliveredMessagesCount} délivrés`,
         `${promiseFailuresCount} promesses`,
@@ -421,5 +446,11 @@ export const buildWeeklyTimeline = ({
     sundayCard,
   ].filter(Boolean);
 
-  return timeline;
+  return timeline.map((item) => ({
+    ...item,
+    title: typeof item.title === 'string' ? translateText(item.title) : item.title,
+    text: typeof item.text === 'string' ? translateText(item.text) : item.text,
+    chips: Array.isArray(item.chips) ? item.chips.map((chip) => (typeof chip === 'string' ? translateText(chip) : chip)) : item.chips,
+    day: typeof item.day === 'string' ? translateText(item.day) : item.day,
+  }));
 };

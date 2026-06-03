@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { S } from './styles';
-import { EURO_CUP_LABELS, getEuropeanCompetition } from '../systems/europeanCupSystem';
+import { EURO_CUP_LABELS, getEuropeanCompetition, getEuropeanFixtureList } from '../systems/europeanCupSystem';
 import { getEuropeanTopStats } from '../systems/topScorersSystem';
+import { getClubDisplayName } from '../data/clubs';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ const resultColor = (r) => r === 'win' ? '#00a676' : r === 'loss' ? '#ef4444' : 
 const resultLabel = (r) => r === 'win' ? 'V' : r === 'loss' ? 'D' : 'N';
 
 const fmt = (v) => v ?? '?';
+const displayClub = (clubName) => getClubDisplayName(clubName) ?? clubName ?? '?';
 
 const getSeasonFromWeek = (week = 1) => Math.floor(((week - 1) / 38)) + 1;
 
@@ -33,9 +35,25 @@ const buildEuropeanDataFromDb = (databaseView = null) => {
       koPath: row.ko_path ?? {},
       bracketClubs: row.bracket_clubs ?? null,
       bracketState: row.bracket_state ?? row.raw?.bracketState ?? null,
+      leagueFixtures: row.raw?.leagueFixtures ?? null,
+      fixtures: row.raw?.fixtures ?? {},
       winner: row.winner ?? row.raw?.winner ?? row.raw?.champion ?? null,
     },
   }), {});
+};
+
+const getRoundsByStage = (compData = {}, stage = '') =>
+  Object.values(compData?.bracketState?.rounds ?? {})
+    .filter((round) => round?.stage === stage)
+    .sort((a, b) => (a.week ?? 0) - (b.week ?? 0) || (a.leg ?? 0) - (b.leg ?? 0));
+
+const getLatestRoundMatches = (compData = {}, stage = '') => {
+  const rounds = getRoundsByStage(compData, stage);
+  const latestWeek = rounds[rounds.length - 1]?.week ?? null;
+  if (latestWeek == null) return [];
+  return rounds
+    .filter((round) => round.week === latestWeek)
+    .flatMap((round) => round.matches ?? []);
 };
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -57,7 +75,7 @@ function GlobalRoundLog({ compData, cupLabel }) {
       <SectionTitle>Parcours complet</SectionTitle>
       {compData.winner && (
         <div style={{ background: 'oklch(28% 0.08 70 / .22)', border: '1px solid var(--af-border)', borderRadius: 8, padding: 10, marginBottom: 8, color: '#92400e', fontSize: 12, fontWeight: 850, fontFamily: 'system-ui,sans-serif' }}>
-          🏆 Vainqueur: {compData.winner}
+          🏆 Vainqueur: {displayClub(compData.winner)}
         </div>
       )}
       <div style={{ display: 'grid', gap: 8 }}>
@@ -68,7 +86,7 @@ function GlobalRoundLog({ compData, cupLabel }) {
             </div>
             {(round.matches ?? []).slice(0, 8).map((match) => (
               <div key={`${match.home}-${match.away}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '4px 0', borderBottom: '1px solid #f0f4f7', fontSize: 12, color: 'var(--af-text)', fontFamily: 'system-ui,sans-serif' }}>
-                <span>{match.home} - {match.away}</span>
+                <span>{displayClub(match.home)} - {displayClub(match.away)}</span>
                 <strong>{match.score}{match.aggregate ? ` agg. ${match.aggregate}` : ''}</strong>
               </div>
             ))}
@@ -84,7 +102,7 @@ const LeagueDayRow = ({ matchday, opponent, opponentCountry, score, result, last
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: last ? 'none' : '1px solid #f0f4f7' }}>
     <span style={{ fontSize: 9, fontWeight: 800, color: '#8fa0b0', fontFamily: 'system-ui,sans-serif', minWidth: 14, textAlign: 'center' }}>J{matchday}</span>
     <span style={{ fontSize: 13 }}>{opponentCountry ?? '🌍'}</span>
-    <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--af-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opponent ?? '—'}</span>
+    <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: 'var(--af-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayClub(opponent)}</span>
     {score && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--af-text)', fontFamily: 'system-ui,sans-serif' }}>{score}</span>}
     {result && (
       <span style={{ fontSize: 10, fontWeight: 900, color: resultColor(result), background: resultColor(result) + '18', borderRadius: 4, padding: '2px 6px', fontFamily: 'system-ui,sans-serif' }}>
@@ -105,7 +123,7 @@ const KORoundCard = ({ stage, koData }) => {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 14 }}>{opponentCountry ?? '🌍'}</span>
-        <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: 'var(--af-text)' }}>{opponent ?? '—'}</span>
+        <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: 'var(--af-text)' }}>{displayClub(opponent)}</span>
         {score && <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--af-text)', fontFamily: 'system-ui,sans-serif' }}>{score}</span>}
         {result && (
           <span style={{ fontSize: 11, fontWeight: 900, color: resultColor(result), background: resultColor(result) + '18', borderRadius: 6, padding: '3px 8px', fontFamily: 'system-ui,sans-serif' }}>
@@ -180,11 +198,11 @@ const KnockoutTree = ({ compData, cupLabel }) => {
   })();
 
   const stageMatches = {
-    playoff: rounds.playoff?.matches ?? [],
-    roundOf16: rounds.roundOf16?.matches ?? fallbackRoundOf16,
-    quarters: rounds.quarters?.matches ?? [],
-    semis: rounds.semis?.matches ?? [],
-    final: rounds.final?.matches ?? [],
+    playoff: getLatestRoundMatches(compData, 'playoff'),
+    roundOf16: getLatestRoundMatches(compData, 'roundOf16').length ? getLatestRoundMatches(compData, 'roundOf16') : fallbackRoundOf16,
+    quarters: getLatestRoundMatches(compData, 'quarters'),
+    semis: getLatestRoundMatches(compData, 'semis'),
+    final: getLatestRoundMatches(compData, 'final'),
   };
 
   const stages = STAGE_ORDER.filter((stage) => (stageMatches[stage] ?? []).length > 0);
@@ -202,11 +220,11 @@ const KnockoutTree = ({ compData, cupLabel }) => {
               {(stageMatches[stage] ?? []).map((match, idx) => (
                 <div key={`${stage}_${idx}_${match.home}_${match.away}`} style={{ border: '1px solid var(--af-border)', borderRadius: 6, overflow: 'hidden', background: 'oklch(18% 0.035 258 / .92)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 8px', borderBottom: '1px solid oklch(28% 0.04 258 / .35)' }}>
-                    <span style={{ fontSize: 12, color: 'var(--af-text)' }}>{match.home ?? 'Club A'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--af-text)' }}>{displayClub(match.home ?? 'Club A')}</span>
                     <strong style={{ fontSize: 12, color: 'var(--af-text)' }}>{match.score ? String(match.score).split('-')[0]?.trim() : ''}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 8px' }}>
-                    <span style={{ fontSize: 12, color: 'var(--af-text)' }}>{match.away ?? 'Club B'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--af-text)' }}>{displayClub(match.away ?? 'Club B')}</span>
                     <strong style={{ fontSize: 12, color: 'var(--af-text)' }}>{match.score ? String(match.score).split('-')[1]?.trim() : ''}</strong>
                   </div>
                   {(match.score || match.aggregate) && (
@@ -293,27 +311,32 @@ const TopScorers = ({ state, competition, cupColor }) => {
 // ── Vue principale par club ────────────────────────────────────────────────
 
 const ClubEuroView = ({ clubName, compData, competition, cupLabel }) => {
-  const opponentList = compData?.opponentHistory?.[clubName] ?? [];
+  const leagueFixtures = getEuropeanFixtureList(compData)
+    .filter((fixture) => fixture.stage === 'league' && (fixture.home === clubName || fixture.away === clubName))
+    .sort((a, b) => Number(a.matchdayIndex ?? 0) - Number(b.matchdayIndex ?? 0));
   const koPath = compData?.koPath?.[clubName] ?? {};
   const stagesPlayed = STAGE_ORDER.filter((s) => koPath[s]);
 
   return (
     <div>
       {/* Phase de ligue */}
-      {opponentList.length > 0 && (
+      {leagueFixtures.length > 0 && (
         <div style={{ background: 'oklch(18% 0.035 258 / .92)', border: '1px solid var(--af-border)', borderRadius: 8, padding: '14px 16px', marginBottom: 12, boxShadow: '0 4px 12px rgba(15,23,32,.06)' }}>
-          <SectionTitle>Phase de ligue — {opponentList.length}/8 journées</SectionTitle>
-          {opponentList.map((opp, i) => {
-            // Retrouver le score via le matchHistory en koPath s'il existe
+          <SectionTitle>Phase de ligue — {leagueFixtures.length}/{competition === 'ECL' ? 6 : 8} journées</SectionTitle>
+          {leagueFixtures.map((fixture, i) => {
+            const isHome = fixture.home === clubName;
+            const ownGoals = isHome ? fixture.homeGoals : fixture.awayGoals;
+            const oppGoals = isHome ? fixture.awayGoals : fixture.homeGoals;
+            const result = ownGoals > oppGoals ? 'win' : ownGoals < oppGoals ? 'loss' : 'draw';
             return (
               <LeagueDayRow
-                key={i}
-                matchday={i + 1}
-                opponent={opp}
-                opponentCountry={null}
-                score={null}
-                result={null}
-                last={i === opponentList.length - 1}
+                key={fixture.id ?? i}
+                matchday={Number(fixture.matchdayIndex ?? i) + 1}
+                opponent={isHome ? fixture.away : fixture.home}
+                opponentCountry={isHome ? fixture.awayCountry : fixture.homeCountry}
+                score={`${ownGoals}-${oppGoals}`}
+                result={result}
+                last={i === leagueFixtures.length - 1}
               />
             );
           })}
@@ -330,7 +353,7 @@ const ClubEuroView = ({ clubName, compData, competition, cupLabel }) => {
         </div>
       )}
 
-      {opponentList.length === 0 && stagesPlayed.length === 0 && (
+      {leagueFixtures.length === 0 && stagesPlayed.length === 0 && (
         <div style={{ background: 'oklch(16% 0.035 258 / .78)', border: '1px solid var(--af-border)', borderRadius: 8, padding: 16, textAlign: 'center', color: '#8fa0b0', fontSize: 13 }}>
           Les matchs européens n'ont pas encore commencé pour ce club.
         </div>
@@ -356,7 +379,7 @@ export default function EuropeanBracket({ state, databaseView = null }) {
     const season = getSeasonFromWeek(state?.week ?? 1);
     const agentClubsByComp = {};
     for (const p of roster) {
-      const comp = p.europeanCompetition;
+      const comp = getEuropeanCompetition(p, season);
       if (!comp) continue;
       if (!agentClubsByComp[comp]) agentClubsByComp[comp] = new Set();
       agentClubsByComp[comp].add(p.club);
@@ -445,7 +468,7 @@ export default function EuropeanBracket({ state, databaseView = null }) {
             <div key={clubName} style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--af-text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 8, height: 8, borderRadius: 4, background: currentCompEntry.cupLabel.color, display: 'inline-block' }} />
-                {clubName}
+                {displayClub(clubName)}
               </div>
               <ClubEuroView
                 clubName={clubName}

@@ -5,6 +5,14 @@ export const getAgencyCapacity = (agencyLevel = 1) => AGENCY_CAPACITY_BY_LEVEL[a
 
 export const getAgencyUpgradeCost = (agencyLevel = 1) => AGENCY_UPGRADE_COSTS[agencyLevel] ?? null;
 
+export const normalizeAgencyName = (value, fallback = 'Agent FC') => {
+  const cleaned = String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return fallback;
+  return cleaned.slice(0, 40);
+};
+
 const AGENCY_STAGES = [
   { label: 'Atelier', min: 0, max: 16, hint: 'Tu poses les bases de l’agence.', reward: 'Départ modeste, peu de marge' },
   { label: 'Petit réseau', min: 17, max: 31, hint: 'Tu commences à ouvrir quelques portes.', reward: '+1 relation club par mois' },

@@ -4,8 +4,8 @@
  */
 import { createPlayerCatalog } from '../data/squadDatabase';
 
-const safeGoals = (p) => (p.seasonGoals ?? p.stats?.goals ?? 0);
-const safeAssists = (p) => (p.seasonAssists ?? p.stats?.assists ?? 0);
+const safeGoals = (p = {}) => Number(p.seasonStats?.goals ?? p.seasonGoals ?? p.stats?.goals ?? 0);
+const safeAssists = (p = {}) => Number(p.seasonStats?.assists ?? p.seasonAssists ?? p.stats?.assists ?? 0);
 
 export const computeSeasonTrophies = (state) => {
   const season = Math.floor(((state.week ?? 1) - 1) / 38) + 1;

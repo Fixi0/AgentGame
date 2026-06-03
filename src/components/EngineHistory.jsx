@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Activity, CalendarDays, Gauge, Target, Trophy } from 'lucide-react';
 import { getWeekDailySnapshots } from '../systems/seasonSystem';
 import { MATCH_STATUS, calendarMatchToFixture } from '../systems/matchCalendarSystem';
+import { getClubDisplayName } from '../data/clubs';
 import { S } from './styles';
 
 const dayLabel = (week, day = 6) => {
@@ -32,7 +33,7 @@ function MatchRow({ match }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ color: 'var(--af-text)', fontWeight: 950, fontSize: 13 }}>
-            {fixture.homeClub?.name ?? 'Club'} <span style={{ color: 'var(--af-cyan)' }}>{scoreText(fixture)}</span> {fixture.awayClub?.name ?? 'Adversaire'}
+            {getClubDisplayName(fixture.homeClub?.name ?? 'Club')} <span style={{ color: 'var(--af-cyan)' }}>{scoreText(fixture)}</span> {getClubDisplayName(fixture.awayClub?.name ?? 'Adversaire')}
           </div>
           <div style={S.fixtureMeta}>
             {dayLabel(match.week, match.day)} · S{match.seasonWeek ?? ((match.week - 1) % 38) + 1}/38 · {competitionLabel(match)}

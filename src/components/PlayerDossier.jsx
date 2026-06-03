@@ -1,9 +1,10 @@
 import React from 'react';
-import { Calendar, Heart, Shield, Star, TrendingUp, Wallet, Users } from 'lucide-react';
-import { getPlayerStarsText } from '../utils/playerStars';
-import { getPlayerPortrait } from '../utils/playerPortraits';
+import { Heart, Shield, Star, Users } from 'lucide-react';
+import { getCardStarsText, withPlayerCardMeta } from '../systems/playerCardSystem';
 import { formatMoney } from '../utils/format';
+import { getPlayerPortrait } from '../utils/playerPortraits';
 import { getBondsForPlayer, getBondLabel } from '../systems/playerBondsSystem';
+import CardPlayer from './CardPlayer';
 
 const fullName = (player = {}) => `${player.firstName ?? ''} ${player.lastName ?? ''}`.trim() || 'Joueur';
 
@@ -12,8 +13,6 @@ const COUNTRY_FLAGS = {
   POR: '🇵🇹', NED: '🇳🇱', BEL: '🇧🇪', USA: '🇺🇸', JPN: '🇯🇵', SEN: '🇸🇳', MAR: '🇲🇦', ALG: '🇩🇿',
   NOR: '🇳🇴', NGA: '🇳🇬', CRO: '🇭🇷', COL: '🇨🇴', KOR: '🇰🇷',
 };
-
-const ratingTier = (r = 0) => (r >= 88 ? 'tier-legend' : r >= 80 ? 'tier-elite' : r >= 72 ? 'tier-gold' : '');
 
 function Stat({ label, value, accent }) {
   return (
@@ -40,9 +39,8 @@ function Bar({ label, value, color = 'var(--af-grass)' }) {
 
 export default function PlayerDossier({ player, onBack, actions = [], bonds = {}, roster = [] }) {
   if (!player) return null;
-  const portrait = getPlayerPortrait(player);
-  const tier = ratingTier(player.rating);
-  const flag = player.countryFlag || COUNTRY_FLAGS[player.countryCode] || '🏳️';
+  const playerCardMeta = withPlayerCardMeta(player);
+  const flag = playerCardMeta.countryFlag || COUNTRY_FLAGS[playerCardMeta.countryCode] || '🏳️';
   const playerBonds = getBondsForPlayer(bonds, player.id, roster).slice(0, 4);
   const currentRating = Number(player.rating) || 0;
   const potentialRating = Math.max(currentRating, Number(player.potential) || currentRating);
@@ -58,18 +56,20 @@ export default function PlayerDossier({ player, onBack, actions = [], bonds = {}
 
   return (
     <section className="af-panel" style={{ padding: 0, display: 'grid', gap: 0, overflow: 'hidden' }}>
-      {/* Hero portrait */}
-      <div style={{ position: 'relative', height: 280, backgroundImage: `linear-gradient(180deg, transparent 30%, oklch(8% 0.025 258 / .98) 100%), url(${portrait})`, backgroundSize: 'cover', backgroundPosition: 'center top' }}>
+      <div style={{ position: 'relative', minHeight: 280, background: 'linear-gradient(180deg, oklch(12% 0.035 258 / .9) 0%, oklch(8% 0.025 258 / .98) 100%)' }}>
         <div style={{ position: 'absolute', top: 14, left: 14, right: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button type="button" onClick={onBack} className="af-chip" style={{ padding: '8px 12px', background: 'oklch(10% 0.025 258 / .85)' }}>← Retour</button>
           <div style={{ position: 'static', fontSize: 20, padding: '6px 12px', borderRadius: 10, background: 'oklch(10% 0.025 258 / .85)', color: 'var(--af-gold)', fontWeight: 900, letterSpacing: '.05em' }}>
-            {getPlayerStarsText(player.rating)}
+            {getCardStarsText(player.rating)}
           </div>
         </div>
-        <div style={{ position: 'absolute', left: 18, right: 18, bottom: 14 }}>
+        <div style={{ padding: '58px 18px 14px', display: 'grid', gridTemplateColumns: 'minmax(0, 180px) 1fr', gap: 14, alignItems: 'end' }}>
+          <CardPlayer player={playerCardMeta} onOpen={() => {}} />
+          <div>
           <div style={{ color: 'var(--af-cyan)', fontSize: 10, fontWeight: 950, letterSpacing: '.2em', textTransform: 'uppercase' }}>{player.position || 'Joueur'} · {flag} {player.countryLabel || player.countryCode || '—'}</div>
           <h1 className="af-title" style={{ marginTop: 6, fontSize: 32, lineHeight: 1 }}>{fullName(player)}</h1>
           <div style={{ color: 'var(--af-muted)', marginTop: 6, fontSize: 13, fontWeight: 700 }}>{player.club || 'Libre'} {player.clubRole ? `· ${player.clubRole}` : ''}</div>
+          </div>
         </div>
       </div>
 
@@ -80,14 +80,14 @@ export default function PlayerDossier({ player, onBack, actions = [], bonds = {}
           <Stat label="Valeur" value={formatMoney(player.value ?? 0)} accent="var(--af-gold)" />
           <Stat label="Salaire / sem" value={formatMoney(player.weeklySalary ?? 0)} />
           <Stat label="Contrat" value={`${player.contractWeeksLeft ?? 0} sem.`} />
-          <Stat label="Niveau" value={getPlayerStarsText(player.rating)} accent="var(--af-cyan)" />
+          <Stat label="Niveau" value={getCardStarsText(player.rating)} accent="var(--af-cyan)" />
         </div>
 
         <div className="af-panel" style={{ padding: 14 }}>
           <div className="af-kicker" style={{ marginBottom: 10 }}>Progression</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 }}>
-            <Stat label="Niveau actuel" value={`${getPlayerStarsText(currentRating)} · ${currentRating}`} accent="var(--af-cyan)" />
-            <Stat label="Potentiel max" value={`${getPlayerStarsText(potentialRating)} · ${potentialRating}`} accent="var(--af-gold)" />
+            <Stat label="Niveau actuel" value={getCardStarsText(currentRating)} accent="var(--af-cyan)" />
+            <Stat label="Potentiel max" value={getCardStarsText(potentialRating)} accent="var(--af-gold)" />
             <Stat label="Depuis signature" value={progressionLabel} accent={ratingDelta >= 0 ? 'var(--af-grass)' : '#ef4444'} />
             <Stat label="Cap atteint" value={`${Math.max(0, Math.min(100, progressToPotential))}%`} />
           </div>

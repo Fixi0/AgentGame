@@ -5,6 +5,7 @@ import { signPlayer } from '../game/gameLogic';
 import { getPlayerProfileSummary, getProfilePitchModifier } from './playerProfileSystem';
 import { clamp } from '../utils/helpers';
 import { GABRIEL_FIXIO_ID, UGO_MOXWMO_ID, YOHAN_ZENOXX_ID } from '../data/squadDatabase';
+import { getClubId } from './identitySystem';
 
 // Joueurs signature : ils acceptent toujours la première approche de l'agent
 // (cohérence narrative : ce sont les premiers protégés du joueur).
@@ -97,7 +98,8 @@ const getRecruitmentNetworkBonus = (state, player, pitchId) => {
       let bonus = Math.floor((contact.trust ?? 0) / 20);
       if (contact.country === player.countryCode) bonus += 2;
       if (player.preferredCountries?.includes(contact.country)) bonus += 2;
-      if (contact.club && contact.club === player.club) bonus += 2;
+      if (contact.clubId && player.clubId && contact.clubId === player.clubId) bonus += 2;
+      else if (contact.club && getClubId(contact.club) && getClubId(contact.club) === getClubId(player.clubId ?? player.club)) bonus += 2;
       if (contact.type === 'scout' && ['sportif', 'ambition'].includes(pitchId)) bonus += 4;
       if (contact.type === 'ds' && ['sportif', 'ambition'].includes(pitchId)) bonus += 5;
       if (contact.type === 'avocat' && pitchId === 'financial') bonus += 5;

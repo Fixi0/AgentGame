@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Activity, AlertCircle, ChevronDown, ChevronRight, ChevronUp, LogOut, Trophy, Users, X } from 'lucide-react';
+import { getClubDisplayName } from '../../data/clubs';
 import { formatMoney } from '../../utils/format';
 import { EURO_CUP_LABELS } from '../../systems/europeanCupSystem';
+import { t } from '../../utils/i18n';
 import { S } from '../styles';
 import { getEventImage } from '../../utils/eventImages';
 import { isTrophyEvent } from '../../utils/trophyImages';
@@ -82,7 +84,7 @@ function MatchStatGrid({ match, theme = {} }) {
       fontFamily: 'system-ui,sans-serif',
     }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, color: theme.subText ?? 'var(--af-muted)', fontSize: 9, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase' }}>
-        <span>{safeText(match.club, 'Club')}</span>
+        <span>{safeText(getClubDisplayName(match.club), 'Club')}</span>
         <span style={{ textAlign: 'center' }}>Stats</span>
         <span style={{ textAlign: 'right' }}>{safeText(match.opponentName, safeText(match.opponent, 'Adv.'))}</span>
       </div>
@@ -140,9 +142,9 @@ function getBigHeadline(data) {
   }
   const goodEvent = (data.events ?? []).find((e) => e.good);
   if (goodEvent) return { emoji: '✨', title: goodEvent.label, sub: goodEvent.player, sourceEvent: goodEvent };
-  if ((data.net ?? 0) > 10000) return { emoji: '💰', title: 'Très bonne semaine financière', sub: `+${formatMoney(data.net)} de bénéfice net` };
-  if ((data.net ?? 0) >= 0) return { emoji: '📊', title: 'Semaine bouclée', sub: `Bénéfice +${formatMoney(data.net)}` };
-  return { emoji: '📉', title: 'Semaine difficile', sub: `Déficit ${formatMoney(Math.abs(data.net))}` };
+  if ((data.net ?? 0) > 10000) return { emoji: '💰', title: t('Très bonne semaine financière'), sub: t(`+${formatMoney(data.net)} de bénéfice net`) };
+  if ((data.net ?? 0) >= 0) return { emoji: '📊', title: t('Semaine bouclée'), sub: t(`Bénéfice +${formatMoney(data.net)}`) };
+  return { emoji: '📉', title: t('Semaine difficile'), sub: t(`Déficit ${formatMoney(Math.abs(data.net))}`) };
 }
 
 function MatchScorecard({ match, highlight = false }) {
@@ -251,7 +253,7 @@ function MatchScorecard({ match, highlight = false }) {
         <span style={{ fontSize: 11, fontWeight: 900, color: resultColor, background: `${resultColor}22`, borderRadius: 6, padding: '2px 7px' }}>{resultLabel}</span>
       </div>
       <div style={{ ...S.scoreboardScore, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <span style={{ fontSize: 11, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.club, 'Club')}</span>
+        <span style={{ fontSize: 11, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(getClubDisplayName(match.club), 'Club')}</span>
         <span style={{ fontWeight: 950, fontSize: 19, color: competitionTheme.text ?? '#172026', minWidth: 60, textAlign: 'center', background: competitionTheme.scoreBg ?? 'transparent', padding: '2px 10px', borderRadius: 8, border: competitionTheme.scoreBg ? '1px solid rgba(255,255,255,.12)' : 'none' }}>{match.score}</span>
         <span style={{ fontSize: 11, color: competitionTheme.subText ?? '#64727d', fontFamily: 'system-ui,sans-serif', maxWidth: 90, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{safeText(match.opponentName, safeText(match.opponent, '—'))}</span>
       </div>
@@ -284,6 +286,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
   const matchResults = (data.matchResults ?? []).filter(Boolean);
   const euroMatches = (data.euroMatchResults ?? []).filter(Boolean);
   const worldCupMatches = (data.worldCupMatchResults ?? []).filter(Boolean);
+  const internationalMatches = (data.internationalBreakSummary?.matches ?? []).filter(Boolean);
   const topWorldCupMatch = worldCupMatches.reduce((best, match) => (
     !best || (match.matchRating ?? 0) > (best.matchRating ?? 0) ? match : best
   ), null);
@@ -364,7 +367,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
   const totalAssists = matchResults.reduce((s, m) => s + (m.assists ?? 0), 0);
   const wins = matchResults.filter((m) => m.result === 'win').length;
   const hasWorldCup = worldCupMatches.length > 0 || Boolean(data.worldCupActive);
-  const hasDetails = (data.events?.length > 0) || (matchResults.length > 0) || (euroMatches.length > 0) || (worldCupMatches.length > 0) || (data.lockerRoom?.length > 0) || (data.worldSummary?.length > 0) || (data.clubOffers?.length > 0) || (data.leavingPlayers?.length > 0);
+  const hasDetails = (data.events?.length > 0) || (matchResults.length > 0) || (euroMatches.length > 0) || (worldCupMatches.length > 0) || (internationalMatches.length > 0) || (data.lockerRoom?.length > 0) || (data.worldSummary?.length > 0) || (data.clubOffers?.length > 0) || (data.leavingPlayers?.length > 0);
   const euroTheme = (() => {
     const comps = euroMatches.map((match) => match.competition).filter(Boolean);
     if (comps.includes('CL')) return { border: 'rgba(59,130,246,.45)', bg: 'linear-gradient(135deg, oklch(22% 0.06 250 / .95) 0%, oklch(16% 0.05 252 / .95) 100%)', title: '#7dafff', glow: 'rgba(59,130,246,.25)' };
@@ -380,13 +383,20 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
     accent: '#f5c842',
     sub: 'rgba(255,255,255,.82)',
   };
+  const internationalTheme = {
+    border: 'rgba(125,211,252,.36)',
+    bg: 'linear-gradient(135deg, oklch(18% 0.055 235 / .95), oklch(13% 0.04 265 / .95))',
+    title: '#7dd3fc',
+    glow: 'rgba(125,211,252,.16)',
+    sub: 'rgba(255,255,255,.78)',
+  };
 
   return (
     <div style={S.overlay}>
       <div style={S.modal}>
         <div style={S.mHead}>
           <Activity size={16} color="#00a676" />
-          <span>BILAN SEMAINE</span>
+          <span>{t('BILAN SEMAINE')}</span>
           <button onClick={onClose} style={S.mClose}>
             <X size={16} />
           </button>
@@ -401,8 +411,8 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           {!trophyEvent && (
             <div style={S.resultsBigHeadline}>
               <span style={S.resultsBigEmoji}>{bigHeadline.emoji}</span>
-              <div style={S.resultsBigTitle}>{bigHeadline.title}</div>
-              <div style={S.resultsBigSub}>{bigHeadline.sub}</div>
+              <div style={S.resultsBigTitle}>{t(bigHeadline.title)}</div>
+              <div style={S.resultsBigSub}>{t(bigHeadline.sub)}</div>
             </div>
           )}
 
@@ -434,7 +444,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
             <div style={S.recapCard}>
               <div style={S.secTitle}>
                 <Activity size={14} />
-                <span>BILAN SAISON {data.seasonRecap.season}</span>
+                <span>{t('BILAN SAISON')} {data.seasonRecap.season}</span>
               </div>
               <div style={S.recapGrid}>
                 <div style={S.recapItem}><strong>{data.seasonRecap.transfers}</strong><span> transferts</span></div>
@@ -521,7 +531,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               {data.phase?.deadlineDay && <div style={S.deadlineTimer}>90:00 · les téléphones chauffent</div>}
               {data.clubOffers.slice(0, 2).map((offer) => (
                 <div key={offer.id} style={{ ...S.evRow, borderLeft: '3px solid #2f80ed', marginBottom: 6 }}>
-                  <div style={S.evPlayer}>🔄 {offer.club} veut {offer.playerName}</div>
+                  <div style={S.evPlayer}>🔄 {getClubDisplayName(offer.club) || offer.club} veut {offer.playerName}</div>
                   <div style={S.evLabel}>{formatMoney(offer.price)} · expire S{offer.expiresWeek}</div>
                 </div>
               ))}
@@ -540,7 +550,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
             <>
               {(data.events ?? []).filter((e) => e.good && e !== bigHeadline.sourceEvent).length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <div style={S.secTitle}><AlertCircle size={14} /><span>ÉVÉNEMENTS</span></div>
+                  <div style={S.secTitle}><AlertCircle size={14} /><span>{t('ÉVÉNEMENTS')}</span></div>
                   {(data.events ?? []).filter((e) => e.good && e !== bigHeadline.sourceEvent).map((event) => (
                     <EventVisualCard key={`${event.playerId}-${event.id}`} event={event} compact used={visualUsed} />
                   ))}
@@ -548,15 +558,31 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               )}
               {matchResults.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <div style={S.secTitle}><Activity size={14} /><span>RÉSULTATS CLUBS</span></div>
+                  <div style={S.secTitle}><Activity size={14} /><span>{t('RÉSULTATS CLUBS')}</span></div>
                   {matchResults.slice(0, 8).map((match) => (
                     <MatchScorecard key={`${match.playerId}-${match.opponent}`} match={match} />
                   ))}
                 </div>
               )}
+              {internationalMatches.length > 0 && (
+                <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: internationalTheme.bg, border: `1px solid ${internationalTheme.border}`, boxShadow: `0 12px 26px ${internationalTheme.glow}, inset 0 1px 0 rgba(255,255,255,.08)` }}>
+                  <div style={S.secTitle}><Trophy size={14} /><span style={{ color: internationalTheme.title }}>{t('SÉLECTIONS')}</span></div>
+                  {internationalMatches.slice(0, 8).map((match) => (
+                    <MatchScorecard
+                      key={`${match.sharedMatchId ?? match.playerId}-${match.playerId}`}
+                      match={{
+                        ...match,
+                        competitionLabel: match.kindLabel ?? match.competitionLabel ?? 'Sélection',
+                        club: match.countryName ?? match.club ?? 'Sélection',
+                      }}
+                      highlight
+                    />
+                  ))}
+                </div>
+              )}
           {euroMatches.length > 0 && (
             <div style={{ marginBottom: 16, padding: '10px 10px 6px', borderRadius: 10, background: euroTheme.bg, border: `1px solid ${euroTheme.border}`, boxShadow: `0 12px 26px ${euroTheme.glow}, inset 0 1px 0 rgba(255,255,255,.9)` }}>
-                  <div style={S.secTitle}><Trophy size={14} /><span style={{ color: euroTheme.title }}>EUROPE</span></div>
+                  <div style={S.secTitle}><Trophy size={14} /><span style={{ color: euroTheme.title }}>{t('EUROPE')}</span></div>
                   <div style={{ fontSize: 12, color: euroTheme.title, fontFamily: 'system-ui,sans-serif', lineHeight: 1.45, marginBottom: 10 }}>
                     Tous les matchs européens de la semaine, avec une mise en avant plus forte.
                   </div>
@@ -567,10 +593,10 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               )}
               {data.lockerRoom?.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <div style={S.secTitle}><Users size={14} /><span>VESTIAIRE</span></div>
+                  <div style={S.secTitle}><Users size={14} /><span>{t('VESTIAIRE')}</span></div>
                   {data.lockerRoom.slice(0, 3).map((group) => (
                     <div key={group.club} style={{ ...S.evRow, borderLeft: `3px solid ${group.tension >= 65 ? '#b42318' : group.chemistry >= 70 ? '#00a676' : '#2f80ed'}`, marginBottom: 4 }}>
-                      <div style={S.evPlayer}>{group.club}</div>
+                      <div style={S.evPlayer}>{getClubDisplayName(group.club)}</div>
                       <div style={S.evLabel}>{group.mood} · Chimie {group.chemistry}/100</div>
                     </div>
                   ))}
@@ -578,7 +604,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
               )}
               {data.worldSummary?.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
-                  <div style={S.secTitle}><Activity size={14} /><span>MONDE DU FOOT</span></div>
+                  <div style={S.secTitle}><Activity size={14} /><span>{t('MONDE DU FOOT')}</span></div>
                   {data.worldSummary.map((item) => (
                     <div key={`${item.week}-${item.title}`} style={{ ...S.evRow, borderLeft: '3px solid #172026', marginBottom: 4 }}>
                       <div style={S.evPlayer}>{item.title}</div>
@@ -591,7 +617,7 @@ export default function ResultsModal({ data, onClose, onInteractive }) {
           )}
 
           <button onClick={() => (data.interactiveEvent ? setStep('prompt') : onClose())} style={S.primaryBtn}>
-            {data.interactiveEvent ? 'ÉVÉNEMENT SUIVANT' : 'CONTINUER'} <ChevronRight size={16} />
+            {data.interactiveEvent ? t('ÉVÉNEMENT SUIVANT') : t('CONTINUER')} <ChevronRight size={16} />
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { clamp, makeId } from '../utils/helpers';
+import { getClubId, getClubName } from './identitySystem';
 
 const createEmptyDossier = () => ({
   heat: 50,
@@ -19,7 +20,9 @@ const getEntry = (collection = {}, key = '') => collection[key] ?? createEmptyDo
 
 export const getDossierEntry = (memory = createDefaultDossierMemory(), playerId) => getEntry(memory.players, getPlayerKey(playerId));
 
-export const recordDossierEvent = (memory = createDefaultDossierMemory(), { playerId = null, clubName = null, mediaId = null, week = 0, type = 'note', label = '', impact = 0 }) => {
+const getClubKey = ({ clubId = null, clubName = null } = {}) => getClubId(clubId ?? clubName) ?? null;
+
+export const recordDossierEvent = (memory = createDefaultDossierMemory(), { playerId = null, clubId = null, clubName = null, mediaId = null, week = 0, type = 'note', label = '', impact = 0 }) => {
   const next = {
     players: { ...(memory.players ?? {}) },
     clubs: { ...(memory.clubs ?? {}) },
@@ -43,9 +46,10 @@ export const recordDossierEvent = (memory = createDefaultDossierMemory(), { play
     };
   }
 
-  if (clubName) {
-    const current = getEntry(next.clubs, clubName);
-    next.clubs[clubName] = {
+  const clubKey = getClubKey({ clubId, clubName });
+  if (clubKey) {
+    const current = getEntry(next.clubs, clubKey) ?? getEntry(next.clubs, clubName);
+    next.clubs[clubKey] = {
       ...current,
       heat: clamp((current.heat ?? 50) + impact, 0, 100),
       lastWeek: week,
@@ -83,11 +87,16 @@ export const getDossierHistorySummary = (memory = createDefaultDossierMemory(), 
   return 'Dossier stable récemment';
 };
 
-export const getClubRecentDossierEvents = (memory = createDefaultDossierMemory(), clubName, limit = 5) =>
-  memory?.clubs?.[clubName]?.recent?.slice(0, limit) ?? [];
+export const getClubRecentDossierEvents = (memory = createDefaultDossierMemory(), clubRef, limit = 5) => {
+  const clubKey = getClubKey({ clubId: clubRef, clubName: clubRef });
+  const legacyKey = getClubName(clubRef);
+  return memory?.clubs?.[clubKey]?.recent?.slice(0, limit) ?? memory?.clubs?.[legacyKey]?.recent?.slice(0, limit) ?? [];
+};
 
-export const getClubDossierHistorySummary = (memory = createDefaultDossierMemory(), clubName) => {
-  const entry = memory?.clubs?.[clubName];
+export const getClubDossierHistorySummary = (memory = createDefaultDossierMemory(), clubRef) => {
+  const clubKey = getClubKey({ clubId: clubRef, clubName: clubRef });
+  const legacyKey = getClubName(clubRef);
+  const entry = memory?.clubs?.[clubKey] ?? memory?.clubs?.[legacyKey];
   if (!entry?.recent?.length) return 'Aucun historique sensible';
   const last = entry.recent[0];
   if ((last.impact ?? 0) > 0) return 'Club plus souple récemment';

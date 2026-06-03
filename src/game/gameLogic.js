@@ -1,42 +1,54 @@
-import { CLUBS, getCountry, getUnlockedCountries } from '../data/clubs';
-import { PASSIVE_EVENTS } from '../data/events';
+import { CLUBS, getClubDisplayName, getCountry, getUnlockedCountries } from '../data/clubs';
 import { COUNTRY_NAME_POOLS, FIRST_NAMES, HIDDEN_TRAITS, LAST_NAMES, LEGENDARY_PLAYERS, PERSONALITIES, POSITIONS, POSITION_ROLES } from '../data/players';
 import { drawMarketPlayers, drawFreeAgents as drawFreeAgentsFromSquads, drawProspects, getClubSquad, MARKET_POSITION_QUOTA, FREE_AGENT_POSITION_QUOTA, createPlayerCatalog, getMarketRatingCeiling, getMarketCountryCodes, reconcilePlayerWithCatalog } from '../data/squadDatabase';
 import { createDefaultAgencyRecord } from '../data/gameDatabase';
 import { calculateWeeklyPlayerEconomy, EVENT_INCOME_MULT, MARKET_REFRESH_COST, OFFICE_UPGRADE_COSTS, WEEKLY_OVERHEAD } from './economy';
 import { applyPassiveEventToPlayer, chooseInteractiveEvent, generateChainedEvents, getContractEventForRoster, pickChainedInteractiveEvent, processChainedPassiveEvents, rollPassiveEvent } from './eventSystem';
-import { getAgencyCapacity, getAgencyUpgradeCost } from '../systems/agencySystem';
+import { getAgencyCapacity, getAgencyUpgradeCost, normalizeAgencyName } from '../systems/agencySystem';
 import { applyReputationChange, applySegmentReputationChange, createDefaultSegmentReputation, getSegmentDeltaForEvent, normalizeAgencyReputation } from '../systems/reputationSystem';
 import { getDepartureRisk, getInitialTrust } from '../systems/relationshipSystem';
 import { createManualNewsPost, createNewsPost } from '../systems/newsSystem';
 import { createMessage, maybeCreateContextualMessage, MIN_PLAYER_MSG_COOLDOWN, MAX_WEEKLY_MESSAGES, normalizeMessageRecord } from '../systems/messageSystem';
 import { createDefaultStaff, getStaffEffect, getStaffWeeklyCost, upgradeStaff as upgradeStaffMember } from '../systems/staffSystem';
 import { createInitialLeagueTables, mergeWithInitialLeagueTables, updateLeagueTables } from '../systems/leagueSystem';
-import { applyClubRelation, createDefaultClubMemory, createDefaultClubRelations, recordClubMemory } from '../systems/clubSystem';
+import { applyClubRelation, createDefaultClubMemory, createDefaultClubRelations, normalizeClubScopedMap, recordClubMemory } from '../systems/clubSystem';
 import { applyLeagueReputation, createDefaultLeagueReputation } from '../systems/leagueReputationSystem';
 import { createAgentContract, tickAgentContract } from '../systems/agentContractSystem';
 import { rollCompetitorThreat } from '../systems/competitorSystem';
-import { createLongTermAgencyGoals } from '../systems/agencyGoalsSystem';
 import { createCareerGoal, createScoutReport, updateSeasonStats } from '../systems/playerDevelopmentSystem';
 import { evaluatePromises, resolvePromisesForPlayer, getRoleExpectationState } from '../systems/promiseSystem';
 import { MATCH_INCIDENT_EVENTS, buildWeeklyFixtures, simulateFixturePlayerResults } from '../systems/matchSystem';
-import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext, getWeekDailySnapshots } from '../systems/seasonSystem';
-import { getClubEuropeanCompetition, getEuropeanCompetition, isEuropeanMatchWeek, getEuropeanStage, getEuropeanMatchdayIndex, pickSeededOpponent, generateKOBracketClubs, initEuroCupCompData, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS, normalizeEuropeanMatch, ensureEuropeanCompetitionProgress, getEuropeanClubRoundMatch, isEuropeanClubAlive, registerEuropeanParticipantsFromLeagueTables } from '../systems/europeanCupSystem';
-import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupMatch, advanceWorldCupPhase, getWorldCupMatchNews, getWorldCupValueMultiplier, getWorldCupFixturePreview, getWorldCupInterestClubs } from '../systems/worldCupSystem';
+import { generateClubOffers, generateSurpriseOffer, getCalendarSnapshot, getSeasonContext, getUpcomingMercatoWindow, getWeekDailySnapshots, sanitizeOfferForContext } from '../systems/seasonSystem';
+import { buildEuropeanLeagueSnapshot, getClubEuropeanCompetition, getEuropeanCompetition, isEuropeanMatchWeek, getEuropeanStage, getEuropeanPhaseLabel, getEuropeanMatchdayIndex, generateKOBracketClubs, initEuroCupCompData, simulateEuropeanMatch, getEuropeanMatchNews, getEuropeanInterestClubs, EURO_CUP_LABELS, normalizeEuropeanMatch, ensureEuropeanCompetitionProgress, getEuropeanClubRoundMatch, isEuropeanClubAlive, registerEuropeanParticipantsFromLeagueTables, ensureEuropeanLeagueFixtures, getEuropeanLeagueClubMatch, getEuropeanFixtureList } from '../systems/europeanCupSystem';
+import { shouldTriggerWorldCup, createWorldCupState, simulateWorldCupPhase, getWorldCupMatchNews, getWorldCupFixturePreview, getWorldCupInterestClubs } from '../systems/worldCupSystem';
 import { getActivePeriod, getPeriodMoodEffect, maybeCreateSeasonalMessage, getSeasonalNewsItem } from '../systems/calendarEventsSystem';
 import { generateWorldState } from '../systems/worldStateSystem';
 import { applyNewsConsequences, generateNarrativeFollowups } from '../systems/consequenceSystem';
 import { awardGems } from '../systems/shopSystem';
-import { generateSeasonObjectives, updateObjectiveProgress, checkObjectiveCompletion, syncProgressionSystems } from '../systems/objectivesSystem';
-import { createDefaultContacts } from '../systems/contactsSystem';
+import { createDefaultContacts, normalizeContacts } from '../systems/contactsSystem';
 import { getActiveDossierPlayerIds, getMarketLockedPlayerIds, getMessagePriority, messageNeedsResponse } from '../systems/dossierSystem';
 import { applyLockerRoomDynamics, buildLockerRoomSnapshot } from '../systems/lockerRoomSystem';
+import { processRetirements } from '../systems/hallOfFameSystem';
 import { createPublicRep, tickPublicRep, getPublicRepOfferBonus } from '../systems/publicReputationSystem';
 import { createDefaultDossierMemory, recordDossierEvent } from '../systems/coherenceSystem';
 import { buildInitialBonds, tickBonds, applyBondEffectsToMatchResults } from '../systems/playerBondsSystem';
 import { isInternationalBreakWeek, simulateInternationalBreak } from '../systems/internationalBreakSystem';
 import { getCalledUpAgentPlayers } from '../systems/nationalSelectionSystem';
 import { updateCompetitionTopStats } from '../systems/topScorersSystem';
+import { applyDynamicPotential } from '../systems/dynamicPotentialSystem';
+import { applySimulationLevelToMatchResult, getPlayerSimulationLevel, SIMULATION_LEVELS } from '../systems/simulationLevelSystem';
+import { createDefaultWorldMemory, updateWorldMemoryWeek } from '../systems/worldMemorySystem';
+import { generateNewgenStories } from '../systems/newgenStorySystem';
+import { buildDynamicMediaPosts } from '../systems/mediaDynamicsSystem';
+import { createDefaultHistoricalCanon, updateHistoricalCanonWeek } from '../systems/historicalCanonSystem';
+import { buildNarrativeMediaFeed } from '../systems/mediaNarrativeSystem';
+import {
+  applyEgoAndPsychologyWeek,
+  applyRivalAgentsPressureWeek,
+  computePersonaSponsorIncome,
+  generateViralSocialBursts,
+} from '../systems/phase3DynamicsSystem';
+import { applyLastMileDynamics, createDefaultLongTermDynamics } from '../systems/lastMileDynamicsSystem';
 import {
   MATCH_STATUS,
   europeanMatchToCalendarMatch,
@@ -75,14 +87,28 @@ import {
 import { clamp, makeId, pick, rand } from '../utils/helpers';
 import { formatMoney } from '../utils/format';
 import { normalizePromises } from '../systems/promiseSystem';
+import {
+  buildIdentityIndexes,
+  getClubId,
+  migrateIdentityState,
+  withClubIdentity,
+  withOfferIdentity,
+  withPlayerMatchIdentity,
+  withTransferIdentity,
+} from '../systems/identitySystem';
+import { attachRuntimeEntityDb } from '../systems/entityStoreSystem';
+import { allocateNextPlayerIdentity, applyRuntimeIntegrity } from '../systems/integritySystem';
 
 export const STORAGE_KEY = 'agent_fc_v4';
-export const MARKET_DATA_VERSION = '2026-05-12-open-market-clean-v5';
+export const MARKET_DATA_VERSION = '2026-05-18-balance-elite-v1';
 const MAX_OPEN_RESPONSE_MESSAGES_PER_PLAYER = 4;
 const OPENING_NEWS_TEXT = "L'agence Agent FC ouvre ses portes. Les premiers recrutements sont attendus.";
 
+const finalizeGameState = (state = {}) => attachRuntimeEntityDb(applyRuntimeIntegrity(migrateIdentityState(state)));
+const hasValidOfferClubId = (offer = null) => Boolean(offer?.clubId ?? getClubId(offer?.club));
+
 const scheduleLeagueMatches = (state = {}, roster = state.roster ?? [], week = state.week ?? 1) => {
-  const fixtures = buildWeeklyFixtures(roster, week);
+  const fixtures = buildWeeklyFixtures(roster, week, { seedSalt: state.gameSeed ?? '' });
   const calendar = upsertCalendarMatches(
     state.matchCalendar ?? [],
     fixtures.map((fixture) => fixtureToCalendarMatch(fixture, { week, day: 6, status: MATCH_STATUS.SCHEDULED })),
@@ -100,6 +126,219 @@ export const getEuropeanSimDayIndex = (week = 1, playerId = '') => {
   return (hash >>> 0) % 2 === 0 ? 2 : 3; // Tuesday/Wednesday
 };
 
+const getEuropeanClubSimDayIndex = (week = 1, clubName = '', competition = '') =>
+  getEuropeanSimDayIndex(week, `${clubName}:${competition}`);
+
+const getFixtureGoalsForClub = (fixture = {}, clubName = '') => {
+  if (!fixture || typeof fixture !== 'object') return null;
+  const isHome = fixture.home === clubName;
+  const isAway = fixture.away === clubName;
+  if (!isHome && !isAway) return null;
+  const homeGoals = Number(fixture.homeGoals);
+  const awayGoals = Number(fixture.awayGoals);
+  if (!Number.isFinite(homeGoals) || !Number.isFinite(awayGoals)) return null;
+  return {
+    goalsFor: isHome ? homeGoals : awayGoals,
+    goalsAgainst: isHome ? awayGoals : homeGoals,
+    opponent: isHome ? fixture.away : fixture.home,
+    opponentCountry: isHome ? fixture.awayCountry : fixture.homeCountry,
+  };
+};
+
+const toAgencyEuropeanFeedMatch = (fixture = {}, clubName = '', {
+  roster = [],
+  week = 1,
+  competition = null,
+} = {}) => {
+  if (!fixture || typeof fixture !== 'object') return null;
+  const resolvedCompetition = competition ?? fixture.competition;
+  const goals = getFixtureGoalsForClub(fixture, clubName);
+  if (!goals || !goals.opponent) return null;
+  const clubPlayers = (Array.isArray(roster) ? roster : [])
+    .filter((player) => player?.club === clubName)
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+  const player = clubPlayers[0] ?? null;
+  const result = goals.goalsFor > goals.goalsAgainst ? 'win'
+    : goals.goalsFor < goals.goalsAgainst ? 'loss'
+      : 'draw';
+  const ratingBoost = result === 'win' ? 0.7 : result === 'loss' ? -0.45 : 0.15;
+  const playerLevelBoost = player ? clamp(((player.rating ?? 70) - 70) / 170, 0, 1.2) : 0;
+  const matchRating = Number((6.4 + ratingBoost + playerLevelBoost).toFixed(1));
+  const simDay = Number.isFinite(fixture.simulatedDay)
+    ? fixture.simulatedDay
+    : getEuropeanClubSimDayIndex(week, clubName, resolvedCompetition);
+  const fixtureId = fixture.id ?? fixture.fixtureId;
+  const competitionLabel = EURO_CUP_LABELS[resolvedCompetition]?.name ?? EURO_CUP_LABELS[resolvedCompetition]?.short ?? 'Europe';
+
+  return normalizeEuropeanMatch({
+    fixtureId,
+    id: fixtureId ? `feed_${fixtureId}_${clubName}` : undefined,
+    source: 'canonical_europe_feed',
+    playerId: player?.id ?? `club_${clubName}`,
+    playerName: player ? `${player.firstName} ${player.lastName}` : clubName,
+    club: clubName,
+    clubCountryCode: player?.clubCountryCode ?? null,
+    competition: resolvedCompetition,
+    competitionLabel,
+    phase: fixture.phase ?? fixture.stage ?? 'Europe',
+    stage: fixture.stage ?? 'league',
+    opponent: goals.opponent,
+    opponentName: goals.opponent,
+    opponentCountry: goals.opponentCountry ?? null,
+    score: `${goals.goalsFor}-${goals.goalsAgainst}`,
+    goalsFor: goals.goalsFor,
+    goalsAgainst: goals.goalsAgainst,
+    result,
+    minutes: player ? 90 : 0,
+    goals: 0,
+    assists: 0,
+    keyPasses: player ? 2 : 0,
+    matchRating,
+    matchdayIndex: Number.isFinite(fixture.matchdayIndex) ? fixture.matchdayIndex : getEuropeanMatchdayIndex(getPhase(week).seasonWeek, resolvedCompetition),
+    simulatedWeek: week,
+    simulatedDay: simDay,
+  });
+};
+
+const buildAgencyEuropeanFixtureResults = (state = {}, {
+  week = state.week ?? 1,
+  dayIndex = null,
+  roster = state.roster ?? [],
+} = {}) => {
+  const phase = getPhase(week);
+  const currentRoster = Array.isArray(roster) ? roster : [];
+  const clubsByCompetition = new Map();
+  currentRoster.forEach((player) => {
+    if (!player?.club || player.club === 'Libre') return;
+    const competition = getPlayerEuropeanCompetition(player, phase.season);
+    if (!competition || !isEuropeanMatchWeek(phase.seasonWeek, competition)) return;
+    const key = competition;
+    if (!clubsByCompetition.has(key)) clubsByCompetition.set(key, new Set());
+    clubsByCompetition.get(key).add(player.club);
+  });
+
+  const results = [];
+  clubsByCompetition.forEach((clubNames, competition) => {
+    const compData = state.europeanCupData?.[`${competition}:${phase.season}`];
+    if (!compData) return;
+    const stage = getEuropeanStage(phase.seasonWeek, competition);
+    const matchdayIndex = getEuropeanMatchdayIndex(phase.seasonWeek, competition);
+    const fixtures = getEuropeanFixtureList(compData).filter((fixture) => {
+      if (fixture.competition && fixture.competition !== competition) return false;
+      if (stage === 'league') {
+        return fixture.stage === 'league' && Number(fixture.matchdayIndex) === matchdayIndex;
+      }
+      return fixture.stage === stage && Number(fixture.week) === phase.seasonWeek;
+    });
+
+    clubNames.forEach((clubName) => {
+      const fixture = fixtures.find((item) => item.home === clubName || item.away === clubName);
+      const match = toAgencyEuropeanFeedMatch(fixture, clubName, { roster: currentRoster, week, competition });
+      if (!match) return;
+      if (dayIndex !== null && (match.simulatedDay ?? getEuropeanClubSimDayIndex(week, clubName, competition)) !== dayIndex) return;
+      results.push(match);
+    });
+  });
+
+  const deduped = new Map();
+  results.forEach((match) => {
+    const key = match.fixtureId
+      ? `${match.fixtureId}:${match.club}`
+      : `${match.simulatedWeek}:${match.competition}:${match.club}:${match.opponent}`;
+    if (!deduped.has(key)) deduped.set(key, match);
+  });
+  return [...deduped.values()];
+};
+
+const mergeEuropeanFeedMatches = (primary = [], fallback = []) => {
+  const merged = Array.isArray(primary) ? [...primary] : [];
+  const fixtureClubKeys = new Set(merged
+    .filter((match) => match?.fixtureId && match?.club)
+    .map((match) => `${match.fixtureId}:${match.club}`));
+  const looseKeys = new Set(merged.map((match) => [
+    match?.simulatedWeek ?? '',
+    match?.competition ?? '',
+    match?.club ?? '',
+    match?.opponent ?? match?.opponentName ?? '',
+    match?.score ?? '',
+  ].join('|')));
+
+  (Array.isArray(fallback) ? fallback : []).forEach((match) => {
+    const fixtureKey = match?.fixtureId && match?.club ? `${match.fixtureId}:${match.club}` : null;
+    const looseKey = [
+      match?.simulatedWeek ?? '',
+      match?.competition ?? '',
+      match?.club ?? '',
+      match?.opponent ?? match?.opponentName ?? '',
+      match?.score ?? '',
+    ].join('|');
+    if ((fixtureKey && fixtureClubKeys.has(fixtureKey)) || looseKeys.has(looseKey)) return;
+    merged.push(match);
+    if (fixtureKey) fixtureClubKeys.add(fixtureKey);
+    looseKeys.add(looseKey);
+  });
+  return merged;
+};
+
+const dedupeEuropeanClubMatches = (matches = []) => Array.from((Array.isArray(matches) ? matches : []).reduce((map, match) => {
+  if (!match) return map;
+  const key = match.fixtureId && match.club
+    ? `${match.fixtureId}:${match.club}`
+    : `${match.simulatedWeek ?? ''}:${match.competition ?? ''}:${match.club ?? ''}:${match.opponent ?? match.opponentName ?? ''}:${match.score ?? ''}`;
+  const current = map.get(key);
+  if (!current || (match.matchRating ?? 0) > (current.matchRating ?? 0)) map.set(key, match);
+  return map;
+}, new Map()).values());
+
+const refreshEuropeanLeagueTables = (europeanCupData = {}, {
+  season = 1,
+  seasonWeek = 1,
+  roster = [],
+  europeanMatches = [],
+} = {}) => {
+  const nextData = JSON.parse(JSON.stringify(europeanCupData ?? {}));
+  ['CL', 'EL', 'ECL'].forEach((competition) => {
+    const key = `${competition}:${season}`;
+    if (!nextData[key]) nextData[key] = initEuroCupCompData(competition, season);
+    const agentClubNames = [...new Set((roster ?? [])
+      .filter((player) => getPlayerEuropeanCompetition(player, season) === competition)
+      .map((player) => player.club)
+      .filter(Boolean))];
+    nextData[key] = ensureEuropeanLeagueFixtures(nextData[key], competition, season, agentClubNames);
+    const snapshot = buildEuropeanLeagueSnapshot({
+      competition,
+      season,
+      seasonWeek,
+      compData: nextData[key],
+      agentMatches: europeanMatches.filter((match) => match?.competition === competition),
+      agentClubNames,
+      includeCurrentMatchday: !isEuropeanMatchWeek(seasonWeek, competition)
+        || europeanMatches.some((match) =>
+          match?.competition === competition
+          && Number(match.matchdayIndex ?? -1) === getEuropeanMatchdayIndex(seasonWeek, competition),
+        ),
+    });
+    nextData[key] = {
+      ...nextData[key],
+      leagueTable: snapshot.map((row) => ({
+        name: row.name,
+        country: row.country,
+        isAgent: row.isAgent,
+        rank: row.rank,
+        points: row.points,
+        played: row.played,
+        win: row.win,
+        draw: row.draw,
+        loss: row.loss,
+        goalsFor: row.goalsFor,
+        goalsAgainst: row.goalsAgainst,
+        leagueStatus: row.leagueStatus,
+      })),
+    };
+  });
+  return nextData;
+};
+
 const simulateMidweekEuropeanMatches = (state = {}, dayIndex = 2) => {
   if (![2, 3].includes(dayIndex)) return state;
   const existingMidweek = state?.midweekEuropean?.week === state.week
@@ -112,45 +351,158 @@ const simulateMidweekEuropeanMatches = (state = {}, dayIndex = 2) => {
   const roster = Array.isArray(state.roster) ? [...state.roster] : [];
   const results = [];
   const generatedNews = [];
+  let nextEuroData = JSON.parse(JSON.stringify(state.europeanCupData ?? {}));
 
+  const eligibleByFixture = new Map();
   roster.forEach((player) => {
     if (!player || (player.injured ?? 0) > 0 || !player.clubCountryCode || !player.club || player.club === 'Libre') return;
-    const comp = player.europeanCompetition ?? getEuropeanCompetition(player, currentSeason);
+    const comp = getPlayerEuropeanCompetition(player, currentSeason);
     if (!comp || !isEuropeanMatchWeek(phase.seasonWeek, comp)) return;
-    const simDay = getEuropeanSimDayIndex(state.week, player.id);
+    const simDay = getEuropeanClubSimDayIndex(state.week, player.club, comp);
     if (simDay !== dayIndex) return;
 
-    const matchdayIdx = getEuropeanMatchdayIndex(phase.seasonWeek, comp);
-    const opponent = pickSeededOpponent(player.club, comp, matchdayIdx, currentSeason);
-    const fixtureId = `euro_${state.week}_${dayIndex}_${comp}_${String(player.club).replace(/\s+/g, '_')}_${String(opponent.name).replace(/\s+/g, '_')}`;
-    const raw = simulateEuropeanMatch(player, comp, phase.seasonWeek, { opponent, fixtureId });
-    const match = normalizeEuropeanMatch({
-      ...raw,
-      playerName: raw.playerName ?? `${player.firstName} ${player.lastName}`,
-      simulatedDay: simDay,
-      simulatedWeek: state.week,
-    });
+    const key = `${player.clubCountryCode ?? ''}:${player.club}:${comp}`;
+    const current = eligibleByFixture.get(key) ?? {
+      comp,
+      simDay,
+      clubName: player.club,
+      clubCountryCode: player.clubCountryCode,
+      clubCity: player.clubCity,
+      players: [],
+    };
+    current.players.push(player);
+    eligibleByFixture.set(key, current);
+  });
 
-    results.push(match);
-
-    const newsData = getEuropeanMatchNews(player, match);
-    if (newsData) generatedNews.push(newsData);
-
-    const idx = roster.findIndex((p) => p.id === player.id);
-    if (idx >= 0) {
-      const current = roster[idx];
-      roster[idx] = {
-        ...current,
-        moral: clamp((current.moral ?? 50) + (match.result === 'win' ? 3 : match.result === 'loss' ? -2 : 0), 0, 100),
-        matchHistory: [{ week: state.week, competition: comp, ...match }, ...(current.matchHistory ?? [])].slice(0, 12),
-      };
+  eligibleByFixture.forEach((fixture) => {
+    const healthyPlayers = fixture.players;
+    if (!healthyPlayers.length) return;
+    const stage = getEuropeanStage(phase.seasonWeek, fixture.comp);
+    const compKey = `${fixture.comp}:${currentSeason}`;
+    if (!nextEuroData[compKey]) nextEuroData[compKey] = initEuroCupCompData(fixture.comp, currentSeason);
+    let compData = nextEuroData[compKey];
+    if (!compData.opponentHistory?.[fixture.clubName]) {
+      compData.opponentHistory = { ...(compData.opponentHistory ?? {}), [fixture.clubName]: [] };
     }
+    if (!compData.koPath?.[fixture.clubName]) {
+      compData.koPath = { ...(compData.koPath ?? {}), [fixture.clubName]: {} };
+    }
+
+    let sharedFixture = null;
+    if (stage === 'league') {
+      compData = ensureEuropeanLeagueFixtures(compData, fixture.comp, currentSeason, [...new Set(
+        roster
+          .filter((p) => getPlayerEuropeanCompetition(p, currentSeason) === fixture.comp)
+          .map((p) => p.club)
+          .filter(Boolean),
+      )]);
+      nextEuroData[compKey] = compData;
+      sharedFixture = getEuropeanLeagueClubMatch(
+        compData,
+        fixture.clubName,
+        fixture.comp,
+        currentSeason,
+        phase.seasonWeek,
+        [],
+      );
+      if (!sharedFixture) return;
+    } else {
+      const agentClubs = [...new Set(
+        roster
+          .filter((p) => getPlayerEuropeanCompetition(p, currentSeason) === fixture.comp)
+          .map((p) => p.club)
+          .filter(Boolean),
+      )];
+      compData = ensureEuropeanCompetitionProgress(compData, fixture.comp, currentSeason, phase.seasonWeek, agentClubs);
+      nextEuroData[compKey] = compData;
+      if (!isEuropeanClubAlive(compData, fixture.clubName, fixture.comp, phase.seasonWeek)) return;
+      sharedFixture = getEuropeanClubRoundMatch(compData, fixture.clubName, fixture.comp, phase.seasonWeek);
+      if (!sharedFixture) return;
+    }
+    nextEuroData[compKey] = compData;
+
+    const averageRating = Math.round(healthyPlayers.reduce((sum, player) => sum + (player.rating ?? 60), 0) / healthyPlayers.length);
+    const averageForm = Math.round(healthyPlayers.reduce((sum, player) => sum + (player.form ?? 60), 0) / healthyPlayers.length);
+    const seedPlayer = {
+      ...healthyPlayers[0],
+      rating: averageRating,
+      form: averageForm,
+      club: fixture.clubName,
+      clubCountryCode: fixture.clubCountryCode,
+      clubCity: fixture.clubCity,
+      injured: 0,
+    };
+    const clubMatchBase = simulateEuropeanMatch(seedPlayer, fixture.comp, phase.seasonWeek, {
+      ...sharedFixture,
+      seedSalt: state.gameSeed ?? '',
+    });
+    if (!clubMatchBase) return;
+
+    if (stage !== 'league') {
+      compData.koPath[fixture.clubName][stage] = {
+        ...(compData.koPath[fixture.clubName][stage] ?? {}),
+        opponent: sharedFixture?.opponent?.name ?? sharedFixture?.opponent ?? clubMatchBase.opponent,
+        opponentCountry: sharedFixture?.opponent?.country ?? sharedFixture?.opponentCountry ?? null,
+        score: sharedFixture?.score ?? clubMatchBase.score,
+        result: sharedFixture?.result ?? clubMatchBase.result,
+        week: state.week,
+      };
+      nextEuroData[compKey] = compData;
+    }
+
+    let goalsBudget = clubMatchBase.goalsFor ?? 0;
+    let assistsBudget = clubMatchBase.goalsFor ?? 0;
+    healthyPlayers.forEach((player) => {
+      const raw = simulateEuropeanMatch(player, fixture.comp, phase.seasonWeek, clubMatchBase);
+      if (!raw) return;
+      const clippedGoals = Math.max(0, Math.min(raw.goals ?? 0, goalsBudget));
+      const clippedAssists = Math.max(0, Math.min(raw.assists ?? 0, assistsBudget));
+      goalsBudget = Math.max(0, goalsBudget - clippedGoals);
+      assistsBudget = Math.max(0, assistsBudget - clippedAssists);
+      const lostGoals = (raw.goals ?? 0) - clippedGoals;
+      const lostAssists = (raw.assists ?? 0) - clippedAssists;
+      const adjustedRating = Math.max(4.5, Math.min(10, Number((raw.matchRating - lostGoals * 0.9 - lostAssists * 0.55).toFixed(1))));
+      const match = normalizeEuropeanMatch({
+        ...raw,
+        goals: clippedGoals,
+        assists: clippedAssists,
+        matchRating: adjustedRating,
+        matchReport: `Note ${adjustedRating}/10 · ${clippedGoals} but${clippedGoals > 1 ? 's' : ''}${clippedAssists ? ` · ${clippedAssists} passe${clippedAssists > 1 ? 's' : ''}` : ''}${raw.keyPasses ? ` · ${raw.keyPasses} passes clés` : ''}`,
+        playerName: raw.playerName ?? `${player.firstName} ${player.lastName}`,
+        simulatedDay: fixture.simDay,
+        simulatedWeek: state.week,
+        matchdayIndex: getEuropeanMatchdayIndex(phase.seasonWeek, fixture.comp),
+      });
+
+      results.push(match);
+
+      const newsData = getEuropeanMatchNews(player, match);
+      if (newsData) generatedNews.push(newsData);
+
+      const idx = roster.findIndex((p) => p.id === player.id);
+      if (idx >= 0) {
+        const current = roster[idx];
+        roster[idx] = {
+          ...current,
+          moral: clamp((current.moral ?? 50) + (match.result === 'win' ? 3 : match.result === 'loss' ? -2 : 0), 0, 100),
+          matchHistory: [{ week: state.week, competition: fixture.comp, ...match }, ...(current.matchHistory ?? [])].slice(0, 12),
+        };
+      }
+    });
+  });
+
+  const allMidweekResults = [...(existingMidweek.results ?? []), ...results];
+  const refreshedEuroData = refreshEuropeanLeagueTables(nextEuroData, {
+    season: currentSeason,
+    seasonWeek: phase.seasonWeek,
+    roster,
+    europeanMatches: allMidweekResults,
   });
 
   return {
     ...state,
     roster,
-    news: [...generatedNews, ...(state.news ?? [])].slice(0, 60),
+    news: [...generatedNews, ...(state.news ?? [])].slice(0, 180),
     matchCalendar: upsertCalendarMatches(
       state.matchCalendar ?? [],
       results.map((match) => europeanMatchToCalendarMatch(match, { week: state.week, day: match.simulatedDay ?? dayIndex })),
@@ -161,9 +513,10 @@ const simulateMidweekEuropeanMatches = (state = {}, dayIndex = 2) => {
     ),
     midweekEuropean: {
       week: state.week,
-      results: [...(existingMidweek.results ?? []), ...results],
+      results: allMidweekResults,
       simulatedDays: [...new Set([...simulatedDays, dayIndex])],
     },
+    europeanCupData: refreshedEuroData,
   };
 };
 
@@ -181,18 +534,173 @@ const createClubSeasonHistory = (season = 1) =>
     },
   }), {});
 
+const BADGE_COUNTRY_BY_ID = {
+  league_england: 'EN',
+  league_france: 'FR',
+  league_spain: 'ES',
+  league_italy: 'IT',
+  league_germany: 'DE',
+};
+
+const BADGE_EURO_BY_ID = {
+  champions_league: 'CL',
+  europa_league: 'EL',
+  conference_league: 'ECL',
+};
+
+const BADGE_LABELS = {
+  league_england: 'Championnat anglais',
+  league_france: 'Championnat français',
+  league_spain: 'Championnat espagnol',
+  league_italy: 'Championnat italien',
+  league_germany: 'Championnat allemand',
+  world_cup: 'Coupe du Monde',
+  champions_league: 'Ligue des Champions',
+  europa_league: 'Europa League',
+  conference_league: 'Conference League',
+  ballon_dor: "Ballon d'or",
+  agency_million: 'Agence millionnaire',
+};
+
+const sortLeagueRowsForBadges = (table = {}) =>
+  Object.values(table).sort((a, b) =>
+    (b.points ?? 0) - (a.points ?? 0)
+    || ((b.goalsFor ?? 0) - (b.goalsAgainst ?? 0)) - ((a.goalsFor ?? 0) - (a.goalsAgainst ?? 0))
+    || (b.goalsFor ?? 0) - (a.goalsFor ?? 0)
+    || String(a.club ?? '').localeCompare(String(b.club ?? '')),
+  );
+
+const createBadgeRecord = (id, payload = {}) => ({
+  id,
+  gameCenterRewardId: `agentfc_badge_${id}`,
+  title: BADGE_LABELS[id] ?? id,
+  unlockedAtWeek: payload.week ?? null,
+  season: payload.season ?? null,
+  playerId: payload.playerId ?? null,
+  playerName: payload.playerName ?? null,
+  club: payload.club ?? null,
+  detail: payload.detail ?? null,
+  limited: Boolean(payload.limited),
+});
+
+const mergeBadgeAwards = (existing = [], awards = []) => {
+  const map = new Map((Array.isArray(existing) ? existing : []).filter(Boolean).map((badge) => [badge.id, badge]));
+  awards.forEach((badge) => {
+    if (!badge?.id || map.has(badge.id)) return;
+    map.set(badge.id, badge);
+  });
+  return [...map.values()];
+};
+
+const collectBadgeAwards = ({
+  state = {},
+  roster = [],
+  leagueTables = {},
+  isSeasonEnd = false,
+  season = 1,
+  week = 1,
+  europeanCupData = {},
+  worldCupState = null,
+  annualEvents = [],
+  projectedMoney = 0,
+}) => {
+  const awards = [];
+  const agencyPlayers = Array.isArray(roster) ? roster : [];
+  const agencyPlayerIds = new Set(agencyPlayers.map((player) => player.id));
+  const push = (id, payload = {}) => awards.push(createBadgeRecord(id, { ...payload, week, season }));
+
+  if (isSeasonEnd) {
+    Object.entries(BADGE_COUNTRY_BY_ID).forEach(([badgeId, countryCode]) => {
+      const champion = sortLeagueRowsForBadges(leagueTables?.[countryCode] ?? {})[0];
+      if (!champion?.club) return;
+      const player = agencyPlayers.find((item) => item.club === champion.club);
+      if (player) {
+        push(badgeId, {
+          playerId: player.id,
+          playerName: `${player.firstName} ${player.lastName}`,
+          club: champion.club,
+          detail: `${champion.club} termine champion avec un joueur de ton agence.`,
+        });
+      }
+    });
+  }
+
+  Object.entries(BADGE_EURO_BY_ID).forEach(([badgeId, comp]) => {
+    const compData = europeanCupData?.[`${comp}:${season}`];
+    const winner = compData?.winner ?? compData?.champion ?? null;
+    if (!winner) return;
+    const player = agencyPlayers.find((item) => item.club === winner);
+    if (player) {
+      push(badgeId, {
+        playerId: player.id,
+        playerName: `${player.firstName} ${player.lastName}`,
+        club: winner,
+        detail: `${winner} remporte ${BADGE_LABELS[badgeId]} avec un joueur de ton agence.`,
+      });
+    }
+  });
+
+  const worldChampion = (worldCupState?.selectedPlayers ?? []).find((entry) => entry?.champion && agencyPlayerIds.has(entry.playerId));
+  if (worldChampion) {
+    const player = agencyPlayers.find((item) => item.id === worldChampion.playerId);
+    push('world_cup', {
+      playerId: player?.id ?? worldChampion.playerId,
+      playerName: player ? `${player.firstName} ${player.lastName}` : worldChampion.playerName,
+      detail: `${player ? `${player.firstName} ${player.lastName}` : 'Un joueur de ton agence'} devient champion du monde.`,
+    });
+  }
+
+  const ballonEvent = annualEvents.find((event) => /ballon global|ballon d'or/i.test(String(event?.label ?? '')) && event?.playerId);
+  if (ballonEvent) {
+    push('ballon_dor', {
+      playerId: ballonEvent.playerId,
+      playerName: ballonEvent.player,
+      detail: `${ballonEvent.player} remporte le Ballon d'or.`,
+    });
+  }
+
+  if (projectedMoney >= 1_000_000 || (state.stats?.totalEarned ?? 0) >= 1_000_000) {
+    push('agency_million', {
+      detail: "L'agence atteint le cap symbolique du million d'euros.",
+    });
+  }
+
+  return awards;
+};
+
 const normalizeClubSeasonHistory = (history = {}, season = 1) => {
   const base = createClubSeasonHistory(season);
+  const uniqueEuropeHistory = (entries = [], clubName = '') => {
+    const seen = new Set();
+    return entries.filter((entry) => {
+      if (!entry) return false;
+      const key = entry.fixtureId
+        ? String(entry.fixtureId)
+        : [
+          entry.week ?? '',
+          entry.competition ?? '',
+          clubName,
+          entry.opponent ?? entry.opponentName ?? '',
+          entry.stage ?? entry.phase ?? '',
+        ].join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
   return Object.entries(base).reduce((acc, [clubName, baseRecord]) => {
     const current = history?.[clubName];
     const sameSeason = current?.season === season;
+    const europeHistory = sameSeason && Array.isArray(current.europe)
+      ? uniqueEuropeHistory(current.europe, clubName)
+      : [];
     acc[clubName] = {
       ...baseRecord,
       ...(sameSeason ? current : {}),
       season,
       competition: sameSeason ? current.competition ?? baseRecord.competition : baseRecord.competition,
       league: [...(sameSeason && Array.isArray(current.league) ? current.league : [])].slice(0, 12),
-      europe: [...(sameSeason && Array.isArray(current.europe) ? current.europe : [])].slice(0, 12),
+      europe: europeHistory.slice(0, 12),
       summary: [...(sameSeason && Array.isArray(current.summary) ? current.summary : [])].slice(0, 8),
     };
     return acc;
@@ -305,6 +813,171 @@ const sortLeagueTableRows = (table = {}) =>
     || String(a.club ?? '').localeCompare(String(b.club ?? '')),
   );
 
+const displayClubName = (clubName) => getClubDisplayName(clubName) || clubName || 'club';
+
+const TEXT_REPLACEMENTS = [
+  ["Ligue 1 McDonald's", 'Championnat français'],
+  ['Ligue 1', 'Championnat français'],
+  ['UEFA', 'Europe Football Board'],
+  ['UCL', 'Ligue des Champions'],
+  ['Paris Saint-Germain', 'Paris'],
+  ['France Football Desk', 'Ballon Magazine'],
+  ['France Football', 'Ballon Magazine'],
+  ['Canal Football Desk', 'Football Desk'],
+  ['Canal Football', 'Football Desk'],
+  ['FootMercato', 'Mercato Live'],
+  ['RMC Sport', 'Radio Sport'],
+  ['Téléfoot', 'Télé Sport'],
+  ['BeIN Sports', 'Be Sport'],
+  ...CLUBS
+    .map((club) => [club.name, getClubDisplayName(club.name)])
+    .filter(([name, display]) => name && display && name !== display)
+    .sort((a, b) => b[0].length - a[0].length),
+];
+
+const replaceVisibleText = (value, from, to) =>
+  String(value).replace(new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), to);
+
+const sanitizeVisibleGameText = (value) => {
+  if (typeof value !== 'string') return value;
+  const cleaned = value
+    .replace(/\bundefined\b/gi, 'un club')
+    .replace(/\bnull\b/gi, 'un club');
+  return TEXT_REPLACEMENTS.reduce((text, [from, to]) => replaceVisibleText(text, from, to), cleaned);
+};
+
+const sanitizeVisibleMessage = (message = {}) => ({
+  ...message,
+  threadLabel: sanitizeVisibleGameText(message.threadLabel),
+  senderName: sanitizeVisibleGameText(message.senderName),
+  subject: sanitizeVisibleGameText(message.subject),
+  body: sanitizeVisibleGameText(message.body),
+  responseText: sanitizeVisibleGameText(message.responseText),
+});
+
+const sanitizeVisibleNews = (post = {}) => ({
+  ...post,
+  accountName: sanitizeVisibleGameText(post.accountName),
+  title: sanitizeVisibleGameText(post.title),
+  label: sanitizeVisibleGameText(post.label),
+  text: sanitizeVisibleGameText(post.text),
+  account: post.account ? { ...post.account, name: sanitizeVisibleGameText(post.account.name) } : post.account,
+});
+
+const sanitizeVisibleTimelineItem = (item = {}) => ({
+  ...item,
+  title: sanitizeVisibleGameText(item.title),
+  text: sanitizeVisibleGameText(item.text),
+  description: sanitizeVisibleGameText(item.description),
+  chips: Array.isArray(item.chips) ? item.chips.map(sanitizeVisibleGameText) : item.chips,
+});
+
+const sanitizeVisibleState = (state = {}) => ({
+  ...state,
+  news: (Array.isArray(state.news) ? state.news : []).map(sanitizeVisibleNews),
+  newgenStories: (Array.isArray(state.newgenStories) ? state.newgenStories : []).map((story) => ({
+    ...story,
+    playerName: sanitizeVisibleGameText(story.playerName),
+    club: sanitizeVisibleGameText(story.club),
+    country: sanitizeVisibleGameText(story.country),
+    text: sanitizeVisibleGameText(story.text),
+  })),
+  messages: (Array.isArray(state.messages) ? state.messages : []).map(sanitizeVisibleMessage),
+  messageQueue: (Array.isArray(state.messageQueue) ? state.messageQueue : []).map(sanitizeVisibleMessage),
+});
+
+const isClubStaffMessage = (message = {}) =>
+  ['ds_dialogue', 'coach_dialogue', 'staff_dialogue'].includes(message.type)
+  || ['staff', 'coach', 'director'].includes(message.senderRole);
+
+const settleStaleClubStaffMessages = (messages = [], playerId, targetClubName) => {
+  const targetDisplay = displayClubName(targetClubName);
+  const targetRaw = String(targetClubName ?? '');
+  return messages.map((message) => {
+    if (message.playerId !== playerId || !isClubStaffMessage(message)) return message;
+    const visibleClubContext = `${message.senderName ?? ''} ${message.threadLabel ?? ''} ${message.body ?? ''} ${message.subject ?? ''}`;
+    const isCurrentClubThread = visibleClubContext.includes(targetRaw) || visibleClubContext.includes(targetDisplay);
+    if (isCurrentClubThread) return message;
+    return {
+      ...message,
+      resolved: true,
+      archived: true,
+      context: `${message.context ?? 'club_staff'}_closed_after_transfer`,
+    };
+  });
+};
+
+const CLUB_EXPECTED_PPG = {
+  PSG: 2.55,
+  'Real Madrid': 2.58,
+  Barcelona: 2.42,
+  Atletico: 2.25,
+  'Man City': 2.58,
+  Liverpool: 2.45,
+  Arsenal: 2.35,
+  'Man United': 2.12,
+  Bayern: 2.58,
+  Dortmund: 2.25,
+  Leverkusen: 2.28,
+  Inter: 2.38,
+  Milan: 2.18,
+  Juventus: 2.18,
+  Napoli: 2.12,
+  Monaco: 2.02,
+  Marseille: 2.02,
+  Lyon: 1.78,
+  Lille: 1.74,
+};
+
+const getExpectedPpg = (clubName) => {
+  if (CLUB_EXPECTED_PPG[clubName]) return CLUB_EXPECTED_PPG[clubName];
+  const club = CLUBS.find((item) => item.name === clubName);
+  if (!club) return 1.15;
+  if (club.tier <= 1) return 2.02;
+  if (club.tier === 2) return 1.55;
+  if (club.tier === 3) return 1.18;
+  return 0.88;
+};
+
+const normalizeTableRecordFromPoints = (row, points) => {
+  const played = Math.max(0, Number(row?.played ?? 0));
+  if (!played) return { ...row, points: 0 };
+  const win = Math.min(played, Math.floor(points / 3));
+  const draw = Math.min(played - win, points - win * 3);
+  const loss = Math.max(0, played - win - draw);
+  const goalDiffTarget = Math.round((getExpectedPpg(row.club) - 1.35) * played * 1.8);
+  const goalsFor = Math.max(Number(row.goalsFor ?? 0), Math.max(0, Number(row.goalsAgainst ?? 0) + goalDiffTarget));
+  const goalsAgainst = Math.max(0, Number(row.goalsAgainst ?? 0));
+  return {
+    ...row,
+    points,
+    win,
+    draw,
+    loss,
+    goalsFor,
+    goalsAgainst,
+    form: Array.from({ length: Math.min(5, played) }, (_, index) => {
+      if (index < Math.min(win, 5)) return 'V';
+      if (index < Math.min(win + draw, 5)) return 'N';
+      return 'D';
+    }),
+  };
+};
+
+const rebalanceExistingLeagueTables = (tables = {}) =>
+  Object.entries(mergeWithInitialLeagueTables(tables)).reduce((next, [countryCode, table]) => ({
+    ...next,
+    [countryCode]: Object.entries(table ?? {}).reduce((rows, [clubName, row]) => {
+      const played = Number(row?.played ?? 0);
+      if (played < 4) return { ...rows, [clubName]: row };
+      const currentPoints = Number(row?.points ?? 0);
+      const expectedPoints = Math.round(getExpectedPpg(clubName) * played);
+      const blendedPoints = Math.round(currentPoints * 0.25 + expectedPoints * 0.75);
+      const points = clamp(blendedPoints, 0, played * 3);
+      return { ...rows, [clubName]: normalizeTableRecordFromPoints(row, points) };
+    }, {}),
+  }), {});
+
 const getClubSeasonObjective = (player = {}, position = null, totalClubs = 20) => {
   if (!position) return 'Saison a construire';
   const tier = player.clubTier ?? 3;
@@ -361,7 +1034,7 @@ const buildClubSeasonContext = (player = {}, leagueTables = {}, leagueSeasonData
       || fixture.away === clubName,
     ).slice(0, 3),
   };
-  return syncProgressionSystems(migratedState).state;
+  return migratedState;
 };
 
 const attachClubSeasonContext = (player = {}, leagueTables = {}, leagueSeasonData = {}) => {
@@ -399,6 +1072,9 @@ const getAgencyCountryCode = (state = {}) =>
   ?? DEFAULT_AGENCY_PROFILE.countryCode
   ?? 'FR';
 
+const resolveAgencyProfileName = (profile = {}, fallbackName = DEFAULT_AGENCY_PROFILE.name) =>
+  normalizeAgencyName(profile?.name, fallbackName);
+
 const SPECIALIZATION_EFFECTS = {
   equilibre: { marketBonus: 0, negotiationRep: 0, mediaBoost: 0 },
   business: { marketBonus: 2, negotiationRep: 2, mediaBoost: -1 },
@@ -423,10 +1099,41 @@ const getClubForCountry = (countryCode) => {
 };
 
 const getClubTierForRating = (rating, potential) => {
+  // Les très gros dossiers ne doivent recevoir que des appels de clubs capables
+  // sportivement et financièrement de les assumer.
+  if (rating >= 188 || potential >= 195) return [1];
+  if (rating >= 176 || potential >= 186) return [1, 2];
   if (rating >= 168 || potential >= 180) return [1, 2];
   if (rating >= 152 || potential >= 168) return [2, 3];
   if (rating >= 132 || potential >= 156) return [3, 4];
   return [4];
+};
+
+const getRealisticBuyerTiers = (player = {}) => {
+  const value = Number(player.value ?? 0);
+  if (value >= 120_000_000 || (player.rating ?? 0) >= 188 || (player.potential ?? 0) >= 195) return [1];
+  if (value >= 60_000_000 || (player.rating ?? 0) >= 176 || (player.potential ?? 0) >= 186) return [1, 2];
+  return getClubTierForRating(player.rating ?? 130, player.potential ?? player.rating ?? 130);
+};
+
+const getRealisticBuyerPool = (player = {}, { action = 'transfer', preference = 'balanced' } = {}) => {
+  const allowedTiers = getRealisticBuyerTiers(player);
+  const playerValue = Number(player.value ?? 0);
+  let pool = CLUBS
+    .filter((club) => club.name !== player.club)
+    .filter((club) => allowedTiers.includes(club.tier));
+  if (action === 'loan') {
+    pool = CLUBS
+      .filter((club) => club.name !== player.club)
+      .filter((club) => club.tier >= Math.min(4, player.clubTier ?? 3));
+  }
+  if (playerValue >= 120_000_000) {
+    pool = pool.filter((club) => club.tier === 1);
+  }
+  if (preference === 'project') {
+    return pool.sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)).slice(0, Math.max(1, Math.min(8, pool.length)));
+  }
+  return pool.length ? pool : CLUBS.filter((club) => club.name !== player.club && club.tier <= 2);
 };
 
 const getClubForPlayerLevel = (countryCode, rating, potential) => {
@@ -443,7 +1150,7 @@ const estimateTransferValue = ({
   clubTier = 3,
   brandValue = 20,
 }) => {
-  const safeRating = clamp(Number.isFinite(rating) ? rating : 130, 100, 198);
+  const safeRating = clamp(Number.isFinite(rating) ? rating : 130, 100, 200);
   const safePotential = clamp(Number.isFinite(potential) ? potential : safeRating, safeRating, 200);
   const safeAge = clamp(Number.isFinite(age) ? age : 24, 16, 38);
   const safeForm = clamp(Number.isFinite(form) ? form : 70, 30, 95);
@@ -474,6 +1181,51 @@ const estimateTransferValue = ({
   const noise = rand(96, 104) / 100;
 
   return Math.round(clamp(3_850_000 * ratingFactor * ageFactor * potentialFactor * formFactor * brandFactor * clubFactor * noise, 250000, 280000000));
+};
+
+const getSeasonInflationFactor = (season = 1) => 1 + Math.min(0.65, Math.max(0, (season - 1) * 0.012));
+
+const getRatingSoftCap = (player = {}) => {
+  if (player.superstarGenerational || player.signaturePlayer) return 200;
+  if ((player.age ?? 24) <= 22) return 193;
+  if ((player.age ?? 24) <= 27) return 195;
+  return 192;
+};
+
+const computeRealisticPlayerValue = (player = {}, season = 1) => {
+  const base = estimateTransferValue({
+    rating: player.rating ?? 120,
+    potential: player.potential ?? player.rating ?? 120,
+    age: player.age ?? 24,
+    form: player.form ?? 60,
+    clubTier: player.clubTier ?? 3,
+    brandValue: player.brandValue ?? 18,
+  });
+  const inflation = getSeasonInflationFactor(season);
+  const cap = (player.superstarGenerational || player.signaturePlayer) ? 420_000_000 : 260_000_000;
+  return Math.round(clamp(base * inflation, 180_000, cap));
+};
+
+const normalizeLongTermPlayer = (player = {}, season = 1) => {
+  const safeAge = clamp(Number(player.age ?? 24), 15, 42);
+  const ratingCap = getRatingSoftCap({ ...player, age: safeAge });
+  const safeRating = clamp(Math.round(player.rating ?? 120), 70, ratingCap);
+  const safePotentialMin = Math.max(safeRating, safeAge <= 24 ? safeRating + 2 : safeRating);
+  const safePotential = clamp(Math.round(player.potential ?? safeRating), safePotentialMin, 200);
+  const finalRating = Math.min(safeRating, safePotential);
+  const value = computeRealisticPlayerValue({ ...player, age: safeAge, rating: finalRating, potential: safePotential }, season);
+  return {
+    ...player,
+    age: safeAge,
+    rating: finalRating,
+    potential: safePotential,
+    value,
+    weeklySalary: clamp(Math.round(player.weeklySalary ?? Math.max(1000, value / 185)), 800, 650000),
+    form: clamp(Math.round(player.form ?? 60), 20, 99),
+    moral: clamp(Math.round(player.moral ?? 50), 0, 100),
+    fatigue: clamp(Math.round(player.fatigue ?? 20), 0, 100),
+    trust: clamp(Math.round(player.trust ?? 50), 0, 100),
+  };
 };
 
 const generateRealisticRating = (reputation, scoutLevel, young) => {
@@ -556,8 +1308,8 @@ const normalizePlayerCoreProfile = (player, countryCode, club, season = 1) => {
     return {
       firstName: dbPlayer.firstName,
       lastName: dbPlayer.lastName,
-      rating: clamp(Math.round(dbPlayer.rating), 100, 198),
-      potential: clamp(Math.round(dbPlayer.potential ?? dbPlayer.rating), Math.round(dbPlayer.rating), 198),
+      rating: clamp(Math.round(dbPlayer.rating), 100, 200),
+      potential: clamp(Math.round(dbPlayer.potential ?? dbPlayer.rating), Math.round(dbPlayer.rating), 200),
     };
   }
 
@@ -579,13 +1331,13 @@ const normalizePlayerCoreProfile = (player, countryCode, club, season = 1) => {
   const rawPotential = potentialCandidates.find((value) => Number.isFinite(Number(value)));
   const potential = Number.isFinite(Number(rawPotential))
     ? Number(rawPotential)
-    : Math.min(198, Math.max(rating, rating + 12));
+    : Math.min(200, Math.max(rating, rating + 12));
 
   return {
     firstName,
     lastName,
-    rating: clamp(Math.round(rating), 100, 198),
-    potential: clamp(Math.round(potential), Math.round(rating), 198),
+    rating: clamp(Math.round(rating), 100, 200),
+    potential: clamp(Math.round(potential), Math.round(rating), 200),
   };
 };
 
@@ -674,20 +1426,44 @@ export const generateFreeAgents = (reputation, size = 4, existingIds = [], seaso
   return drawFreeAgentsFromSquads({ reputation, scoutLevel, season, existingIds, positionQuota: quota, agencyCountryCode });
 };
 
+const generateSeasonYouthIntake = ({
+  season = 1,
+  reputation = 20,
+  scoutLevel = 0,
+  agencyCountryCode = DEFAULT_AGENCY_PROFILE.countryCode,
+  existingIds = [],
+} = {}) => {
+  const count = 10;
+  return drawProspects({
+    reputation: Math.max(10, reputation),
+    scoutLevel: Math.max(0, scoutLevel),
+    season,
+    existingIds,
+    count,
+    agencyCountryCode,
+  }).map((p) => ({
+    ...p,
+    age: clamp(p.age ?? 18, 16, 20),
+    seasonStats: p.seasonStats ?? { appearances: 0, goals: 0, assists: 0, saves: 0, tackles: 0, keyPasses: 0, xg: 0, injuries: 0, ratings: [], averageRating: null },
+    generationTag: `gen_s${season}`,
+  }));
+};
+
 export const getPhase = (week) => {
   return getSeasonContext(week);
 };
 
-// Legacy shim — new objectives come from objectivesSystem.js
-export const generateObjectives = (season) =>
-  generateSeasonObjectives({ week: (season - 1) * 38 + 1, reputation: 12 + season * 5 });
+// Legacy shim — objectives are retired in favor of badge progression.
+export const generateObjectives = () => [];
 
-export const createFreshState = () => syncProgressionSystems({
+export const createFreshState = () => ({
+  gameSeed: `${Date.now()}_${Math.floor(Math.random() * 1_000_000_000)}`,
   money: 25000,
   gems: 0,
   legendarySeenIds: [],
   reputation: 20,
   credibility: 52,
+  agencyPersona: 50,
   difficulty: 'realiste',
   startProfile: 'ancien_joueur',
   week: 1,
@@ -713,11 +1489,19 @@ export const createFreshState = () => syncProgressionSystems({
   dossierMemory: createDefaultDossierMemory(),
   pendingChainedEvents: [],
   seasonAwards: {},
+  worldMemory: createDefaultWorldMemory(),
+  newgenStories: [],
+  longTermDynamics: createDefaultLongTermDynamics(),
+  hallOfFame: [],
+  generationLedger: [],
+  historicalCanon: createDefaultHistoricalCanon(),
   worldState: generateWorldState(1),
   worldCupState: null,
   europeanCupData: {},
+  badges: [],
+  narrativeTemplates: {},
   contacts: createDefaultContacts(),
-  seasonObjectives: generateSeasonObjectives({ week: 1, reputation: 20 }),
+  seasonObjectives: [],
   roster: [],
   market: generateMarket(20, 0, 8, [], 1, DEFAULT_AGENCY_PROFILE.countryCode).map((player) => ({ ...player, marketCatalogVersion: MARKET_DATA_VERSION })),
   freeAgents: generateFreeAgents(20, 6, [], 1, DEFAULT_AGENCY_PROFILE.countryCode, 0).map((player) => ({ ...player, marketCatalogVersion: MARKET_DATA_VERSION })),
@@ -736,8 +1520,10 @@ export const createFreshState = () => syncProgressionSystems({
   matchCalendar: [],
   matchResultStore: [],
   office: { scoutLevel: 0, lawyerLevel: 0, mediaLevel: 0 },
-  objectives: generateObjectives(1),
-  agencyGoals: createLongTermAgencyGoals(),
+  objectives: [],
+  dailyObjectives: [],
+  achievements: [],
+  agencyGoals: [],
   history: [],
   news: [
     createManualNewsPost({
@@ -751,7 +1537,10 @@ export const createFreshState = () => syncProgressionSystems({
   messages: [],
   stats: { totalEarned: 0, playersSigned: 0, transfersDone: 0, seasonsPlayed: 0 },
   playerBonds: buildInitialBonds(),
-}).state;
+  identityVersion: 1,
+  identityIndexes: buildIdentityIndexes({ roster: [], market: [], freeAgents: [] }),
+  idRegistry: { nextPlayerId: 1 },
+});
 
 export const migrateState = (state) => {
   if (!state) return createFreshState();
@@ -764,11 +1553,12 @@ export const migrateState = (state) => {
       ?? asArray(state.freeAgents).find((item) => item?.id === transfer.playerId)
       ?? asArray(state.market).find((item) => item?.id === transfer.playerId)
       ?? null;
-    const offer = transfer.offer
+    const offerCandidate = transfer.offer
       ?? asArray(state.clubOffers).find((item) => item?.id === transfer.offerId)
       ?? asArray(state.clubOffers).find((item) => item?.playerId === transfer.playerId && (item?.status === 'accepted_pending' || item?.status === 'open'))
       ?? null;
-    if (!player || !offer) return null;
+    const offer = offerCandidate ? withOfferIdentity(offerCandidate) : null;
+    if (!player || !offer || !hasValidOfferClubId(offerCandidate)) return null;
     return {
       ...transfer,
       playerName: transfer.playerName ?? `${player.firstName} ${player.lastName}`,
@@ -867,14 +1657,24 @@ export const migrateState = (state) => {
     const filler = generateFreeAgents(reputation, count - sanitized.length, [...existingIds], currentSeason, agencyCountryCode, marketScoutLevel);
     return [...sanitized, ...filler].slice(0, count);
   };
+  const migratedLeagueTables = state.leagueBalancePatchVersion === 2
+    ? mergeWithInitialLeagueTables(state.leagueTables)
+    : rebalanceExistingLeagueTables(state.leagueTables);
+  const mergedAgencyProfile = { ...DEFAULT_AGENCY_PROFILE, ...(state.agencyProfile ?? {}) };
+  const normalizedAgencyProfile = {
+    ...mergedAgencyProfile,
+    name: resolveAgencyProfileName(mergedAgencyProfile, DEFAULT_AGENCY_PROFILE.name),
+  };
 
   return {
     ...state,
+    gameSeed: state.gameSeed ?? `${Date.now()}_${Math.floor(Math.random() * 1_000_000_000)}`,
     day: Number.isFinite(state.day) ? Math.max(1, Math.min(7, state.day)) : 1,
     seasonDay: Number.isFinite(state.seasonDay) ? Math.max(1, state.seasonDay) : (((state.week ?? 1) - 1) * 7 + 1),
-    agencyProfile: { ...DEFAULT_AGENCY_PROFILE, ...(state.agencyProfile ?? {}) },
+    agencyProfile: normalizedAgencyProfile,
     segmentReputation: { ...createDefaultSegmentReputation(), ...(state.segmentReputation ?? {}) },
     credibility: state.credibility ?? 52,
+    agencyPersona: state.agencyPersona ?? 50,
     difficulty: state.difficulty ?? state.agencyProfile?.difficulty ?? 'realiste',
     startProfile: state.startProfile ?? state.agencyProfile?.startProfile ?? 'ancien_joueur',
     countryReputation: state.countryReputation ?? createDefaultCountryReputation(agencyCountryCode, normalizeAgencyReputation(state.reputation ?? 20)),
@@ -885,22 +1685,55 @@ export const migrateState = (state) => {
     activeNarratives: state.activeNarratives ?? [],
     staff: { ...createDefaultStaff(), ...(state.staff ?? {}) },
     promises: normalizePromises(state.promises ?? []),
-    clubOffers: state.clubOffers ?? [],
-    pendingTransfers: state.pendingTransfers ?? [],
-    transferHistory: state.transferHistory ?? [],
+    clubOffers: asArray(state.clubOffers).map(withOfferIdentity).filter(hasValidOfferClubId),
+    pendingTransfers: asArray(state.pendingTransfers).map(withTransferIdentity),
+    transferHistory: asArray(state.transferHistory).map(withTransferIdentity),
     negotiationCooldowns: state.negotiationCooldowns ?? {},
     messageQueue: state.messageQueue ?? [],
     socialCrisisCooldowns: state.socialCrisisCooldowns ?? {},
-    dossierMemory: state.dossierMemory ?? createDefaultDossierMemory(),
+    idRegistry: state.idRegistry ?? { nextPlayerId: 1 },
+    dossierMemory: {
+      ...(state.dossierMemory ?? createDefaultDossierMemory()),
+      clubs: Object.entries((state.dossierMemory?.clubs ?? {})).reduce((acc, [clubRef, entry]) => {
+        const clubId = getClubId(clubRef);
+        const key = clubId ?? clubRef;
+        if (!key) return acc;
+        acc[key] = entry;
+        return acc;
+      }, {}),
+    },
     pendingChainedEvents: state.pendingChainedEvents ?? [],
     seasonAwards: state.seasonAwards ?? {},
+    worldMemory: state.worldMemory ?? createDefaultWorldMemory(),
+    narrativeTemplates: state.narrativeTemplates ?? {},
+    newgenStories: asArray(state.newgenStories),
+    longTermDynamics: state.longTermDynamics ?? createDefaultLongTermDynamics(),
+    hallOfFame: asArray(state.hallOfFame),
+    generationLedger: asArray(state.generationLedger),
+    historicalCanon: state.historicalCanon ?? createDefaultHistoricalCanon(),
     worldState: state.worldState ?? generateWorldState(1),
-    leagueTables: mergeWithInitialLeagueTables(state.leagueTables),
+    leagueTables: migratedLeagueTables,
+    leagueBalancePatchVersion: 2,
     competitionTopStats: state.competitionTopStats ?? { league: {}, europe: {} },
     leagueSeasonData: state.leagueSeasonData ?? {},
     leagueReputation: state.leagueReputation ?? createDefaultLeagueReputation(agencyCountryCode),
-    clubRelations: state.clubRelations ?? createDefaultClubRelations(),
-    clubMemory: state.clubMemory ?? createDefaultClubMemory(),
+    clubRelations: normalizeClubScopedMap(
+      state.clubRelations ?? createDefaultClubRelations(),
+      { defaultValue: 50, merge: (left, right) => Math.round((Number(left) + Number(right)) / 2) },
+    ),
+    clubMemory: normalizeClubScopedMap(
+      state.clubMemory ?? createDefaultClubMemory(),
+      {
+        defaultValue: { trust: 50, blocks: 0, lies: 0, promisesBroken: 0, lastWeek: 0 },
+        merge: (left, right) => ({
+          trust: Number(right?.trust ?? left?.trust ?? 50),
+          blocks: Math.max(Number(left?.blocks ?? 0), Number(right?.blocks ?? 0)),
+          lies: Math.max(Number(left?.lies ?? 0), Number(right?.lies ?? 0)),
+          promisesBroken: Math.max(Number(left?.promisesBroken ?? 0), Number(right?.promisesBroken ?? 0)),
+          lastWeek: Math.max(Number(left?.lastWeek ?? 0), Number(right?.lastWeek ?? 0)),
+        }),
+      },
+    ),
     clubSeasonHistory,
     scoutingMissions: asArray(state.scoutingMissions),
     competitorThreats: asArray(state.competitorThreats),
@@ -914,14 +1747,17 @@ export const migrateState = (state) => {
       : entry)),
     news: asArray(state.news),
     messages: asArray(state.messages).map(normalizeMessageRecord),
-    agencyGoals: asArray(state.agencyGoals, createLongTermAgencyGoals()).map((goal) => (goal.metric === 'GLOBAL' && goal.target <= 100 ? { ...goal, target: goal.target * 10 } : goal)),
-    contacts: state.contacts ?? createDefaultContacts(),
-    seasonObjectives: (asArray(state.seasonObjectives).length ? asArray(state.seasonObjectives) : generateSeasonObjectives({ week: state.week ?? 1, reputation })).map(convertLegacyObjective),
+    agencyGoals: [],
+    contacts: normalizeContacts(state.contacts ?? createDefaultContacts()),
+    seasonObjectives: [],
     gems: state.gems ?? 0,
     lastInteractiveEventWeek: state.lastInteractiveEventWeek ?? 0,
     legendarySeenIds: state.legendarySeenIds ?? [],
     worldCupState: state.worldCupState ?? null,
     europeanCupData: state.europeanCupData ?? {},
+    badges: asArray(state.badges),
+    dailyObjectives: [],
+    achievements: [],
     sentSeasonalMessages: state.sentSeasonalMessages ?? [],
     activePeriod: state.activePeriod ?? null,
     office: {
@@ -951,7 +1787,7 @@ export const migrateState = (state) => {
       const club = normalizeClubForPlayer(player, country.code);
       const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
 
-      return attachClubSeasonContext({
+      return normalizeLongTermPlayer(withClubIdentity(attachClubSeasonContext({
         ...player,
         marketCatalogVersion: MARKET_DATA_VERSION,
         ...coreProfile,
@@ -978,7 +1814,7 @@ export const migrateState = (state) => {
         trust: player.trust ?? getInitialTrust(personality),
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
         europeanCompetition: getPlayerEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
-      }, state.leagueTables, state.leagueSeasonData);
+      }, state.leagueTables, state.leagueSeasonData)), currentSeason);
     }),
     freeAgents: normalizeFreeAgentShelf(freeAgentShelfSource, 6).map((rawPlayer) => {
       const player = reconcileCatalogPlayer(rawPlayer);
@@ -987,7 +1823,7 @@ export const migrateState = (state) => {
       const club = normalizeClubForPlayer(player, country.code);
       const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
 
-      return attachClubSeasonContext({
+      return normalizeLongTermPlayer(withClubIdentity(attachClubSeasonContext({
         ...player,
         marketCatalogVersion: MARKET_DATA_VERSION,
         ...coreProfile,
@@ -1013,7 +1849,7 @@ export const migrateState = (state) => {
         trust: player.trust ?? getInitialTrust(personality),
         clubSeasonHistory: clubSeasonHistory[club.name] ?? null,
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
-      }, state.leagueTables, state.leagueSeasonData);
+      }, state.leagueTables, state.leagueSeasonData)), currentSeason);
     }),
     promises: normalizePromises(asArray(state.promises)),
     roster: asArray(state.roster).map((rawPlayer) => {
@@ -1023,7 +1859,7 @@ export const migrateState = (state) => {
       const club = normalizeClubForPlayer(player, country.code);
       const coreProfile = normalizePlayerCoreProfile(player, country.code, club, currentSeason);
 
-      return attachClubSeasonContext({
+      return normalizeLongTermPlayer(withClubIdentity(attachClubSeasonContext({
         ...player,
         ...coreProfile,
         ...ensureDeepPlayerProfile(player, country.code, club),
@@ -1054,9 +1890,10 @@ export const migrateState = (state) => {
         clubSeasonHistory: clubSeasonHistory[club.name] ?? null,
         europeanCompetition: getPlayerEuropeanCompetition({ ...player, club: club.name, clubTier: club.tier, clubCountryCode: club.countryCode }, currentSeason),
         matchHistory: (Array.isArray(player.matchHistory) ? player.matchHistory : []).map(normalizeEuropeanMatch),
-      }, state.leagueTables, state.leagueSeasonData);
+      }, state.leagueTables, state.leagueSeasonData)), currentSeason);
     }),
   };
+  return finalizeGameState(migratedState);
 };
 
 export const signPlayer = (state, player) => {
@@ -1065,7 +1902,7 @@ export const signPlayer = (state, player) => {
   if (state.money < signingCost) return { state, error: 'Fonds insuffisants' };
   if (state.roster.length >= capacity) return { state, error: `Agence pleine (${capacity} joueurs)` };
   const currentSeason = Math.floor(((state.week ?? 1) - 1) / 38) + 1;
-  const signedPlayer = attachClubSeasonContext({
+  const signedPlayer = withClubIdentity(attachClubSeasonContext({
     ...player,
     agencySignedWeek: state.week,
     agencySignedRating: player.rating,
@@ -1080,12 +1917,12 @@ export const signPlayer = (state, player) => {
       { week: state.week, type: 'signature', label: `Signature avec ${state.agencyProfile?.name ?? 'ton agence'}` },
       ...(player.timeline ?? []),
     ],
-  }, state.leagueTables, state.leagueSeasonData);
+  }, state.leagueTables, state.leagueSeasonData));
   const nextRoster = [...state.roster, signedPlayer];
   const scheduled = scheduleLeagueMatches(state, nextRoster, state.week);
 
   return {
-    state: {
+    state: finalizeGameState({
       ...state,
       money: state.money - signingCost,
       credibility: applyCredibilityChange(state.credibility, 1),
@@ -1108,8 +1945,8 @@ export const signPlayer = (state, player) => {
       messages: [
         createMessage({ player: signedPlayer, type: 'welcome', week: state.week, context: 'signing' }),
         ...state.messages,
-      ].slice(0, 40),
-    },
+      ].slice(0, 120),
+    }),
     newMessagesCount: 1,
   };
 };
@@ -1215,10 +2052,15 @@ export const startScoutingMission = (state, countryCode) => {
 
 export const updateAgencyProfile = (state, profilePatch) => {
   const isFirstLaunch = !state.agencyProfile?.onboarded && profilePatch.onboarded;
+  const lockedName = resolveAgencyProfileName(state.agencyProfile, DEFAULT_AGENCY_PROFILE.name);
+  const incomingName = state.agencyProfile?.onboarded
+    ? lockedName
+    : resolveAgencyProfileName({ name: profilePatch?.name }, lockedName);
   const profiledState = isFirstLaunch ? applyStartingProfileToState(state, profilePatch) : state;
   const nextAgencyProfile = {
     ...profiledState.agencyProfile,
     ...profilePatch,
+    name: incomingName,
   };
   const nextState = {
     ...profiledState,
@@ -1247,13 +2089,16 @@ export const updateAgencyProfile = (state, profilePatch) => {
 };
 
 export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
-  const offer = state.clubOffers.find((item) => item.id === offerId);
+  const rawOffer = state.clubOffers.find((item) => item.id === offerId);
+  const offer = rawOffer ? withOfferIdentity(rawOffer) : null;
   if (!offer || offer.status !== 'open') return { state, error: 'Offre indisponible' };
+  if (!hasValidOfferClubId(rawOffer)) return { state, error: 'Offre invalide: clubId manquant' };
   const player = state.roster.find((item) => item.id === offer.playerId)
     ?? state.freeAgents?.find((item) => item.id === offer.playerId);
   if (!player) return { state, error: 'Joueur introuvable' };
   const agreement = buildTransferAgreementFromEngine(player, offer, negotiatedOutcome);
-  const targetClub = CLUBS.find((club) => club.name === offer.club);
+  const targetClub = CLUBS.find((club) => club.id === offer.clubId) ?? CLUBS.find((club) => club.name === offer.club);
+  const offerClubLabel = displayClubName(offer.club);
   const phase = getPhase(state.week);
   const closeCompetingOffers = (item) => {
     if (item.id === offerId) return item;
@@ -1264,7 +2109,14 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
   const settlePlayerMessages = (messages, settledContext) => messages.map((message) => {
     if (message.playerId !== player.id) return message;
     if (message.type !== 'transfer_request') return message;
-    if (String(message.context ?? '').includes('deal_signed') || String(message.context ?? '').includes('predeal_signed')) return message;
+    if (String(message.context ?? '').includes('deal_signed') || String(message.context ?? '').includes('predeal_signed')) {
+      return {
+        ...message,
+        resolved: true,
+        archived: true,
+        context: `${message.context}_closed_after_transfer`,
+      };
+    }
     return {
       ...message,
       resolved: true,
@@ -1278,7 +2130,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
   if (offer.preWindow && !phase.mercato) {
     const effectiveWeek = offer.effectiveWeek ?? state.week + 1;
     return {
-      state: {
+      state: finalizeGameState({
         ...state,
         credibility: applyCredibilityChange(state.credibility, 1),
         clubRelations: applyClubRelation(state.clubRelations, offer.club, 2),
@@ -1291,7 +2143,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
           week: state.week,
           type: 'transfer_predeal',
           label: 'Pré-accord signé',
-          detail: `${offer.playerName} rejoindra ${offer.club} à l'ouverture du mercato.`,
+          detail: `${offer.playerName} rejoindra ${offerClubLabel} à l'ouverture du mercato.`,
           playerId: player.id,
           playerName: offer.playerName,
         }),
@@ -1317,12 +2169,12 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
             type: 'transfert',
             player,
             week: state.week,
-            text: `Pré-accord: ${offer.playerName} rejoindra ${offer.club} à l'ouverture du mercato ${offer.window}.`,
+            text: `Pré-accord: ${offer.playerName} rejoindra ${offerClubLabel} à l'ouverture du mercato ${offer.window}.`,
             reputationImpact: 2,
             account: { name: 'Mercato Insider', kind: 'journal', icon: 'MI', color: '#172026' },
           }),
           ...state.news,
-        ].slice(0, 60),
+        ].slice(0, 180),
         messages: [
           {
             id: makeId('msg'),
@@ -1332,9 +2184,9 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
             playerId: player.id,
             playerName: offer.playerName,
             threadKey: `${player.id}:staff:ds`,
-            threadLabel: `DS de ${offer.club}`,
+            threadLabel: `DS de ${offerClubLabel}`,
             senderRole: 'staff',
-            senderName: `DS de ${offer.club}`,
+            senderName: `DS de ${offerClubLabel}`,
             subject: 'Pré-accord validé',
             body: `On confirme le pré-accord pour ${offer.playerName}. Activation officielle prévue à l'ouverture du mercato ${offer.window}.`,
             read: false,
@@ -1352,25 +2204,25 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
             senderRole: 'player',
             senderName: offer.playerName,
             subject: 'Pré-accord signé',
-            body: `Parfait, le deal avec ${offer.club} est posé. Je reste focus jusque-là.`,
+            body: `Parfait, le deal avec ${offerClubLabel} est posé. Je reste focus jusque-là.`,
             read: false,
             resolved: false,
           },
-          ...settlePlayerMessages(state.messages, 'predeal_signed_player'),
-        ].slice(0, 40),
-      },
+          ...settleStaleClubStaffMessages(settlePlayerMessages(state.messages, 'predeal_signed_player'), player.id, offer.club),
+        ].slice(0, 120),
+      }),
     };
   }
 
   const nextRoster = state.roster.map((item) =>
     item.id === offer.playerId
-      ? applyCompletedTransferToPlayerFromEngine(item, offer, agreement, state.week)
+      ? withClubIdentity(applyCompletedTransferToPlayerFromEngine(item, offer, agreement, state.week))
       : item,
   );
   const scheduled = scheduleLeagueMatches(state, nextRoster, state.week);
 
   return {
-    state: {
+    state: finalizeGameState({
       ...state,
       money: state.money + agreement.commission,
       reputation: applyReputationChange(state.reputation, scaleReputationDelta(5)),
@@ -1381,7 +2233,7 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
         week: state.week,
         type: 'transfer',
         label: 'Transfert négocié',
-        detail: `${offer.playerName} rejoint ${offer.club} avec un rôle ${agreement.clubRole}.`,
+        detail: `${offer.playerName} rejoint ${offerClubLabel} avec un rôle ${agreement.clubRole}.`,
         playerId: player.id,
         playerName: offer.playerName,
       }),
@@ -1412,12 +2264,12 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
           type: 'transfert',
           player,
           week: state.week,
-          text: `${offer.playerName} rejoint ${offer.club} après négociation : rôle ${agreement.clubRole}, contrat ${Math.round(agreement.contractWeeks / 52)} ans, prime ${formatMoney(agreement.signingBonus)}, clause ${formatMoney(agreement.releaseClause)}.`,
+          text: `${offer.playerName} rejoint ${offerClubLabel} après négociation : rôle ${agreement.clubRole}, contrat ${Math.round(agreement.contractWeeks / 52)} ans, prime ${formatMoney(agreement.signingBonus)}, clause ${formatMoney(agreement.releaseClause)}.`,
           reputationImpact: 5,
           account: { name: 'Mercato Insider', kind: 'journal', icon: 'MI', color: '#172026' },
         }),
         ...state.news,
-      ].slice(0, 60),
+      ].slice(0, 180),
       messages: [
         {
           id: makeId('msg'),
@@ -1427,9 +2279,9 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
           playerId: player.id,
           playerName: offer.playerName,
           threadKey: `${player.id}:staff:ds`,
-          threadLabel: `DS de ${offer.club}`,
+          threadLabel: `DS de ${offerClubLabel}`,
           senderRole: 'staff',
-          senderName: `DS de ${offer.club}`,
+          senderName: `DS de ${offerClubLabel}`,
           subject: 'Deal bouclé',
           body: `On confirme la signature de ${offer.playerName}. Contrat ${Math.round(agreement.contractWeeks / 52)} ans, rôle ${agreement.clubRole}.`,
           read: false,
@@ -1447,39 +2299,44 @@ export const acceptClubOffer = (state, offerId, negotiatedOutcome = null) => {
           senderRole: 'player',
           senderName: offer.playerName,
           subject: 'Transfert signé',
-          body: `C'est signé avec ${offer.club}. Merci pour la négo, maintenant on avance.`,
+          body: `C'est signé avec ${offerClubLabel}. Merci pour la négo, maintenant on avance.`,
           read: false,
           resolved: false,
         },
-        ...settlePlayerMessages(state.messages, 'deal_signed_player'),
-      ].slice(0, 40),
-    },
+          ...settleStaleClubStaffMessages(settlePlayerMessages(state.messages, 'deal_signed_player'), player.id, offer.club),
+      ].slice(0, 120),
+    }),
   };
 };
 
-export const rejectClubOffer = (state, offerId) => ({
-  state: {
-    ...state,
-    credibility: applyCredibilityChange(state.credibility, -1),
-    clubOffers: state.clubOffers.map((offer) => (offer.id === offerId ? { ...offer, status: 'rejected' } : offer)),
-    clubMemory: recordClubMemory(
-      state.clubMemory,
-      state.clubOffers.find((offer) => offer.id === offerId)?.club,
-      { blocks: 1, lies: 1, trust: -2, week: state.week },
-    ),
-    decisionHistory: addDecisionHistory(state.decisionHistory, {
-      week: state.week,
-      type: 'transfer',
-      label: 'Offre refusée',
-      detail: `Offre de ${state.clubOffers.find((offer) => offer.id === offerId)?.club ?? 'club'} refusée.`,
-    }),
-    clubRelations: applyClubRelation(
-      state.clubRelations,
-      state.clubOffers.find((offer) => offer.id === offerId)?.club,
-      -2,
-    ),
-  },
-});
+export const rejectClubOffer = (state, offerId) => {
+  const rawRejectedOffer = state.clubOffers.find((offer) => offer.id === offerId) ?? {};
+  const rejectedOffer = withOfferIdentity(rawRejectedOffer);
+  if (!hasValidOfferClubId(rawRejectedOffer)) return { state, error: 'Offre invalide: clubId manquant' };
+  return {
+    state: {
+      ...state,
+      credibility: applyCredibilityChange(state.credibility, -1),
+      clubOffers: state.clubOffers.map((offer) => (offer.id === offerId ? { ...offer, status: 'rejected' } : offer)),
+      clubMemory: recordClubMemory(
+        state.clubMemory,
+        rejectedOffer.club,
+        { blocks: 1, lies: 1, trust: -2, week: state.week },
+      ),
+      decisionHistory: addDecisionHistory(state.decisionHistory, {
+        week: state.week,
+        type: 'transfer',
+        label: 'Offre refusée',
+        detail: `Offre de ${rejectedOffer.club ?? 'club'} refusée.`,
+      }),
+      clubRelations: applyClubRelation(
+        state.clubRelations,
+        rejectedOffer.club,
+        -2,
+      ),
+    },
+  };
+};
 
 export const createPlayerMarketAction = (state, playerId, action) => {
   const player = state.roster.find((item) => item.id === playerId);
@@ -1488,26 +2345,19 @@ export const createPlayerMarketAction = (state, playerId, action) => {
     return { state, error: `${player.firstName} ${player.lastName} a déjà un dossier ouvert.` };
   }
   const phase = getPhase(state.week);
-  const allowedTiers = getClubTierForRating(player.rating, player.potential);
-  const targetClubs = CLUBS
-    .filter((club) => club.name !== player.club)
-    .filter((club) => action === 'loan' ? club.tier >= Math.min(4, player.clubTier) : allowedTiers.includes(club.tier));
+  const targetClubs = getRealisticBuyerPool(player, { action });
   const club = pick(targetClubs.length ? targetClubs : CLUBS);
+  const clubLabel = displayClubName(club.name);
   const country = getCountry(club.countryCode);
   const trustCost = action === 'transfer_list' ? -3 : action === 'loan' ? -1 : 1;
   const credibilityDelta = action === 'propose' ? 1 : action === 'transfer_list' ? -1 : 0;
   const levelPenalty = player.rating < 128 ? -0.16 : player.rating < 140 ? -0.08 : 0;
-  const nextWindow = !phase.mercato
-    ? (phase.seasonWeek <= 18
-      ? { window: 'hiver', effectiveWeek: state.week + (19 - phase.seasonWeek) }
-      : phase.seasonWeek <= 37
-        ? { window: 'été', effectiveWeek: state.week + (38 - phase.seasonWeek) }
-        : null)
-    : null;
+  const superstarBonus = player.superstarGenerational || (player.rating ?? 0) >= 198 ? 0.22 : 0;
+  const nextWindow = !phase.mercato ? getUpcomingMercatoWindow(state.week) : null;
   const isPreWindowOffer = Boolean(nextWindow && phase.seasonWeek >= 16 && phase.seasonWeek !== 38);
   const chance = action === 'propose' ? 0.34 : action === 'free_trial' ? 0.42 : action === 'loan' ? 0.28 : 0.22;
   const officialChance = phase.mercato ? chance : isPreWindowOffer ? chance * 0.42 : 0;
-  const isOfficialOffer = Math.random() < Math.max(0.04, officialChance + levelPenalty);
+  const isOfficialOffer = Math.random() < Math.max(0.04, Math.min(0.82, officialChance + levelPenalty + superstarBonus));
   const price = Math.floor(player.value * (action === 'loan' ? 0.08 : Math.random() * 0.28 + 0.82));
   const nextRoster = state.roster.map((item) =>
     item.id === playerId
@@ -1528,7 +2378,7 @@ export const createPlayerMarketAction = (state, playerId, action) => {
       week: state.week,
       type: 'mercato',
       label: action === 'loan' ? 'Recherche de prêt' : action === 'transfer_list' ? 'Mise sur le marché' : 'Proposition aux clubs',
-      detail: `${player.firstName} ${player.lastName} ciblé par une démarche proactive vers ${club.name}.`,
+      detail: `${player.firstName} ${player.lastName} ciblé par une démarche proactive vers ${clubLabel}.`,
       playerId,
       playerName: `${player.firstName} ${player.lastName}`,
     }),
@@ -1539,14 +2389,14 @@ export const createPlayerMarketAction = (state, playerId, action) => {
         week: state.week,
         text: isOfficialOffer
           ? isPreWindowOffer
-            ? `${club.name} propose un pré-accord pour ${player.firstName} ${player.lastName}, à activer au prochain mercato.`
-            : `${club.name} transforme l'intérêt en offre concrète pour ${player.firstName} ${player.lastName}.`
-          : `${club.name} prend des renseignements sur ${player.firstName} ${player.lastName}, sans offre officielle pour l'instant.`,
+            ? `${clubLabel} propose un pré-accord pour ${player.firstName} ${player.lastName}, à activer au prochain mercato.`
+            : `${clubLabel} transforme l'intérêt en offre concrète pour ${player.firstName} ${player.lastName}.`
+          : `${clubLabel} prend des renseignements sur ${player.firstName} ${player.lastName}, sans offre officielle pour l'instant.`,
         reputationImpact: credibilityDelta,
         account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
       }),
       ...state.news,
-    ].slice(0, 60),
+    ].slice(0, 180),
   };
 
   if (!isOfficialOffer) {
@@ -1569,6 +2419,7 @@ export const createPlayerMarketAction = (state, playerId, action) => {
           effectiveWeek: isPreWindowOffer ? nextWindow?.effectiveWeek : state.week,
           playerId: player.id,
           playerName: `${player.firstName} ${player.lastName}`,
+          clubId: getClubId(club),
           club: club.name,
           clubTier: club.tier,
           clubCountry: country.flag,
@@ -1583,8 +2434,8 @@ export const createPlayerMarketAction = (state, playerId, action) => {
       ].slice(0, 30),
     },
     message: isPreWindowOffer
-      ? `${club.name} fait un pré-accord pour le prochain mercato.`
-      : `${club.name} fait une offre officielle.`,
+      ? `${clubLabel} fait un pré-accord pour le prochain mercato.`
+      : `${clubLabel} fait une offre officielle.`,
   };
 };
 
@@ -1599,21 +2450,13 @@ export const createSecretOfferFollowup = (state, playerId) => {
   }
 
   const phase = getPhase(state.week);
-  const allowedTiers = getClubTierForRating(player.rating, player.potential);
-  const targetClubs = CLUBS
-    .filter((club) => club.name !== player.club && allowedTiers.includes(club.tier))
+  const targetClubs = getRealisticBuyerPool(player, { preference: 'project' })
     .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
   const club = pick(targetClubs.length ? targetClubs : CLUBS.filter((c) => c.name !== player.club));
   if (!club) return { state, error: 'Aucun club compatible' };
   const country = getCountry(club.countryCode);
 
-  const nextWindow = !phase.mercato
-    ? (phase.seasonWeek <= 18
-      ? { window: 'hiver', effectiveWeek: state.week + (19 - phase.seasonWeek) }
-      : phase.seasonWeek <= 37
-        ? { window: 'été', effectiveWeek: state.week + (38 - phase.seasonWeek) }
-        : null)
-    : null;
+  const nextWindow = !phase.mercato ? getUpcomingMercatoWindow(state.week) : null;
   const preWindow = Boolean(nextWindow && phase.seasonWeek >= 16 && phase.seasonWeek !== 38);
   const priceMult = rand(102, 136) / 100;
   const offer = {
@@ -1627,6 +2470,7 @@ export const createSecretOfferFollowup = (state, playerId) => {
     effectiveWeek: preWindow ? nextWindow?.effectiveWeek : state.week,
     playerId: player.id,
     playerName: `${player.firstName} ${player.lastName}`,
+    clubId: getClubId(club),
     club: club.name,
     clubTier: club.tier,
     clubCountry: country.flag,
@@ -1652,7 +2496,7 @@ export const createSecretOfferFollowup = (state, playerId) => {
           account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
         }),
         ...(state.news ?? []),
-      ].slice(0, 60),
+      ].slice(0, 180),
       decisionHistory: addDecisionHistory(state.decisionHistory, {
         week: state.week,
         type: 'mercato',
@@ -1677,9 +2521,7 @@ export const createPromiseCrisisOffer = (state, playerId) => {
   }
 
   const phase = getPhase(state.week);
-  const allowedTiers = getClubTierForRating(player.rating, player.potential);
-  const candidateClubs = CLUBS
-    .filter((club) => club.name !== player.club && allowedTiers.includes(club.tier))
+  const candidateClubs = getRealisticBuyerPool(player)
     .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
   const club = pick(candidateClubs.length ? candidateClubs : CLUBS.filter((c) => c.name !== player.club));
   if (!club) return { state, error: 'Aucun club compatible' };
@@ -1695,6 +2537,7 @@ export const createPromiseCrisisOffer = (state, playerId) => {
     effectiveWeek: state.week,
     playerId: player.id,
     playerName: `${player.firstName} ${player.lastName}`,
+    clubId: getClubId(club),
     club: club.name,
     clubTier: club.tier,
     clubCountry: country.flag,
@@ -1720,7 +2563,7 @@ export const createPromiseCrisisOffer = (state, playerId) => {
           account: { name: 'Mercato Insider', kind: 'journal', icon: 'MI', color: '#172026' },
         }),
         ...(state.news ?? []),
-      ].slice(0, 60),
+      ].slice(0, 180),
       decisionHistory: addDecisionHistory(state.decisionHistory, {
         week: state.week,
         type: 'mercato',
@@ -1745,9 +2588,7 @@ export const createTensionMarketOffer = (state, playerId, source = 'tension_foll
   }
 
   const phase = getPhase(state.week);
-  const allowedTiers = getClubTierForRating(player.rating, player.potential);
-  const candidates = CLUBS
-    .filter((club) => club.name !== player.club && allowedTiers.includes(club.tier))
+  const candidates = getRealisticBuyerPool(player)
     .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
   const club = pick(candidates.length ? candidates : CLUBS.filter((c) => c.name !== player.club));
   if (!club) return { state, error: 'Aucun club compatible' };
@@ -1763,6 +2604,7 @@ export const createTensionMarketOffer = (state, playerId, source = 'tension_foll
     effectiveWeek: state.week,
     playerId: player.id,
     playerName: `${player.firstName} ${player.lastName}`,
+    clubId: getClubId(club),
     club: club.name,
     clubTier: club.tier,
     clubCountry: country.flag,
@@ -1788,7 +2630,7 @@ export const createTensionMarketOffer = (state, playerId, source = 'tension_foll
           account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
         }),
         ...(state.news ?? []),
-      ].slice(0, 60),
+      ].slice(0, 180),
       decisionHistory: addDecisionHistory(state.decisionHistory, {
         week: state.week,
         type: 'mercato',
@@ -1811,7 +2653,7 @@ export const proposePlayerToClubs = (state, playerId, clubNames = []) => {
   }
 
   const phase = getPhase(state.week);
-  const allowedTiers = getClubTierForRating(player.rating, player.potential);
+  const allowedTiers = getRealisticBuyerTiers(player);
   const selectedClubs = clubNames
     .map((name) => CLUBS.find((club) => club.name === name))
     .filter(Boolean);
@@ -1823,13 +2665,7 @@ export const proposePlayerToClubs = (state, playerId, clubNames = []) => {
     return { state, error: `${player.firstName} ${player.lastName} est trop faible pour ${invalidClub.name}.` };
   }
 
-  const nextWindow = !phase.mercato
-    ? (phase.seasonWeek <= 18
-      ? { window: 'hiver', effectiveWeek: state.week + (19 - phase.seasonWeek) }
-      : phase.seasonWeek <= 37
-        ? { window: 'été', effectiveWeek: state.week + (38 - phase.seasonWeek) }
-        : null)
-    : null;
+  const nextWindow = !phase.mercato ? getUpcomingMercatoWindow(state.week) : null;
   const preWindow = Boolean(nextWindow && phase.seasonWeek >= 16 && phase.seasonWeek !== 38);
   const seasonWindow = phase.window ?? nextWindow?.window ?? 'approche';
 
@@ -1855,6 +2691,7 @@ export const proposePlayerToClubs = (state, playerId, clubNames = []) => {
       effectiveWeek: preWindow ? nextWindow?.effectiveWeek : state.week,
       playerId: player.id,
       playerName: `${player.firstName} ${player.lastName}`,
+      clubId: getClubId(club),
       club: club.name,
       clubTier: club.tier,
       clubCountry: country.flag,
@@ -1889,7 +2726,7 @@ export const proposePlayerToClubs = (state, playerId, clubNames = []) => {
           account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
         }),
         ...state.news,
-      ].slice(0, 60),
+      ].slice(0, 180),
     },
     offers,
   };
@@ -1904,11 +2741,10 @@ const createChoiceTransferOffer = (state, player, event, choice) => {
     return { state, error: `${player.firstName} ${player.lastName} est déjà engagé dans un autre dossier` };
   }
   const phase = getPhase(state.week);
-  const allowedTiers = getClubTierForRating(player.rating, player.potential);
+  const allowedTiers = getRealisticBuyerTiers(player);
   const label = `${choice.label} ${choice.desc ?? ''}`.toLowerCase();
   const preference = label.includes('plus offrant') || label.includes('enchères') ? 'money' : label.includes('projet') ? 'project' : 'balanced';
-  const targetClubs = CLUBS
-    .filter((club) => club.name !== player.club && allowedTiers.includes(club.tier))
+  const targetClubs = getRealisticBuyerPool(player)
     .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
   const moneyPool = targetClubs.slice(Math.max(0, targetClubs.length - 3));
   const projectPool = targetClubs.slice(0, Math.max(1, Math.min(3, targetClubs.length)));
@@ -1918,13 +2754,7 @@ const createChoiceTransferOffer = (state, player, event, choice) => {
   if (!club) return { state, error: 'Aucun club compatible' };
 
   const country = getCountry(club.countryCode);
-  const nextWindow = !phase.mercato
-    ? (phase.seasonWeek <= 18
-      ? { window: 'hiver', effectiveWeek: state.week + (19 - phase.seasonWeek) }
-      : phase.seasonWeek <= 37
-        ? { window: 'été', effectiveWeek: state.week + (38 - phase.seasonWeek) }
-        : null)
-    : null;
+  const nextWindow = !phase.mercato ? getUpcomingMercatoWindow(state.week) : null;
   const preWindow = Boolean(nextWindow && phase.seasonWeek >= 16 && phase.seasonWeek !== 38);
   const priceMult = preference === 'money'
     ? rand(102, 138) / 100
@@ -1947,6 +2777,7 @@ const createChoiceTransferOffer = (state, player, event, choice) => {
     effectiveWeek: preWindow ? nextWindow?.effectiveWeek : state.week,
     playerId: player.id,
     playerName: `${player.firstName} ${player.lastName}`,
+    clubId: getClubId(club),
     club: club.name,
     clubTier: club.tier,
     clubCountry: country.flag,
@@ -1974,7 +2805,7 @@ const createChoiceTransferOffer = (state, player, event, choice) => {
           account: { name: 'TransferRadar', kind: 'data', icon: 'TR', color: '#2f80ed' },
         }),
         ...state.news,
-      ].slice(0, 60),
+      ].slice(0, 180),
       messages: [
         {
           id: makeId('msg'),
@@ -1995,7 +2826,7 @@ const createChoiceTransferOffer = (state, player, event, choice) => {
           resolved: false,
         },
         ...state.messages,
-      ].slice(0, 40),
+      ].slice(0, 120),
       decisionHistory: addDecisionHistory(state.decisionHistory, {
         week: state.week,
         type: 'mercato',
@@ -2024,12 +2855,24 @@ export const playWeek = (state) => {
   const events = [];
   const generatedNews = [];
   const generatedMessages = [];
+  const socialCrisisCooldowns = { ...(state.socialCrisisCooldowns ?? {}) };
   const matchResults = [];
   const newChainedEvents = [];
   let totalIncome = 0;
   let totalCost = 0;
   let reputationChange = 0;
   let segmentReputation = state.segmentReputation ?? createDefaultSegmentReputation();
+  const preLastMile = applyLastMileDynamics({
+    state,
+    roster: state.roster ?? [],
+    week: state.week + 1,
+  });
+  const longTermDevelopmentMult = preLastMile.patch?.developmentMult ?? 1;
+  const longTermOfferMult = preLastMile.patch?.offerAttractivenessMult ?? 1;
+  const longTermRepDelta = preLastMile.patch?.reputationDelta ?? 0;
+  const longTermCredDelta = preLastMile.patch?.credibilityDelta ?? 0;
+  if (Array.isArray(preLastMile.events) && preLastMile.events.length) events.push(...preLastMile.events);
+  if (Array.isArray(preLastMile.news) && preLastMile.news.length) generatedNews.push(...preLastMile.news);
   const communityManagerLevel = getStaffEffect(state.staff, 'communityManager');
   const playerCareLevel = getStaffEffect(state.staff, 'playerCare');
   const dataAnalystLevel = getStaffEffect(state.staff, 'dataAnalyst');
@@ -2039,16 +2882,16 @@ export const playWeek = (state) => {
   totalCost += staffWeeklyCost;
   totalCost += WEEKLY_OVERHEAD[state.agencyLevel ?? 1] ?? 300;
 
-  // Le championnat démarre dès la semaine 1 pour garder le classement synchronisé avec le fil.
-  // Semaine 38 = mercato été, pas de match. Trêve internationale = pas de match de club non plus.
+  // Le championnat démarre dès la semaine 1 et conserve ses journées même pendant
+  // les fenêtres internationales/mercato, sinon les ligues longues finissent incomplètes.
   const isFriendlyWeek = false;
-  const clubFootballActive = !(phase.mercato && phase.window === 'été') && !isWorldCupActive && !isIntlBreak;
+  const clubFootballActive = !isWorldCupActive;
   const calendarFixtures = getCalendarFixturesForWeek(state.matchCalendar ?? [], state.week, { status: MATCH_STATUS.SCHEDULED });
   const scheduledFixtures = calendarFixtures.length
     ? calendarFixtures
     : Array.isArray(state.nextFixtures) && state.nextFixtures.length
     ? state.nextFixtures
-    : buildWeeklyFixtures(state.roster, state.week);
+    : buildWeeklyFixtures(state.roster, state.week, { seedSalt: state.gameSeed ?? '' });
   const weeklyFixtures = clubFootballActive ? scheduledFixtures : [];
   const weeklySimulation = {
     fixtures: weeklyFixtures,
@@ -2093,6 +2936,7 @@ export const playWeek = (state) => {
     ? [...playedMatches].sort((a, b) => (a.matchRating ?? 0) - (b.matchRating ?? 0))[0]
     : null;
   const activeDossierPlayerIds = [...getMarketLockedPlayerIds(state)];
+  const lockedPlayerIdsSet = new Set(activeDossierPlayerIds);
 
   const updatedRoster = state.roster.map((player) => {
     const currentInjuryWeeks = player.injured ?? 0;
@@ -2114,8 +2958,13 @@ export const playWeek = (state) => {
       ? (state.incomeBoost.mult ?? 1)
       : 1;
     totalIncome += commissionIncome * incomeMult;
-    const matchResult = matchByPlayerId.get(updatedPlayer.id);
+    const rawMatchResult = matchByPlayerId.get(updatedPlayer.id);
+    const simulationLevel = getPlayerSimulationLevel(updatedPlayer, { lockedPlayerIds: lockedPlayerIdsSet });
+    const matchResult = applySimulationLevelToMatchResult(rawMatchResult, simulationLevel);
     matchResults.push(matchResult);
+    if (matchResult) {
+      updatedPlayer = { ...updatedPlayer, lastMatchMinutes: matchResult.minutes ?? 0 };
+    }
     if (matchResult?.matchRating) {
       const resultMoral = matchResult.result === 'win' ? 2 : matchResult.result === 'loss' ? -2 : 0;
       const contributionMoral = matchResult.goals || matchResult.assists ? 2 : 0;
@@ -2192,7 +3041,7 @@ export const playWeek = (state) => {
         }));
       }
     });
-    if (event) {
+    if (event && simulationLevel !== SIMULATION_LEVELS.ULTRA) {
       const moneyImpact = event.good ? Math.floor(event.money * EVENT_INCOME_MULT) : Math.floor(event.money * mediaReduction);
       const reputationImpact = scaleReputationDelta(event.good ? event.rep : Math.floor(event.rep * mediaReduction));
       updatedPlayer = applyPassiveEventToPlayer(updatedPlayer, event);
@@ -2300,18 +3149,19 @@ export const playWeek = (state) => {
     }
 
     const developmentCurveBoost = updatedPlayer.developmentBoost ?? 0;
-    const developmentChance = 0.035
+    const developmentChance = (0.035
       + (matchResult?.minutes >= 55 ? 0.025 : 0)
       + ((updatedPlayer.form - 60) / 1000)
       + ((updatedPlayer.moral - 50) / 1200)
       + dataAnalystLevel * 0.012
       + (specialization.youthProgress ?? 0) / 2
-      + developmentCurveBoost;
+      + developmentCurveBoost) * longTermDevelopmentMult;
     // late_bloomer : continue de progresser jusqu'à 33 ans (au lieu de s'arrêter à 24/28)
     const isLateBloomer = updatedPlayer.hiddenTrait === 'late_bloomer';
     const developmentAgeCap = isLateBloomer ? 33 : updatedPlayer.developmentCurve === 'superstar_gem' ? 28 : 24;
     const developmentGain = updatedPlayer.developmentCurve === 'superstar_gem' ? 3 : 1;
-    if (updatedPlayer.age < developmentAgeCap && Math.random() < developmentChance && updatedPlayer.rating < updatedPlayer.potential) {
+    const levelDevelopmentMultiplier = simulationLevel === SIMULATION_LEVELS.FULL ? 1 : simulationLevel === SIMULATION_LEVELS.SIMPLIFIED ? 0.72 : 0.45;
+    if (updatedPlayer.age < developmentAgeCap && Math.random() < (developmentChance * levelDevelopmentMultiplier) && updatedPlayer.rating < updatedPlayer.potential) {
       const nextAttributes = updatedPlayer.attributes
         ? developAttributes(updatedPlayer.attributes, updatedPlayer, developmentCurveBoost + dataAnalystLevel * 0.02 + (specialization.youthProgress ?? 0))
         : updatedPlayer.attributes;
@@ -2321,12 +3171,18 @@ export const playWeek = (state) => {
         ...updatedPlayer,
         attributes: nextAttributes,
         rating: nextRating,
-        value: Math.floor(updatedPlayer.value * 1.035),
+        value: Math.floor(updatedPlayer.value * (updatedPlayer.rating >= 185 ? 1.008 : updatedPlayer.rating >= 170 ? 1.015 : 1.022)),
         timeline: [{ week: state.week, type: 'progression', label: 'Progression validée par le temps de jeu' }, ...(updatedPlayer.timeline ?? [])].slice(0, 18),
       };
     } else if (updatedPlayer.age > 30 && !isLateBloomer && Math.random() < 0.06) {
-      updatedPlayer = { ...updatedPlayer, rating: Math.max(60, updatedPlayer.rating - 1), value: Math.floor(updatedPlayer.value * 0.95) };
+      updatedPlayer = { ...updatedPlayer, rating: Math.max(60, updatedPlayer.rating - 1), value: Math.floor(updatedPlayer.value * (updatedPlayer.age >= 34 ? 0.9 : 0.94)) };
     }
+
+    updatedPlayer = applyDynamicPotential(updatedPlayer, {
+      worldState: state.worldState,
+      staffDataAnalystLevel: dataAnalystLevel,
+      specializationYouthProgress: specialization.youthProgress ?? 0,
+    });
 
     const recurrentRisk = ((updatedPlayer.recurringInjuryRisk ?? 8) + Math.max(0, (updatedPlayer.fatigue ?? 20) - 68)) / 1000;
     if (!updatedPlayer.injured && Math.random() < recurrentRisk) {
@@ -2346,9 +3202,12 @@ export const playWeek = (state) => {
 
     // Tick publicRep each week (regression to mean + trending decay)
     const currentPublicRep = updatedPlayer.publicRep ?? createPublicRep(updatedPlayer);
-    updatedPlayer = { ...updatedPlayer, publicRep: tickPublicRep(currentPublicRep, state.week + 1) };
-
-    return updatedPlayer;
+    updatedPlayer = {
+      ...updatedPlayer,
+      simulationLevel,
+      publicRep: tickPublicRep(currentPublicRep, state.week + 1),
+    };
+    return normalizeLongTermPlayer(updatedPlayer, currentSeason);
   });
 
   const caredRoster = playerCareLevel
@@ -2415,6 +3274,20 @@ export const playWeek = (state) => {
   // Reset au début d'une nouvelle saison
   if (phase.seasonWeek === 1 && state.week > 1) nextEuroData = {};
 
+  if (!isWorldCupActive && !isIntlBreak) {
+    const agentClubNames = [...new Set(caredRoster.map((player) => player.club).filter(Boolean))];
+    ['CL', 'EL', 'ECL'].forEach((comp) => {
+      if (!isEuropeanMatchWeek(phase.seasonWeek, comp)) return;
+      const compKey = `${comp}:${currentSeason}`;
+      let compData = nextEuroData[compKey] ?? initEuroCupCompData(comp, currentSeason);
+      compData = ensureEuropeanLeagueFixtures(compData, comp, currentSeason, agentClubNames);
+      if (getEuropeanStage(phase.seasonWeek, comp) !== 'league') {
+        compData = ensureEuropeanCompetitionProgress(compData, comp, currentSeason, phase.seasonWeek, agentClubNames);
+      }
+      nextEuroData[compKey] = compData;
+    });
+  }
+
   if (!isWorldCupActive && !isIntlBreak && !persistedMidweekEuro.length) {
     const euroGroups = new Map();
     for (const player of caredRoster) {
@@ -2454,25 +3327,7 @@ export const playWeek = (state) => {
       // ── Sélection de l'adversaire (déterministe + historique) ──────────
       const stage = getEuropeanStage(phase.seasonWeek, comp);
       const matchdayIdx = getEuropeanMatchdayIndex(phase.seasonWeek, comp);
-      const usedOpponents = compData.opponentHistory[clubName];
-      const usedThisWeekKey = `${comp}:${currentSeason}:${phase.seasonWeek}`;
-      const usedThisWeek = euroWeekOpponents.get(usedThisWeekKey) ?? new Set();
-      // En KO, on utilise aussi un index déterministe (pas de répétition interne à la saison)
-      const effectiveIdx = stage === 'league' ? matchdayIdx : 20 + Object.keys(compData.koPath[clubName]).length;
-      const seededOpponent = pickSeededOpponent(
-        clubName,
-        comp,
-        effectiveIdx,
-        currentSeason,
-        stage === 'league' ? [...usedOpponents, ...usedThisWeek] : [],
-      );
-
-      // Mettre à jour l'historique des adversaires (phase de ligue uniquement)
-      if (stage === 'league') {
-        compData.opponentHistory[clubName] = [...usedOpponents, seededOpponent.name];
-        usedThisWeek.add(seededOpponent.name);
-        euroWeekOpponents.set(usedThisWeekKey, usedThisWeek);
-      }
+      let seededOpponent = { name: 'Club Européen', country: '🌍' };
 
       // ── Générer le bracket KO si on entre en phase KO ─────────────────
       if (stage !== 'league' && !compData.bracketClubs) {
@@ -2496,8 +3351,16 @@ export const playWeek = (state) => {
         if (!isEuropeanClubAlive(compData, clubName, comp, phase.seasonWeek)) continue;
       }
 
-      const averageRating = Math.round(healthyPlayers.reduce((sum, player) => sum + (player.rating ?? 60), 0) / healthyPlayers.length);
-      const averageForm = Math.round(healthyPlayers.reduce((sum, player) => sum + (player.form ?? 60), 0) / healthyPlayers.length);
+      const rawAverageRating = healthyPlayers.reduce((sum, player) => sum + (player.rating ?? 60), 0) / healthyPlayers.length;
+      const maxPlayerRating = Math.max(...healthyPlayers.map((player) => player.rating ?? 60));
+      const averageRating = Math.round(maxPlayerRating >= 190
+        ? Math.max(rawAverageRating, maxPlayerRating + 8)
+        : rawAverageRating);
+      const rawAverageForm = healthyPlayers.reduce((sum, player) => sum + (player.form ?? 60), 0) / healthyPlayers.length;
+      const maxPlayerForm = Math.max(...healthyPlayers.map((player) => player.form ?? 60));
+      const averageForm = Math.round(maxPlayerRating >= 190
+        ? Math.max(rawAverageForm, maxPlayerForm - 5)
+        : rawAverageForm);
       const seedPlayer = {
         ...healthyPlayers[0],
         rating: averageRating,
@@ -2508,9 +3371,29 @@ export const playWeek = (state) => {
         injured: 0,
       };
       // Passer l'adversaire sélectionné comme contexte partagé
+      if (stage === 'league') {
+        compData = ensureEuropeanLeagueFixtures(compData, comp, currentSeason, [...new Set(
+          caredRoster
+            .filter((p) => getPlayerEuropeanCompetition(p, currentSeason) === comp)
+            .map((p) => p.club)
+            .filter(Boolean),
+        )]);
+        nextEuroData[compKey] = compData;
+      }
+      const leagueRoundMatch = stage === 'league'
+        ? getEuropeanLeagueClubMatch(compData, clubName, comp, currentSeason, phase.seasonWeek, [])
+        : null;
       const koRoundMatch = stage !== 'league' ? getEuropeanClubRoundMatch(compData, clubName, comp, phase.seasonWeek) : null;
       if (stage !== 'league' && !koRoundMatch) continue;
-      const clubMatchBase = simulateEuropeanMatch(seedPlayer, comp, phase.seasonWeek, koRoundMatch ?? { opponent: seededOpponent });
+      if (stage === 'league' && !leagueRoundMatch) continue;
+      seededOpponent = leagueRoundMatch?.opponent ?? koRoundMatch?.opponent ?? seededOpponent;
+      const sharedRoundMatch = leagueRoundMatch ?? koRoundMatch;
+      const fixtureId = sharedRoundMatch?.fixtureId;
+      const clubMatchBase = simulateEuropeanMatch(seedPlayer, comp, phase.seasonWeek, {
+        ...(sharedRoundMatch ?? { opponent: seededOpponent }),
+        fixtureId,
+        seedSalt: state.gameSeed ?? '',
+      });
       if (!clubMatchBase || !clubMatchBase.matchRating) continue;
 
       // ── Mémoriser le parcours KO ───────────────────────────────────────
@@ -2546,6 +3429,11 @@ export const playWeek = (state) => {
           playerName: euroMatch.playerName ?? `${player.firstName} ${player.lastName}`,
           club: euroMatch.club ?? player.club ?? 'Club',
           clubCountryCode: euroMatch.clubCountryCode ?? player.clubCountryCode ?? null,
+          phase: getEuropeanPhaseLabel(phase.seasonWeek, comp),
+          stage,
+          matchdayIndex: getEuropeanMatchdayIndex(phase.seasonWeek, comp),
+          simulatedWeek: state.week,
+          simulatedDay: getEuropeanClubSimDayIndex(state.week, clubName, comp),
         });
 
         // Appliquer les effets sur le joueur
@@ -2712,7 +3600,7 @@ export const playWeek = (state) => {
     generatedNews.push(createManualNewsPost({
       type: 'media',
       week: state.week + 1,
-      text: `🌍 Tirage de le Tournoi Mondial ${wcState.year} : groupes en place, la pression monte déjà pour les sélectionnés.`,
+      text: `🌍 Tirage du Tournoi Mondial ${wcState.year} : groupes en place, la pression monte déjà pour les sélectionnés.`,
       reputationImpact: 2,
       account: { name: 'Global Football Board Draw Room', kind: 'journal', icon: 'FD', color: '#1a1a6e' },
     }));
@@ -2728,48 +3616,53 @@ export const playWeek = (state) => {
     return { ...currentState, nextFeaturedMatch };
   };
 
-  // Simuler la phase CdM en cours (1 semaine = 1 phase de plus)
+  const finalizeWorldCupState = (currentState) => {
+    if (!currentState || currentState.phase !== 'done') return currentState;
+    const heritageCards = [...(currentState.selectedPlayers ?? [])]
+      .filter(Boolean)
+      .sort((a, b) => (
+        (Number(b?.goals ?? 0) + Number(b?.assists ?? 0) * 0.5 + Number(b?.avgRating ?? 0))
+        - (Number(a?.goals ?? 0) + Number(a?.assists ?? 0) * 0.5 + Number(a?.avgRating ?? 0))
+      ))
+      .slice(0, 5)
+      .map((player) => ({
+        playerId: player.playerId,
+        playerName: player.playerName,
+        countryName: player.countryName,
+        countryFlag: player.countryFlag,
+        goals: player.goals,
+        assists: player.assists,
+        avgRating: Number((player.avgRating || 0).toFixed(1)),
+        label: player.champion ? 'Champion du monde' : player.goals >= 2 ? 'Tournoi XXL' : 'Parcours marquant',
+      }));
+    return { ...currentState, heritageCards };
+  };
+
+  // Simuler le tournoi mondial comme une compétition canonique: chaque pays joue une seule fois par phase,
+  // puis les performances individuelles des joueurs de l'agence sont dérivées du résultat partagé.
   if (wcState && wcState.phase !== 'done') {
     const agencyPlayerById = new Map(euRoster.map((player) => [player.id, player]));
-    const simulatedPool = (wcState.selectedPlayers ?? []).map((entry) => {
-      const agencyPlayer = agencyPlayerById.get(entry.playerId);
-      if (agencyPlayer) return agencyPlayer;
-      return {
-        id: entry.playerId,
-        firstName: String(entry.playerName ?? 'Joueur').split(' ')[0] ?? 'Joueur',
-        lastName: String(entry.playerName ?? '').split(' ').slice(1).join(' '),
-        countryCode: entry.countryCode,
-        countryFlag: entry.countryFlag,
-        club: entry.club ?? 'Club mondial',
-        rating: entry.rating ?? 130,
-        form: entry.form ?? 60,
-        moral: entry.moral ?? 50,
-        position: entry.position ?? 'MIL',
-      };
-    });
-    for (const player of simulatedPool) {
-      const wcMatch = simulateWorldCupMatch(player, wcState.phase, wcState);
-      if (!wcMatch) continue;
-      worldCupMatchResults.push(wcMatch);
+    const agencyWorldCupResults = [];
+    const countryResultsBefore = wcState.countryResults?.length ?? 0;
+    let guard = 0;
 
-      // Mettre à jour le joueur dans wcState
-      wcState = {
-        ...wcState,
-        selectedPlayers: wcState.selectedPlayers.map((s) => s.playerId === player.id ? {
-          ...s,
-          goals: s.goals + wcMatch.goals,
-          assists: s.assists + wcMatch.assists,
-          avgRating: s.appearances > 0 ? ((s.avgRating * s.appearances) + wcMatch.matchRating) / (s.appearances + 1) : wcMatch.matchRating,
-          appearances: s.appearances + 1,
-          eliminated: s.eliminated || wcMatch.isEliminated,
-          champion: s.champion || wcMatch.isChampion,
-        } : s),
-        results: [...wcState.results, wcMatch].slice(0, 60),
-      };
+    while (wcState && wcState.phase !== 'done' && guard < 6) {
+      const phaseSimulation = simulateWorldCupPhase(wcState, euRoster);
+      wcState = phaseSimulation.wcState;
+      agencyWorldCupResults.push(
+        ...phaseSimulation.playerResults.filter((match) => agencyPlayerById.has(match.playerId)),
+      );
+      guard += 1;
+    }
 
-      // Appliquer impact joueur
-      const isAgencyPlayer = agencyPlayerById.has(player.id);
-      if (isAgencyPlayer) {
+    worldCupMatchResults.push(...agencyWorldCupResults.slice(-8));
+
+    for (const wcMatch of agencyWorldCupResults) {
+      const player = agencyPlayerById.get(wcMatch.playerId);
+      if (!player) continue;
+
+      // Appliquer impact joueur agence uniquement; le reste du tournoi reste dans l'état global.
+      if (wcMatch.minutes > 0) {
         const valMult = wcMatch.isChampion ? 1.35 : wcMatch.goals >= 2 ? 1.12 : wcMatch.goals >= 1 ? 1.06 : 1.0;
         euRoster = euRoster.map((p) => p.id === player.id ? {
           ...p,
@@ -2780,8 +3673,7 @@ export const playWeek = (state) => {
         } : p);
       }
 
-      // News
-      const wcNews = isAgencyPlayer ? getWorldCupMatchNews(player, wcMatch) : null;
+      const wcNews = getWorldCupMatchNews(player, wcMatch);
       if (wcNews) {
         generatedNews.push(createManualNewsPost({
           type: wcNews.type,
@@ -2801,7 +3693,7 @@ export const playWeek = (state) => {
         };
         const interestClubs = getWorldCupInterestClubs(player, wcMatch);
         if (interestClubs.length > 0) {
-          wcMatch.interestClubs = interestClubs;
+          Object.assign(wcMatch, { interestClubs });
           generatedNews.push(createManualNewsPost({
             type: 'transfert',
             player,
@@ -2867,33 +3759,18 @@ export const playWeek = (state) => {
       }
     }
 
-    // Avancer la phase CdM
-    wcState = advanceWorldCupPhase(wcState);
     if (wcState.phase === 'done') {
-      const heritageCards = [...(wcState.selectedPlayers ?? [])]
-        .filter(Boolean)
-        .sort((a, b) => (
-          (Number(b?.goals ?? 0) + Number(b?.assists ?? 0) * 0.5 + Number(b?.avgRating ?? 0))
-          - (Number(a?.goals ?? 0) + Number(a?.assists ?? 0) * 0.5 + Number(a?.avgRating ?? 0))
-        ))
-        .slice(0, 5)
-        .map((player) => ({
-          playerId: player.playerId,
-          playerName: player.playerName,
-          countryName: player.countryName,
-          countryFlag: player.countryFlag,
-          goals: player.goals,
-          assists: player.assists,
-          avgRating: Number((player.avgRating || 0).toFixed(1)),
-          label: player.champion ? 'Champion du monde' : player.goals >= 2 ? 'Tournoi XXL' : 'Parcours marquant',
-        }));
-      wcState = { ...wcState, heritageCards };
+      wcState = finalizeWorldCupState(wcState);
+      const champion = wcState.champion;
+      const matchesPlayed = Math.max(0, (wcState.countryResults?.length ?? 0) - countryResultsBefore);
       generatedNews.push(createManualNewsPost({
         type: 'media',
         week: state.week + 1,
-        text: `🏆 Fin de le Tournoi Mondial ${wcState.year}. Des cartes héritage sont créées pour les plus gros parcours du tournoi.`,
+        text: champion
+          ? `🏆 ${champion.flag ?? '🌍'} ${champion.name} remporte le Tournoi Mondial ${wcState.year}. ${matchesPlayed} matchs ont livré un vrai champion.`
+          : `🏆 Le Tournoi Mondial ${wcState.year} est terminé. Le parcours complet est enregistré dans l'historique.`,
         reputationImpact: 4,
-        account: { name: 'Global Tournament Chronicle', kind: 'journal', icon: 'WC', color: '#1a1a6e' },
+        account: { name: 'World Football Desk', kind: 'journal', icon: 'WC', color: '#1a1a6e' },
       }));
     } else {
       wcState = updateWorldCupFeaturedMatch(wcState, euRoster);
@@ -2905,7 +3782,7 @@ export const playWeek = (state) => {
   }
 
   // ── Événements Calendrier Saisonnier ──────────────────────────────────────
-  const activePeriod = getActivePeriod(phase.seasonWeek);
+  const activePeriod = getActivePeriod(state.week + 1);
   const periodEffect = getPeriodMoodEffect(activePeriod);
   let periodRoster = euRoster;
 
@@ -2929,7 +3806,7 @@ export const playWeek = (state) => {
     }
 
     // Générer une news saisonnière (40% chance)
-    const seasonalNewsItem = getSeasonalNewsItem(activePeriod, state.week + 1);
+    const seasonalNewsItem = getSeasonalNewsItem(activePeriod, state.week + 1, state);
     if (seasonalNewsItem) {
       generatedNews.push({
         ...seasonalNewsItem,
@@ -3045,11 +3922,15 @@ export const playWeek = (state) => {
   const departedPlayerIds = new Set(leavingPlayers.map((player) => player.id));
   const keepsDepartedClean = (item) => !item?.playerId || !departedPlayerIds.has(item.playerId);
   const net = totalIncome - totalCost;
-  const worldSummary = generateWorldSummaryFromNarrative({ week: state.week + 1, phase: nextPhase, worldState: state.worldState });
+  const worldSummary = generateWorldSummaryFromNarrative({
+    week: state.week + 1,
+    phase: nextPhase,
+    worldState: state.worldState,
+    narrativeTemplates: state.narrativeTemplates ?? {},
+  });
   let objectives = state.objectives;
   let bonusMoney = 0;
   let bonusReputation = 0;
-  const socialCrisisCooldowns = { ...(state.socialCrisisCooldowns ?? {}) };
 
   // Rotation worldState à chaque nouvelle saison
   const nextWorldState = nextPhase.seasonWeek === 1 && state.week > 1
@@ -3089,7 +3970,21 @@ export const playWeek = (state) => {
     }
   });
 
-  euroMatchResults.forEach((match) => {
+  const canonicalEuropeanFeedMatches = buildAgencyEuropeanFixtureResults(
+    { ...state, roster: euRoster, europeanCupData: nextEuroData },
+    { week: state.week, roster: euRoster },
+  );
+  const mergedEuroMatchResults = mergeEuropeanFeedMatches(euroMatchResults, canonicalEuropeanFeedMatches);
+  const reportEuroMatchResults = dedupeEuropeanClubMatches(mergedEuroMatchResults);
+
+  const clubEuropeMatches = Array.from(reportEuroMatchResults.reduce((map, match) => {
+    if (!match?.club) return map;
+    const key = `${match.simulatedWeek ?? state.week}:${match.competition}:${match.club}:${match.opponent ?? match.opponentName}:${match.stage ?? match.phase ?? ''}`;
+    if (!map.has(key)) map.set(key, match);
+    return map;
+  }, new Map()).values());
+
+  mergedEuroMatchResults.forEach((match) => {
     if (!match?.club) return;
     nextMatchCalendar = upsertCalendarMatches(
       nextMatchCalendar,
@@ -3099,64 +3994,57 @@ export const playWeek = (state) => {
       nextMatchResultStore,
       [playerMatchToResultRecord(match, { week: state.week, day: match.simulatedDay ?? getEuropeanSimDayIndex(state.week, match.playerId), source: 'europe' })],
     );
+  });
+
+  clubEuropeMatches.forEach((match) => {
+    if (!match?.club) return;
     const current = clubSeasonHistory[match.club] ?? createClubSeasonHistory(currentSeason)[match.club];
+    const historyEntry = {
+      fixtureId: match.fixtureId ?? null,
+      week: match.simulatedWeek ?? state.week,
+      simulatedWeek: match.simulatedWeek ?? state.week,
+      simulatedDay: match.simulatedDay ?? null,
+      matchdayIndex: Number.isFinite(match.matchdayIndex) ? match.matchdayIndex : getEuropeanMatchdayIndex(phase.seasonWeek, match.competition),
+      competition: match.competition,
+      competitionLabel: match.competitionLabel,
+      score: match.score,
+      goalsFor: match.goalsFor,
+      goalsAgainst: match.goalsAgainst,
+      opponent: match.opponent,
+      result: match.result,
+      phase: match.phase ?? match.stage ?? current.phase ?? null,
+      stage: match.stage ?? null,
+      homeAway: match.homeAway ?? null,
+    };
+    const historyKey = historyEntry.fixtureId
+      ?? `${historyEntry.week}:${historyEntry.competition}:${match.club}:${historyEntry.opponent}:${historyEntry.stage ?? historyEntry.phase ?? ''}`;
+    const existingEurope = (current.europe ?? []).filter((entry) => {
+      const key = entry.fixtureId
+        ?? `${entry.week}:${entry.competition}:${match.club}:${entry.opponent}:${entry.stage ?? entry.phase ?? ''}`;
+      return key !== historyKey;
+    });
     clubSeasonHistory = {
       ...clubSeasonHistory,
       [match.club]: {
         ...current,
         competition: match.competition ?? current.competition,
         europe: [
-          {
-            week: state.week + 1,
-            competition: match.competition,
-            competitionLabel: match.competitionLabel,
-            score: match.score,
-            opponent: match.opponent,
-            result: match.result,
-            phase: match.phase ?? match.stage ?? current.phase ?? null,
-            stage: match.stage ?? null,
-            homeAway: match.homeAway ?? null,
-          },
-          ...(current.europe ?? []),
+          historyEntry,
+          ...existingEurope,
         ].slice(0, 12),
         summary: [`${match.competitionLabel ?? 'Europe'} · ${match.score} vs ${match.opponent}`, ...(current.summary ?? [])].slice(0, 8),
       },
     };
   });
 
-  // Track season objectives progress from this week's events
-  let currentObjectives = state.seasonObjectives ?? generateSeasonObjectives(state);
-  if (totalIncome > 0) {
-    currentObjectives = updateObjectiveProgress(currentObjectives, { type: 'earn_money', amount: totalIncome });
-  }
-  if (reputationChange > 0) {
-    currentObjectives = updateObjectiveProgress(currentObjectives, { type: 'reputation_gain', amount: reputationChange });
-  }
-  const objectiveCheck = checkObjectiveCompletion(currentObjectives);
-  currentObjectives = objectiveCheck.objectives;
-  if (objectiveCheck.rewards.money > 0) {
-    bonusMoney += objectiveCheck.rewards.money;
-    bonusReputation += objectiveCheck.rewards.rep;
-  }
-  const bonusGems = objectiveCheck.rewards.gems ?? 0;
-  const seasonObjectiveGemBonus = nextPhase.seasonWeek === 1 && state.week > 1
-    ? currentObjectives.filter((objective) => objective.completed).length * 2
-    : 0;
-  const gemRewardState = awardGems({ gems: state.gems ?? 0 }, bonusGems + seasonObjectiveGemBonus, 'objectifs');
+  // Objectives system retired: keep empty arrays for save compatibility.
+  let currentObjectives = [];
+  const gemRewardState = awardGems({ gems: state.gems ?? 0 }, 0, 'badges');
 
   if (nextPhase.seasonWeek === 1 && state.week > 1) {
-    // Old-style objectives fallback evaluation
-    (state.objectives ?? []).forEach((objective) => {
-      const done =
-        (objective.type === 'money' && state.stats.totalEarned >= (objective.target ?? 0)) ||
-        (objective.type === 'rep' && state.reputation >= (objective.target ?? 0)) ||
-        (objective.type === 'transfers' && state.stats.transfersDone >= (objective.target ?? 0));
-      if (done) bonusMoney += objective.reward ?? 0;
-    });
-
     bonusReputation += bonusMoney > 0 ? 3 : 0;
-    objectives = generateObjectives(nextPhase.season);
-    currentObjectives = generateSeasonObjectives({ week: state.week + 1, reputation: state.reputation });
+    objectives = [];
+    currentObjectives = [];
   }
 
   const seasonRecap = nextPhase.seasonWeek === 1 && state.week > 1
@@ -3165,7 +4053,7 @@ export const playWeek = (state) => {
         transfers: state.stats.transfersDone,
         earned: state.stats.totalEarned,
         reputation: state.reputation,
-        objectivesCompleted: currentObjectives.filter((o) => o.completed).length,
+        objectivesCompleted: 0,
       }
     : null;
 
@@ -3182,6 +4070,36 @@ export const playWeek = (state) => {
           }
         : player,
     );
+
+  let seasonalYouthIntake = [];
+  let nextHallOfFame = state.hallOfFame ?? [];
+  if (nextPhase.seasonWeek === 1 && state.week > 1) {
+    const retirementRes = processRetirements({ ...state, roster: finalRoster, hallOfFame: nextHallOfFame });
+    finalRoster = retirementRes.state.roster ?? finalRoster;
+    nextHallOfFame = retirementRes.state.hallOfFame ?? nextHallOfFame;
+    if ((retirementRes.retired ?? []).length) {
+      events.push(...retirementRes.retired.slice(0, 3).map((entry) => ({
+        id: makeId('retire'),
+        week: state.week + 1,
+        playerId: entry.playerId,
+        playerName: entry.name,
+        label: `${entry.name} prend sa retraite`,
+        good: false,
+        rep: 0,
+      })));
+    }
+    seasonalYouthIntake = generateSeasonYouthIntake({
+      season: nextPhase.season,
+      reputation: state.reputation,
+      scoutLevel: (office.scoutLevel ?? 0) + getStaffEffect(state.staff, 'scoutAfrica'),
+      agencyCountryCode: getAgencyCountryCode(state),
+      existingIds: [
+        ...(finalRoster ?? []).map((p) => p.id),
+        ...(state.market ?? []).map((p) => p.id),
+        ...(state.freeAgents ?? []).map((p) => p.id),
+      ],
+    });
+  }
 
   const worldCupSelectionIds = new Set(
     (wcState?.selectedPlayers ?? [])
@@ -3227,6 +4145,22 @@ export const playWeek = (state) => {
   generatedNews.push(...livingWeek.news);
   generatedMessages.push(...livingWeek.messages);
 
+  const egoWeek = applyEgoAndPsychologyWeek(finalRoster, state.week + 1);
+  finalRoster = egoWeek.roster;
+  events.push(...egoWeek.events);
+
+  const rivalPressure = applyRivalAgentsPressureWeek({
+    state: {
+      ...state,
+      rivalAgents: livingWeek.statePatch.rivalAgents ?? state.rivalAgents,
+    },
+    roster: finalRoster,
+    week: state.week + 1,
+  });
+  finalRoster = rivalPressure.roster;
+  events.push(...rivalPressure.events);
+  generatedMessages.push(...rivalPressure.messages);
+
   const narrativeFollowups = generateNarrativeFollowups({
     state,
     roster: finalRoster,
@@ -3240,7 +4174,10 @@ export const playWeek = (state) => {
   finalRoster = lockerRoomImpact.roster;
   events.push(...lockerRoomImpact.events);
 
-  const normalizedOfferBook = normalizeOfferBookFromEngine(state.clubOffers ?? []);
+  const normalizedOfferBook = normalizeOfferBookFromEngine(
+    (state.clubOffers ?? []).filter((offer) => hasValidOfferClubId(offer)),
+  );
+  const longTermOfferReputation = Math.max(0, Math.round((state.reputation ?? 0) * longTermOfferMult));
   const activeOffers = normalizedOfferBook.filter((offer) => offer.expiresWeek >= state.week && offer.status === 'open');
   const expiredOffers = normalizedOfferBook.map((offer) =>
     offer.status === 'open' && offer.expiresWeek < state.week + 1 ? { ...offer, status: 'expired' } : offer,
@@ -3248,19 +4185,25 @@ export const playWeek = (state) => {
   const newClubOffers = generateClubOffers({
     roster: finalRoster,
     week: state.week + 1,
-    reputation: state.reputation,
+    reputation: longTermOfferReputation,
     existingOffers: activeOffers,
     worldState: state.worldState,
     cooldowns: state.negotiationCooldowns ?? {},
     lockedPlayerIds: activeDossierPlayerIds,
-  });
-  if (narrativeOffers.length) newClubOffers.push(...narrativeOffers);
+  }).filter((offer) => hasValidOfferClubId(offer));
+  if (narrativeOffers.length) {
+    newClubOffers.push(
+      ...narrativeOffers
+        .map((offer) => sanitizeOfferForContext(offer, { roster: finalRoster, week: state.week + 1 }))
+        .filter(Boolean),
+    );
+  }
 
   // Offre surprise hors mercato
   const surpriseOffer = generateSurpriseOffer({
     roster: finalRoster,
     week: state.week + 1,
-    reputation: state.reputation,
+    reputation: longTermOfferReputation,
     worldState: state.worldState,
     cooldowns: state.negotiationCooldowns ?? {},
     lockedPlayerIds: activeDossierPlayerIds,
@@ -3275,6 +4218,7 @@ export const playWeek = (state) => {
   nextMatchCalendar = scheduledNextWeek.calendar;
   const competitorThreat = rollCompetitorThreat({ roster: finalRoster, week: state.week + 1, dossierMemory: state.dossierMemory ?? {} });
   const completedScouting = [];
+  let nextIdRegistry = state.idRegistry ?? { nextPlayerId: 1 };
   const scoutingMissions = (state.scoutingMissions ?? []).map((mission) => {
     if (mission.status !== 'active') return mission;
     const weeksLeft = mission.weeksLeft - 1;
@@ -3293,12 +4237,16 @@ export const playWeek = (state) => {
       allowedCountryCodes: [mission.countryCode ?? getAgencyCountryCode(state)],
     })[0] ?? null;
     if (!prospectBase) return { ...mission, weeksLeft: 0, status: 'completed' };
+    const nextPlayerIdentity = allocateNextPlayerIdentity({ idRegistry: nextIdRegistry });
     const prospect = {
       ...prospectBase,
+      id: prospectBase.id ?? nextPlayerIdentity.id,
+      permanentId: prospectBase.permanentId ?? nextPlayerIdentity.permanentId,
       careerGoal: createCareerGoal(prospectBase),
       scoutReport: createScoutReport(prospectBase, mission.scoutLevel),
       timeline: [{ week: state.week + 1, type: 'scout', label: 'Repéré en mission scouting' }],
     };
+    nextIdRegistry = nextPlayerIdentity.idRegistry;
     completedScouting.push(prospect);
     return { ...mission, weeksLeft: 0, status: 'completed', playerId: prospect.id, playerName: `${prospect.firstName} ${prospect.lastName}` };
   });
@@ -3338,13 +4286,56 @@ export const playWeek = (state) => {
     reputationImpact: 0,
     account: { name: 'World Football Wire', kind: 'journal', icon: 'WF', color: '#172026' },
   }));
+  const worldMemoryUpdate = updateWorldMemoryWeek({
+    memory: state.worldMemory ?? createDefaultWorldMemory(),
+    week: state.week + 1,
+    fixtures: weeklyFixtures,
+    worldSummary,
+    transferOffers: newClubOffers,
+  });
+  const seasonNewgenStories = nextPhase.seasonWeek === 1 && state.week > 1
+    ? generateNewgenStories({
+      roster: finalRoster,
+      market: state.market ?? [],
+      freeAgents: state.freeAgents ?? [],
+      week: state.week + 1,
+      season: nextPhase.season,
+    })
+    : [];
+  const dynamicMediaPosts = buildDynamicMediaPosts({
+    week: state.week + 1,
+    rivalryHighlights: worldMemoryUpdate.rivalryHighlights,
+    newgenStories: seasonNewgenStories,
+  });
+  const viralSocialPosts = generateViralSocialBursts({
+    roster: finalRoster,
+    topMatch,
+    flopMatch,
+    week: state.week + 1,
+  });
+  const phase3RivalAgents = rivalPressure.rivalAgents ?? (livingWeek.statePatch.rivalAgents ?? state.rivalAgents);
+  const personaSponsor = computePersonaSponsorIncome(
+    { ...state, rivalAgents: phase3RivalAgents },
+    finalRoster,
+  );
+  if (personaSponsor.income > 0) {
+    totalIncome += personaSponsor.income;
+    bonusMoney += personaSponsor.income;
+    generatedNews.push(createManualNewsPost({
+      type: 'media',
+      week: state.week + 1,
+      text: `Sponsors: revenus hebdo ${personaSponsor.income.toLocaleString('fr-FR')}€ (${personaSponsor.bonus >= 0 ? '+' : ''}${personaSponsor.bonus.toLocaleString('fr-FR')}€ bonus image publique).`,
+      reputationImpact: personaSponsor.bonus > 0 ? 1 : 0,
+      account: { name: 'Business Football Daily', kind: 'journal', icon: 'BF', color: '#172026' },
+    }));
+  }
   const consequenceState = {
     ...state,
     credibility: livingWeek.statePatch.credibility ?? state.credibility,
     mediaRelations: livingWeek.statePatch.mediaRelations ?? state.mediaRelations,
     countryReputation: livingWeek.statePatch.countryReputation ?? state.countryReputation,
     playerSegmentReputation: livingWeek.statePatch.playerSegmentReputation ?? state.playerSegmentReputation,
-    rivalAgents: livingWeek.statePatch.rivalAgents ?? state.rivalAgents,
+    rivalAgents: phase3RivalAgents,
     decisionHistory: livingWeek.statePatch.decisionHistory ?? state.decisionHistory,
     clubRelations: livingWeek.statePatch.clubRelations ?? state.clubRelations,
     leagueReputation: state.leagueReputation,
@@ -3353,12 +4344,28 @@ export const playWeek = (state) => {
   const socialConsequences = applyNewsConsequences({
     state: consequenceState,
     roster: finalRoster,
-    posts: [...offerNews, ...worldNews, ...generatedNews],
+    posts: [...offerNews, ...worldNews, ...dynamicMediaPosts, ...viralSocialPosts, ...generatedNews],
     week: state.week + 1,
   });
   finalRoster = socialConsequences.roster;
   events.push(...socialConsequences.events);
   generatedMessages.push(...socialConsequences.messages);
+  const rawNewsFeed = [
+    ...offerNews,
+    ...worldNews,
+    ...dynamicMediaPosts,
+    ...viralSocialPosts,
+    ...generatedNews,
+    ...(state.news ?? []),
+  ];
+  const narrativeNews = buildNarrativeMediaFeed({
+    posts: rawNewsFeed,
+    week: state.week + 1,
+    mediaRelations: socialConsequences.patch.mediaRelations ?? livingWeek.statePatch.mediaRelations ?? state.mediaRelations,
+    worldMemory: worldMemoryUpdate.memory,
+    historicalCanon: state.historicalCanon ?? createDefaultHistoricalCanon(),
+    cap: 60,
+  });
 
   const normalizedPendingTransfers = (state.pendingTransfers ?? []).map((transfer) => {
     if (!transfer || typeof transfer !== 'object') return null;
@@ -3366,11 +4373,12 @@ export const playWeek = (state) => {
       ?? state.freeAgents?.find((item) => item.id === transfer.playerId)
       ?? state.market?.find((item) => item.id === transfer.playerId)
       ?? null;
-    const offer = transfer.offer
+    const offerCandidate = transfer.offer
       ?? state.clubOffers?.find((item) => item.id === transfer.offerId)
       ?? state.clubOffers?.find((item) => item.playerId === transfer.playerId && (item.status === 'accepted_pending' || item.status === 'open'))
       ?? null;
-    if (!player || !offer) return null;
+    const offer = offerCandidate ? withOfferIdentity(offerCandidate) : null;
+    if (!player || !offer || !hasValidOfferClubId(offerCandidate)) return null;
     return {
       ...transfer,
       playerName: transfer.playerName ?? `${player.firstName} ${player.lastName}`,
@@ -3389,27 +4397,28 @@ export const playWeek = (state) => {
   duePendingTransfers.forEach((transfer) => {
     const playerBeforeMove = finalRoster.find((item) => item.id === transfer.playerId);
     if (!playerBeforeMove) return;
-    const nextPlayer = applyCompletedTransferToPlayerFromEngine(playerBeforeMove, transfer.offer, transfer.agreement, state.week + 1);
+    const transferOffer = withOfferIdentity(transfer.offer);
+    const nextPlayer = withClubIdentity(applyCompletedTransferToPlayerFromEngine(playerBeforeMove, transferOffer, transfer.agreement, state.week + 1));
     finalRoster = finalRoster.map((item) => (item.id === transfer.playerId ? nextPlayer : item));
     pendingTransferIncome += transfer.agreement.commission;
     pendingTransferReputation += 3;
     updatedNegotiationCooldowns[transfer.playerId] = state.week + 4;
     completedOfferIds.push(transfer.offerId);
     completedTransferHistory.push({
-      id: `transfer_${transfer.playerId}_${state.week + 1}_${transfer.offer?.club ?? 'club'}`,
+      id: `transfer_${transfer.playerId}_${state.week + 1}_${transferOffer.clubId ?? transferOffer.club ?? 'club'}`,
       playerId: transfer.playerId,
       playerName: transfer.playerName,
       fromClub: playerBeforeMove.club,
-      fromClubId: playerBeforeMove.club ? `club_${String(playerBeforeMove.club).toLowerCase().replace(/\W+/g, '_')}` : null,
-      toClub: transfer.offer.club,
-      toClubId: transfer.offer.club ? `club_${String(transfer.offer.club).toLowerCase().replace(/\W+/g, '_')}` : null,
-      type: transfer.offer.type ?? 'transfer',
-      fee: transfer.offer.amount ?? 0,
+      fromClubId: playerBeforeMove.clubId ?? getClubId(playerBeforeMove.club),
+      toClub: transferOffer.club,
+      toClubId: transferOffer.clubId ?? getClubId(transferOffer.club),
+      type: transferOffer.type ?? 'transfer',
+      fee: transferOffer.amount ?? 0,
       commission: transfer.agreement.commission ?? 0,
       week: state.week + 1,
       season: Math.floor((state.week) / 38) + 1,
       result: 'completed',
-      context: transfer.offer.context ?? 'pré-accord activé',
+      context: transferOffer.context ?? 'pré-accord activé',
       offerId: transfer.offerId,
     });
     generatedNews.unshift(
@@ -3417,7 +4426,7 @@ export const playWeek = (state) => {
         type: 'transfert',
         player: nextPlayer,
         week: state.week + 1,
-        text: `Officiel: ${transfer.playerName} rejoint ${transfer.offer.club} au début du mercato ${transfer.offer.window}.`,
+        text: `Officiel: ${transfer.playerName} rejoint ${transferOffer.club} au début du mercato ${transferOffer.window}.`,
         reputationImpact: 4,
         account: { name: 'World Football Wire', kind: 'journal', icon: 'WF', color: '#172026' },
       }),
@@ -3474,9 +4483,12 @@ export const playWeek = (state) => {
   if (isNewSeasonStart) {
     registerEuropeanParticipantsFromLeagueTables(nextPhase.season, state.leagueTables ?? {});
   }
-  const nextLeagueTables = isNewSeasonStart
+  const resetLeagueForCurrentWeek = phase.seasonWeek === 1 && state.week > 1;
+  const leagueTableBase = resetLeagueForCurrentWeek
     ? createInitialLeagueTables()
-    : updateLeagueTables(state.leagueTables ?? createInitialLeagueTables(), competitiveFixtures);
+    : (state.leagueTables ?? createInitialLeagueTables());
+  const nextLeagueTables = updateLeagueTables(leagueTableBase, competitiveFixtures);
+  const leagueTablesForBadgeAwards = nextLeagueTables;
   const nextLeagueSeasonData = Object.entries(nextLeagueTables).reduce((data, [countryCode, table]) => ({
     ...data,
     [countryCode]: {
@@ -3496,23 +4508,47 @@ export const playWeek = (state) => {
       roster: finalRoster,
     },
   );
+  nextEuroData = refreshEuropeanLeagueTables(nextEuroData, {
+    season: currentSeason,
+    seasonWeek: phase.seasonWeek,
+    roster: finalRoster,
+    europeanMatches: euroMatchResults,
+  });
   const finalRosterWithClubContext = finalRoster.map((player) =>
-    attachClubSeasonContext(player, nextLeagueTables, nextLeagueSeasonData),
+    normalizeLongTermPlayer(attachClubSeasonContext(player, nextLeagueTables, nextLeagueSeasonData), nextPhase.season),
   );
-  const nextMarketWithClubContext = [...completedScouting, ...(Array.isArray(state.market) ? state.market : [])]
+  const nextBadges = mergeBadgeAwards(
+    state.badges ?? [],
+    collectBadgeAwards({
+      state,
+      roster: finalRosterWithClubContext,
+      leagueTables: leagueTablesForBadgeAwards,
+      isSeasonEnd: isNewSeasonStart,
+      season: currentSeason,
+      week: state.week + 1,
+      europeanCupData: nextEuroData,
+      worldCupState: wcState,
+      annualEvents: annualCalendar.events,
+      projectedMoney: state.money + net + bonusMoney + pendingTransferIncome,
+    }),
+  );
+  const nextMarketWithClubContext = [...seasonalYouthIntake, ...completedScouting, ...(Array.isArray(state.market) ? state.market : [])]
     .slice(0, 12)
-    .map((player) => attachClubSeasonContext({ ...player, marketCatalogVersion: player.marketCatalogVersion ?? MARKET_DATA_VERSION }, nextLeagueTables, nextLeagueSeasonData));
+    .map((player) => normalizeLongTermPlayer(
+      attachClubSeasonContext({ ...player, marketCatalogVersion: player.marketCatalogVersion ?? MARKET_DATA_VERSION }, nextLeagueTables, nextLeagueSeasonData),
+      nextPhase.season,
+    ));
 
   const nextState = {
     ...state,
     money: state.money + net + bonusMoney + pendingTransferIncome,
-    reputation: applyReputationChange(state.reputation, reputationChange + bonusReputation + (socialConsequences.patch.reputationDelta ?? 0) + pendingTransferReputation),
-    credibility: socialConsequences.patch.credibility ?? livingWeek.statePatch.credibility ?? state.credibility ?? 50,
+    reputation: applyReputationChange(state.reputation, reputationChange + bonusReputation + longTermRepDelta + (socialConsequences.patch.reputationDelta ?? 0) + pendingTransferReputation),
+    credibility: applyCredibilityChange((socialConsequences.patch.credibility ?? livingWeek.statePatch.credibility ?? state.credibility ?? 50), longTermCredDelta),
     segmentReputation,
     mediaRelations: socialConsequences.patch.mediaRelations ?? livingWeek.statePatch.mediaRelations ?? state.mediaRelations,
     countryReputation: socialConsequences.patch.countryReputation ?? livingWeek.statePatch.countryReputation ?? state.countryReputation,
     playerSegmentReputation: socialConsequences.patch.playerSegmentReputation ?? livingWeek.statePatch.playerSegmentReputation ?? state.playerSegmentReputation,
-    rivalAgents: livingWeek.statePatch.rivalAgents ?? state.rivalAgents,
+    rivalAgents: phase3RivalAgents,
     decisionHistory: socialConsequences.patch.decisionHistory ?? livingWeek.statePatch.decisionHistory ?? state.decisionHistory ?? [],
     clubRelations: socialConsequences.patch.clubRelations ?? livingWeek.statePatch.clubRelations ?? state.clubRelations,
     leagueReputation: socialConsequences.patch.leagueReputation ?? state.leagueReputation,
@@ -3527,12 +4563,49 @@ export const playWeek = (state) => {
     worldCupState: wcState,
     midweekEuropean: null,
     europeanCupData: nextEuroData,
+    badges: nextBadges,
     sentSeasonalMessages: activePeriod
       ? [...new Set([...(state.sentSeasonalMessages ?? []), `calendar_${activePeriod.key}_${phase.season}`])]
       : (state.sentSeasonalMessages ?? []),
     activePeriod: activePeriod ? { key: activePeriod.key, label: activePeriod.label, emoji: activePeriod.emoji } : null,
     pendingChainedEvents: updatedPendingChains,
     seasonAwards: annualCalendar.seasonAwards,
+    worldMemory: worldMemoryUpdate.memory,
+    newgenStories: [...seasonNewgenStories, ...(state.newgenStories ?? [])].slice(0, 360),
+    sponsorIncomeLastWeek: personaSponsor.income,
+    agencyPersona: personaSponsor.persona,
+    longTermDynamics: preLastMile.patch?.longTermDynamics ?? state.longTermDynamics ?? createDefaultLongTermDynamics(),
+    hallOfFame: nextHallOfFame,
+    generationLedger: [
+      ...(nextPhase.seasonWeek === 1 && state.week > 1
+        ? [{
+          season: nextPhase.season,
+          intake: seasonalYouthIntake.length,
+          retired: (state.roster?.length ?? 0) - (finalRosterWithClubContext?.length ?? 0) > 0
+            ? (state.roster?.length ?? 0) - (finalRosterWithClubContext?.length ?? 0)
+            : 0,
+        }]
+        : []),
+      ...(state.generationLedger ?? []),
+    ].slice(0, 240),
+    historicalCanon: updateHistoricalCanonWeek({
+      canon: {
+        ...(state.historicalCanon ?? createDefaultHistoricalCanon()),
+        mediaMemory: {
+          ...((state.historicalCanon ?? createDefaultHistoricalCanon()).mediaMemory ?? {}),
+          ...(narrativeNews.mediaMemoryPatch ?? {}),
+        },
+      },
+      week: state.week + 1,
+      season: nextPhase.season,
+      seasonWeek: nextPhase.seasonWeek,
+      roster: finalRosterWithClubContext,
+      transferHistory: [...completedTransferHistory, ...(state.transferHistory ?? [])],
+      hallOfFame: nextHallOfFame,
+      worldMemory: worldMemoryUpdate.memory,
+      worldSummary,
+      events,
+    }),
     clubSeasonHistory: nextPhase.seasonWeek === 1 && state.week > 1 ? createClubSeasonHistory(nextPhase.season) : clubSeasonHistory,
     roster: finalRosterWithClubContext,
     market: nextMarketWithClubContext,
@@ -3548,15 +4621,13 @@ export const playWeek = (state) => {
     scoutingMissions,
     objectives,
     seasonObjectives: currentObjectives,
-    contacts: state.contacts ?? createDefaultContacts(),
+    dailyObjectives: [],
+    agencyGoals: [],
+    contacts: normalizeContacts(state.contacts ?? createDefaultContacts()),
+    idRegistry: nextIdRegistry,
     history: [...(Array.isArray(state.history) ? state.history.slice(-20) : []), { week: state.week, net, rep: applyReputationChange(state.reputation, reputationChange) }],
-    news: [
-      ...offerNews,
-      ...worldNews,
-      ...generatedNews,
-      ...state.news,
-    ].slice(0, 60),
-    messages: compactOpenResponseMessages([...deliveredMessages, ...existingInboxMessages]).filter(keepsDepartedClean).slice(0, 40),
+    news: narrativeNews.posts,
+    messages: compactOpenResponseMessages([...deliveredMessages, ...existingInboxMessages]).filter(keepsDepartedClean).slice(0, 120),
     promises: normalizePromises(promiseEvaluation.promises.filter(keepsDepartedClean)).slice(0, 30),
     messageQueue: remainingMessageQueue,
     clubOffers: [...newClubOffers, ...expiredOffers].filter(keepsDepartedClean).slice(0, 30),
@@ -3601,12 +4672,16 @@ export const playWeek = (state) => {
     net,
     bonusMoney,
     reputationChange,
-    euroMatchResults,
+    euroMatchResults: reportEuroMatchResults,
     worldCupMatchResults,
   });
+  const visibleNextState = finalizeGameState(sanitizeVisibleState(nextState));
+  const visibleWeekTimeline = Array.isArray(weekTimeline)
+    ? weekTimeline.map(sanitizeVisibleTimelineItem)
+    : weekTimeline;
 
   return {
-    state: nextState,
+    state: visibleNextState,
     report: {
       income: totalIncome,
       salaries: totalCost,
@@ -3621,7 +4696,7 @@ export const playWeek = (state) => {
       newSeason: nextPhase.seasonWeek === 1 && state.week > 1,
       newMessagesCount: deliveredMessages.length,
       matchResults,
-      euroMatchResults,
+      euroMatchResults: reportEuroMatchResults,
       worldCupMatchResults,
       matchCalendar: nextMatchCalendar.filter((match) => match.week === state.week || match.week === state.week + 1),
       matchResultStore: nextMatchResultStore.filter((match) => match.week === state.week),
@@ -3637,7 +4712,7 @@ export const playWeek = (state) => {
       activePeriod: activePeriod ? { key: activePeriod.key, label: activePeriod.label, emoji: activePeriod.emoji } : null,
       periodEffect: periodEffect.label ? periodEffect : null,
       messageQueueCount: queuedMessages.length,
-      weekTimeline,
+      weekTimeline: visibleWeekTimeline,
       lockerRoom: lockerRoomImpact.snapshot,
       week: state.week,
     },
@@ -3678,7 +4753,7 @@ export const playDay = (state) => {
       const idx = hashText(key) % pool.length;
       return pool[idx] ?? fallback;
     };
-    const formatFixtureName = (fixture = {}) => `${fixture.homeTeam ?? fixture.homeClub?.name ?? 'Club'} vs ${fixture.awayTeam ?? fixture.awayClub?.name ?? 'Adversaire'}`;
+    const formatFixtureName = (fixture = {}) => `${displayClubName(fixture.homeTeam ?? fixture.homeClub?.name ?? 'Club')} vs ${displayClubName(fixture.awayTeam ?? fixture.awayClub?.name ?? 'Adversaire')}`;
     const getFixtureProfileScore = (fixture = {}) => {
       const competition = String(fixture.competition ?? fixture.competitionLabel ?? '').toUpperCase();
       const homeTier = Number(fixture.homeClub?.tier ?? 4);
@@ -3720,14 +4795,15 @@ export const playDay = (state) => {
       const topMatch = matches
         .filter((m) => Number.isFinite(m?.matchRating))
         .sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
-      const topEuroMatch = String(kind).includes('matchday')
-        ? null
-        : euroMatches
-          .filter((m) => Number.isFinite(m?.matchRating))
-          .sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
-      const topWorldCupMatch = worldCupMatches
+      const topEuroMatch = euroMatches
         .filter((m) => Number.isFinite(m?.matchRating))
         .sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
+	      const topWorldCupMatch = worldCupMatches
+	        .filter((m) => Number.isFinite(m?.matchRating))
+	        .sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
+	      const topInternationalMatch = (intlSummary?.matches ?? [])
+	        .filter((m) => Number.isFinite(m?.matchRating))
+	        .sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0];
       const scored = matches.reduce((sum, m) => sum + Number(m?.goals ?? 0), 0);
       const assists = matches.reduce((sum, m) => sum + Number(m?.assists ?? 0), 0);
       const euroScored = euroMatches.reduce((sum, m) => sum + Number(m?.goals ?? 0), 0);
@@ -3749,45 +4825,61 @@ export const playDay = (state) => {
         });
       }
 
-      if (topEuroMatch) {
-        const euroDayIndex = (hashText(`${topEuroMatch.competition ?? ''}:${topEuroMatch.opponent ?? ''}:${topEuroMatch.playerId ?? ''}`) % 2 === 0) ? 2 : 3;
+      const euroCards = Array.from(euroMatches.reduce((map, match) => {
+        if (!match) return map;
+        const key = match.fixtureId
+          ? `${match.fixtureId}:${match.club ?? match.playerId ?? 'club'}`
+          : `${match.competition ?? ''}:${match.club ?? ''}:${match.opponent ?? match.opponentName ?? ''}:${match.score ?? ''}`;
+        if (!map.has(key)) map.set(key, match);
+        return map;
+      }, new Map()).values())
+        .sort((a, b) => (a.simulatedDay ?? 2) - (b.simulatedDay ?? 2) || (b.matchRating ?? 0) - (a.matchRating ?? 0))
+        .slice(0, 4);
+      euroCards.forEach((euroMatch, euroIndex) => {
+        const euroDayIndex = [2, 3].includes(euroMatch.simulatedDay)
+          ? euroMatch.simulatedDay
+          : ((hashText(`${euroMatch.competition ?? ''}:${euroMatch.opponent ?? ''}:${euroMatch.playerId ?? ''}`) % 2 === 0) ? 2 : 3);
         const euroSnap = dailyDates[euroDayIndex - 1];
         const euroDayLabel = euroSnap?.weekdayLabel
           ? `${euroSnap.weekdayLabel.charAt(0).toUpperCase()}${euroSnap.weekdayLabel.slice(1)}`
           : (euroDayIndex === 2 ? 'Mardi' : 'Mercredi');
         add(items, {
-          id: `daily_euro_match_${refWeek}_${euroDayIndex}`,
+          id: `daily_euro_match_${refWeek}_${euroDayIndex}_${euroMatch.fixtureId ?? euroMatch.playerId ?? euroIndex}`,
           kind: 'euroResult',
           day: euroDayLabel,
           dateLabel: euroSnap?.dateLabel ?? '',
           date: euroSnap?.dateLabel ?? '',
           timestamp: `${refWeek}:${euroDayIndex}:${String(items.length).padStart(2, '0')}`,
-          tone: topEuroMatch.result === 'win' ? 'good' : topEuroMatch.result === 'loss' ? 'danger' : 'warn',
+          tone: euroMatch.result === 'win' ? 'good' : euroMatch.result === 'loss' ? 'danger' : 'warn',
           icon: '🏆',
           eventType: 'performance',
           type: 'europe',
-          title: `Soirée européenne · ${topEuroMatch.competitionLabel ?? topEuroMatch.competition ?? 'Europe'}`,
-          description: `${topEuroMatch.playerName ?? 'Joueur'} a disputé une soirée européenne très exposée face à ${topEuroMatch.opponent}. Score final ${topEuroMatch.score}, note ${topEuroMatch.matchRating}. Le staff estime que ce match pèsera sur la dynamique des prochains rendez-vous continentaux.`,
-          text: `${topEuroMatch.playerName ?? 'Joueur'} a disputé une soirée européenne très exposée face à ${topEuroMatch.opponent}. Score final ${topEuroMatch.score}, note ${topEuroMatch.matchRating}. Le staff estime que ce match pèsera sur la dynamique des prochains rendez-vous continentaux.`,
-          match: topEuroMatch,
-          chips: [topEuroMatch.competitionLabel ?? 'Europe', euroScored > 0 ? `${euroScored} buts` : 'Sans but'],
+          title: `Soirée européenne · ${euroMatch.competitionLabel ?? euroMatch.competition ?? 'Europe'}`,
+          description: `${euroMatch.playerName ?? euroMatch.club ?? 'Joueur'} a disputé une soirée européenne face à ${euroMatch.opponent}. Score final ${euroMatch.score}, note ${euroMatch.matchRating}.`,
+          text: `${euroMatch.playerName ?? euroMatch.club ?? 'Joueur'} a disputé une soirée européenne face à ${euroMatch.opponent}. Score final ${euroMatch.score}, note ${euroMatch.matchRating}.`,
+          match: euroMatch,
+          chips: [euroMatch.competitionLabel ?? 'Europe', euroMatch.stage === 'final' ? 'Finale' : euroMatch.stage === 'semis' ? 'Demi-finale' : euroScored > 0 ? `${euroScored} buts` : 'Sans but'],
         });
-      }
+      });
 
-      if (intlSummary?.count > 0) {
-        add(items, {
-          id: `daily_intl_${timestampBase}`,
-          kind: 'international',
-          tone: 'warn',
-          icon: '🇫🇷',
-          eventType: 'performance',
-          type: 'international',
-          title: `Sélections nationales · ${intlSummary.label ?? 'Trêve internationale'}`,
-          description: `${intlSummary.count} joueur(s) de ton agence engagés cette semaine en sélection.`,
-          text: `${intlSummary.count} joueur(s) de ton agence engagés cette semaine en sélection.`,
-          chips: ['Convocations', 'Matchs internationaux'],
-        });
-      }
+	      if (intlSummary?.count > 0) {
+	        const intlText = topInternationalMatch
+	          ? `${topInternationalMatch.playerName ?? 'Joueur'} · ${topInternationalMatch.countryName ?? 'Sélection'} ${topInternationalMatch.score} ${topInternationalMatch.opponent} · note ${topInternationalMatch.matchRating}.`
+	          : `${intlSummary.count} joueur(s) de ton agence engagés cette semaine en sélection.`;
+	        add(items, {
+	          id: `daily_intl_${timestampBase}`,
+	          kind: 'international',
+	          tone: 'warn',
+	          icon: '🇫🇷',
+	          eventType: 'performance',
+	          type: 'international',
+	          title: `Sélections nationales · ${intlSummary.label ?? 'Trêve internationale'}`,
+	          description: intlText,
+	          text: intlText,
+	          match: topInternationalMatch,
+	          chips: ['Sélections', `${intlSummary.count} joueur(s)`],
+	        });
+	      }
 
       add(items, {
         id: `daily_match_header_${timestampBase}`,
@@ -3797,9 +4889,9 @@ export const playDay = (state) => {
         eventType: 'performance',
         type: 'matchday_header',
         title: 'Week-end championnat',
-        description: `${fixtures.length} rencontres de championnat dans ce bloc de week-end. Les soirées européennes sont suivies séparément en milieu de semaine (mardi/mercredi).`,
-        text: `${fixtures.length} rencontres de championnat dans ce bloc de week-end. Les soirées européennes sont suivies séparément en milieu de semaine (mardi/mercredi).`,
-        chips: [`${fixtures.length} matchs ligue`, `S${phase.season} · S${phase.seasonWeek}/38`],
+        description: `Le championnat reprend ses droits avec des affiches importantes et des points qui commencent à peser dans les classements.`,
+        text: `Le championnat reprend ses droits avec des affiches importantes et des points qui commencent à peser dans les classements.`,
+        chips: ['Championnat', `S${phase.season} · S${phase.seasonWeek}/38`],
       });
       if (topMatch) {
         add(items, {
@@ -3848,12 +4940,18 @@ export const playDay = (state) => {
       .filter((news) => (news?.week ?? 0) >= Math.max(1, refWeek - 1))
       .filter((news) => String(news?.text ?? '').trim() !== OPENING_NEWS_TEXT || (refWeek === 1 && dayIndex === 1))
       .slice(0, 6);
-    const midweekEuro = baseState?.midweekEuropean?.week === refWeek
+    const storedMidweekEuro = baseState?.midweekEuropean?.week === refWeek
       ? (baseState.midweekEuropean.results ?? [])
       : [];
+    const canonicalDayEuro = buildAgencyEuropeanFixtureResults(baseState, {
+      week: refWeek,
+      dayIndex,
+      roster: currentRoster,
+    });
+    const midweekEuro = mergeEuropeanFeedMatches(storedMidweekEuro, canonicalDayEuro);
 
-    // Daily flavor event sourced from the passive events database.
-    // This keeps day-to-day cards varied instead of repeating generic placeholders.
+    // Daily flavor cards must stay off-pitch. Real match actions are only shown
+    // through simulated match results, never through generic day-to-day events.
     const playableRoster = currentRoster.filter((player) => !player.freeAgent && player.club && player.club !== 'Libre');
     const focusPlayer = playableRoster.length
       ? pickFrom(playableRoster, `${daySeed}-player`, playableRoster[0])
@@ -3898,7 +4996,7 @@ export const playDay = (state) => {
             type: 'performance',
             rarity: 'common',
             good: true,
-            label: `${name} a travaillé une séance spécifique gardien: relance courte, jeu aérien et lecture des frappes. Le staff juge que ces détails peuvent changer le prochain match serré.`,
+            label: `${name} a travaillé une séance spécifique gardien: relance courte, jeu aérien et coordination avec la défense. Le staff veut renforcer ses automatismes sans surcharger la semaine.`,
           });
         } else if (player.position === 'ATT') {
           profileEvents.push({
@@ -3906,7 +5004,7 @@ export const playDay = (state) => {
             type: 'performance',
             rarity: 'common',
             good: true,
-            label: `${name} a terminé une séance axée finition: appels dans le dos, premier contrôle et présence dans la surface. Le staff veut convertir davantage de xG en vrais buts.`,
+            label: `${name} a terminé une séance axée finition: appels dans le dos, premier contrôle et présence dans la surface. Le staff suit surtout la qualité des gestes et la fraîcheur physique.`,
           });
         } else if (player.position === 'MIL') {
           profileEvents.push({
@@ -3914,7 +5012,7 @@ export const playDay = (state) => {
             type: 'performance',
             rarity: 'common',
             good: true,
-            label: `${name} est au centre du plan de jeu: orientation sous pression, passes verticales et gestion du tempo. Le staff attend plus de passes clés dans les zones décisives.`,
+            label: `${name} est au centre du plan de jeu: orientation sous pression, passes verticales et gestion du tempo. Le staff insiste sur la régularité et la lucidité dans les séances.`,
           });
         } else if (player.position === 'DEF') {
           profileEvents.push({
@@ -3922,19 +5020,17 @@ export const playDay = (state) => {
             type: 'performance',
             rarity: 'common',
             good: true,
-            label: `${name} a eu un briefing défensif ciblé: duels, couverture et sorties de balle. L'objectif est de réduire les occasions concédées avant le prochain rendez-vous.`,
+            label: `${name} a eu un briefing défensif ciblé: duels, couverture et sorties de balle. L'objectif est de consolider les repères collectifs pendant la semaine.`,
           });
         }
         return profileEvents;
       };
-      const phaseLabelNoise = /finale|champions|money time|mvp|triplé|hat[-_ ]?trick|buteur/i;
+      const matchActionNoise = /finale|champions|europa|conference|money time|mvp|triplé|hat[-_ ]?trick|buteur|but|passe décisive|décisif|penalty|pénalty|arr[êe]t|cage inviolée|clean sheet|carton|derby|score|victoire|défaite|nul|match/i;
       const profilePulseEvents = buildProfilePulseEvents(focusPlayer);
-      const candidateEvents = (phase.seasonWeek <= 2
-        ? [...profilePulseEvents, ...DAILY_OFFDAY_PULSE]
-        : [...profilePulseEvents, ...PASSIVE_EVENTS]
-          .filter((event) => !dailyCalendarLockedIds.has(event.id))
-          .filter((event) => ['media', 'fans', 'transfer', 'performance'].includes(event.type))
-          .filter((event) => !phaseLabelNoise.test(`${event.id} ${event.label}`)));
+      const candidateEvents = [...profilePulseEvents, ...DAILY_OFFDAY_PULSE]
+        .filter((event) => !dailyCalendarLockedIds.has(event.id))
+        .filter((event) => ['media', 'fans', 'transfer', 'performance'].includes(event.type))
+        .filter((event) => !matchActionNoise.test(`${event.id} ${event.label}`));
       if (candidateEvents.length > 0) {
         const recentIds = Array.isArray(prevState?.lastDailyPulseEventIds) ? prevState.lastDailyPulseEventIds : [];
         const preferred = pickFrom(candidateEvents, `${daySeed}-${focusPlayer.id}-event`, candidateEvents[0]);
@@ -3973,12 +5069,19 @@ export const playDay = (state) => {
 
     if (midweekEuro.length > 0 && (dayIndex === 2 || dayIndex === 3)) {
       const todayEuro = midweekEuro.filter((item) => (item.simulatedDay ?? getEuropeanSimDayIndex(refWeek, item.playerId)) === dayIndex);
-      const topEuro = todayEuro
-        .filter((m) => Number.isFinite(m?.matchRating))
-        .sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))[0] ?? todayEuro[0];
-      if (topEuro) {
+      const todayEuroCards = Array.from(todayEuro.reduce((map, match) => {
+        if (!match) return map;
+        const key = match.fixtureId
+          ? `${match.fixtureId}:${match.club ?? match.playerId ?? 'club'}`
+          : `${match.competition ?? ''}:${match.club ?? ''}:${match.opponent ?? match.opponentName ?? ''}:${match.score ?? ''}`;
+        if (!map.has(key)) map.set(key, match);
+        return map;
+      }, new Map()).values())
+        .sort((a, b) => (b.matchRating ?? 0) - (a.matchRating ?? 0))
+        .slice(0, 4);
+      todayEuroCards.forEach((topEuro, euroIndex) => {
         add(items, {
-          id: `daily_midweek_euro_${refWeek}_${dayIndex}_${topEuro.playerId ?? 'euro'}`,
+          id: `daily_midweek_euro_${refWeek}_${dayIndex}_${topEuro.fixtureId ?? topEuro.playerId ?? euroIndex}`,
           kind: 'euroResult',
           tone: topEuro.result === 'win' ? 'good' : topEuro.result === 'loss' ? 'danger' : 'warn',
           icon: '🏆',
@@ -3990,7 +5093,7 @@ export const playDay = (state) => {
           match: topEuro,
           chips: [topEuro.competitionLabel ?? 'Europe', topEuro.goals > 0 ? `${topEuro.goals} but${topEuro.goals > 1 ? 's' : ''}` : 'Sans but'],
         });
-      }
+      });
     }
 
     if (nextFixtures.length > 0 && dayIndex >= 4 && dayIndex <= 6) {
@@ -4165,7 +5268,7 @@ export const playDay = (state) => {
       day: nextDay,
       seasonDay: (sourceState?.seasonDay ?? (((sourceState?.week ?? 1) - 1) * 7 + safeDay)) + 1,
       roster: refreshedRoster,
-      messages: compactOpenResponseMessages([...deliveredToday, ...existingMessages]).slice(0, 40),
+      messages: compactOpenResponseMessages([...deliveredToday, ...existingMessages]).slice(0, 120),
       messageQueue: remainingQueue,
     };
     const timeline = buildDailyTimeline({
@@ -4182,8 +5285,9 @@ export const playDay = (state) => {
       const previous = Array.isArray(state.lastDailyPulseEventIds) ? state.lastDailyPulseEventIds : [];
       nextState.lastDailyPulseEventIds = [lastPulse, ...previous.filter((id) => id !== lastPulse)].slice(0, DAILY_PULSE_HISTORY_LIMIT);
     }
+    const identityNextState = finalizeGameState(nextState);
     return {
-      state: nextState,
+      state: identityNextState,
       report: {
         kind: 'daily',
         week: state.week,
@@ -4202,8 +5306,8 @@ export const playDay = (state) => {
         matchResults: [],
         euroMatchResults: [],
         worldCupMatchResults: [],
-        matchCalendar: nextState.matchCalendar ?? [],
-        matchResultStore: nextState.matchResultStore ?? [],
+        matchCalendar: identityNextState.matchCalendar ?? [],
+        matchResultStore: identityNextState.matchResultStore ?? [],
         fixtures: [],
         clubOffers: [],
         worldSummary: [],
@@ -4223,6 +5327,7 @@ export const playDay = (state) => {
         day: 7,
         seasonDay: (state?.seasonDay ?? (((state?.week ?? 1) - 1) * 7 + safeDay)) + 1,
       };
+      weekly.state = finalizeGameState(weekly.state);
     }
     if (weekly?.report) {
       weekly.report = {
@@ -4259,8 +5364,9 @@ export const playDay = (state) => {
     day: 1,
     seasonDay: (state?.seasonDay ?? (((state?.week ?? 1) - 1) * 7 + safeDay)) + 1,
   };
+  const identityNextState = finalizeGameState(nextState);
   return {
-    state: nextState,
+    state: identityNextState,
     report: {
       kind: 'daily_reset',
       week: state.week,
@@ -4279,8 +5385,8 @@ export const playDay = (state) => {
       matchResults: [],
       euroMatchResults: [],
       worldCupMatchResults: [],
-      matchCalendar: nextState.matchCalendar ?? [],
-      matchResultStore: nextState.matchResultStore ?? [],
+      matchCalendar: identityNextState.matchCalendar ?? [],
+      matchResultStore: identityNextState.matchResultStore ?? [],
       fixtures: [],
       clubOffers: [],
       worldSummary: [],
@@ -4360,7 +5466,7 @@ export const applyChoice = (state, event, player, choice) => {
     reputationImpact: scaleReputationDelta(effects.rep ?? 0),
   });
 
-  nextState = { ...nextState, news: [news, ...nextState.news].slice(0, 60) };
+  nextState = { ...nextState, news: [news, ...nextState.news].slice(0, 180) };
 
   if (choice.flag === 'add_young_prospect') {
     const scoutLevel = getStaffEffect(nextState.staff, 'scoutAfrica') + nextState.office.scoutLevel;
@@ -4379,13 +5485,17 @@ export const applyChoice = (state, event, player, choice) => {
     if (!prospectBase) {
       return { state: nextState, followUp: choice.flag, followUpData: null };
     }
+    const nextPlayerIdentity = allocateNextPlayerIdentity(nextState);
     const prospect = {
       ...prospectBase,
+      id: prospectBase.id ?? nextPlayerIdentity.id,
+      permanentId: prospectBase.permanentId ?? nextPlayerIdentity.permanentId,
       careerGoal: createCareerGoal(prospectBase),
       scoutReport: scoutLevel > 0 ? createScoutReport(prospectBase, scoutLevel) : null,
       agentContract: createAgentContract(prospectBase),
       timeline: [{ week: state.week, type: 'scout', label: 'Repéré par le réseau scouting' }],
     };
+    nextState = { ...nextState, idRegistry: nextPlayerIdentity.idRegistry };
     if (nextState.roster.length < getAgencyCapacity(nextState.agencyLevel)) {
       const roster = [...nextState.roster, prospect];
       const scheduled = scheduleLeagueMatches(nextState, roster, state.week);

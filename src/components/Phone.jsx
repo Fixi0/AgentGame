@@ -1,5 +1,6 @@
 import { PhoneCall } from 'lucide-react';
 import React from 'react';
+import { getClubDisplayName } from '../data/clubs';
 import { S } from './styles';
 
 export default function Phone({ state, onNav, onNegotiateOffer, onContactClubStaff }) {
@@ -29,7 +30,7 @@ export default function Phone({ state, onNav, onNegotiateOffer, onContactClubSta
   const calls = [
     ...(state.clubOffers ?? []).filter((offer) => offer.status === 'open').map((offer) => ({
       id: offer.id,
-      from: offer.club,
+      from: getClubDisplayName(offer.club) || offer.club,
       title: offer.isSurprise
         ? `🚨 FLASH — ${offer.playerName}`
         : offer.preWindow
@@ -38,10 +39,10 @@ export default function Phone({ state, onNav, onNegotiateOffer, onContactClubSta
             ? `🔥 Frénésie — ${offer.playerName}`
             : `Offre pour ${offer.playerName}`,
       body: offer.preWindow
-        ? `${offer.club} propose un pré-accord à ${offer.price.toLocaleString('fr-FR')} €. Transfert activé à l'ouverture du mercato ${offer.window} (sem. ${offer.effectiveWeek}).`
+        ? `${getClubDisplayName(offer.club) || offer.club} propose un pré-accord à ${offer.price.toLocaleString('fr-FR')} €. Transfert activé à l'ouverture du mercato ${offer.window} (sem. ${offer.effectiveWeek}).`
         : offer.isSurprise
-          ? `Offre d'urgence de ${offer.club} — ${offer.price.toLocaleString('fr-FR')} €. Expire dans 1 semaine !`
-          : `${offer.club} veut avancer. Prix proposé : ${offer.price.toLocaleString('fr-FR')} €. Expire sem. ${offer.expiresWeek}.`,
+          ? `Offre d'urgence de ${getClubDisplayName(offer.club) || offer.club} — ${offer.price.toLocaleString('fr-FR')} €. Expire dans 1 semaine !`
+          : `${getClubDisplayName(offer.club) || offer.club} veut avancer. Prix proposé : ${offer.price.toLocaleString('fr-FR')} €. Expire sem. ${offer.expiresWeek}.`,
       action: 'Négocier',
       onClick: () => onNegotiateOffer(offer.id),
     })),

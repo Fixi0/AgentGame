@@ -217,15 +217,17 @@ const buildVirtualSquad = (ratingBase = 72, code = 'TEAM') =>
     position: idx === 0 ? 'GK' : idx <= 4 ? 'DEF' : idx <= 7 ? 'MIL' : 'ATT',
   }));
 
-const scoreFromUnifiedMatchEngine = (player, competition, seasonWeek, opponentName = 'Club Européen') => {
-  const ownBase = Math.max(65, Math.min(90, (player.rating ?? 70) + ((player.form ?? 60) - 60) * 0.12 + 2));
-  const oppBase = Math.max(65, Math.min(90, ownBase + ((hashStr(`${opponentName}:${competition}:${seasonWeek}`) % 13) - 6)));
+const scoreFromUnifiedMatchEngine = (player, competition, seasonWeek, opponentName = 'Club Européen', seedSalt = '') => {
+  const generationalBonus = player?.superstarGenerational || (player?.rating ?? 0) >= 198;
+  const ownBase = Math.max(68, Math.min(generationalBonus ? 112 : 102, (player.rating ?? 140) * 0.44 + ((player.form ?? 60) - 60) * 0.12 + 11 + (generationalBonus ? 8 : 0)));
+  const opponentPower = getClubPower(opponentName, competition, Math.floor((seasonWeek - 1) / 38) + 1);
+  const oppBase = Math.max(68, Math.min(102, 60 + opponentPower * 0.23 + ((hashStr(`${opponentName}:${competition}:${seasonWeek}:${seedSalt}`) % 7) - 3)));
   const simulation = simulateMatch({
-    homePlayers: buildVirtualSquad(ownBase, `${player.club ?? 'HOME'}_${competition}_${seasonWeek}`),
-    awayPlayers: buildVirtualSquad(oppBase, `${opponentName}_${competition}_${seasonWeek}`),
+    homePlayers: buildVirtualSquad(ownBase, `${player.club ?? 'HOME'}_${competition}_${seasonWeek}_${seedSalt}`),
+    awayPlayers: buildVirtualSquad(oppBase, `${opponentName}_${competition}_${seasonWeek}_${seedSalt}`),
     homeTeamName: player.club ?? 'Club',
     awayTeamName: opponentName,
-    seed: hashStr(`${player.id}:${competition}:${seasonWeek}:${opponentName}:eu`),
+    seed: hashStr(`${seedSalt}:${player.id}:${competition}:${seasonWeek}:${opponentName}:eu`),
   });
   return { ownGoals: simulation.homeGoals, oppGoals: simulation.awayGoals };
 };
@@ -242,6 +244,7 @@ const getEuropeanSelectionProfile = (player) => {
   const moral = player.moral ?? 50;
   const clubRole = player.clubRole ?? 'Rotation';
   const roleBonus = clubRole === 'Star' ? 8 : clubRole === 'Titulaire' ? 5 : clubRole === 'Rotation' ? 1 : -8;
+  const generationalBonus = player.superstarGenerational || (player.rating ?? 0) >= 198;
   const workloadBonus = appearances >= 24 ? 4 : appearances >= 16 ? 2 : appearances >= 8 ? 1 : -1;
   const fatiguePenalty = (player.fatigue ?? 20) > 80 ? 5 : (player.fatigue ?? 20) > 70 ? 2 : 0;
   const score =
@@ -250,16 +253,18 @@ const getEuropeanSelectionProfile = (player) => {
     (avgRating - 6.4) * 13 +
     (moral - 50) * 0.16 +
     roleBonus +
+    (generationalBonus ? 22 : 0) +
     workloadBonus -
     fatiguePenalty;
 
-  const starterChance = clampNumber(0.28 + (score / 125) + (clubRole === 'Star' ? 0.15 : clubRole === 'Titulaire' ? 0.05 : 0), 0.18, 0.94);
+  const starterChance = clampNumber(0.28 + (score / 125) + (clubRole === 'Star' ? 0.15 : clubRole === 'Titulaire' ? 0.05 : 0) + (generationalBonus ? 0.08 : 0), 0.18, generationalBonus ? 0.995 : 0.94);
 
   return {
     score,
     starterChance,
     note:
-      clubRole === 'Star' ? 'Cadre européen'
+      generationalBonus ? 'Leader européen'
+      : clubRole === 'Star' ? 'Cadre européen'
       : clubRole === 'Titulaire' ? 'Titulaire européen'
         : clubRole === 'Rotation' ? 'Rotation européenne'
           : 'Temps de jeu fragile',
@@ -349,13 +354,135 @@ export const initEuroCupCompData = (competition, season) => ({
   opponentHistory: {}, // clubName → string[] (noms des adversaires en phase de ligue)
   koPath: {},          // clubName → { playoff|roundOf16|quarters|semis|final: {opponent, score, result, opponentCountry} }
   leagueTable: null,   // 36 clubs classés : 1-8 qualifiés, 9-24 barrages, 25-36 éliminés
+  leagueFixtures: null, // source unique des affiches/résultats de phase de ligue
+  fixtures: {},         // fixtureId → match canonique, toutes phases confondues
   bracketClubs: null,  // généré à l'entrée en KO
   bracketState: null,  // { activeClubs, eliminatedClubs, rounds, stageEntrants }
 });
 
 const getClubRef = (clubName) => CLUBS.find((club) => club.name === clubName) ?? { name: clubName, tier: 3, countryCode: null };
 
+const slugFixturePart = (value = '') =>
+  String(value || 'club')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/gi, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase();
+
+export const makeEuropeanFixtureId = ({
+  competition,
+  season = 1,
+  stage = 'league',
+  matchdayIndex = -1,
+  week = null,
+  leg = 1,
+  home = '',
+  away = '',
+} = {}) =>
+  [
+    'euro',
+    competition,
+    `s${season}`,
+    stage,
+    matchdayIndex >= 0 ? `md${matchdayIndex}` : `w${week ?? 'x'}`,
+    `leg${leg}`,
+    slugFixturePart(home),
+    slugFixturePart(away),
+  ].join('_');
+
+const canonicalFixtureResultForClub = (fixture = {}, clubName = '') => {
+  if (!fixture || !clubName || (fixture.home !== clubName && fixture.away !== clubName)) return null;
+  const isHome = fixture.home === clubName;
+  const goalsFor = isHome ? Number(fixture.homeGoals ?? 0) : Number(fixture.awayGoals ?? 0);
+  const goalsAgainst = isHome ? Number(fixture.awayGoals ?? 0) : Number(fixture.homeGoals ?? 0);
+  return {
+    fixtureId: fixture.id ?? fixture.fixtureId,
+    competition: fixture.competition,
+    week: fixture.week,
+    simulatedWeek: fixture.simulatedWeek ?? fixture.week,
+    simulatedDay: fixture.simulatedDay ?? null,
+    matchdayIndex: fixture.matchdayIndex,
+    stage: fixture.stage,
+    phase: fixture.phase,
+    opponent: isHome ? fixture.away : fixture.home,
+    opponentName: isHome ? fixture.away : fixture.home,
+    opponentCountry: isHome ? fixture.awayCountry : fixture.homeCountry,
+    homeAway: isHome ? 'Domicile' : 'Extérieur',
+    score: `${goalsFor}-${goalsAgainst}`,
+    fixtureScore: `${fixture.homeGoals ?? 0}-${fixture.awayGoals ?? 0}`,
+    goalsFor,
+    goalsAgainst,
+    result: goalsFor > goalsAgainst ? 'win' : goalsFor < goalsAgainst ? 'loss' : 'draw',
+    source: 'canonical',
+    aggregate: fixture.aggregate ?? null,
+    qualified: fixture.winner ? fixture.winner === clubName : null,
+    decidedByPenalties: Boolean(fixture.decidedByPenalties),
+  };
+};
+
+export const getEuropeanFixtureList = (compData = {}) => {
+  const fromStore = Object.values(compData?.fixtures ?? {});
+  const fromLeague = Array.isArray(compData?.leagueFixtures) ? compData.leagueFixtures : [];
+  const fromRounds = Object.values(compData?.bracketState?.rounds ?? {})
+    .flatMap((round) => (round?.matches ?? []).map((match) => ({
+      ...match,
+      id: match.id ?? match.fixtureId,
+      competition: compData.competition ?? match.competition,
+      season: compData.season ?? match.season,
+      stage: match.stage ?? round.stage,
+      week: match.week ?? round.week,
+      leg: match.leg ?? round.leg,
+      matchdayIndex: Number.isFinite(match.matchdayIndex) ? match.matchdayIndex : -1,
+    })));
+  const byId = new Map();
+  [...fromLeague, ...fromRounds, ...fromStore].forEach((fixture) => {
+    const id = fixture?.id ?? fixture?.fixtureId;
+    if (id) byId.set(id, { ...fixture, id });
+  });
+  return [...byId.values()];
+};
+
+export const getEuropeanClubFixtureResult = (compData = {}, clubName = '', fixtureId = null) => {
+  const fixtures = getEuropeanFixtureList(compData);
+  const fixture = fixtureId
+    ? fixtures.find((item) => (item.id ?? item.fixtureId) === fixtureId)
+    : fixtures.find((item) => item.home === clubName || item.away === clubName);
+  return canonicalFixtureResultForClub(fixture, clubName);
+};
+
+const putCanonicalFixture = (data, fixture) => {
+  if (!fixture?.id && !fixture?.fixtureId) return data;
+  const id = fixture.id ?? fixture.fixtureId;
+  data.fixtures = { ...(data.fixtures ?? {}), [id]: { ...fixture, id, fixtureId: id } };
+  return data;
+};
+
+const EURO_CLUB_POWER_OVERRIDES = {
+  'Real Madrid': 178,
+  'Man City': 178,
+  Bayern: 176,
+  PSG: 174,
+  Liverpool: 172,
+  Barcelona: 170,
+  Arsenal: 168,
+  Inter: 168,
+  Atletico: 165,
+  Leverkusen: 164,
+  Dortmund: 162,
+  Milan: 158,
+  Juventus: 158,
+  Napoli: 156,
+  Marseille: 154,
+  Monaco: 154,
+  'Man United': 152,
+};
+
 const getClubPower = (clubName, competition, season) => {
+  if (EURO_CLUB_POWER_OVERRIDES[clubName]) {
+    const competitionBonus = competition === 'CL' ? 8 : competition === 'EL' ? 4 : 0;
+    return EURO_CLUB_POWER_OVERRIDES[clubName] + competitionBonus;
+  }
   const club = getClubRef(clubName);
   const base = 100 - (club.tier ?? 3) * 10;
   const competitionBonus = competition === 'CL' ? 8 : competition === 'EL' ? 4 : 0;
@@ -417,8 +544,283 @@ const EURO_PREVIOUS_STAGE = {
   semis: 'quarters',
   final: 'semis',
 };
+const EURO_EXPECTED_STAGE_MATCHES = {
+  playoff: 8,
+  roundOf16: 8,
+  quarters: 4,
+  semis: 2,
+  final: 1,
+};
+
+const getExpectedStageMatches = (stage) => EURO_EXPECTED_STAGE_MATCHES[stage] ?? 0;
+
+const uniqueClubEntries = (clubs = []) => {
+  const seen = new Set();
+  return clubs
+    .map(makeClubEntry)
+    .filter((club) => {
+      if (!club.name || seen.has(club.name)) return false;
+      seen.add(club.name);
+      return true;
+    });
+};
+
+const rebuildKnockoutProgressFromRounds = (bracketState = {}) => {
+  const rounds = bracketState.rounds ?? {};
+  const nextStageWinners = {};
+  const eliminated = new Set(bracketState.eliminatedClubs ?? []);
+
+  EURO_KO_STAGE_ORDER.forEach((stage) => {
+    const stageRounds = Object.values(rounds)
+      .filter((round) => round?.stage === stage)
+      .sort((a, b) => (a.week ?? 0) - (b.week ?? 0) || (a.leg ?? 0) - (b.leg ?? 0));
+    const decider = [...stageRounds].reverse().find((round) => round?.isDecider);
+    if (!decider) return;
+    const expectedMatches = EURO_EXPECTED_STAGE_MATCHES[stage] ?? 0;
+    if (expectedMatches && (decider.matches ?? []).length < expectedMatches) return;
+    const winners = [];
+    (decider.matches ?? []).forEach((match) => {
+      if (match?.winner) winners.push(makeClubEntry(match.winner));
+      if (match?.loser) eliminated.add(match.loser);
+    });
+    if (winners.length) nextStageWinners[stage] = uniqueClubEntries(winners);
+  });
+
+  return {
+    stageWinners: nextStageWinners,
+    eliminatedClubs: [...eliminated],
+  };
+};
+
+const sameRoundPairs = (leftMatches = [], rightMatches = []) => {
+  const makePairSet = (matches) => new Set((matches ?? []).map((match) =>
+    [match.home, match.away].filter(Boolean).sort().join('|')));
+  const left = makePairSet(leftMatches);
+  const right = makePairSet(rightMatches);
+  if (left.size !== right.size) return false;
+  return [...left].every((pair) => right.has(pair));
+};
+
+const isRoundShapeValid = (round = {}) => {
+  const matches = round?.matches ?? [];
+  const expected = getExpectedStageMatches(round?.stage);
+  if (expected && matches.length < expected) return false;
+  const usedClubs = new Set();
+  return matches.every((match) => {
+    if (!match?.home || !match?.away || match.home === match.away) return false;
+    const pair = [match.home, match.away].sort().join('|');
+    if (usedClubs.has(match.home) || usedClubs.has(match.away) || usedClubs.has(pair)) return false;
+    usedClubs.add(match.home);
+    usedClubs.add(match.away);
+    usedClubs.add(pair);
+    return true;
+  });
+};
+
+const sanitizeKnockoutRounds = (rounds = {}) => {
+  const cleanRounds = {};
+  const cleanStageWinners = {};
+  const cleanEliminated = new Set();
+  let previousStageComplete = true;
+
+  EURO_KO_STAGE_ORDER.forEach((stage) => {
+    if (!previousStageComplete) return;
+    const stageRounds = Object.entries(rounds)
+      .map(([key, round]) => ({ key, round: { ...round, stage: round?.stage ?? stage } }))
+      .filter(({ round }) => round.stage === stage)
+      .sort((a, b) => (a.round.week ?? 0) - (b.round.week ?? 0) || (a.round.leg ?? 0) - (b.round.leg ?? 0));
+
+    if (!stageRounds.length) {
+      previousStageComplete = false;
+      return;
+    }
+
+    const validRounds = [];
+    const firstLeg = stageRounds.find(({ round }) => (round.leg ?? 1) === 1)?.round ?? null;
+    for (const { key, round } of stageRounds) {
+      if (!isRoundShapeValid(round)) continue;
+      if ((round.leg ?? 1) > 1 && firstLeg && !sameRoundPairs(firstLeg.matches, round.matches)) continue;
+      validRounds.push({ key, round });
+    }
+
+    if (!validRounds.length) {
+      previousStageComplete = false;
+      return;
+    }
+
+    validRounds.forEach(({ key, round }) => {
+      const normalizedKey = `${round.stage}:${round.week ?? key.split(':')[1] ?? key}`;
+      cleanRounds[normalizedKey] = round;
+    });
+
+    const decider = [...validRounds].reverse().find(({ round }) => round.isDecider)?.round ?? null;
+    if (!decider) {
+      previousStageComplete = false;
+      return;
+    }
+
+    const winners = [];
+    (decider.matches ?? []).forEach((match) => {
+      if (match.winner) winners.push(makeClubEntry(match.winner));
+      if (match.loser) cleanEliminated.add(match.loser);
+    });
+    const expected = getExpectedStageMatches(stage);
+    if (expected && winners.length < expected) {
+      previousStageComplete = false;
+      return;
+    }
+    cleanStageWinners[stage] = uniqueClubEntries(winners);
+  });
+
+  return {
+    rounds: cleanRounds,
+    stageWinners: cleanStageWinners,
+    eliminatedClubs: [...cleanEliminated],
+  };
+};
+
+const syncCanonicalFixtures = (data = {}) => {
+  const fixtures = {};
+  const put = (fixture) => {
+    const id = fixture?.id ?? fixture?.fixtureId;
+    if (!id) return;
+    fixtures[id] = { ...fixture, id, fixtureId: id };
+  };
+  (data.leagueFixtures ?? []).forEach(put);
+  Object.values(data.bracketState?.rounds ?? {}).forEach((round) => {
+    (round?.matches ?? []).forEach((match) => put({
+      ...match,
+      competition: data.competition ?? match.competition,
+      season: data.season ?? match.season,
+      stage: match.stage ?? round.stage,
+      week: match.week ?? round.week,
+      leg: match.leg ?? round.leg,
+      matchdayIndex: -1,
+    }));
+  });
+  data.fixtures = fixtures;
+  return data;
+};
 
 const getCountryForClub = (clubName) => FLAG_MAP[getClubRef(clubName).countryCode] ?? '🌍';
+
+const buildEuropeanLeagueFixtures = (competition, season, agentClubNames = []) => {
+  const pool = getCompetitionPool(competition, season);
+  const agentSet = new Set(agentClubNames.filter(Boolean));
+  const entriesByName = new Map();
+
+  pool.forEach((club) => {
+    entriesByName.set(club.name, {
+      name: club.name,
+      country: FLAG_MAP[club.countryCode] ?? '🌍',
+      isAgent: agentSet.has(club.name),
+      power: getClubPower(club.name, competition, season),
+    });
+  });
+
+  agentSet.forEach((clubName) => {
+    if (!entriesByName.has(clubName)) {
+      entriesByName.set(clubName, {
+        name: clubName,
+        country: getCountryForClub(clubName),
+        isAgent: true,
+        power: getClubPower(clubName, competition, season),
+      });
+    }
+  });
+
+  const seededEntries = [...entriesByName.values()]
+    .sort((a, b) =>
+      b.power - a.power
+      || hashStr(`${a.name}:${competition}:${season}:league-seed`) - hashStr(`${b.name}:${competition}:${season}:league-seed`),
+    )
+    .slice(0, EURO_LEAGUE_PHASE_SIZE)
+    .map((club, index) => ({ ...club, uefaSeed: index + 1, opponents: new Set() }));
+
+  const targetMatchdays = competition === 'ECL' ? 6 : 8;
+  const rotation = [...seededEntries].sort((a, b) =>
+    hashStr(`${a.name}:${competition}:${season}:rotation`)
+    - hashStr(`${b.name}:${competition}:${season}:rotation`));
+
+  const roundRobinFixtures = [];
+  for (let matchdayIndex = 0; matchdayIndex < targetMatchdays; matchdayIndex += 1) {
+    for (let index = 0; index < rotation.length / 2; index += 1) {
+      const left = rotation[index];
+      const right = rotation[rotation.length - 1 - index];
+      if (!left || !right || left.name === right.name) continue;
+      const homeSeed = hashStr(`${left.name}:${right.name}:${competition}:${season}:venue:md${matchdayIndex}`);
+      const homeEntry = homeSeed % 2 === 0 ? left : right;
+      const awayEntry = homeEntry === left ? right : left;
+      const score = simulateClubFixtureWithUnifiedEngine(homeEntry.name, awayEntry.name, competition, season, `league_md_${matchdayIndex}_${index}`);
+      const id = makeEuropeanFixtureId({
+        competition,
+        season,
+        stage: 'league',
+        matchdayIndex,
+        leg: 1,
+        home: homeEntry.name,
+        away: awayEntry.name,
+      });
+      roundRobinFixtures.push({
+        id,
+        fixtureId: id,
+        competition,
+        season,
+        stage: 'league',
+        phase: 'Phase de ligue',
+        matchdayIndex,
+        week: null,
+        leg: 1,
+        home: homeEntry.name,
+        away: awayEntry.name,
+        homeCountry: homeEntry.country,
+        awayCountry: awayEntry.country,
+        homeGoals: score.homeGoals,
+        awayGoals: score.awayGoals,
+        score: `${score.homeGoals}-${score.awayGoals}`,
+        simulated: true,
+        source: 'canonical_league',
+      });
+    }
+    const fixed = rotation[0];
+    const tail = rotation.slice(1);
+    tail.unshift(tail.pop());
+    rotation.splice(0, rotation.length, fixed, ...tail);
+  }
+
+  return roundRobinFixtures.sort((a, b) => a.matchdayIndex - b.matchdayIndex || a.home.localeCompare(b.home));
+};
+
+const ensureLeagueFixtures = (data, competition, season, agentClubNames = []) => {
+  if (Array.isArray(data.leagueFixtures) && data.leagueFixtures.length) {
+    data.leagueFixtures.forEach((fixture) => putCanonicalFixture(data, fixture));
+    return data.leagueFixtures;
+  }
+  data.leagueFixtures = buildEuropeanLeagueFixtures(competition, season, agentClubNames);
+  data.leagueFixtures.forEach((fixture) => putCanonicalFixture(data, fixture));
+  return data.leagueFixtures;
+};
+
+export const ensureEuropeanLeagueFixtures = (compData, competition, season, agentClubNames = []) => {
+  const data = {
+    ...initEuroCupCompData(competition, season),
+    ...(compData ?? {}),
+    opponentHistory: { ...(compData?.opponentHistory ?? {}) },
+    koPath: { ...(compData?.koPath ?? {}) },
+    fixtures: { ...(compData?.fixtures ?? {}) },
+  };
+  ensureLeagueFixtures(data, competition, season, agentClubNames);
+  return data;
+};
+
+export const getEuropeanLeagueClubMatch = (compData, clubName, competition, season, seasonWeek, agentClubNames = []) => {
+  const matchdayIndex = getEuropeanMatchdayIndex(seasonWeek, competition);
+  if (matchdayIndex < 0) return null;
+  const data = ensureEuropeanLeagueFixtures(compData, competition, season, agentClubNames);
+  const fixture = (data.leagueFixtures ?? []).find((item) =>
+    item.matchdayIndex === matchdayIndex && (item.home === clubName || item.away === clubName));
+  return canonicalFixtureResultForClub(fixture, clubName);
+};
 
 const buildLeagueTable = (competition, season, agentClubNames = []) => {
   const pool = getCompetitionPool(competition, season);
@@ -581,19 +983,233 @@ const buildLeagueTable = (competition, season, agentClubNames = []) => {
   }));
 };
 
+const getCompletedLeagueMatchdays = (seasonWeek, competition, includeCurrentMatchday = true) => {
+  const weeks = Array.from(EURO_SCHEDULE[competition]?.league ?? []).sort((a, b) => a - b);
+  return weeks.filter((week) => week < seasonWeek || (includeCurrentMatchday && week === seasonWeek)).length;
+};
+
+const parseFixtureScore = (score = '0-0') => {
+  const match = String(score).match(/(\d+)\s*-\s*(\d+)/);
+  if (!match) return { homeGoals: 0, awayGoals: 0 };
+  return { homeGoals: Number(match[1] ?? 0), awayGoals: Number(match[2] ?? 0) };
+};
+
+const resolveClubScoreFromMatch = (match = {}) => {
+  if (Number.isFinite(match.goalsFor) && Number.isFinite(match.goalsAgainst)) {
+    return { goalsFor: Number(match.goalsFor), goalsAgainst: Number(match.goalsAgainst) };
+  }
+  const { homeGoals, awayGoals } = parseFixtureScore(match.score);
+  const result = match.result;
+  if (result === 'win' && homeGoals < awayGoals) return { goalsFor: awayGoals, goalsAgainst: homeGoals };
+  if (result === 'loss' && homeGoals > awayGoals) return { goalsFor: awayGoals, goalsAgainst: homeGoals };
+  return { goalsFor: homeGoals, goalsAgainst: awayGoals };
+};
+
+const emptySnapshotRow = (club, agentSet = new Set()) => ({
+  club,
+  name: club.name,
+  country: FLAG_MAP[club.countryCode] ?? '🌍',
+  isAgent: agentSet.has(club.name),
+  power: getClubPower(club.name, '', 1),
+  points: 0,
+  played: 0,
+  win: 0,
+  draw: 0,
+  loss: 0,
+  goalsFor: 0,
+  goalsAgainst: 0,
+  form: [],
+  matches: [],
+  latest: null,
+});
+
+const applySnapshotMatch = (row, match) => {
+  const goalsFor = Number(match.goalsFor ?? 0);
+  const goalsAgainst = Number(match.goalsAgainst ?? 0);
+  row.played += 1;
+  row.goalsFor += goalsFor;
+  row.goalsAgainst += goalsAgainst;
+  if (goalsFor > goalsAgainst) {
+    row.win += 1;
+    row.points += 3;
+    row.form.push('W');
+  } else if (goalsFor < goalsAgainst) {
+    row.loss += 1;
+    row.form.push('L');
+  } else {
+    row.draw += 1;
+    row.points += 1;
+    row.form.push('D');
+  }
+  row.matches.push(match);
+  row.latest = match;
+};
+
+export const buildEuropeanLeagueSnapshot = ({
+  competition,
+  season = 1,
+  seasonWeek = 1,
+  agentMatches = [],
+  agentClubNames = [],
+  includeCurrentMatchday = true,
+  compData = null,
+} = {}) => {
+  const totalMatchdays = competition === 'ECL' ? 6 : 8;
+  const completedMatchdays = Math.min(totalMatchdays, getCompletedLeagueMatchdays(seasonWeek, competition, includeCurrentMatchday));
+  const agentSet = new Set((agentClubNames ?? []).filter(Boolean));
+  const pool = getCompetitionPool(competition, season).slice(0, EURO_LEAGUE_PHASE_SIZE);
+  const rowsByName = new Map(pool.map((club) => [club.name, emptySnapshotRow(club, agentSet)]));
+
+  agentSet.forEach((clubName) => {
+    if (!rowsByName.has(clubName)) {
+      rowsByName.set(clubName, emptySnapshotRow(getClubRef(clubName), agentSet));
+    }
+  });
+
+  const canonicalData = ensureEuropeanLeagueFixtures(compData, competition, season, agentClubNames);
+  const canonicalFixtures = (canonicalData.leagueFixtures ?? [])
+    .filter((fixture) => Number(fixture.matchdayIndex ?? -1) >= 0 && Number(fixture.matchdayIndex ?? -1) < completedMatchdays)
+    .sort((a, b) => Number(a.matchdayIndex ?? 0) - Number(b.matchdayIndex ?? 0));
+
+  if (canonicalFixtures.length) {
+    canonicalFixtures.forEach((fixture) => {
+      [fixture.home, fixture.away].forEach((clubName) => {
+        if (!rowsByName.has(clubName)) rowsByName.set(clubName, emptySnapshotRow(getClubRef(clubName), agentSet));
+        const row = rowsByName.get(clubName);
+        const perspective = canonicalFixtureResultForClub(fixture, clubName);
+        if (!perspective) return;
+        applySnapshotMatch(row, {
+          ...perspective,
+          competition,
+          week: fixture.week ?? seasonWeek,
+          matchdayIndex: fixture.matchdayIndex,
+        });
+      });
+    });
+    return [...rowsByName.values()]
+      .sort((a, b) =>
+        b.points - a.points
+        || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst)
+        || b.goalsFor - a.goalsFor
+        || getClubPower(b.name, competition, season) - getClubPower(a.name, competition, season)
+        || a.name.localeCompare(b.name),
+      )
+      .map((row, index) => ({
+        ...row,
+        rank: index + 1,
+        leagueStatus: index < 8 ? 'roundOf16' : index < 24 ? 'playoff' : 'eliminated',
+      }));
+  }
+
+  const agentByClubAndSlot = new Map();
+  (agentMatches ?? [])
+    .filter((match) => match?.competition === competition && match?.club)
+    .forEach((match) => {
+      const week = Number(match.simulatedWeek ?? match.week ?? seasonWeek);
+      const md = Number.isFinite(match.matchdayIndex)
+        ? Number(match.matchdayIndex)
+        : Math.max(0, getEuropeanMatchdayIndex(week, competition));
+      const slot = Math.max(0, Math.min(totalMatchdays - 1, md >= 0 ? md : completedMatchdays - 1));
+      const key = `${match.club}|${slot}`;
+      const existing = agentByClubAndSlot.get(key);
+      if (!existing || Number(match.matchRating ?? 0) > Number(existing.matchRating ?? 0)) {
+        agentByClubAndSlot.set(key, match);
+      }
+    });
+
+  rowsByName.forEach((row, clubName) => {
+    for (let md = 0; md < completedMatchdays; md += 1) {
+      const agentMatch = agentByClubAndSlot.get(`${clubName}|${md}`);
+      if (agentMatch) {
+        const { goalsFor, goalsAgainst } = resolveClubScoreFromMatch(agentMatch);
+        applySnapshotMatch(row, {
+          competition,
+          week: agentMatch.simulatedWeek ?? agentMatch.week ?? seasonWeek,
+          matchdayIndex: md,
+          opponent: agentMatch.opponent?.name ?? agentMatch.opponent ?? 'Club Européen',
+          score: `${goalsFor}-${goalsAgainst}`,
+          goalsFor,
+          goalsAgainst,
+          source: 'agent',
+        });
+        continue;
+      }
+
+      const opponent = pickSeededOpponent(clubName, competition, md, season);
+      const result = simulateClubFixtureWithUnifiedEngine(clubName, opponent.name, competition, season, `snapshot_md_${md}_${clubName}`);
+      applySnapshotMatch(row, {
+        competition,
+        week: seasonWeek,
+        matchdayIndex: md,
+        opponent: opponent.name,
+        score: `${result.homeGoals}-${result.awayGoals}`,
+        goalsFor: result.homeGoals,
+        goalsAgainst: result.awayGoals,
+        source: 'snapshot',
+      });
+    }
+  });
+
+  return [...rowsByName.values()]
+    .sort((a, b) =>
+      b.points - a.points
+      || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst)
+      || b.goalsFor - a.goalsFor
+      || getClubPower(b.name, competition, season) - getClubPower(a.name, competition, season)
+      || a.name.localeCompare(b.name),
+    )
+    .map((row, index) => ({
+      ...row,
+      rank: index + 1,
+      leagueStatus: index < 8 ? 'roundOf16' : index < 24 ? 'playoff' : 'eliminated',
+    }));
+};
+
 const ensureLeagueTable = (data, competition, season, agentClubNames = []) => {
-  if (Array.isArray(data.leagueTable) && data.leagueTable.length >= 16) return data.leagueTable.map(makeClubEntry);
-  data.leagueTable = buildLeagueTable(competition, season, agentClubNames);
+  // La phase éliminatoire doit partir du même classement que l'UI:
+  // uniquement les fixtures canoniques de phase de ligue, pas une seconde simulation.
+  const snapshot = buildEuropeanLeagueSnapshot({
+    competition,
+    season,
+    seasonWeek: 38,
+    includeCurrentMatchday: true,
+    compData: data,
+    agentClubNames,
+    agentMatches: [],
+  });
+  data.leagueTable = snapshot.map((row) => ({
+    name: row.name,
+    country: row.country,
+    isAgent: row.isAgent,
+    rank: row.rank,
+    points: row.points,
+    played: row.played,
+    win: row.win,
+    draw: row.draw,
+    loss: row.loss,
+    goalsFor: row.goalsFor,
+    goalsAgainst: row.goalsAgainst,
+    leagueStatus: row.leagueStatus,
+  }));
   return data.leagueTable.map(makeClubEntry);
 };
 
 const getLeagueEntry = (data, clubName) => (data.leagueTable ?? []).find((club) => club.name === clubName) ?? null;
 
 const getStageEntrants = (data, stage) => {
+  const hasStoredRound = Object.values(data.bracketState?.rounds ?? {}).some((round) => round?.stage === stage);
+  const storedEntrants = data.bracketState?.stageEntrants?.[stage];
+  if (hasStoredRound && Array.isArray(storedEntrants) && storedEntrants.length) {
+    return uniqueClubEntries(storedEntrants);
+  }
+
+  const eliminated = new Set(data.bracketState?.eliminatedClubs ?? []);
+  const clean = (clubs = []) => uniqueClubEntries(clubs).filter((club) => !eliminated.has(club.name));
+
   if (stage === 'playoff') {
-    return (data.leagueTable ?? [])
+    return clean((data.leagueTable ?? [])
       .filter((club) => club.rank >= 9 && club.rank <= 24)
-      .map((club) => ({ ...makeClubEntry(club), rank: club.rank }));
+      .map((club) => ({ ...makeClubEntry(club), rank: club.rank })));
   }
 
   if (stage === 'roundOf16') {
@@ -601,11 +1217,11 @@ const getStageEntrants = (data, stage) => {
       .filter((club) => club.rank >= 1 && club.rank <= 8)
       .map(makeClubEntry);
     const playoffWinners = data.bracketState?.stageWinners?.playoff ?? [];
-    return [...direct, ...playoffWinners.map(makeClubEntry)];
+    return clean([...direct, ...playoffWinners.map(makeClubEntry)]);
   }
 
   const previousStage = EURO_PREVIOUS_STAGE[stage];
-  return (data.bracketState?.stageWinners?.[previousStage] ?? []).map(makeClubEntry);
+  return clean(data.bracketState?.stageWinners?.[previousStage] ?? []);
 };
 
 const sortEntrantsForStage = (entrants = [], competition, season, stage) => [...entrants]
@@ -662,6 +1278,8 @@ export const ensureEuropeanCompetitionProgress = (compData, competition, season,
     opponentHistory: { ...(compData?.opponentHistory ?? {}) },
     koPath: { ...(compData?.koPath ?? {}) },
     leagueTable: compData?.leagueTable ?? null,
+    leagueFixtures: compData?.leagueFixtures ?? null,
+    fixtures: { ...(compData?.fixtures ?? {}) },
   };
 
   const leagueEntries = ensureLeagueTable(data, competition, season, agentClubNames);
@@ -673,13 +1291,20 @@ export const ensureEuropeanCompetitionProgress = (compData, competition, season,
     .map((club) => club.name);
 
   if (!data.bracketState) data.bracketState = {};
+  const sanitizedProgress = sanitizeKnockoutRounds(data.bracketState.rounds ?? {});
+  const rebuiltProgress = rebuildKnockoutProgressFromRounds({
+    ...data.bracketState,
+    rounds: sanitizedProgress.rounds,
+    eliminatedClubs: sanitizedProgress.eliminatedClubs,
+  });
   data.bracketState = {
     activeClubs: (data.bracketState.activeClubs ?? []).map(makeClubEntry),
-    eliminatedClubs: [...new Set([...(data.bracketState.eliminatedClubs ?? []), ...leagueEliminated])],
-    rounds: data.bracketState.rounds ?? {},
-    stageWinners: data.bracketState.stageWinners ?? {},
+    eliminatedClubs: [...new Set([...(rebuiltProgress.eliminatedClubs ?? []), ...leagueEliminated])],
+    rounds: sanitizedProgress.rounds ?? {},
+    stageWinners: rebuiltProgress.stageWinners ?? {},
     stageEntrants: data.bracketState.stageEntrants ?? {},
   };
+  syncCanonicalFixtures(data);
 
   const stageIndex = EURO_KO_STAGE_ORDER.indexOf(stage);
   const previousStage = EURO_PREVIOUS_STAGE[stage];
@@ -687,28 +1312,50 @@ export const ensureEuropeanCompetitionProgress = (compData, competition, season,
     const previousWeeks = getStageWeeks(competition, previousStage);
     const previousDeciderKey = `${previousStage}:${previousWeeks[previousWeeks.length - 1]}`;
     if (!data.bracketState.rounds?.[previousDeciderKey]) {
-      return data;
+      return syncCanonicalFixtures(data);
     }
   }
 
-  const roundKey = `${stage}:${seasonWeek}`;
-  if (data.bracketState.rounds?.[roundKey]) return data;
-
   const entrants = getStageEntrants(data, stage);
+  const entrantNames = new Set(entrants.map((club) => club.name));
+  const roundKey = `${stage}:${seasonWeek}`;
+  const existingRound = data.bracketState.rounds?.[roundKey];
+  if (existingRound) {
+    const expectedMatches = Math.max(1, Math.floor(entrants.length / 2));
+    const isExistingRoundValid = (existingRound.matches ?? []).every((match) =>
+      entrantNames.has(match.home) && entrantNames.has(match.away))
+      && (existingRound.matches ?? []).length >= expectedMatches;
+    if (isExistingRoundValid) return data;
+    data.bracketState.rounds = Object.fromEntries(
+      Object.entries(data.bracketState.rounds ?? {}).filter(([, round]) => round?.stage !== stage),
+    );
+    data.bracketState.stageWinners = Object.fromEntries(
+      Object.entries(data.bracketState.stageWinners ?? {}).filter(([key]) => key !== stage),
+    );
+  }
+
   data.bracketState.stageEntrants[stage] = entrants;
   data.bracketState.activeClubs = entrants;
   data.bracketClubs = entrants;
-  if (!entrants.length) return data;
+  if (!entrants.length) return syncCanonicalFixtures(data);
 
-  const pairs = stage === 'final'
-    ? getRoundPairs(sortEntrantsForStage(entrants, competition, season, stage))
-    : pairSeededRound(entrants, competition, season, stage);
   const leg = getStageWeeks(competition, stage).indexOf(seasonWeek) + 1;
   const isDecider = isEuropeanStageDecider(seasonWeek, competition, stage);
   const previousLegKey = `${stage}:${getStageWeeks(competition, stage)[0]}`;
   const previousMatches = data.bracketState.rounds?.[previousLegKey]?.matches ?? [];
+  const pairs = leg > 1 && previousMatches.length
+    ? previousMatches
+      .map((match) => [
+        makeClubEntry({ name: match.home, country: match.homeCountry }),
+        makeClubEntry({ name: match.away, country: match.awayCountry }),
+      ])
+      .filter(([home, away]) => home?.name && away?.name)
+    : stage === 'final'
+      ? getRoundPairs(sortEntrantsForStage(entrants, competition, season, stage))
+      : pairSeededRound(entrants, competition, season, stage);
   const previousByPair = previousMatches.reduce((index, match) => {
     index[`${match.home}|${match.away}`] = match;
+    index[`${match.away}|${match.home}`] = match;
     return index;
   }, {});
 
@@ -722,7 +1369,20 @@ export const ensureEuropeanCompetitionProgress = (compData, competition, season,
     const winner = !isDecider ? null : decideTwoLegWinner(home, away, homeAggregate, awayAggregate, competition, season, stage);
     const loser = !winner ? null : winner.name === home.name ? away : home;
     const decidedByPenalties = isDecider && homeAggregate === awayAggregate;
+    const fixtureId = makeEuropeanFixtureId({
+      competition,
+      season,
+      stage,
+      week: seasonWeek,
+      leg,
+      home: home.name,
+      away: away.name,
+    });
     return {
+      id: fixtureId,
+      fixtureId,
+      competition,
+      season,
       home: home.name,
       away: away.name,
       homeCountry: home.country,
@@ -745,6 +1405,7 @@ export const ensureEuropeanCompetitionProgress = (compData, competition, season,
     ...(data.bracketState.rounds ?? {}),
     [roundKey]: { stage, week: seasonWeek, leg, isDecider, matches },
   };
+  matches.forEach((match) => putCanonicalFixture(data, match));
   let nextActiveClubs = entrants;
   let nextEliminatedClubs = data.bracketState.eliminatedClubs ?? [];
 
@@ -755,7 +1416,7 @@ export const ensureEuropeanCompetitionProgress = (compData, competition, season,
     nextEliminatedClubs = [...new Set([...nextEliminatedClubs, ...losers])];
     data.bracketState.stageWinners = {
       ...(data.bracketState.stageWinners ?? {}),
-      [stage]: nextActiveClubs,
+      [stage]: uniqueClubEntries(nextActiveClubs),
     };
     if (stage === 'final') {
       data.winner = nextActiveClubs[0]?.name ?? null;
@@ -791,7 +1452,7 @@ export const ensureEuropeanCompetitionProgress = (compData, competition, season,
     });
   });
 
-  return data;
+  return syncCanonicalFixtures(data);
 };
 
 export const getEuropeanClubRoundMatch = (compData, clubName, competition, seasonWeek) => {
@@ -817,7 +1478,15 @@ export const getEuropeanClubRoundMatch = (compData, clubName, competition, seaso
     goalsAgainst,
     result: resolvedResult,
     score,
-    fixtureId: `euro_${competition}_${stage}_${seasonWeek}_${clubName}`,
+    fixtureId: match.fixtureId ?? match.id ?? makeEuropeanFixtureId({
+      competition,
+      season: compData?.season ?? 1,
+      stage,
+      week: seasonWeek,
+      leg: match.leg ?? 1,
+      home: match.home,
+      away: match.away,
+    }),
     stage,
     aggregate: match.aggregate,
     qualified,
@@ -872,7 +1541,7 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek, clubMatch
   const opponent = typeof rawOpponent === 'string'
     ? { name: rawOpponent, country: sharedContext.opponentCountry ?? null }
     : rawOpponent;
-  const engineScore = scoreFromUnifiedMatchEngine(player, competition, seasonWeek, opponent.name);
+  const engineScore = scoreFromUnifiedMatchEngine(player, competition, seasonWeek, opponent.name, sharedContext.seedSalt ?? '');
   const ownGoals = Number.isFinite(sharedContext.goalsFor)
     ? sharedContext.goalsFor
     : engineScore.ownGoals;
@@ -900,14 +1569,15 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek, clubMatch
     DEF: { goalChance: 0.04, assistChance: 0.09 },
     GK: { goalChance: 0.001, assistChance: 0.005 },
   }[player.position] ?? { goalChance: 0.1, assistChance: 0.1 };
+  const generationalBonus = player.superstarGenerational || (player.rating ?? 0) >= 198;
 
-  const goals = ownGoals > 0 && Math.random() < profile.goalChance + player.rating / 700
-    ? Math.min(ownGoals, rand(1, player.position === 'ATT' ? 3 : 1))
+  const goals = ownGoals > 0 && Math.random() < profile.goalChance + player.rating / 700 + (generationalBonus ? 0.18 : 0)
+    ? Math.min(ownGoals, rand(1, player.position === 'ATT' || generationalBonus ? 3 : 1))
     : 0;
-  const assists = ownGoals - goals > 0 && Math.random() < profile.assistChance ? 1 : 0;
+  const assists = ownGoals - goals > 0 && Math.random() < profile.assistChance + (generationalBonus ? 0.16 : 0) ? 1 : 0;
   const keyPasses = sharedContext.keyPasses ?? (
     player.position === 'ATT' || player.position === 'MIL'
-      ? rand(0, Math.max(0, minutes > 70 ? 5 : 3))
+      ? rand(generationalBonus ? 2 : 0, Math.max(generationalBonus ? 5 : 0, minutes > 70 ? 5 : 3) + (generationalBonus ? 2 : 0))
       : rand(0, 2)
   );
 
@@ -917,6 +1587,7 @@ export const simulateEuropeanMatch = (player, competition, seasonWeek, clubMatch
     + assists * 0.55
     + (result === 'win' ? 0.4 : result === 'loss' ? -0.35 : 0)
     + (minutes < 35 ? -0.4 : 0)
+    + (generationalBonus ? 0.45 : 0)
     + rand(-6, 7) / 10;
   const matchRating = Number(Math.min(10, Math.max(4.5, baseRating)).toFixed(1));
 
@@ -995,17 +1666,39 @@ export const getEuropeanMatchNews = (player, euroMatch) => {
 export const normalizeEuropeanMatch = (match = {}) => {
   const competition = match.competition ?? 'EL';
   const cup = EURO_CUP_LABELS[competition];
+  const stageLabel = {
+    league: 'Phase de ligue',
+    playoff: 'Barrages / play-off',
+    roundOf16: '1/8 de finale',
+    quarters: 'Quarts de finale',
+    semis: 'Demi-finales',
+    final: 'FINALE',
+  }[match.stage];
+  const rawPhase = match.phase ?? stageLabel ?? 'Phase européenne';
+  const goalsFor = Number(match.goalsFor);
+  const goalsAgainst = Number(match.goalsAgainst);
+  const hasGoals = Number.isFinite(goalsFor) && Number.isFinite(goalsAgainst);
+  const computedResult = hasGoals
+    ? (goalsFor > goalsAgainst ? 'win' : goalsFor < goalsAgainst ? 'loss' : 'draw')
+    : (match.result ?? null);
+  const rawScore = String(match.score ?? '0-0');
+  const normalizedScore = hasGoals
+    ? rawScore.replace(/^\s*\d+\s*-\s*\d+/, `${goalsFor}-${goalsAgainst}`)
+    : rawScore;
   return {
     ...match,
     playerName: match.playerName ?? 'Joueur',
     club: match.club ?? 'Club',
     competition,
     competitionLabel: match.competitionLabel ?? cup?.name ?? competition,
-    phase: match.phase ?? match.stage ?? 'Phase européenne',
     stage: match.stage ?? 'league',
+    phase: stageLabel && rawPhase === match.stage ? stageLabel : rawPhase,
     opponent: match.opponent ?? match.opponentName ?? null,
     opponentName: match.opponentName ?? match.opponent ?? null,
-    score: match.score ?? '0-0',
+    score: normalizedScore,
+    goalsFor: hasGoals ? goalsFor : match.goalsFor,
+    goalsAgainst: hasGoals ? goalsAgainst : match.goalsAgainst,
+    result: computedResult ?? match.result ?? 'draw',
     matchRating: Number.isFinite(match.matchRating) ? match.matchRating : null,
     matchReport: match.matchReport ?? `Note ${match.matchRating ?? '—'}/10 · ${match.goals ?? 0} but${(match.goals ?? 0) > 1 ? 's' : ''}${(match.assists ?? 0) ? ` · ${match.assists} passe${(match.assists ?? 0) > 1 ? 's' : ''}` : ''}${(match.keyPasses ?? 0) ? ` · ${match.keyPasses} passes clés` : ''}`,
   };

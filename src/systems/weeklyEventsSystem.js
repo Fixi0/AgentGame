@@ -62,10 +62,15 @@ const COHERENCE_THRESHOLDS = {
 export const calculateCoherenceScore = (player = {}) => {
   const reasons = [];
   let score = 0;
+  const generationalBonus = player.superstarGenerational || (player.rating ?? 0) >= 198;
 
   // Base: current rating (0-100 normalized to 0-200)
   const ratingScore = (player.rating ?? 0) * 2;
   score += ratingScore;
+  if (generationalBonus) {
+    score += 85;
+    reasons.push('Statut de superstar mondiale');
+  }
 
   // Season performance (if available)
   if (player.seasonStats?.averageRating) {
@@ -221,7 +226,7 @@ export const generateSeasonAwards = (roster = [], week = 38) => {
     .filter(
       (p) =>
         p.rating >= COHERENCE_THRESHOLDS.ballonDor.minRating &&
-        (p.seasonStats?.averageRating ?? 0) >= COHERENCE_THRESHOLDS.ballonDor.minSeasonAvg,
+        (p.seasonStats?.averageRating ?? 0) >= (p.superstarGenerational || (p.rating ?? 0) >= 198 ? 7.6 : COHERENCE_THRESHOLDS.ballonDor.minSeasonAvg),
     )
     .sort((a, b) => calculateCoherenceScore(b).score - calculateCoherenceScore(a).score)[0];
 

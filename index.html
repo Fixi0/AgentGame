@@ -70,6 +70,14 @@
           console.warn('[AgentFoot] indexedDB reset skipped', error);
         }
         try {
+          const sqlite = window.Capacitor?.Plugins?.CapacitorSQLite;
+          if (sqlite?.deleteDatabase) {
+            await sqlite.deleteDatabase({ database: 'agent_foot_mobile_db', readonly: false });
+          }
+        } catch (error) {
+          console.warn('[AgentFoot] sqlite reset skipped', error);
+        }
+        try {
           if ('caches' in window) {
             const keys = await caches.keys();
             await Promise.all(keys.map((cacheName) => caches.delete(cacheName)));

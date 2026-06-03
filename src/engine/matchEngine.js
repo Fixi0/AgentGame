@@ -13,13 +13,19 @@ const createSeededRandom = (seed) => {
 const attr = (player, key, fallback = 10) =>
   Number.isFinite(player?.attributes?.[key]?.current) ? player.attributes[key].current : fallback;
 
-const ratingOf = (player) => Number(player?.rating ?? 65);
+const isGenerationalSuperstar = (player) => Boolean(player?.superstarGenerational) || Number(player?.rating ?? 0) >= 198;
+
+const ratingOf = (player) => Number(player?.rating ?? 65) + (isGenerationalSuperstar(player) ? 10 : 0);
 
 const squadStrength = (players = []) => {
   if (!players.length) return 1.6;
   const avgRating = players.reduce((sum, player) => sum + ratingOf(player), 0) / players.length;
   const avgForm = players.reduce((sum, player) => sum + Number(player?.form ?? 60), 0) / players.length;
-  return clamp(avgRating / 30 + avgForm / 120, 1.2, 8.6);
+  const superstarImpact = players.reduce((sum, player) => {
+    if (isGenerationalSuperstar(player)) return sum + 0.75;
+    return sum + clamp((ratingOf(player) - 176) / 90, 0, 0.28);
+  }, 0);
+  return clamp(avgRating / 30 + avgForm / 120 + superstarImpact, 1.2, 9.6);
 };
 
 const pickWeighted = (entries, random, fallback = null) => {
@@ -48,7 +54,7 @@ const pickScorer = (players, random) =>
   pickWeighted(
     players.map((player) => ({
       value: player,
-      weight: classifyRoleWeight(player) * (ratingOf(player) / 100) * (0.7 + attr(player, 'shooting', 10) / 20),
+      weight: classifyRoleWeight(player) * (ratingOf(player) / 100) * (0.7 + attr(player, 'shooting', 10) / 20) * (isGenerationalSuperstar(player) ? 2.25 : 1),
     })),
     random,
     players[0] ?? null,
@@ -60,7 +66,7 @@ const pickAssist = (players, scorerId, random) => {
   return pickWeighted(
     pool.map((player) => ({
       value: player,
-      weight: (0.8 + attr(player, 'passing', 10) / 20) * (classifyRoleWeight(player) >= 1.3 ? 1.2 : 1),
+      weight: (0.8 + attr(player, 'passing', 10) / 20) * (classifyRoleWeight(player) >= 1.3 ? 1.2 : 1) * (isGenerationalSuperstar(player) ? 1.85 : 1),
     })),
     random,
     pool[0] ?? null,
@@ -95,6 +101,7 @@ export const simulateMatch = ({
 
   for (let minute = 1; minute <= 90; minute += 3) {
     state.minute = minute;
+    const goalDiff = state.score.home - state.score.away;
     const homePossessionEdge = 0.5 + (homeStrength - awayStrength) * 0.05 + state.momentum.home * 0.012 + 0.04;
     const attackingSide = random() < clamp(homePossessionEdge, 0.28, 0.72) ? 'home' : 'away';
     const defendingSide = attackingSide === 'home' ? 'away' : 'home';
@@ -102,9 +109,12 @@ export const simulateMatch = ({
     const defenseStrength = defendingSide === 'home' ? homeStrength : awayStrength;
     const staminaFactor = clamp(state.stamina[attackingSide] / 100, 0.72, 1);
     const moraleFactor = clamp(state.morale[attackingSide] / 70, 0.75, 1.25);
-    const momentumFactor = 1 + state.momentum[attackingSide] * 0.04;
+    const isLeaderAttacking = (attackingSide === 'home' && goalDiff >= 2) || (attackingSide === 'away' && goalDiff <= -2);
+    const isTrailingAttacking = (attackingSide === 'home' && goalDiff <= -2) || (attackingSide === 'away' && goalDiff >= 2);
+    const gameStateFactor = isLeaderAttacking ? 0.46 : isTrailingAttacking ? 1.52 : 1;
+    const momentumFactor = (1 + state.momentum[attackingSide] * 0.025) * gameStateFactor;
 
-    const chanceProb = clamp(0.175 + (attackStrength - defenseStrength) * 0.036, 0.095, 0.36) * staminaFactor * moraleFactor;
+    const chanceProb = clamp(0.235 + (attackStrength - defenseStrength) * 0.012, 0.155, 0.37) * staminaFactor * moraleFactor * gameStateFactor;
     if (random() < chanceProb) {
       stats[attackingSide].chances += 1;
       const shotProb = clamp(0.67 + state.momentum[attackingSide] * 0.05, 0.48, 0.9);
@@ -112,16 +122,16 @@ export const simulateMatch = ({
         stats[attackingSide].shots += 1;
         const pressure = clamp(1 - state.momentum[attackingSide] * 0.08 + state.momentum[defendingSide] * 0.05, 0.7, 1.2);
         const angle = clamp(0.68 + random() * 0.5, 0.45, 1.1);
-        const shotQuality = clamp(0.22 + (attackStrength - defenseStrength) * 0.024 + random() * 0.36, 0.1, 0.78);
+        const shotQuality = clamp(0.23 + (attackStrength - defenseStrength) * 0.012 + random() * 0.42, 0.09, 0.72);
         const xg = clamp(shotQuality * angle / pressure, 0.06, 0.82);
         stats[attackingSide].xg = Number((stats[attackingSide].xg + xg).toFixed(2));
 
         const teamPlayers = attackingSide === 'home' ? homePlayers : awayPlayers;
         const scorer = pickScorer(teamPlayers, random);
-        const finishing = scorer ? clamp((attr(scorer, 'shooting', 10) + ratingOf(scorer) / 10) / 20, 0.65, 1.32) : 0.95;
+        const finishing = scorer ? clamp((attr(scorer, 'shooting', 10) + ratingOf(scorer) / 10) / 20, 0.65, isGenerationalSuperstar(scorer) ? 1.55 : 1.32) : 0.95;
         const onTargetProb = clamp(0.45 + finishing * 0.25, 0.36, 0.83);
         if (random() < onTargetProb) stats[attackingSide].shotsOnTarget += 1;
-        const goalProb = clamp(xg * finishing * momentumFactor * 1.12, 0.04, 0.88);
+        const goalProb = clamp(xg * finishing * momentumFactor * 1.12, 0.05, 0.78);
 
         if (random() < goalProb) {
           state.score[attackingSide] += 1;

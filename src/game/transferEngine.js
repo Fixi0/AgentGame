@@ -1,5 +1,6 @@
 import { CLUBS } from '../data/clubs';
 import { clamp } from '../utils/helpers';
+import { getClubId } from '../systems/identitySystem';
 
 export const buildTransferAgreement = (player, offer, negotiatedOutcome = null) => {
   const maxPrice = Math.max(1000, Math.floor(Math.max(player?.value ?? 0, offer?.price ?? 0) * 4));
@@ -50,9 +51,10 @@ export const buildTransferAgreement = (player, offer, negotiatedOutcome = null) 
 };
 
 export const applyCompletedTransferToPlayer = (player, offer, agreement, week) => {
-  const targetClub = CLUBS.find((club) => club.name === offer.club);
+  const targetClub = CLUBS.find((club) => club.id === offer.clubId) ?? CLUBS.find((club) => club.name === offer.club);
   return {
     ...player,
+    clubId: offer.clubId ?? getClubId(offer.club),
     club: offer.club,
     clubTier: offer.clubTier,
     clubCountry: offer.clubCountry,

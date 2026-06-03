@@ -6,6 +6,7 @@ import { applyLeagueReputation } from './leagueReputationSystem';
 import { createNarrativeArc, mergeNarrativeArc } from './consequenceSystem';
 import { hasDossierEventThisWeek, hasRecentDossierEvent, recordDossierEvent } from './coherenceSystem';
 import { getMediaCrisisCooldownWeeks, hasOpenMediaPressure } from './dossierSystem';
+import { getClubId } from './identitySystem';
 import { clamp, makeId, pick } from '../utils/helpers';
 
 const mediaAccounts = [
@@ -327,6 +328,7 @@ export const generateLivingWeek = ({ state, roster, phase }) => {
 
     dossierMemory = recordDossierEvent(dossierMemory, {
       playerId: player.id,
+      clubId: getClubId(club.name),
       clubName: club.name,
       mediaId: media.id,
       week: state.week + 1,

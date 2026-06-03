@@ -1,3 +1,10 @@
+import {
+  getClubId,
+  getFixtureIdentity,
+  withCalendarMatchIdentity,
+  withPlayerMatchIdentity,
+} from './identitySystem';
+
 const normalizeText = (value = '') => String(value ?? '').trim().replace(/\s+/g, '_').toLowerCase();
 
 export const MATCH_STATUS = {
@@ -6,113 +13,123 @@ export const MATCH_STATUS = {
   POSTPONED: 'postponed',
 };
 
-export const makeCalendarMatchId = ({ week, day = 6, competition = 'LEAGUE', homeClub, awayClub, fixtureId, playerId }) => {
+export const makeCalendarMatchId = ({ week, day = 6, competition = 'LEAGUE', homeClub, awayClub, fixtureId }) => {
   if (fixtureId) return String(fixtureId);
-  return [
-    'match',
-    week ?? 1,
+  return getFixtureIdentity({
+    week: week ?? 1,
     day,
     competition,
-    normalizeText(homeClub?.name ?? homeClub),
-    normalizeText(awayClub?.name ?? awayClub),
-    playerId ? normalizeText(playerId) : null,
-  ].filter(Boolean).join('_');
+    homeClub,
+    awayClub,
+    fixtureId,
+    matchId: null,
+    season: Math.floor(((week ?? 1) - 1) / 38) + 1,
+  });
 };
 
-export const fixtureToCalendarMatch = (fixture = {}, { week = fixture.week, day = 6, status = MATCH_STATUS.SCHEDULED } = {}) => ({
-  id: makeCalendarMatchId({
+export const fixtureToCalendarMatch = (fixture = {}, { week = fixture.week, day = 6, status = MATCH_STATUS.SCHEDULED } = {}) => withCalendarMatchIdentity({
+    id: makeCalendarMatchId({
+      week,
+      day,
+      competition: fixture.competition ?? 'LEAGUE',
+      homeClub: fixture.homeClub,
+      awayClub: fixture.awayClub,
+      fixtureId: fixture.fixtureId,
+    }),
+    fixtureId: fixture.fixtureId,
     week,
     day,
+    season: fixture.season,
+    seasonWeek: fixture.seasonWeek,
     competition: fixture.competition ?? 'LEAGUE',
+    competitionLabel: fixture.competitionLabel ?? 'Championnat',
+    status,
+    homeClubId: fixture.homeClubId ?? getClubId(fixture.homeClub),
+    awayClubId: fixture.awayClubId ?? getClubId(fixture.awayClub),
     homeClub: fixture.homeClub,
     awayClub: fixture.awayClub,
-    fixtureId: fixture.fixtureId,
-  }),
-  fixtureId: fixture.fixtureId,
-  week,
-  day,
-  season: fixture.season,
-  seasonWeek: fixture.seasonWeek,
-  competition: fixture.competition ?? 'LEAGUE',
-  competitionLabel: fixture.competitionLabel ?? 'Championnat',
-  status,
-  homeClub: fixture.homeClub,
-  awayClub: fixture.awayClub,
-  countryCode: fixture.countryCode ?? fixture.homeClub?.countryCode,
-  fixture,
-  result: status === MATCH_STATUS.PLAYED ? {
-    homeGoals: fixture.homeGoals,
-    awayGoals: fixture.awayGoals,
-    score: `${fixture.homeGoals ?? 0}-${fixture.awayGoals ?? 0}`,
-    homeStats: fixture.simulation?.stats?.home ?? {
-      xg: fixture.homeXg,
-      shots: fixture.homeShots,
-      shotsOnTarget: fixture.homeShotsOnTarget,
-      chances: fixture.homeChances,
-    },
-    awayStats: fixture.simulation?.stats?.away ?? {
-      xg: fixture.awayXg,
-      shots: fixture.awayShots,
-      shotsOnTarget: fixture.awayShotsOnTarget,
-      chances: fixture.awayChances,
-    },
-  } : null,
-});
+    countryCode: fixture.countryCode ?? fixture.homeClub?.countryCode,
+    fixture,
+    result: status === MATCH_STATUS.PLAYED ? {
+      homeGoals: fixture.homeGoals,
+      awayGoals: fixture.awayGoals,
+      score: `${fixture.homeGoals ?? 0}-${fixture.awayGoals ?? 0}`,
+      homeStats: fixture.simulation?.stats?.home ?? {
+        xg: fixture.homeXg,
+        shots: fixture.homeShots,
+        shotsOnTarget: fixture.homeShotsOnTarget,
+        chances: fixture.homeChances,
+      },
+      awayStats: fixture.simulation?.stats?.away ?? {
+        xg: fixture.awayXg,
+        shots: fixture.awayShots,
+        shotsOnTarget: fixture.awayShotsOnTarget,
+        chances: fixture.awayChances,
+      },
+    } : null,
+  });
 
-export const europeanMatchToCalendarMatch = (match = {}, { week, day = match.simulatedDay ?? 2, status = MATCH_STATUS.PLAYED } = {}) => ({
-  id: makeCalendarMatchId({
+export const europeanMatchToCalendarMatch = (match = {}, { week, day = match.simulatedDay ?? 2, status = MATCH_STATUS.PLAYED } = {}) => withCalendarMatchIdentity({
+    id: makeCalendarMatchId({
+      week,
+      day,
+      competition: match.competition ?? 'EUROPE',
+      homeClub: match.clubId ?? match.club,
+      awayClub: match.opponentClubId ?? match.opponent,
+      fixtureId: match.fixtureId,
+    }),
+    fixtureId: match.fixtureId,
     week,
     day,
     competition: match.competition ?? 'EUROPE',
-    homeClub: match.club,
-    awayClub: match.opponent,
-    fixtureId: match.fixtureId,
+    competitionLabel: match.competitionLabel ?? 'Europe',
+    status,
+    homeClubId: match.clubId ?? getClubId(match.club),
+    awayClubId: match.opponentClubId ?? getClubId(match.opponent ?? match.opponentName),
+    homeClub: { id: match.clubId ?? getClubId(match.club), name: match.club, countryCode: match.clubCountryCode, city: match.clubCity },
+    awayClub: { id: match.opponentClubId ?? getClubId(match.opponent ?? match.opponentName), name: match.opponent ?? match.opponentName, country: match.opponentCountry },
+    countryCode: '__EUROPE__',
+    result: status === MATCH_STATUS.PLAYED ? {
+      score: match.score,
+      result: match.result,
+      playerResults: [withPlayerMatchIdentity(match)],
+    } : null,
+  });
+
+export const playerMatchToResultRecord = (match = {}, { week, day = 6, source = 'league' } = {}) => {
+  const identified = withPlayerMatchIdentity({ ...match, week: week ?? match.week, day: day ?? match.simulatedDay });
+  return {
+    id: `${source}_${week ?? match.week ?? 1}_${day}_${match.playerId ?? normalizeText(match.playerName)}_${identified.fixtureId}`,
+    fixtureId: identified.fixtureId,
+    matchId: identified.matchId,
     playerId: match.playerId,
-  }),
-  fixtureId: match.fixtureId,
-  week,
-  day,
-  competition: match.competition ?? 'EUROPE',
-  competitionLabel: match.competitionLabel ?? 'Europe',
-  status,
-  homeClub: { name: match.club, countryCode: match.clubCountryCode, city: match.clubCity },
-  awayClub: { name: match.opponent ?? match.opponentName, country: match.opponentCountry },
-  countryCode: '__EUROPE__',
-  result: status === MATCH_STATUS.PLAYED ? {
+    playerName: match.playerName,
+    week: week ?? match.week,
+    day: day ?? match.simulatedDay,
+    competition: match.competition ?? (source === 'europe' ? 'EUROPE' : 'LEAGUE'),
+    competitionLabel: match.competitionLabel ?? (source === 'europe' ? 'Europe' : 'Championnat'),
+    source,
+    clubId: identified.clubId,
+    opponentClubId: identified.opponentClubId,
+    club: identified.club,
+    opponent: identified.opponent ?? identified.opponentName,
     score: match.score,
     result: match.result,
-    playerResults: [match],
-  } : null,
-});
-
-export const playerMatchToResultRecord = (match = {}, { week, day = 6, source = 'league' } = {}) => ({
-  id: `${source}_${week ?? match.week ?? 1}_${day}_${match.playerId ?? normalizeText(match.playerName)}_${normalizeText(match.club)}_${normalizeText(match.opponent)}`,
-  fixtureId: match.fixtureId,
-  playerId: match.playerId,
-  playerName: match.playerName,
-  week: week ?? match.week,
-  day: day ?? match.simulatedDay,
-  competition: match.competition ?? (source === 'europe' ? 'EUROPE' : 'LEAGUE'),
-  competitionLabel: match.competitionLabel ?? (source === 'europe' ? 'Europe' : 'Championnat'),
-  source,
-  club: match.club,
-  opponent: match.opponent ?? match.opponentName,
-  score: match.score,
-  result: match.result,
-  stats: {
-    minutes: match.minutes,
-    goals: match.goals ?? 0,
-    assists: match.assists ?? 0,
-    matchRating: match.matchRating,
-    keyPasses: match.keyPasses ?? 0,
-    saves: match.saves ?? 0,
-    tackles: match.tackles ?? 0,
-    xg: match.xg,
-    teamAverageRating: match.teamAverageRating,
-  },
-  fixtureStats: match.fixtureStats,
-  raw: match,
-});
+    stats: {
+      minutes: match.minutes,
+      goals: match.goals ?? 0,
+      assists: match.assists ?? 0,
+      matchRating: match.matchRating,
+      keyPasses: match.keyPasses ?? 0,
+      saves: match.saves ?? 0,
+      tackles: match.tackles ?? 0,
+      xg: match.xg,
+      teamAverageRating: match.teamAverageRating,
+    },
+    fixtureStats: match.fixtureStats,
+    raw: identified,
+  };
+};
 
 const upsertById = (items = [], incoming = []) => {
   const map = new Map((Array.isArray(items) ? items : []).filter(Boolean).map((item) => [item.id, item]));

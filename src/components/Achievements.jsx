@@ -1,312 +1,228 @@
-import React, { useMemo, useState } from 'react';
-import { Award, CheckCircle2, Coins, Crown, Filter, Gem, Hourglass, Lock, ShieldCheck, ShoppingBag, Sparkles, TrendingUp, UserPlus } from 'lucide-react';
-import { ACHIEVEMENT_CATEGORY_LABELS, ACHIEVEMENT_CATEGORY_ORDER, TOTAL_ACHIEVEMENTS } from '../systems/objectivesSystem';
-import { formatMoney } from '../utils/format';
-import { assetPath } from '../utils/assets';
+import React, { useMemo } from 'react';
+import { CheckCircle2, Lock, Sparkles } from 'lucide-react';
+import { formatMoneyCompact } from '../utils/format';
 import { S } from './styles';
-import achievementsHero from '../assets/events/achievements-hero.jpg';
-import achRecruitment from '../assets/events/ach-recruitment.jpg';
-import achTransfers from '../assets/events/ach-transfers.jpg';
-import achFinance from '../assets/events/ach-finance.jpg';
-import achReputation from '../assets/events/ach-reputation.jpg';
-import achLongevity from '../assets/events/ach-longevity.jpg';
-import achPremium from '../assets/events/ach-premium.jpg';
-import achPrestige from '../assets/events/ach-prestige.jpg';
 
-const CATEGORY_STYLE = {
-  recruitment: { border: 'oklch(35% 0.12 245 / .55)', bg: 'oklch(28% 0.12 245 / .35)', accent: '#60a5fa' },
-  transfers:   { border: 'oklch(35% 0.10 158 / .55)', bg: 'oklch(28% 0.10 158 / .35)', accent: '#34d399' },
-  finance:     { border: 'oklch(35% 0.10 158 / .55)', bg: 'oklch(26% 0.10 158 / .35)', accent: '#10b981' },
-  reputation:  { border: 'oklch(35% 0.14 290 / .55)', bg: 'oklch(28% 0.14 290 / .30)', accent: '#a78bfa' },
-  longevity:   { border: 'oklch(35% 0.12 50  / .55)', bg: 'oklch(28% 0.12 50  / .30)', accent: '#fb923c' },
-  premium:     { border: 'oklch(35% 0.12 80  / .55)', bg: 'oklch(28% 0.12 80  / .30)', accent: '#facc15' },
-  prestige:    { border: 'oklch(35% 0.14 350 / .55)', bg: 'oklch(28% 0.14 350 / .30)', accent: '#f472b6' },
-  default:     { border: 'var(--af-border)', bg: 'var(--af-surface-soft)', accent: '#94a3b8' },
-};
+import leagueEngland from '../assets/badges/league_england.png';
+import leagueFrance from '../assets/badges/league_france.png';
+import leagueSpain from '../assets/badges/league_spain.png';
+import leagueItaly from '../assets/badges/league_italy.png';
+import leagueGermany from '../assets/badges/league_germany.png';
+import worldCup from '../assets/badges/world_cup.png';
+import championsLeague from '../assets/badges/champions_league.png';
+import europaLeague from '../assets/badges/europa_league.png';
+import conferenceLeague from '../assets/badges/conference_league.png';
+import ballonDor from '../assets/badges/ballon_dor.png';
+import agencyMillion from '../assets/badges/agency_million.png';
+import limitedEvent from '../assets/badges/limited_event.png';
 
-const CATEGORY_BANNER = {
-  recruitment: achRecruitment,
-  transfers: achTransfers,
-  finance: achFinance,
-  reputation: achReputation,
-  longevity: achLongevity,
-  premium: achPremium,
-  prestige: achPrestige,
-};
+const badge = (id, data) => ({ id, gameCenterRewardId: `agentfc_badge_${id}`, ...data });
 
-const CATEGORY_ICON = {
-  recruitment: UserPlus,
-  transfers: TrendingUp,
-  finance: Coins,
-  reputation: ShieldCheck,
-  longevity: Hourglass,
-  premium: ShoppingBag,
-  prestige: Crown,
-};
-
-const REP_TIER_ASSETS = [
-  assetPath('tycoon-assets/badge_local.png'),
-  assetPath('tycoon-assets/badge_national.png'),
-  assetPath('tycoon-assets/badge_international.png'),
-  assetPath('tycoon-assets/badge_elite.png'),
-  assetPath('tycoon-assets/badge_legende.png'),
+export const BADGE_CATALOG = [
+  badge('league_england', { title: 'Championnat anglais', group: 'Championnats', asset: leagueEngland, desc: "Un joueur de l'agence remporte le championnat anglais." }),
+  badge('league_france', { title: 'Championnat français', group: 'Championnats', asset: leagueFrance, desc: "Un joueur de l'agence remporte le championnat français." }),
+  badge('league_spain', { title: 'Championnat espagnol', group: 'Championnats', asset: leagueSpain, desc: "Un joueur de l'agence remporte le championnat espagnol." }),
+  badge('league_italy', { title: 'Championnat italien', group: 'Championnats', asset: leagueItaly, desc: "Un joueur de l'agence remporte le championnat italien." }),
+  badge('league_germany', { title: 'Championnat allemand', group: 'Championnats', asset: leagueGermany, desc: "Un joueur de l'agence remporte le championnat allemand." }),
+  badge('world_cup', { title: 'Coupe du Monde', group: 'International', asset: worldCup, desc: "Un joueur de l'agence devient champion du monde." }),
+  badge('champions_league', { title: 'Ligue des Champions', group: 'Europe', asset: championsLeague, desc: "Un joueur de l'agence remporte la Ligue des Champions." }),
+  badge('europa_league', { title: 'Europa League', group: 'Europe', asset: europaLeague, desc: "Un joueur de l'agence remporte l'Europa League." }),
+  badge('conference_league', { title: 'Conference League', group: 'Europe', asset: conferenceLeague, desc: "Un joueur de l'agence remporte la Conference League." }),
+  badge('ballon_dor', { title: "Ballon d'or", group: 'Individuel', asset: ballonDor, desc: "Un joueur de l'agence remporte le Ballon d'or." }),
+  badge('agency_million', { title: 'Agence millionnaire', group: 'Agence', asset: agencyMillion, desc: "L'agence atteint 1 million d'euros." }),
+  badge('limited_event', { title: 'Badge limité', group: 'Durée limitée', asset: limitedEvent, desc: 'Événement spécial à venir pendant la saison.', limited: true }),
 ];
 
-const FILTERS = [
-  { id: 'all', label: 'Tous' },
-  { id: 'locked', label: 'À débloquer' },
-  { id: 'unlocked', label: 'Débloqués' },
-];
+const fullName = (player = {}) => `${player.firstName ?? ''} ${player.lastName ?? ''}`.trim();
 
-const pct = (current, target) => Math.max(0, Math.min(100, Math.round(((current ?? 0) / Math.max(1, target ?? 1)) * 100)));
+const getSavedBadgeMap = (state = {}) =>
+  new Map((Array.isArray(state.badges) ? state.badges : []).filter(Boolean).map((badge) => [badge.id, badge]));
+
+const deriveLegacyUnlocks = (state = {}) => {
+  const map = new Map();
+  const roster = state.roster ?? [];
+  const rosterIds = new Set(roster.map((player) => player.id));
+
+  if ((state.money ?? 0) >= 1_000_000 || (state.stats?.totalEarned ?? 0) >= 1_000_000) {
+    map.set('agency_million', {
+      id: 'agency_million',
+      detail: "L'agence a déjà atteint le million d'euros.",
+    });
+  }
+
+  (state.seasonTrophies ?? []).forEach((season) => {
+    if (season.ballonDor?.playerId && rosterIds.has(season.ballonDor.playerId)) {
+      map.set('ballon_dor', {
+        id: 'ballon_dor',
+        playerName: season.ballonDor.name,
+        club: season.ballonDor.club,
+        season: season.season,
+        detail: `${season.ballonDor.name} a remporté le Ballon d'or.`,
+      });
+    }
+  });
+
+  roster.forEach((player) => {
+    const name = fullName(player);
+    (player.matchHistory ?? []).forEach((match) => {
+      if (match.competition === 'CL' && match.result === 'win' && (match.stage === 'final' || match.isFinal)) {
+        map.set('champions_league', { id: 'champions_league', playerName: name, club: player.club, detail: `${name} a gagné une finale de Ligue des Champions.` });
+      }
+      if (match.competition === 'EL' && match.result === 'win' && (match.stage === 'final' || match.isFinal)) {
+        map.set('europa_league', { id: 'europa_league', playerName: name, club: player.club, detail: `${name} a gagné une finale d'Europa League.` });
+      }
+      if (match.competition === 'ECL' && match.result === 'win' && (match.stage === 'final' || match.isFinal)) {
+        map.set('conference_league', { id: 'conference_league', playerName: name, club: player.club, detail: `${name} a gagné une finale de Conference League.` });
+      }
+      if (match.isChampion || /champion/i.test(String(match.label ?? match.phase ?? ''))) {
+        map.set('world_cup', { id: 'world_cup', playerName: name, detail: `${name} est devenu champion du monde.` });
+      }
+    });
+  });
+
+  (state.worldCupState?.selectedPlayers ?? []).forEach((entry) => {
+    if (entry?.champion && rosterIds.has(entry.playerId)) {
+      const player = roster.find((item) => item.id === entry.playerId);
+      map.set('world_cup', {
+        id: 'world_cup',
+        playerName: player ? fullName(player) : entry.playerName,
+        detail: `${player ? fullName(player) : entry.playerName ?? 'Un joueur'} est devenu champion du monde.`,
+      });
+    }
+  });
+
+  return map;
+};
+
+function BadgeCard({ badge, unlocked }) {
+  const detail = unlocked?.detail || badge.desc;
+  return (
+    <article
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        borderRadius: 22,
+        padding: 14,
+        minHeight: 188,
+        border: unlocked
+          ? '1px solid oklch(78% 0.18 295 / .48)'
+          : '1px solid oklch(45% 0.03 265 / .22)',
+        background: unlocked
+          ? 'linear-gradient(145deg, oklch(20% 0.08 260 / .78), oklch(13% 0.04 265 / .86))'
+          : 'linear-gradient(145deg, oklch(15% 0.035 260 / .70), oklch(9% 0.02 265 / .82))',
+        boxShadow: unlocked
+          ? '0 22px 50px oklch(58% 0.22 295 / .20), inset 0 1px 0 rgba(255,255,255,.10)'
+          : 'inset 0 1px 0 rgba(255,255,255,.05)',
+        opacity: unlocked || badge.limited ? 1 : 0.58,
+      }}
+    >
+      <div style={{
+        position: 'absolute',
+        inset: '-35% -20% auto auto',
+        width: 140,
+        height: 140,
+        borderRadius: 999,
+        background: unlocked ? 'oklch(72% 0.20 295 / .22)' : 'rgba(255,255,255,.04)',
+        filter: 'blur(34px)',
+      }} />
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <span style={{ fontSize: 9, letterSpacing: '.18em', textTransform: 'uppercase', color: unlocked ? 'oklch(78% 0.18 295)' : 'var(--af-muted)', fontWeight: 900 }}>
+          {badge.group}
+        </span>
+        <span style={{
+          width: 27,
+          height: 27,
+          borderRadius: 999,
+          display: 'grid',
+          placeItems: 'center',
+          background: unlocked ? 'oklch(72% 0.20 295 / .20)' : 'rgba(255,255,255,.05)',
+          color: unlocked ? 'oklch(78% 0.18 295)' : 'var(--af-muted)',
+          border: '1px solid rgba(255,255,255,.10)',
+        }}>
+          {unlocked ? <CheckCircle2 size={15} /> : <Lock size={14} />}
+        </span>
+      </div>
+
+      <div style={{ position: 'relative', display: 'grid', placeItems: 'center', margin: '8px 0 7px' }}>
+        <img
+          src={badge.asset}
+          alt={badge.title}
+          style={{
+            width: 94,
+            height: 94,
+            objectFit: 'contain',
+            filter: unlocked ? 'drop-shadow(0 0 18px rgba(180,120,255,.38))' : 'grayscale(1) saturate(.35) brightness(.62)',
+            transform: unlocked ? 'scale(1)' : 'scale(.94)',
+            transition: 'filter .25s ease, transform .25s ease',
+          }}
+        />
+      </div>
+
+      <div style={{ position: 'relative', fontSize: 14, fontWeight: 950, color: 'var(--af-text)', lineHeight: 1.05 }}>
+        {badge.title}
+      </div>
+      <div style={{ position: 'relative', marginTop: 7, color: unlocked ? 'var(--af-muted)' : 'var(--af-dim)', fontSize: 11.5, lineHeight: 1.35 }}>
+        {detail}
+      </div>
+      {unlocked?.playerName && (
+        <div style={{ position: 'relative', marginTop: 9, color: 'oklch(78% 0.18 295)', fontSize: 10, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+          {unlocked.playerName}
+        </div>
+      )}
+    </article>
+  );
+}
 
 export default function Achievements({ state }) {
-  const [category, setCategory] = useState('all');
-  const [status, setStatus] = useState('all');
-
-  const achievements = useMemo(() => {
-    const rows = Array.isArray(state?.achievements) ? state.achievements : [];
-    return [...rows].sort((a, b) => {
-      const categoryRankA = ACHIEVEMENT_CATEGORY_ORDER.indexOf(a.category);
-      const categoryRankB = ACHIEVEMENT_CATEGORY_ORDER.indexOf(b.category);
-      if (categoryRankA !== categoryRankB) return (categoryRankA === -1 ? 99 : categoryRankA) - (categoryRankB === -1 ? 99 : categoryRankB);
-      if (Boolean(a.unlocked) !== Boolean(b.unlocked)) return a.unlocked ? 1 : -1;
-      return (a.target ?? 0) - (b.target ?? 0);
-    });
-  }, [state?.achievements]);
-
-  const categoryOptions = useMemo(() => {
-    const existing = new Set(achievements.map((item) => item.category).filter(Boolean));
-    return ['all', ...ACHIEVEMENT_CATEGORY_ORDER.filter((key) => existing.has(key))];
-  }, [achievements]);
-
-  const filtered = useMemo(() => achievements.filter((item) => {
-    if (category !== 'all' && item.category !== category) return false;
-    if (status === 'locked' && item.unlocked) return false;
-    if (status === 'unlocked' && !item.unlocked) return false;
-    return true;
-  }), [achievements, category, status]);
-
-  const unlocked = achievements.filter((item) => item.unlocked).length;
-  const completion = achievements.length ? Math.round((unlocked / achievements.length) * 100) : 0;
-  const totalGems = achievements.filter((item) => item.unlocked).reduce((sum, item) => sum + (item.reward?.gems ?? 0), 0);
-  const totalMoney = achievements.filter((item) => item.unlocked).reduce((sum, item) => sum + (item.reward?.money ?? 0), 0);
+  const savedBadges = useMemo(() => getSavedBadgeMap(state), [state]);
+  const legacyBadges = useMemo(() => deriveLegacyUnlocks(state), [state]);
+  const unlockedMap = useMemo(() => new Map([...legacyBadges, ...savedBadges]), [legacyBadges, savedBadges]);
+  const unlockedCount = BADGE_CATALOG.filter((badge) => unlockedMap.has(badge.id)).length;
 
   return (
     <div style={S.vp}>
       <div style={S.et}>
-        <div style={S.el}>SUCCÈS</div>
-        <h1 style={S.eh}>Hall des exploits</h1>
+        <div style={S.el}>COLLECTION</div>
+        <h1 style={S.eh}>Badges</h1>
+        <p style={S.ep}>
+          Une collection visuelle liée uniquement aux vrais accomplissements de tes joueurs et de ton agence.
+        </p>
       </div>
 
-      <div style={{
-        borderRadius: 10,
-        border: '1px solid var(--af-border)',
-        padding: 16,
-        marginBottom: 14,
-        backgroundImage: `linear-gradient(135deg,rgba(7,15,28,.78),rgba(20,35,57,.62)), url(${achievementsHero})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        boxShadow: '0 18px 38px rgba(0,0,0,.45)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+      <section
+        className="af-panel"
+        style={{
+          padding: 16,
+          marginBottom: 14,
+          borderRadius: 24,
+          background: 'linear-gradient(135deg, oklch(22% 0.10 260 / .78), oklch(12% 0.04 265 / .88))',
+          boxShadow: '0 24px 70px oklch(60% 0.22 295 / .16), inset 0 1px 0 rgba(255,255,255,.08)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 10, letterSpacing: '.16em', color: 'rgba(255,255,255,.8)', fontFamily: 'system-ui,sans-serif', fontWeight: 900 }}>
-              COLLECTION TYCOON
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, letterSpacing: '.16em', textTransform: 'uppercase', color: 'oklch(78% 0.18 295)', fontWeight: 950 }}>
+              <Sparkles size={14} />
+              Coffre agence
             </div>
-            <div style={{ marginTop: 4, fontSize: 20, color: '#ffffff', fontWeight: 950, lineHeight: 1.1 }}>
-              {unlocked}/{achievements.length || TOTAL_ACHIEVEMENTS} débloqués
+            <div style={{ marginTop: 7, fontSize: 28, fontWeight: 950, color: 'var(--af-text)', lineHeight: 1 }}>
+              {unlockedCount}/{BADGE_CATALOG.length}
             </div>
-          </div>
-          <img src={assetPath('tycoon-assets/badge_legende.png')} alt="Badge légende" style={{ width: 56, height: 56, objectFit: 'contain' }} />
-        </div>
-
-        <div style={{ ...S.progBar, height: 7, background: 'rgba(255,255,255,.2)', marginBottom: 8 }}>
-          <div style={{ ...S.progFill, width: `${completion}%`, background: 'linear-gradient(90deg,#22c55e,#facc15)', height: 7 }} />
-        </div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.83)', fontFamily: 'system-ui,sans-serif', marginBottom: 10 }}>
-          Progression globale: {completion}%
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 8 }}>
-          <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.08)', padding: '8px 10px' }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.74)', letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', fontWeight: 800, marginBottom: 2 }}>RÉPUTATION</div>
-            <div style={{ fontSize: 13, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <img src={assetPath('tycoon-assets/reputation_shield.png')} alt="Réputation" style={{ width: 16, height: 16, objectFit: 'contain' }} />
-              {(state?.reputation ?? 0)}/1000
+            <div style={{ marginTop: 5, color: 'var(--af-muted)', fontSize: 12 }}>
+              Capital actuel : {formatMoneyCompact(state?.money ?? 0)}
             </div>
           </div>
-          <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.08)', padding: '8px 10px' }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.74)', letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', fontWeight: 800, marginBottom: 2 }}>GAINS SUCCÈS</div>
-            <div style={{ fontSize: 13, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Coins size={12} />
-              {formatMoney(totalMoney)}
-            </div>
-          </div>
-          <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,.16)', background: 'rgba(255,255,255,.08)', padding: '8px 10px' }}>
-            <div style={{ fontSize: 9, color: 'rgba(255,255,255,.74)', letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', fontWeight: 800, marginBottom: 2 }}>GEMMES GAGNÉES</div>
-            <div style={{ fontSize: 13, color: '#ffffff', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Gem size={12} />
-              {totalGems}
-            </div>
-          </div>
+          <img src={agencyMillion} alt="" style={{ width: 74, height: 74, objectFit: 'contain', filter: 'drop-shadow(0 0 22px rgba(255,190,40,.34))' }} />
         </div>
-
-        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-          {REP_TIER_ASSETS.map((asset, index) => (
-            <img
-              key={asset}
-              src={asset}
-              alt={`Palier ${index + 1}`}
-              style={{ width: 24, height: 24, objectFit: 'contain', opacity: (state?.reputation ?? 0) >= (index + 1) * 200 ? 1 : 0.45 }}
-            />
-          ))}
+        <div style={{ ...S.progBar, height: 7, marginTop: 14, background: 'rgba(255,255,255,.10)' }}>
+          <div style={{ ...S.progFill, height: 7, width: `${Math.round((unlockedCount / BADGE_CATALOG.length) * 100)}%`, background: 'linear-gradient(90deg, oklch(72% 0.20 295), oklch(78% 0.17 210))' }} />
         </div>
-      </div>
+      </section>
 
-      <div style={S.objCard}>
-        <div style={{ ...S.secTitle, marginBottom: 10 }}>
-          <Filter size={13} />
-          <span>CATÉGORIES</span>
-        </div>
-      <div style={{ ...S.filterChips, marginBottom: 8 }}>
-          {categoryOptions.map((item) => (
-            <button
-              key={item}
-              onClick={() => setCategory(item)}
-              style={{
-                ...S.chipBtn,
-                background: category === item ? 'var(--af-grass)' : 'var(--af-surface)',
-                color: category === item ? '#08111f' : 'var(--af-text)',
-              }}
-            >
-              {item !== 'all' && CATEGORY_ICON[item] && (() => {
-                const Ic = CATEGORY_ICON[item];
-                return <Ic size={12} style={{ marginRight: 5, verticalAlign: 'middle' }} />;
-              })()}
-              {item === 'all' ? 'Toutes' : ACHIEVEMENT_CATEGORY_LABELS[item] ?? item}
-            </button>
-          ))}
-        </div>
-        <div style={{ ...S.filterChips, marginBottom: 0 }}>
-          {FILTERS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setStatus(item.id)}
-              style={{
-                ...S.chipBtn,
-                background: status === item.id ? '#00a676' : 'var(--af-surface)',
-                color: status === item.id ? '#08111f' : 'var(--af-text)',
-                borderColor: status === item.id ? '#00a676' : 'var(--af-border)',
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ ...S.emptySmall, marginBottom: 10 }}>
-        {filtered.length} succès affiché{filtered.length > 1 ? 's' : ''}.
-      </div>
-
-      <div style={S.cardList}>
-        {filtered.map((achievement) => {
-          const style = CATEGORY_STYLE[achievement.category] ?? CATEGORY_STYLE.default;
-          const progress = pct(achievement.current, achievement.target);
-          const banner = CATEGORY_BANNER[achievement.category];
-          return (
-            <div
-              key={achievement.id}
-              style={{
-                borderRadius: 10,
-                border: `1px solid ${style.border}`,
-                background: achievement.unlocked
-                  ? `linear-gradient(135deg,${style.bg},oklch(18% 0.035 258 / .92))`
-                  : 'oklch(18% 0.035 258 / .92)',
-                overflow: 'hidden',
-                boxShadow: achievement.unlocked
-                  ? `0 14px 30px ${style.accent}33`
-                  : '0 9px 20px rgba(0,0,0,.35)',
-              }}
-            >
-              {banner && (
-                <div style={{ position: 'relative', height: 64 }}>
-                  <img src={banner} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: achievement.unlocked ? 0.9 : 0.5, filter: achievement.unlocked ? 'none' : 'grayscale(0.5)' }} />
-                  <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(8,17,31,.10) 0%, oklch(18% 0.035 258 / .92) 100%)` }} />
-                  {!achievement.unlocked && (
-                    <div style={{ position: 'absolute', top: 8, right: 10, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 9, fontWeight: 900, letterSpacing: '.1em' }}>
-                      <Lock size={10} /> {progress}%
-                    </div>
-                  )}
-                  {achievement.unlocked && (
-                    <div style={{ position: 'absolute', top: 8, right: 10, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, background: style.accent, color: '#08111f', fontSize: 9, fontWeight: 900, letterSpacing: '.1em' }}>
-                      <CheckCircle2 size={10} /> DÉBLOQUÉ
-                    </div>
-                  )}
-                </div>
-              )}
-              <div style={{ padding: 13 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', marginBottom: 8 }}>
-                <div style={{ minWidth: 0 }}>
-                  {(() => {
-                    const Ic = CATEGORY_ICON[achievement.category] ?? Award;
-                    return (
-                      <>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 8, padding: '3px 8px', background: style.bg, border: `1px solid ${style.border}`, color: style.accent, fontSize: 9, letterSpacing: '.1em', fontFamily: 'system-ui,sans-serif', fontWeight: 900, marginBottom: 6 }}>
-                          <Ic size={11} />
-                          {ACHIEVEMENT_CATEGORY_LABELS[achievement.category] ?? 'Succès'}
-                        </div>
-                        <div style={{ fontSize: 14, color: 'var(--af-text)', fontWeight: 900, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: 6, background: style.bg, border: `1px solid ${style.border}`, color: style.accent }}>
-                            <Ic size={13} />
-                          </span>
-                          <span>{achievement.label}</span>
-                        </div>
-                      </>
-                    );
-                  })()}
-                  <div style={{ ...S.fixtureMeta, marginTop: 4 }}>{achievement.desc}</div>
-                </div>
-              </div>
-
-              <div style={{ ...S.progBar, height: 5, marginBottom: 7 }}>
-                <div style={{ ...S.progFill, width: `${progress}%`, height: 5, background: achievement.unlocked ? '#16a34a' : style.accent }} />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 700 }}>
-                  {achievement.current}/{achievement.target}
-                </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--af-muted)', fontFamily: 'system-ui,sans-serif', fontWeight: 800 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <Coins size={11} color="#0f766e" />
-                    {formatMoney(achievement.reward?.money ?? 0)}
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <Gem size={11} color="#2563eb" />
-                    {achievement.reward?.gems ?? 0}
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <Sparkles size={11} color="#9333ea" />
-                    +{achievement.reward?.rep ?? 0}
-                  </span>
-                </div>
-                </div>
-              </div>
-              </div>
-          );
-        })}
-      </div>
-
-      {!filtered.length && (
-        <div style={S.emptySmall}>
-          Aucun succès dans ce filtre.
-        </div>
-      )}
-
-      <div style={{ ...S.emptySmall, marginTop: 12 }}>
-        {TOTAL_ACHIEVEMENTS} succès totaux disponibles dans la carrière.
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, paddingBottom: 96 }}>
+        {BADGE_CATALOG.map((badge) => (
+          <BadgeCard key={badge.id} badge={badge} unlocked={unlockedMap.get(badge.id)} />
+        ))}
       </div>
     </div>
   );
