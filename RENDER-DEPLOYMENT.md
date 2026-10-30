@@ -18,7 +18,7 @@ Ce fichier est une configuration, **pas la preuve qu’un service Render est cr�
 - Compte Render **Sec**, demandé par l’utilisateur : workspace **My Workspace** (`tea-dbi6eaqjnfac73cv0bmg`).
 - Service gratuit créé : `srv-dbi6plmtlv9c739165bg`, Francfort, Docker, `plan: free`, déploiements automatiques désactivés. [Tableau Render](https://dashboard.render.com/web/srv-dbi6plmtlv9c739165bg).
 - API publique : https://agentfc-online-beta.onrender.com/api/online/health. Déploiement `dep-dbi6qoutlv9c73919b3g` confirmé **live** ; image Docker compilée sur Render.
-- Redéploiement de contrôle `dep-dbi6rknb9u1s73d9d3kg` confirmé **live**, commit exécuté `d1fdb61cdb9524817f77a46527e1c3524eae666f`. Les comptes rendus ajoutés ensuite à la branche ne sont pas redéployés automatiquement.
+- Redéploiement de contrôle `dep-dbi7g3etlv9c7392urq0` confirmé **live**, commit exécuté `5a9684d50d94821a4d9b0cb9397faf3ff5094cde`. Les comptes rendus ajoutés ensuite à la branche ne sont pas redéployés automatiquement.
 - Parcours HTTPS public → Render → Supabase validé : santé en mode `managed-postgres` et `staging`, origine iPhone autorisée, origine inconnue refusée, inscription/connexion, mauvaise authentification refusée, ligue privée avec code, rejeu de commande sans doublon, enchères concurrentes, chat et achat refusé lorsque le commerce est désactivé.
 - Après le redéploiement réel, la session, la ligue et la meilleure enchère ont été retrouvées ; la déconnexion invalide la session. Nettoyage terminé, base vérifiée à **zéro compte et zéro ligue**. Aucun achat ni publicité réel exécuté.
 - Connexion Node → pooler Supabase vérifiée en **TLS 1.3**, certificat autorisé et chiffrement AES-256-GCM. Le client vérifie la chaîne et le nom du serveur.
@@ -26,7 +26,7 @@ Ce fichier est une configuration, **pas la preuve qu’un service Render est cr�
 - Code serveur publié sur la branche dédiée [`codex/agentfc-server-beta`](https://github.com/Fixi0/AgentGame/tree/codex/agentfc-server-beta). La branche `main` et les services existants n’ont pas été modifiés.
 - Historique : sur l’ancien compte **Primary**, workspace `tea-d76eg06slomc738h1mj0`, les essais payant et gratuit étaient refusés avec **HTTP 402, `billing_suspended`**. Ce compte n’héberge aucun Agent FC et ses autres applications n’ont pas été modifiées.
 - Supabase : projet `xyzvooefdyotbqkiluuc`, pooler confirmé `aws-1-eu-west-3.pooler.supabase.com:5432`. Connexion TLS avec chaîne et nom d’hôte vérifiés grâce au certificat public officiel Supabase.
-- Le rôle dédié `agentfc_beta_runtime` possède les opérations de données sur les 15 tables privées du jeu, avec des politiques RLS réservées à ce rôle. Aucun accès au schéma Auth ; `anon` et `authenticated` n’ont pas accès au schéma du jeu. Aucun avertissement de sécurité Supabase après la migration.
+- Le rôle dédié `agentfc_beta_runtime` possède les opérations de données sur les 16 tables privées du jeu, avec des politiques RLS réservées à ce rôle. Aucun accès au schéma Auth ; `anon` et `authenticated` n’ont pas accès au schéma du jeu. Aucun avertissement de sécurité Supabase après la migration.
 - Le rôle serveur a reçu un nouveau secret et est **LOGIN**. La connexion est stockée dans les variables privées du service Render Sec. Ne pas utiliser le mot de passe administrateur. Un premier démarrage a rencontré un refus d’authentification après la rotation ; la connexion TLS a ensuite été revérifiée et le déploiement relancé avec succès.
 - Test réel HTTP → PostgreSQL réussi avec deux instances API indépendantes : inscription/connexion, ligue privée et code d’accès, rejeu de commande, enchères concurrentes sous verrou partagé, chat, achats désactivés, persistance après redémarrage et invalidation de session à la déconnexion. Les comptes et ligues temporaires ont été supprimés ; base vérifiée à zéro compte/zéro ligue après nettoyage.
 
@@ -53,3 +53,16 @@ Le Dockerfile a été réduit aux fichiers source du moteur/API nécessaires et 
 Le test opt-in `scripts/validate-managed-beta.mjs` permet de reproduire le parcours sur une base de bêta dédiée avec `NODE_ENV=production`, `AGENTFC_DEPLOY_STAGE=staging`, `AGENTFC_MANAGED_BETA_TEST=yes` et la connexion PostgreSQL fournie de manière privée. Il ne doit pas être exécuté sur une économie publique. Les horloges et échéances de production ne sont pas accélérées.
 
 Références : [Blueprint Render](https://render.com/docs/blueprint-spec), [tarifs Render](https://render.com/pricing), [dossier de sortie App Store](APPSTORE-READINESS-2026-10-30.md).
+
+
+## Classements et contrôle final
+
+Le déploiement actif ci-dessus comprend les points de carrière durables et les filtres Monde / Europe, Afrique, Asie, Amériques, Océanie / pays. `season_points` est une table privée supplémentaire ; le rôle runtime possède sa politique RLS dédiée. Advisor sécurité vérifié : aucun diagnostic.
+
+Le classement distant a été testé avec deux résultats de saison artificiels, réservés au test de requête : filtres, confidentialité, changement de pays limité, attribution de points falsifiée refusée. Le calcul de vrais résultats sur 28 soirées est couvert séparément par les tests moteur. Après nettoyage ciblé, la base distante est revenue à zéro compte, zéro ligue et zéro résultat de carrière ; aucun faux score public n’est conservé.
+
+Mesure limitée, serveur chaud : 50 consultations d’état, concurrence 5, 50 réponses 304, durée totale 1 031 ms, médiane 76 ms et p95 225 ms. Ce test ne mesure pas une capacité de production. Les journaux structurés d’URL/statut/durée sont activés, sans corps ni jetons. Aucun log de niveau erreur observé depuis le dernier déploiement lors de la vérification finale.
+
+Le build `npm run build:beta` et `npm run ios:beta` cible explicitement cette API. `ios:release` conserve les contrôles de sortie et refuse cette configuration staging. La connexion Apple, les pushs et les vrais achats ne sont pas activés par ces commandes.
+
+Sauvegarde : `scripts/backup-online.mjs` exporte les 16 tables dans un fichier privé, hors dépôt. La restauration refuse un dossier déjà existant et cible une nouvelle base locale dédiée. Le test de restauration peuplée a préservé compte, portefeuille et points de carrière ; une sauvegarde distante vide prise avant migration a également été restaurée localement. Cela ne valide pas une restauration complète du cluster Supabase, de ses rôles, d’Auth ou de Storage. Organiser et contrôler une sauvegarde régulière avant d’ouvrir à de vrais joueurs.

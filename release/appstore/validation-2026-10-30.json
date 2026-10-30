@@ -1,0 +1,329 @@
+{
+  "date": "2026-10-30",
+  "updatedAt": "2026-10-30T11:27:27.723469+00:00",
+  "publishedToApple": false,
+  "readyForSubmission": false,
+  "releaseGate": {
+    "ready": false,
+    "checks": [
+      {
+        "name": "Resources",
+        "passed": true,
+        "detail": "77 SHA-256 checked files; online-only module guard at build"
+      },
+      {
+        "name": "Public API",
+        "passed": true,
+        "detail": "A public HTTPS game API is required; a Supabase dashboard URL is not a game API."
+      },
+      {
+        "name": "iOS API origin",
+        "passed": true,
+        "detail": "Rebuild after configuring VITE_AGENTFC_API_URL."
+      },
+      {
+        "name": "Managed database",
+        "passed": true,
+        "detail": "Health must report managed-postgres."
+      },
+      {
+        "name": "Production environment",
+        "passed": false,
+        "detail": "An App Store release must not target the beta environment."
+      },
+      {
+        "name": "Apple sign-in",
+        "passed": false,
+        "detail": "Server Apple keys and encryption must be configured."
+      },
+      {
+        "name": "APNs",
+        "passed": false,
+        "detail": "APNs signing configuration must be active."
+      },
+      {
+        "name": "StoreKit verifier",
+        "passed": false,
+        "detail": "A configured verifier still requires real Sandbox purchases."
+      },
+      {
+        "name": "App icon",
+        "passed": true,
+        "detail": "1024 × 1024 RGB PNG, without an alpha channel."
+      },
+      {
+        "name": "Apple capabilities",
+        "passed": true,
+        "detail": "Sign in with Apple and Push Notifications entitlements."
+      },
+      {
+        "name": "App identity",
+        "passed": true,
+        "detail": "Published bundle ID and embedded web resources."
+      }
+    ],
+    "manualRequired": [
+      "Apple Developer team and distribution provisioning",
+      "Actual Sign in with Apple on iPhone",
+      "Sandbox StoreKit purchases, restores and refunds",
+      "APNs on a signed installed iPhone",
+      "Update from App Store version 2.5 with historical purchases/saves",
+      "App Store Connect pass products, privacy, age rating and review account"
+    ]
+  },
+  "web": {
+    "files": 77,
+    "mode": "online-only",
+    "apiOrigin": "https://agentfc-online-beta.onrender.com",
+    "distAndNativeAndCompiledAppHashesVerified": true
+  },
+  "native": {
+    "configuration": "Release",
+    "destination": "generic iOS device",
+    "signed": false,
+    "buildSucceeded": true,
+    "xcode": "27.2",
+    "sdk": "iOS 27.2",
+    "simulatorExecution": false
+  },
+  "remote": {
+    "url": "https://agentfc-online-beta.onrender.com",
+    "stage": "staging",
+    "renderAccount": "Sec",
+    "plan": "free",
+    "serviceId": "srv-dbi6plmtlv9c739165bg",
+    "deployId": "dep-dbi7g3etlv9c7392urq0",
+    "runtimeCommit": "5a9684d50d94821a4d9b0cb9397faf3ff5094cde",
+    "managedPostgres": true,
+    "supabaseProject": "xyzvooefdyotbqkiluuc",
+    "privateTables": 16,
+    "rlsAllTables": true,
+    "anonAndAuthenticatedSchemaAccess": false,
+    "securityAdvisorLints": [],
+    "qaAccountsAfterCleanup": 0,
+    "qaLeaguesAfterCleanup": 0,
+    "qaSeasonResultsAfterCleanup": 0,
+    "shortWarmApiMeasurement": {
+      "rankingFiltersPassed": true,
+      "privateProfileAndCooldownPassed": true,
+      "forgedPointsRefused": true,
+      "requests": 50,
+      "concurrency": 5,
+      "statuses": {
+        "304": 50
+      },
+      "elapsedMs": 1031,
+      "p50Ms": 76,
+      "p95Ms": 225
+    },
+    "gameTableBytes": 696320,
+    "databaseBytes": 11810483,
+    "platformHealthCheck": "TCP; HTTP dashboard setting pending",
+    "productionCapacityValidated": false
+  },
+  "ranking": {
+    "permanent": true,
+    "scopes": [
+      "world",
+      "region",
+      "country"
+    ],
+    "regions": [
+      "EU",
+      "AF",
+      "AS",
+      "AM",
+      "OC"
+    ],
+    "pointScale": [
+      100,
+      75,
+      55,
+      40,
+      30,
+      22,
+      16,
+      12,
+      8,
+      5
+    ],
+    "publicOptIn": true,
+    "gpsUsed": false,
+    "countryChangeDays": 28,
+    "remoteFixturesRemoved": true
+  },
+  "backup": {
+    "all16TablesPopulatedLocalRestorePassed": true,
+    "emptyPreMigrationRemoteSnapshotRestoredLocally": true,
+    "wholeSupabaseClusterRestoreValidated": false,
+    "scheduledExportsConfigured": false
+  },
+  "automatedSuites": [
+    {
+      "name": "notifications",
+      "code": 0,
+      "signal": null,
+      "seconds": 3,
+      "output": "Notifications passed: warm-up and auction deadline windows, per-human deduplication, training completion, all preference opt-outs, five-language payload selection, deep-link IDs, concurrent worker claims, retry lease, expired events, category collapse, and invalid-token removal. APNs transport was simulated; no real notification was sent."
+    },
+    {
+      "name": "onboarding",
+      "code": 0,
+      "signal": null,
+      "seconds": 3,
+      "output": "Onboarding passed: real HTTP registration/recovery/logout; recovery rotation and session revocation; public/private isolation; 10 concurrent public joins; 90-second bot start; rename; Apple JWT signatures, nonce, expiry, code exchange, replay, encrypted tokens, reauthentication, deletion and revocation retry. Apple network calls used a local fake transport, not real credentials."
+    },
+    {
+      "name": "client-commands",
+      "code": 0,
+      "signal": null,
+      "seconds": 0,
+      "output": "Client command recovery passed: identical request IDs after network/500 uncertainty, new IDs after confirmed success or definitive rejection, and authenticated 304 clock recovery."
+    },
+    {
+      "name": "production",
+      "code": 0,
+      "signal": null,
+      "seconds": 0,
+      "output": "Production adapter contract passed: shared transaction lock, bound parameters, commit/rollback, client release, private-host validation, proxy headers, beta/production environment isolation and fail-closed startup without managed storage. No managed runtime connection or public deployment is claimed by this test."
+    },
+    {
+      "name": "state-sync",
+      "code": 0,
+      "signal": null,
+      "seconds": 2,
+      "output": "State sync passed: authenticated 304 responses, no response body on unchanged snapshots, account/league isolation, auto-start deadlines, wallet triggers, bid invalidation, unchanged-wallet write avoidance, and hourly rollover. Thirty idle polls required metadata only."
+    },
+    {
+      "name": "online",
+      "code": 0,
+      "signal": null,
+      "seconds": 6,
+      "output": "Online passed: 10-agent/2-client limits and permanent third slot for exactly 250 diamonds, insufficient balance and duplicate debit protection, escrow/concurrent bids, atomic replacement, club exclusivity and voluntary agency offers, 28 nights (876 league + 165 European matches), 15 weekly newcomers, restart safety, privacy, real HTTP auth, command deduplication, chat/block/report/rate limits, signed commerce boundary, SSV signature and duplicate reward, season reset preserves gems, logout invalidates session."
+    },
+    {
+      "name": "online-player-mechanics",
+      "code": 0,
+      "signal": null,
+      "seconds": 5,
+      "output": "Player mechanics passed: stable profile migration and six role-specific skills; physical traits and scouting privacy; actual match XP and rating impact; potential ceiling; validated sale prices and no minted coins; listing update/withdraw/expiry; reserved-client protection; confirmed release to one shared auction; unchanged identity; final-week placements settle before the last match and server strategy scores match previews; season deadline migration; authenticated HTTP trade, concurrent release/duplicate-request safety and account deletion cleanup."
+    },
+    {
+      "name": "online-only",
+      "code": 0,
+      "signal": null,
+      "seconds": 1,
+      "output": "Online-only passed: direct entry ignores old solo preference; login/settings/error recovery in five languages; inherited sessions removed on logout without erasing historical saves or another account. The production build separately verifies its module graph."
+    },
+    {
+      "name": "ads",
+      "code": 0,
+      "signal": null,
+      "seconds": 0,
+      "output": "Ads: incomplete/wrong IDs and web blocked, consent before SDK, no reward on dismissal/zero/failure, one delivery, concurrent show blocked, listeners cleaned and privacy action passed. Native ads were not requested."
+    },
+    {
+      "name": "boot",
+      "code": 0,
+      "signal": null,
+      "seconds": 0,
+      "output": "Boot scripts parse; recovery preserves existing account, purchase and historical save storage."
+    },
+    {
+      "name": "online-pass",
+      "code": 0,
+      "signal": null,
+      "seconds": 4,
+      "output": "Season pass passed: exact 28-tier rewards, 5-language-ready DTOs, Paris/DST missions, real action XP, duplicate claims and signed receipt boundary, Premium/Plus, escrow-safe refunds and reversal, late purchase credit, day-20 skips, badge/sticker ownership, final reward window, season reset and legacy rights."
+    },
+    {
+      "name": "jsx-bindings",
+      "code": 0,
+      "signal": null,
+      "seconds": 1,
+      "output": "JSX component bindings passed: 86 files."
+    },
+    {
+      "name": "commerce",
+      "code": 0,
+      "signal": null,
+      "seconds": 61,
+      "output": "UI delivery races: gameplay and career switches during first commit and rebased save passed.\nCommerce: invalid identities, 1000 receipts/replay, product binding, atomic persistence, cross-slot duplicates, no-ads, pending delivery stale autosaves, simulated quota failure, forged import isolation and invalid import passed."
+    },
+    {
+      "name": "rankings",
+      "code": 0,
+      "signal": null,
+      "seconds": 2,
+      "output": "Ranking passed: durable cumulative season points, rank scale, exactly-once attribution, bots/short/overlapping seasons excluded, global/country/region filters, private profile, safe query inputs, country cooldown, history, career summary and cycle reward deduplication."
+    },
+    {
+      "name": "career-extras",
+      "code": 0,
+      "signal": null,
+      "seconds": 3,
+      "output": "Career extras passed: permanent server-earned Game Center IDs, tutorial without economic rewards, visible owned cosmetics, finished-season departure preserving career/gems, no repeated departure, public league visibility retained on reset."
+    },
+    {
+      "name": "backup",
+      "code": 0,
+      "signal": null,
+      "seconds": 2,
+      "output": "Backup passed: atomic export/restore of all 16 game tables, account/wallet and career points preserved, foreign keys, occupied database and unknown schema rejected."
+    },
+    {
+      "name": "store-ui",
+      "code": 0,
+      "signal": null,
+      "seconds": 1,
+      "output": "Store UI passed: beta blocks real-money packs/pass while earned free rewards and the 250-gem third slot remain usable."
+    },
+    {
+      "name": "online-locales",
+      "code": 0,
+      "signal": null,
+      "seconds": 1,
+      "output": "Online localization passed: 626 explicit messages in five languages, placeholders, dynamic reward/sticker/mission keys and Home/Market/Profile/Player/Chat/Pass/BadgeEditor React renders."
+    }
+  ],
+  "interface": {
+    "nativeSafari": true,
+    "worldRegionCountryRankingAndOptInChecked": true,
+    "tutorialNoEconomicRewardChecked": true,
+    "french390AndWideChecked": true,
+    "russianLanguageObserved": true,
+    "finalNewScreenRussian320ReviewCompleted": false,
+    "remainingReason": "Mac locked again; App Store Connect login explicitly deferred by the user.",
+    "latestStoreGateAndGameCenterButtonInteractiveReview": false,
+    "latestStoreGateSSRRegressionPassed": true,
+    "messagesPerLanguage": 626,
+    "languages": [
+      "fr",
+      "en",
+      "es",
+      "it",
+      "ru"
+    ],
+    "jsxFiles": 86
+  },
+  "notValidated": [
+    "Signed installed iPhone and final distribution provisioning",
+    "Real Apple sign-in, account deletion/revocation and Game Center",
+    "Real APNs foreground/background/cold launch",
+    "Real StoreKit Sandbox purchase/restore/refund",
+    "Sandbox/App Review isolation from future public economy",
+    "Update from 2.5 and historical consumable balance recovery",
+    "AdMob real test-device request and configured consent",
+    "Cold Render wake-up and continuous evening availability",
+    "Final new screens Russian 320px and keyboard on actual iPhone",
+    "Production load, alerting and populated remote disaster recovery",
+    "App Store Connect products/privacy/age rating/review account and submission"
+  ],
+  "optionalRecommendationsNotImplemented": [
+    "Grouped public league starts and friend reservations",
+    "Friendly matches",
+    "Sound and haptics",
+    "Complete visible economic transaction statement",
+    "External product analytics and retention funnel"
+  ]
+}
