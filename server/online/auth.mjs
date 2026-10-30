@@ -84,7 +84,7 @@ export async function deleteAccount(store, account, password, now,appleSubject=n
       for (const d of world.deals) { if (d.buyerId === account.id) d.buyerId = botId; if (d.sellerId === account.id) d.sellerId = botId; }
       for (const listing of world.listings??[]) if(listing.sellerId===account.id){listing.sellerId=botId;if(listing.status==='open')listing.status='cancelled';}
       for (const p of world.proposals) if (p.memberId === account.id) p.memberId = botId;
-      world.chats = world.chats.filter(c => c.memberId !== account.id); world.scouts = world.scouts.filter(s => s.memberId !== account.id); world.events = world.events.filter(e => e.memberId !== account.id);
+      world.duels=(world.duels??[]).filter(d=>d.from!==account.id&&d.to!==account.id); world.chats = world.chats.filter(c => c.memberId !== account.id); world.scouts = world.scouts.filter(s => s.memberId !== account.id); world.events = world.events.filter(e => e.memberId !== account.id);
       world.blocks = world.blocks.filter(b => b.by !== account.id && b.target !== account.id); world.reports = world.reports.filter(r => r.by !== account.id);
       for (const l of world.ledger.filter(l => l.memberId === account.id)) l.memberId = botId;
       for (const h of world.history) for (const r of h.ranks.filter(r => r.id === account.id)) { r.id = botId; r.name = 'Agency Bot'; r.bot = true; }

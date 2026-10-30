@@ -6,6 +6,7 @@ export function nextWorldTick(world){
  for(const a of world.auctions)if(a.status==='open')times.push(a.closesAt);
  for(const n of world.needs)if(n.status==='open')times.push(n.deadline);
  for(const d of world.deals)if(d.status==='pending')times.push(d.closesAt);
+ for(const d of world.duels??[])if(d.status==='pending')times.push(d.closesAt);
  for(const l of world.listings??[])if(l.status==='open')times.push(l.closesAt);
  for(const p of world.players)if(p.training)times.push(p.training.finishesAt);
  for(const s of world.scouts)if(!s.done)times.push(s.finishesAt);

@@ -2,13 +2,14 @@ import { randomUUID, createHash } from 'node:crypto';
 import { DAY, HOUR } from './calendar.mjs';
 import { cosmetics, tactics, thirdClientCost } from './catalog.mjs';
 import { creditGems } from './economy.mjs';
-import { GameError, requireGame, integer, clients, clientCapacity, memberFor, createWorld, addMember, startWorld, tickWorld, publicWorld, assertWorld, placeBid, propose, offerDeal, respondDeal, listClient, withdrawListing, releaseClient, available, record, notify, ranking,adjustPassCoins } from './world.mjs';
+import { GameError, requireGame, integer, fixturesForDay, clients, clientCapacity, memberFor, createWorld, addMember, startWorld, tickWorld, publicWorld, assertWorld, placeBid, propose, offerDeal, respondDeal, listClient, withdrawListing, releaseClient, available, record, notify, ranking,adjustPassCoins } from './world.mjs';
 import {syncSeasonPass,publicSeasonPass,recordPassActivity,claimPass,skipPassTier,preparePassPurchase,applyPassCredit,agencyAppearance,botAppearance,setAgencyBadge,equipPassCosmetic,parisDate,passEndsAt} from './season-pass.mjs';
 import {STICKER_PACKS} from './pass-catalog.mjs';
 import {encodeRevision} from './state-revision.mjs';
 import {nextWorldTick} from './reminders.mjs';
 import {recordSeasonPoints,careerStats} from './ranking-points.mjs';
 import {validCountry,regionForCountry} from '../../src/online/geography.js';
+import {preparePlayer,challengeDuel,respondDuel} from './daily-play.mjs';
 
 const fingerprint = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const validUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -212,11 +213,14 @@ export async function command(store, account, action, data, requestId, now) {
         requireGame(now>=passEndsAt(world),'SEASON_REWARDS_OPEN');
         const fresh = createWorld(account, world.name, now,world.private===false?'public':'private');
         fresh.id = world.id; fresh.code = world.code; fresh.season = world.season + 1; fresh.portraitOffset=world.portraitOffset; fresh.history = world.history.slice(-12); fresh.chats = world.chats; fresh.blocks = world.blocks; fresh.reports = world.reports;
-        fresh.members = world.members.filter(m => !m.bot).map(m => ({ ...m, coins: 60, commissions: 0, trophies: 0, goals: 0, wins: 0, xp: 0,competitionWins:[],passActivity:{days:{},weeks:{}},passCoinDebt:0 }));
+        fresh.members = world.members.filter(m => !m.bot).map(m => ({ ...m, coins: 60, commissions: 0, trophies: 0, goals: 0, wins: 0, xp: 0,duelPoints:0,duelDay:null,lastDuelAt:0,competitionWins:[],passActivity:{days:{},weeks:{}},passCoinDebt:0 }));
         world = fresh; if (world.members.length >= 2) startWorld(world, member.id, now);
       } else {
         requireGame(world.phase === 'active', 'SEASON_CLOSED');
-        if (action === 'bid') placeBid(world, member, data, now);
+        if(action==='prepare_player')result=preparePlayer(world,member,data,now,fixturesForDay(world,world.day+1));
+        else if(action==='challenge_duel')result=challengeDuel(world,member,data,now,notify);
+        else if(action==='respond_duel')result=respondDuel(world,member,data,now,notify);
+        else if (action === 'bid') placeBid(world, member, data, now);
         else if (action === 'propose') result = { proposal: propose(world, member, data, now) };
         else if (action === 'offer_deal') result = { deal: offerDeal(world, member, data, now) };
         else if (action === 'respond_deal') respondDeal(world, member, data, now);

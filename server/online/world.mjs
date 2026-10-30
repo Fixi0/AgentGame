@@ -8,6 +8,7 @@ import {GameError,requireGame} from './errors.mjs';
 import {defaultBadge} from '../../src/online/badgeCatalog.js';
 import {syncReminders} from './reminders.mjs';
 import {PORTRAIT_COUNT} from '../../src/online/portraitCatalog.js';
+import {syncDailyPlay,publicPreparation,preparationEffects,applyPreparation,consumePreparations,publicDuels,duelRemaining} from './daily-play.mjs';
 export {GameError,requireGame} from './errors.mjs';
 
 export function integer(value, min = 0, max = 1_000_000) { requireGame(Number.isSafeInteger(value) && value >= min && value <= max, 'INVALID_AMOUNT'); return value; }
@@ -121,13 +122,13 @@ function transferMandate(world, player, recipient, replaceId, at) {
   requireGame(!clubUnavailable(world, player.clubId, [player.id, replaceId]), 'CLUB_UNAVAILABLE');
   if (replaceId) {
     const former = world.players.find(p => p.id === replaceId && p.ownerId === recipient.id); requireGame(former, 'INVALID_REPLACEMENT');
-    former.ownerId = null; former.mandateEndsAt = null; former.training=null;
+    former.ownerId = null; former.mandateEndsAt = null; former.training=null;delete former.preparation;
     for(const listing of world.listings??[])if(listing.playerId===former.id&&listing.status==='open')listing.status='cancelled';
     for (const proposal of world.proposals.filter(p => p.playerId === former.id && p.status === 'pending')) proposal.status = 'cancelled';
     // Released clients return once, as a separate lot. No duplicate player instance.
     if (at+HOUR<world.endsAt&&!world.auctions.some(a => a.playerId === former.id && a.status === 'open')) world.auctions.push({ id: randomUUID(), playerId: former.id, startsAt: at + HOUR, closesAt: Math.min(at + DAY + HOUR,world.endsAt), price: Math.max(1, former.value - 1), leaderId: null, replaceId: null, bids: [], status: 'open' });
   }
-  const previous = player.ownerId;
+  const previous = player.ownerId;delete player.preparation;
   for(const listing of world.listings??[])if(listing.playerId===player.id&&listing.status==='open')listing.status=previous?'sold':'cancelled';
   player.ownerId = recipient.id; player.signedAt = at; player.mandateEndsAt = at + 7 * DAY; player.protectedUntil = at + 2 * DAY; player.trust = 75;
   for (const proposal of world.proposals.filter(p => p.playerId === player.id && p.status === 'pending')) proposal.status = 'cancelled';
@@ -221,7 +222,7 @@ export function releaseClient(world,member,data,at){
   requireGame(!world.auctions.some(a=>a.playerId===player.id&&a.status==='open'),'CLIENT_RESERVED');
   for(const listing of world.listings??[])if(listing.playerId===player.id&&listing.status==='open')listing.status='cancelled';
   for(const proposal of world.proposals.filter(p=>p.playerId===player.id&&p.status==='pending'))proposal.status='cancelled';
-  Object.assign(player,{ownerId:null,mandateEndsAt:null,signedAt:null,protectedUntil:0,training:null,lastContactAt:0,trust:75});
+  Object.assign(player,{ownerId:null,mandateEndsAt:null,signedAt:null,protectedUntil:0,training:null,lastContactAt:0,trust:75});delete player.preparation;
   const auction={id:randomUUID(),playerId:player.id,startsAt:at,closesAt:Math.min(at+DAY,world.endsAt),price:Math.max(0,player.value-1),leaderId:null,replaceId:null,bids:[],status:'open'};
   world.auctions.push(auction);notify(world,member.id,'client_released',{playerId:player.id},at);return auction;
 }
@@ -274,13 +275,14 @@ function squad(world, clubId, at) {
   const club = clubMap.get(clubId), rng = random(`${world.seed}:${clubId}:squad`);
   const generic = Array.from({ length: 11 }, (_, i) => ({ id: `npc:${clubId}:${i}`, position: i === 0 ? 'GK' : i < 5 ? 'DEF' : i < 8 ? 'MID' : 'FWD', rating: (65 + (4 - club.tier) * 5 + Math.floor(rng() * 8)) * 2, form: 60, attributes: { shooting: { current: 10 }, passing: { current: 10 } } }));
   const represented = world.players.filter(p => p.ownerId && p.clubId === clubId && p.injuredUntil <= at).sort((a,b)=>b.level-a.level||a.id.localeCompare(b.id));
-  for (const p of represented) { const i = generic.findIndex(g => g.position === p.position && g.id.startsWith('npc:')); if (i >= 0) generic[i] = { ...p, ...matchPlayerProfile(p), form: p.trust }; }
+  for (const p of represented) { const i = generic.findIndex(g => g.position === p.position && g.id.startsWith('npc:')); if (i >= 0) generic[i] = { ...p, ...applyPreparation(p,matchPlayerProfile(p),at) }; }
   return generic;
 }
 function playNight(world, at) {
-  const day = world.day + 1;
+  const day = world.day + 1,nightPlayed=new Set(),preparedEffects=new Map(world.players.filter(p=>p.preparation?.matchAt===at).map(p=>[p.id,preparationEffects(p,p.preparation.focus,p.preparation.speech)]));
   for (const f of fixturesForDay(world, day)) {
     const homePlayers=squad(world,f.home,at),awayPlayers=squad(world,f.away,at),played=new Set([...homePlayers,...awayPlayers].map(p=>p.id));
+    for(const id of played)nightPlayed.add(id);
     const sim = simulateMatch({ homePlayers, awayPlayers, homeTeamName: clubMap.get(f.home).name, awayTeamName: clubMap.get(f.away).name, seed: hash(`${world.seed}:${day}:${f.home}:${f.away}`) });
     const winner = sim.homeGoals > sim.awayGoals ? f.home : sim.awayGoals > sim.homeGoals ? f.away : f.knockout ? (hash(`${world.seed}:${day}:${f.home}:${f.away}:penalties`) % 2 ? f.home : f.away) : null;
     const m = { id: `${world.season}:${day}:${f.home}:${f.away}`, day, at, ...f, hg: sim.homeGoals, ag: sim.awayGoals, winner, penalties: Boolean(f.knockout && sim.homeGoals === sim.awayGoals), events: sim.events, stats: sim.stats };
@@ -301,6 +303,7 @@ function playNight(world, at) {
     }
     if (f.final) world.cups.find(c => c.id === f.competition).champion = winner;
   }
+  consumePreparations(world,at,nightPlayed,preparedEffects);
   world.day = day;
   if (day === 28) {
     for (const country of ['FR', 'GB', 'ES', 'IT', 'DE']) {
@@ -349,6 +352,7 @@ function alignSeasonDeadline(world){
 }
 export function tickWorld(world, now) {
   let changed=ensurePlayerProfiles(world)||Boolean(world.rightsChanged);delete world.rightsChanged;
+  changed=syncDailyPlay(world,now)||changed;
   for(const listing of world.listings.filter(l=>l.status==='open'&&l.closesAt<=now)){listing.status='expired';changed=true;}
   if(world.rulesRevision!==2){
     for(const m of world.members.filter(m=>m.bot))for(const p of clients(world,m.id).sort((a,b)=>b.level-a.level||a.id.localeCompare(b.id)).slice(2)){
@@ -398,7 +402,7 @@ export function tickWorld(world, now) {
       if(elapsed){p.trust=Math.max(0,p.trust-elapsed*5);p.lastTrustDecayAt=at;}
     }
   }
-  return changed;
+  return syncDailyPlay(world,now)||changed;
 }
 export function ranking(world) {
   return world.members.map(m => ({ id: m.id, name: m.name, bot: m.bot, coins: m.coins, commissions: m.commissions, trophies: m.trophies, goals: m.goals, wins: m.wins, clients: clients(world, m.id).length,
@@ -408,19 +412,21 @@ export function ranking(world) {
 export function publicWorld(world, accountId, now) {
   ensurePlayerProfiles(world);
   const me = memberFor(world, accountId), myReports = world.scouts.filter(s => s.memberId === me.id);
+  const nextFixtures=world.phase==='active'?fixturesForDay(world,world.day+1):[],fixtureClubs=new Set(nextFixtures.flatMap(f=>[f.home,f.away]));
   const hidden = new Set(world.blocks.filter(b => b.by === accountId).map(b => b.target));
   const players = world.players.map(player => {
-    const {potential,trainingBoosts,profile,experience,...p}=player;
+    const {potential,trainingBoosts,profile,experience,preparation,lastPreparation,...p}=player;
     const known=p.ownerId===accountId||myReports.some(s=>s.playerId===p.id&&s.done);
-    return {...p,...publicPlayerProfile(player,known),potential:known?potential:null,cardFrame:world.members.find(m=>m.id===p.ownerId)?.appearance?.frame??null};
+    return {...p,...publicPlayerProfile(player,known),potential:known?potential:null,preMatch:p.ownerId===accountId?publicPreparation(world,player,now,fixtureClubs.has(p.clubId)):null,cardFrame:world.members.find(m=>m.id===p.ownerId)?.appearance?.frame??null};
   });
   return { id: world.id, code: world.code, name: world.name, private:world.private!==false,autoStartAt:world.autoStartAt??null,ownerId: world.ownerId, phase: world.phase, season: world.season, startsAt: world.startsAt, endsAt: world.endsAt,rewardsCloseAt:world.phase==='lobby'?null:passEndsAt(world), nextMatchAt: world.nextMatchAt, day: world.day, serverTime: now, rules,
-    me: { ...me, capacity:clientCapacity(me), reserved: reserved(world, me.id), available: available(world, me), roster: clients(world, me.id).map(p => p.id) }, members: ranking(world).map(m=>({...m,capacity:clientCapacity(memberFor(world,m.id))})), players,
+    me: { ...me, duelRemaining:duelRemaining(me,now),capacity:clientCapacity(me), reserved: reserved(world, me.id), available: available(world, me), roster: clients(world, me.id).map(p => p.id) }, members: ranking(world).map(m=>({...m,capacity:clientCapacity(memberFor(world,m.id))})), players,
+    duels:publicDuels(world,accountId),duelStandings:world.members.map(m=>({id:m.id,points:m.duelPoints??0})).sort((a,b)=>b.points-a.points||a.id.localeCompare(b.id)),
     auctions: world.auctions.filter(a => ['open', 'sold'].includes(a.status)).slice(-80).map(({ bids, replaceId, ...a }) => ({ ...a, replaceId: a.leaderId === accountId ? replaceId : null, bidCount: bids.length })),
     unavailableClubs:clubs.filter(c=>clubUnavailable(world,c.id)).map(c=>c.id),
     needs:world.needs.map(n=>({...n,unavailable:clubUnavailable(world,n.clubId),candidates:clients(world,accountId).filter(p=>p.position===n.position&&p.clubId!==n.clubId).map(p=>({playerId:p.id,strategies:Object.entries(tactics).map(([id,choice])=>({id,commission:choice.commission,score:proposalScore(p,n,choice)}))}))})),
     proposals: world.proposals.filter(p => p.memberId === accountId), deals: world.deals.filter(d => d.buyerId === accountId || d.sellerId === accountId), listings:world.listings.filter(l=>l.status==='open'&&l.closesAt>now),
-    matches: world.matches.slice(-120), nextFixtures: world.phase === 'active' ? fixturesForDay(world, world.day + 1) : [], cups: world.cups.map(({ id, teams, champion }) => ({ id, teams, champion })), tables: world.tables,
+    matches: world.matches.slice(-120), nextFixtures, cups: world.cups.map(({ id, teams, champion }) => ({ id, teams, champion })), tables: world.tables,
     events: world.events.filter(e => e.memberId === accountId).slice(-100), chats: world.chats.filter(c => !hidden.has(c.memberId) && !c.hidden).slice(-100), scouts: myReports,
     blocks: [...hidden], calendar:world.calendar??[], history: world.history, clubs: clubs.map(({ id, name, countryCode, tier }) => ({ id, name, countryCode, tier,badge:defaultBadge(id,'ecusson') })), ledger: world.ledger.filter(l => l.memberId === accountId).slice(-40),
   };
