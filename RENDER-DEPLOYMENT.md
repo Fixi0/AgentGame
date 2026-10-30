@@ -15,13 +15,14 @@ Ce fichier est une configuration, **pas la preuve qu’un service Render est cr�
 
 ## État vérifié le 30 octobre 2026
 
-- Compte Render connecté ; workspace **My Workspace** (`tea-d76eg06slomc738h1mj0`) confirmé par l’utilisateur.
+- Compte Render **Sec**, demandé par l’utilisateur : workspace **My Workspace** (`tea-dbi6eaqjnfac73cv0bmg`).
+- Service gratuit créé : `srv-dbi6plmtlv9c739165bg`, Francfort, Docker, `plan: free`, déploiements automatiques désactivés. [Tableau Render](https://dashboard.render.com/web/srv-dbi6plmtlv9c739165bg).
+- API publique : https://agentfc-online-beta.onrender.com/api/online/health. Déploiement `dep-dbi6qoutlv9c73919b3g` confirmé **live** ; image Docker compilée sur Render.
 - Code serveur publié sur la branche dédiée [`codex/agentfc-server-beta`](https://github.com/Fixi0/AgentGame/tree/codex/agentfc-server-beta). La branche `main` et les services existants n’ont pas été modifiés.
-- La demande payante initiale, puis la tentative explicite avec **`plan: free`**, ont toutes deux été refusées par Render : **HTTP 402, `billing_suspended`**. La liste vérifiée après l’essai gratuit ne contient aucun Agent FC. Aucun déploiement public ni build Docker distant n’a donc été exécuté.
-- Action nécessaire sur téléphone : ouvrir [Billing](https://dashboard.render.com/billing) dans My Workspace et lever le blocage indiqué par Render. Ne pas reprendre ou modifier les autres applications pour contourner cette erreur.
+- Historique : sur l’ancien compte **Primary**, workspace `tea-d76eg06slomc738h1mj0`, les essais payant et gratuit étaient refusés avec **HTTP 402, `billing_suspended`**. Ce compte n’héberge aucun Agent FC et ses autres applications n’ont pas été modifiées.
 - Supabase : projet `xyzvooefdyotbqkiluuc`, pooler confirmé `aws-1-eu-west-3.pooler.supabase.com:5432`. Connexion TLS avec chaîne et nom d’hôte vérifiés grâce au certificat public officiel Supabase.
 - Le rôle dédié `agentfc_beta_runtime` possède les opérations de données sur les 15 tables privées du jeu, avec des politiques RLS réservées à ce rôle. Aucun accès au schéma Auth ; `anon` et `authenticated` n’ont pas accès au schéma du jeu. Aucun avertissement de sécurité Supabase après la migration.
-- Le rôle est **NOLOGIN en attente de l’hébergement**. À la reprise, générer un nouveau secret, lui rendre LOGIN, vérifier la connexion et placer l’URI uniquement dans les variables privées Render. Ne pas utiliser le mot de passe administrateur.
+- Le rôle serveur a reçu un nouveau secret et est **LOGIN**. La connexion est stockée dans les variables privées du service Render Sec. Ne pas utiliser le mot de passe administrateur. Un premier démarrage a rencontré un refus d’authentification après la rotation ; la connexion TLS a ensuite été revérifiée et le déploiement relancé avec succès.
 - Test réel HTTP → PostgreSQL réussi avec deux instances API indépendantes : inscription/connexion, ligue privée et code d’accès, rejeu de commande, enchères concurrentes sous verrou partagé, chat, achats désactivés, persistance après redémarrage et invalidation de session à la déconnexion. Les comptes et ligues temporaires ont été supprimés ; base vérifiée à zéro compte/zéro ligue après nettoyage.
 
 ## Connexion et création du service
@@ -42,7 +43,7 @@ Les en-têtes de proxy sont ignorés par défaut (`AGENTFC_TRUST_PROXY_HOPS=0`).
 
 La base de bêta doit être isolée de la future économie publique avant d’activer les achats Sandbox. `check:appstore` refuse un serveur dont `deploymentStage` n’est pas `production`, même si les autres capacités sont configurées. La bêta n’est donc pas automatiquement une version App Store.
 
-Le Dockerfile a été réduit aux fichiers source du moteur/API nécessaires et utilise le manifeste verrouillé `server/online/package-lock.json`. Le fonctionnement PostgreSQL hébergé et les gardes de démarrage sont testés ; la compilation d’image Docker, le démarrage sur Render, la configuration du contrôle de santé HTTP et le parcours iPhone → Render restent à confirmer par le déploiement réel.
+Le Dockerfile a été réduit aux fichiers source du moteur/API nécessaires et utilise le manifeste verrouillé `server/online/package-lock.json`. Le fonctionnement PostgreSQL hébergé, les gardes de démarrage, la compilation Docker et le démarrage Render sont vérifiés. Le service créé via l’intégration utilise actuellement le contrôle de santé **TCP par défaut** ; le champ HTTP n’est pas exposé par l’outil de création. Le Blueprint prévoit `/api/online/health`, à appliquer dans les réglages Render avant la sortie publique. Le parcours sur iPhone physique reste à vérifier.
 
 Le test opt-in `scripts/validate-managed-beta.mjs` permet de reproduire le parcours sur une base de bêta dédiée avec `NODE_ENV=production`, `AGENTFC_DEPLOY_STAGE=staging`, `AGENTFC_MANAGED_BETA_TEST=yes` et la connexion PostgreSQL fournie de manière privée. Il ne doit pas être exécuté sur une économie publique. Les horloges et échéances de production ne sont pas accélérées.
 
