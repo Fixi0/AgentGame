@@ -7,6 +7,7 @@ import {recordPassActivity,passEndsAt} from './season-pass.mjs';
 import {GameError,requireGame} from './errors.mjs';
 import {defaultBadge} from '../../src/online/badgeCatalog.js';
 import {syncReminders} from './reminders.mjs';
+import {PORTRAIT_COUNT} from '../../src/online/portraitCatalog.js';
 export {GameError,requireGame} from './errors.mjs';
 
 export function integer(value, min = 0, max = 1_000_000) { requireGame(Number.isSafeInteger(value) && value >= min && value <= max, 'INVALID_AMOUNT'); return value; }
@@ -73,8 +74,9 @@ export function createWorld(account, name, at,visibility='private') {
   }; addMember(world, account, at); return world;
 }
 function addLots(world, count, at) {
+  world.portraitOffset??=hash(world.id)%PORTRAIT_COUNT;
   for (let i = 0; i < count; i++) {
-    const player = makePlayer(world.seed, world.nextSequence++);
+    const player = makePlayer(world.seed, world.nextSequence++,{season:world.season,portraitOffset:world.portraitOffset});
     const unused = shuffled(clubs, `${world.seed}:${player.id}:club`).find(c => !world.players.some(p => p.clubId === c.id));
     if (unused) player.clubId = unused.id;
     world.players.push(player);

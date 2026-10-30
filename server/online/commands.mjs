@@ -211,7 +211,7 @@ export async function command(store, account, action, data, requestId, now) {
         requireGame(world.phase === 'finished' && world.ownerId === member.id, 'SEASON_NOT_FINISHED');
         requireGame(now>=passEndsAt(world),'SEASON_REWARDS_OPEN');
         const fresh = createWorld(account, world.name, now,world.private===false?'public':'private');
-        fresh.id = world.id; fresh.code = world.code; fresh.season = world.season + 1; fresh.history = world.history.slice(-12); fresh.chats = world.chats; fresh.blocks = world.blocks; fresh.reports = world.reports;
+        fresh.id = world.id; fresh.code = world.code; fresh.season = world.season + 1; fresh.portraitOffset=world.portraitOffset; fresh.history = world.history.slice(-12); fresh.chats = world.chats; fresh.blocks = world.blocks; fresh.reports = world.reports;
         fresh.members = world.members.filter(m => !m.bot).map(m => ({ ...m, coins: 60, commissions: 0, trophies: 0, goals: 0, wins: 0, xp: 0,competitionWins:[],passActivity:{days:{},weeks:{}},passCoinDebt:0 }));
         world = fresh; if (world.members.length >= 2) startWorld(world, member.id, now);
       } else {
