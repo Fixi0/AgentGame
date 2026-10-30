@@ -7,6 +7,7 @@ COPY server/online ./server/online
 COPY src/data/clubs.js ./src/data/clubs.js
 COPY src/engine/matchEngine.js ./src/engine/matchEngine.js
 COPY src/online/badgeCatalog.js ./src/online/badgeCatalog.js
+COPY src/online/clubBadgeCatalog.js ./src/online/clubBadgeCatalog.js
 COPY src/online/geography.js ./src/online/geography.js
 COPY src/online/portraitCatalog.js ./src/online/portraitCatalog.js
 COPY src/online/dailyPlayCatalog.js ./src/online/dailyPlayCatalog.js

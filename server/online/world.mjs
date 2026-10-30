@@ -5,7 +5,7 @@ import { simulateMatch } from '../../src/engine/matchEngine.js';
 import { ensurePlayerProfiles, publicPlayerProfile, matchPlayerProfile, awardPlayerXP } from './player-profile.mjs';
 import {recordPassActivity,passEndsAt} from './season-pass.mjs';
 import {GameError,requireGame} from './errors.mjs';
-import {defaultBadge} from '../../src/online/badgeCatalog.js';
+import {clubBadge} from '../../src/online/clubBadgeCatalog.js';
 import {syncReminders} from './reminders.mjs';
 import {PORTRAIT_COUNT} from '../../src/online/portraitCatalog.js';
 import {syncDailyPlay,publicPreparation,preparationEffects,applyPreparation,consumePreparations,publicDuels,duelRemaining} from './daily-play.mjs';
@@ -428,7 +428,7 @@ export function publicWorld(world, accountId, now) {
     proposals: world.proposals.filter(p => p.memberId === accountId), deals: world.deals.filter(d => d.buyerId === accountId || d.sellerId === accountId), listings:world.listings.filter(l=>l.status==='open'&&l.closesAt>now),
     matches: world.matches.slice(-120), nextFixtures, cups: world.cups.map(({ id, teams, champion }) => ({ id, teams, champion })), tables: world.tables,
     events: world.events.filter(e => e.memberId === accountId).slice(-100), chats: world.chats.filter(c => !hidden.has(c.memberId) && !c.hidden).slice(-100), scouts: myReports,
-    blocks: [...hidden], calendar:world.calendar??[], history: world.history, clubs: clubs.map(({ id, name, countryCode, tier }) => ({ id, name, countryCode, tier,badge:defaultBadge(id,'ecusson') })), ledger: world.ledger.filter(l => l.memberId === accountId).slice(-40),
+    blocks: [...hidden], calendar:world.calendar??[], history: world.history, clubs: clubs.map(({ id, name, countryCode, tier }) => ({ id, name, countryCode, tier,badge:clubBadge({id,name}) })), ledger: world.ledger.filter(l => l.memberId === accountId).slice(-40),
   };
 }
 export function assertWorld(world) {
