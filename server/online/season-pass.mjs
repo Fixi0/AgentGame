@@ -151,8 +151,8 @@ export function skipPassTier(wallet,world,now){
   wallet.gems-=5;state.gemSkips++;return {cost:5};
 }
 export function agencyAppearance(wallet,id,world,now){
-  const state=world?wallet.passStates?.[passScope(world)]:null,owned=wallet.cosmetics??[],equipment=wallet.passEquipment??{};
-  return {badge:safeBadge(wallet.agencyBadge,id,owned),premium:premiumFor(wallet,state,now),frame:equipment.frame??null,profile:equipment.profile??null,chat:equipment.chat??null,effect:equipment.effect??null,ranking:equipment.ranking??null,badgeEffect:equipment.badgeEffect??null,title:equipment.title??null};
+  const state=world?wallet.passStates?.[passScope(world)]:Object.values(wallet.passStates??{}).find(s=>now<s.endsAt&&receipts(wallet,s.scope).length),owned=wallet.cosmetics??[],equipment=wallet.passEquipment??{},selected=owned.includes(wallet.selectedCosmetic)?wallet.selectedCosmetic:null;
+  return {badge:safeBadge(wallet.agencyBadge,id,owned),premium:premiumFor(wallet,state,now),frame:equipment.frame??null,profile:equipment.profile??(selected==='office_gold'?'profile_trophies':selected==='office_ice'?'profile_night':null),chat:equipment.chat??null,effect:equipment.effect??null,ranking:equipment.ranking??null,badgeEffect:equipment.badgeEffect??(selected==='crest_neon'?'crest_neon':null),title:equipment.title??null};
 }
 export function setAgencyBadge(wallet,id,badge){requireGame(validBadge(badge,wallet.cosmetics??[]),'INVALID_BADGE');wallet.agencyBadge=safeBadge(badge,id,wallet.cosmetics??[]);}
 export function equipPassCosmetic(wallet,id){const kind=cosmeticKind(id);requireGame(kind&&wallet.cosmetics?.includes(id),'NOT_OWNED');wallet.passEquipment??={};wallet.passEquipment[kind]=id;}

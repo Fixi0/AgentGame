@@ -90,3 +90,15 @@ alter table agentfc_online.apple_events enable row level security;
 alter table agentfc_online.apple_revocations enable row level security;
 revoke all on schema agentfc_online from public;
 revoke all on all tables in schema agentfc_online from public;
+-- Career results survive league resets and history retention.
+create table if not exists agentfc_online.season_points (
+ league_id text not null, season integer not null check(season>0),
+ account_id text not null references agentfc_online.accounts(id) on delete cascade,
+ rank integer not null check(rank between 1 and 10), points integer not null check(points between 0 and 100),
+ league_score bigint not null, started_at bigint not null, ended_at bigint not null check(ended_at>started_at),
+ primary key(league_id,season,account_id)
+);
+create index if not exists season_points_account on agentfc_online.season_points(account_id,ended_at desc);
+create index if not exists season_points_ended on agentfc_online.season_points(ended_at);
+alter table agentfc_online.season_points enable row level security;
+revoke all on agentfc_online.season_points from public;

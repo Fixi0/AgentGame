@@ -30,6 +30,8 @@ export async function createOnlineServer({ directory = defaultDataDir, now = () 
     try { return JSON.parse(text); } catch { throw new GameError('INVALID_JSON'); }
   }
   const server = createServer(async (req, res) => {
+    const started=performance.now();
+    if(process.env.AGENTFC_LOG_HTTP==='true')res.once('finish',()=>{const route=new URL(req.url,'http://localhost').pathname;console.log(JSON.stringify({event:'http_request',method:req.method,route:/^\/api\/online\/[a-z/-]{1,50}$/.test(route)?route:'other',status:res.statusCode,durationMs:Math.round(performance.now()-started)}));});
     const respond = (status, value) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' }); res.end(JSON.stringify(value)); };
     try {
       const url = new URL(req.url, 'http://localhost'), route = url.pathname;
@@ -39,7 +41,7 @@ export async function createOnlineServer({ directory = defaultDataDir, now = () 
       const allowed = new Set((process.env.AGENTFC_ALLOWED_ORIGINS || 'http://127.0.0.1:4174,http://localhost:4174,http://127.0.0.1:4175,http://localhost:4175,capacitor://localhost').split(','));
       if (origin) { requireGame(allowed.has(origin), 'ORIGIN_FORBIDDEN', 403); res.setHeader('Access-Control-Allow-Origin', origin); res.setHeader('Vary', 'Origin');res.setHeader('Access-Control-Expose-Headers','ETag,X-AgentFC-Time'); }
       if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Headers': 'Authorization,Content-Type,If-None-Match', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' }); res.end(); return; }
-      if (route === prefix + '/health' && req.method === 'GET') { respond(200, { ok: true, mode: store.kind==='postgres'?'managed-postgres':'local-server', deploymentStage:process.env.NODE_ENV==='production'?(process.env.AGENTFC_DEPLOY_STAGE??'production'):'local', serverTime: now(), pushConfigured: Boolean(push?.configured), commerceConfigured: Boolean(commerce?.configured),appleConfigured:apple.configured }); return; }
+      if (route === prefix + '/health' && req.method === 'GET') { await store.db.query('select 1');respond(200, { ok: true, mode: store.kind==='postgres'?'managed-postgres':'local-server', deploymentStage:process.env.NODE_ENV==='production'?(process.env.AGENTFC_DEPLOY_STAGE??'production'):'local', serverTime: now(), pushConfigured: Boolean(push?.configured), commerceConfigured: Boolean(commerce?.configured),appleConfigured:apple.configured }); return; }
       if (route === prefix + '/ads/ssv' && req.method === 'GET') { requireGame(commerce?.acceptAd, 'NOT_CONFIGURED', 503); await commerce.acceptAd(store, url, now()); respond(200, { ok: true }); return; }
       if (route === prefix + '/apple/notifications' && req.method === 'POST') { requireGame(commerce?.acceptNotification, 'NOT_CONFIGURED', 503); respond(200, await commerce.acceptNotification(store, await jsonBody(req), now())); return; }
       const ip = clientAddress(req); rateLimit(`ip:${ip}`, 400, 60_000);
@@ -60,7 +62,7 @@ export async function createOnlineServer({ directory = defaultDataDir, now = () 
         else{const data=await snapshot(store,account,at);res.setHeader('ETag',data.stateRevision);respond(200,{...data,capabilities:{push:Boolean(push?.configured),ads:process.env.AGENTFC_ADMOB_SSV_ENABLED==='true',commerce:Boolean(commerce?.configured),apple:apple.configured}});}
       }
       else if(route===prefix+'/leagues'&&req.method==='GET')respond(200,await discoverLeagues(store,now()));
-      else if(route===prefix+'/leaderboard'&&req.method==='GET')respond(200,await leaderboard(store,now()));
+      else if(route===prefix+'/leaderboard'&&req.method==='GET')respond(200,await leaderboard(store,now(),{accountId:account.id,scope:url.searchParams.get('scope')??'world',country:url.searchParams.get('country'),region:url.searchParams.get('region'),page:url.searchParams.get('page')??0}));
       else if(route===prefix+'/support'&&req.method==='GET')respond(200,{tickets:(await store.db.query('select id,message,created_at,status,response from agentfc_online.support_tickets where account_id=$1 order by created_at desc limit 20',[account.id])).rows});
       else if (route === prefix + '/command' && req.method === 'POST') {
         const data = await jsonBody(req); respond(200, { ok: true, result: await command(store, account, data.action, data.data ?? {}, data.requestId, now()) });

@@ -7,6 +7,8 @@ import {syncSeasonPass,publicSeasonPass,recordPassActivity,claimPass,skipPassTie
 import {STICKER_PACKS} from './pass-catalog.mjs';
 import {encodeRevision} from './state-revision.mjs';
 import {nextWorldTick} from './reminders.mjs';
+import {recordSeasonPoints,careerStats} from './ranking-points.mjs';
+import {validCountry,regionForCountry} from '../../src/online/geography.js';
 
 const fingerprint = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const validUuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -20,7 +22,7 @@ export async function loadWorld(tx, id,now=Date.now()) {
   for(const m of world.members){
     const appearance=m.bot?botAppearance(m.id):agencyAppearance(owners.find(a=>a.id===m.id)?.wallet??{},m.id,world,now);
     if(JSON.stringify(appearance)!==JSON.stringify(m.appearance)){m.appearance=appearance;world.rightsChanged=true;}
-    const entitled=Boolean(owners.find(a=>a.id===m.id)?.wallet.thirdClientSlot);
+    const entitled=m.bot?Boolean(m.thirdClientSlot):Boolean(owners.find(a=>a.id===m.id)?.wallet.thirdClientSlot);
     if(Boolean(m.thirdClientSlot)!==entitled){m.thirdClientSlot=entitled;world.rightsChanged=true;}
     const roster=clients(world,m.id),limit=clientCapacity(m);let slots=Math.max(0,limit-roster.length);
     const reservations=[...world.auctions.filter(a=>a.status==='open'&&a.leaderId===m.id),...world.deals.filter(d=>d.status==='pending'&&d.buyerId===m.id)].sort((a,b)=>(a.at??a.startsAt)-(b.at??b.startsAt));
@@ -31,6 +33,7 @@ export async function loadWorld(tx, id,now=Date.now()) {
   return world;
 }
 export async function saveWorld(tx, world, now) {
+  await recordSeasonPoints(tx,world);
   assertWorld(world); world.version++;
   await tx.query('update agentfc_online.leagues set state=$2,version=$3,updated_at=$4,next_tick_at=$5 where id=$1', [world.id, JSON.stringify(world), world.version, now,nextWorldTick(world)]);
 }
@@ -46,9 +49,11 @@ export function synchronizeWallet(wallet, world, accountId, now) {
     wallet.xp += Math.max(0, xp - (wallet.seasonXp[key] ?? 0)); wallet.seasonXp[key] = xp;
   }
   wallet.gems ??= 0; wallet.cosmetics ??= []; wallet.claimed ??= [];
+  wallet.gameCenterAchievements??=[];const achievements={GB:'england',ES:'spain',IT:'italy',DE:'germany',FR:'france'};
+  for(const season of world?.history??[])for(const country of season.ranks.find(r=>r.id===accountId&&!r.bot)?.competitionWins??[]){const suffix=achievements[country];if(suffix&&!wallet.gameCenterAchievements.includes('agentfc_badge_league_'+suffix))wallet.gameCenterAchievements.push('agentfc_badge_league_'+suffix);}
   return wallet;
 }
-export function publicWallet(wallet, now,world,accountId) { return { thirdClientSlotCost:thirdClientCost,thirdClientSlot:Boolean(wallet.thirdClientSlot),gems: wallet.gems, publicRanking:Boolean(wallet.publicRanking), noAds: Boolean(wallet.noAds), credits: wallet.credits ?? { training:0,scouting:0 }, cosmetics: wallet.cosmetics, selectedCosmetic: wallet.selectedCosmetic ?? null, xp: wallet.xp, claimed: wallet.claimed, cycleEndsAt: wallet.cycleEndsAt, paidUntil: wallet.paidUntil ?? 0, premium: world?agencyAppearance(wallet,accountId,world,now).premium:false,appearance:agencyAppearance(wallet,accountId,world,now),preferences: wallet.preferences }; }
+export function publicWallet(wallet, now,world,accountId) { return { gameCenterAchievements:wallet.gameCenterAchievements??[],tutorialCompleted:Boolean(wallet.tutorialCompleted),countryCode:wallet.countryCode??null,region:regionForCountry(wallet.countryCode),countryChangeAt:wallet.countryChangeAt??0,thirdClientSlotCost:thirdClientCost,thirdClientSlot:Boolean(wallet.thirdClientSlot),gems: wallet.gems, publicRanking:Boolean(wallet.publicRanking), noAds: Boolean(wallet.noAds), credits: wallet.credits ?? { training:0,scouting:0 }, cosmetics: wallet.cosmetics, selectedCosmetic: wallet.selectedCosmetic ?? null, xp: wallet.xp, claimed: wallet.claimed, cycleEndsAt: wallet.cycleEndsAt, paidUntil: wallet.paidUntil ?? 0, premium: world?agencyAppearance(wallet,accountId,world,now).premium:false,appearance:agencyAppearance(wallet,accountId,world,now),preferences: wallet.preferences }; }
 const ownPlayer = (world, member, id) => { const p = world.players.find(p => p.id === id && p.ownerId === member.id); requireGame(p, 'INVALID_CLIENT'); return p; };
 function payGems(wallet, amount) { integer(amount, 1, 1000); requireGame(!(wallet.debt>0),'PURCHASE_REVIEW_REQUIRED');requireGame(wallet.gems >= amount, 'INSUFFICIENT_GEMS'); wallet.gems -= amount; }
 export function shopOffers(account, world, now) {
@@ -79,7 +84,7 @@ export async function snapshot(store, account, now) {
     const encodedWallet=JSON.stringify(wallet),walletChanged=oldWallet!==encodedWallet;
     if(walletChanged)await tx.query('update agentfc_online.accounts set wallet=$2 where id=$1', [account.id,encodedWallet]);
     const stateRevision=encodeRevision(account.id,Number(current.state_version)+(walletChanged?1:0),world?.id,world?.version,now);
-    return { stateRevision,account: { id: account.id, name: account.name, username: account.username, locale: account.locale,authProvider:account.authProvider??'password',needsAgencyName:wallet.profileReady===false }, wallet: publicWallet(wallet, now,world,account.id),seasonPass:world?publicSeasonPass(wallet,world,account.id,now):null, interstitialDue:Boolean(world?.phase==='active'&&world.day>=7&&!wallet.noAds&&wallet.nextInterstitialAt<=now),shopOffers:shopOffers(current,world,now), world: world ? publicWorld(world, account.id, now) : null, serverTime: now };
+    return { career:await careerStats(tx,account.id),stateRevision,account: { id: account.id, name: account.name, username: account.username, locale: account.locale,authProvider:account.authProvider??'password',needsAgencyName:wallet.profileReady===false }, wallet: publicWallet(wallet, now,world,account.id),seasonPass:world?publicSeasonPass(wallet,world,account.id,now):null, interstitialDue:Boolean(world?.phase==='active'&&world.day>=7&&!wallet.noAds&&wallet.nextInterstitialAt<=now),shopOffers:shopOffers(current,world,now), world: world ? publicWorld(world, account.id, now) : null, serverTime: now };
   });
 }
 export async function command(store, account, action, data, requestId, now) {
@@ -114,6 +119,11 @@ export async function command(store, account, action, data, requestId, now) {
       const row = (await tx.query('select id from agentfc_online.leagues where code=$1', [data.code.toUpperCase()])).rows[0]; requireGame(row, 'INVALID_CODE');
       world = await loadWorld(tx, row.id,now); tickWorld(world, now); addMember(world, account, now);
       await tx.query('insert into agentfc_online.memberships(account_id,league_id) values($1,$2)', [account.id, world.id]);
+     } else if(action==='leave_finished'){
+      requireGame(world?.phase==='finished'&&now>=passEndsAt(world),'SEASON_REWARDS_OPEN');
+      const member=memberFor(world,account.id);member.bot=true;member.auto=true;member.name='Agency Bot';
+      if(world.ownerId===account.id)world.ownerId=world.members.find(m=>!m.bot)?.id??null;
+      await tx.query('delete from agentfc_online.memberships where account_id=$1',[account.id]);
     } else if (action === 'leave_lobby') {
       requireGame(world?.phase === 'lobby', 'LEAGUE_STARTED'); world.members = world.members.filter(m => m.id !== account.id);
       if (world.ownerId === account.id) world.ownerId = world.members[0]?.id ?? null;
@@ -159,11 +169,17 @@ export async function command(store, account, action, data, requestId, now) {
       payGems(wallet, cosmetics[data.cosmeticId]); wallet.cosmetics.push(data.cosmeticId); wallet.selectedCosmetic = data.cosmeticId;
     } else if (action === 'equip_cosmetic') {
       requireGame(data.cosmeticId === null || wallet.cosmetics.includes(data.cosmeticId), 'NOT_OWNED'); wallet.selectedCosmetic = data.cosmeticId;
+    } else if(action==='complete_tutorial'){
+      wallet.tutorialCompleted=true;
     } else if (action === 'preferences') {
       const old = wallet.preferences ?? {};
       for (const key of ['offers', 'matches', 'goals', 'chat','warmup','mercato','training']) { if (typeof data[key] === 'boolean') old[key] = data[key]; }
       wallet.preferences = old;
       if(typeof data.publicRanking==='boolean')wallet.publicRanking=data.publicRanking;
+      if(Object.hasOwn(data,'countryCode')){
+        requireGame(validCountry(data.countryCode),'INVALID_COUNTRY');
+        if(wallet.countryCode!==data.countryCode){requireGame(!wallet.countryCode||now>=(wallet.countryChangeAt??0),'COUNTRY_COOLDOWN');wallet.countryCode=data.countryCode;wallet.countryChangeAt=now+28*DAY;}
+      }
       if(['fr','en','es','it','ru'].includes(data.locale)){
         await tx.query('update agentfc_online.accounts set locale=$2 where id=$1',[account.id,data.locale]);
         await tx.query('update agentfc_online.devices set locale=$2 where account_id=$1',[account.id,data.locale]);
@@ -194,9 +210,9 @@ export async function command(store, account, action, data, requestId, now) {
       else if (action === 'next_season') {
         requireGame(world.phase === 'finished' && world.ownerId === member.id, 'SEASON_NOT_FINISHED');
         requireGame(now>=passEndsAt(world),'SEASON_REWARDS_OPEN');
-        const fresh = createWorld(account, world.name, now);
+        const fresh = createWorld(account, world.name, now,world.private===false?'public':'private');
         fresh.id = world.id; fresh.code = world.code; fresh.season = world.season + 1; fresh.history = world.history.slice(-12); fresh.chats = world.chats; fresh.blocks = world.blocks; fresh.reports = world.reports;
-        fresh.members = world.members.filter(m => !m.bot).map(m => ({ ...m, coins: 60, commissions: 0, trophies: 0, goals: 0, wins: 0, xp: 0,passActivity:{days:{},weeks:{}},passCoinDebt:0 }));
+        fresh.members = world.members.filter(m => !m.bot).map(m => ({ ...m, coins: 60, commissions: 0, trophies: 0, goals: 0, wins: 0, xp: 0,competitionWins:[],passActivity:{days:{},weeks:{}},passCoinDebt:0 }));
         world = fresh; if (world.members.length >= 2) startWorld(world, member.id, now);
       } else {
         requireGame(world.phase === 'active', 'SEASON_CLOSED');

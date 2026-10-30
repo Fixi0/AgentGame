@@ -303,7 +303,7 @@ function playNight(world, at) {
   if (day === 28) {
     for (const country of ['FR', 'GB', 'ES', 'IT', 'DE']) {
       const winner = Object.values(world.tables).filter(r => clubMap.get(r.id).countryCode === country).sort((a, b) => b.points - a.points || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf || a.id.localeCompare(b.id))[0]?.id;
-      for (const p of world.players.filter(p => p.ownerId && p.clubId === winner)) { const member = memberFor(world, p.ownerId); member.trophies++; notify(world, member.id, 'trophy_won', { playerId: p.id, competition: country }, at); }
+      for (const p of world.players.filter(p => p.ownerId && p.clubId === winner)) { const member = memberFor(world, p.ownerId); member.trophies++;member.competitionWins??=[];if(!member.competitionWins.includes(country))member.competitionWins.push(country); notify(world, member.id, 'trophy_won', { playerId: p.id, competition: country }, at); }
     }
     world.phase = 'finished'; world.nextMatchAt = null;
     for (const a of world.auctions.filter(a => a.status === 'open')) a.status = 'cancelled';
@@ -311,7 +311,7 @@ function playNight(world, at) {
     for (const listing of world.listings.filter(l => l.status === 'open')) listing.status = 'expired';
     for (const n of world.needs.filter(n => n.status === 'open')) n.status = 'expired';
     for (const p of world.proposals.filter(p => p.status === 'pending')) p.status = 'cancelled';
-    world.history.push({ season: world.season, at, ranks: ranking(world) });
+    world.history.push({ season: world.season, startedAt:world.startsAt,at, ranks: ranking(world) });
     for (const m of world.members) notify(world, m.id, 'season_finished', { season: world.season }, at);
   } else world.nextMatchAt = nextParisKickoff(at);
 }
@@ -400,7 +400,7 @@ export function tickWorld(world, now) {
 }
 export function ranking(world) {
   return world.members.map(m => ({ id: m.id, name: m.name, bot: m.bot, coins: m.coins, commissions: m.commissions, trophies: m.trophies, goals: m.goals, wins: m.wins, clients: clients(world, m.id).length,
-    score: clients(world, m.id).reduce((s, p) => s + p.value, 0) + m.commissions * 2 + m.trophies * 15 + m.goals,appearance:m.appearance,
+    score: clients(world, m.id).reduce((s, p) => s + p.value, 0) + m.commissions * 2 + m.trophies * 15 + m.goals,appearance:m.appearance,competitionWins:m.competitionWins??[],
   })).sort((a, b) => b.score - a.score || b.commissions - a.commissions || a.name.localeCompare(b.name)).map((m, i) => ({ ...m, rank: i + 1, division: division(m.score) }));
 }
 export function publicWorld(world, accountId, now) {
