@@ -1,6 +1,6 @@
 {
   "date": "2026-10-30",
-  "updatedAt": "2026-10-30T11:27:27.723469+00:00",
+  "updatedAt": "2026-10-30T12:24:18.539114+00:00",
   "publishedToApple": false,
   "readyForSubmission": false,
   "releaseGate": {
@@ -60,6 +60,16 @@
         "name": "App identity",
         "passed": true,
         "detail": "Published bundle ID and embedded web resources."
+      },
+      {
+        "name": "iPhone platform",
+        "passed": true,
+        "detail": "Keep the published iPhone-only / iOS 17 device scope."
+      },
+      {
+        "name": "Portrait gameplay",
+        "passed": true,
+        "detail": "The approved mobile interface uses portrait orientation."
       }
     ],
     "manualRequired": [
@@ -84,7 +94,60 @@
     "buildSucceeded": true,
     "xcode": "27.2",
     "sdk": "iOS 27.2",
-    "simulatorExecution": false
+    "simulatorExecution": false,
+    "archiveSucceeded": true,
+    "bundleId": "com.agentfc.Football-Agent-Simulator",
+    "version": "2.6",
+    "build": "1",
+    "minimumOS": "17.0",
+    "deviceFamily": [
+      1
+    ],
+    "orientations": [
+      "UIInterfaceOrientationPortrait"
+    ],
+    "localizedPermissionLanguages": [
+      "en",
+      "es",
+      "fr",
+      "it",
+      "ru"
+    ],
+    "privacyManifests": [
+      {
+        "path": "PrivacyInfo.xcprivacy",
+        "tracking": false,
+        "requiredReasonCategories": 1,
+        "dataTypes": 6
+      },
+      {
+        "path": "Frameworks/Capacitor.framework/PrivacyInfo.xcprivacy",
+        "tracking": false,
+        "requiredReasonCategories": 0,
+        "dataTypes": 0
+      },
+      {
+        "path": "Frameworks/GoogleMobileAds.framework/PrivacyInfo.xcprivacy",
+        "tracking": null,
+        "requiredReasonCategories": 3,
+        "dataTypes": 7
+      },
+      {
+        "path": "Frameworks/UserMessagingPlatform.framework/PrivacyInfo.xcprivacy",
+        "tracking": null,
+        "requiredReasonCategories": 1,
+        "dataTypes": 3
+      },
+      {
+        "path": "Frameworks/Cordova.framework/PrivacyInfo.xcprivacy",
+        "tracking": false,
+        "requiredReasonCategories": 0,
+        "dataTypes": 0
+      }
+    ],
+    "apiOrigin": "https://agentfc-online-beta.onrender.com",
+    "archivePath": "/tmp/agentfc-final-2.6-20261030-portrait.xcarchive",
+    "debugSimulatorBuildSucceeded": true
   },
   "remote": {
     "url": "https://agentfc-online-beta.onrender.com",
@@ -116,10 +179,69 @@
       "p50Ms": 76,
       "p95Ms": 225
     },
-    "gameTableBytes": 696320,
-    "databaseBytes": 11810483,
+    "gameTableBytes": 794624,
+    "databaseBytes": 11925171,
     "platformHealthCheck": "TCP; HTTP dashboard setting pending",
-    "productionCapacityValidated": false
+    "productionCapacityValidated": false,
+    "addedAccountIndexes": 5,
+    "missingForeignKeyIndexes": 0,
+    "unusedIndexesInformational": 6,
+    "latestHttpBoundaries": {
+      "checkedAt": "2026-10-30T12:08:02.562Z",
+      "anonymousRoutesRefused": 5,
+      "nativeCorsPreflight": true,
+      "forbiddenOrigin": true,
+      "noStoreAndNosniff": true,
+      "authenticated304": true,
+      "invalidRankingInputsRefused": true,
+      "forgedPointsRefused": true,
+      "emptyPublicRanking": true,
+      "commerceDisabled": true,
+      "logoutRevoked": true,
+      "classicDeletionReauthentication": true,
+      "deletedCredentialsRevoked": true
+    },
+    "resourceMetrics": [
+      {
+        "type": "cpu_usage",
+        "samples": 7,
+        "min": 0.00035167,
+        "max": 0.0064905933
+      },
+      {
+        "type": "cpu_limit",
+        "samples": 11,
+        "min": 0.15,
+        "max": 0.15
+      },
+      {
+        "type": "memory_usage",
+        "samples": 10,
+        "min": 35753984,
+        "max": 345849860
+      },
+      {
+        "type": "memory_limit",
+        "samples": 11,
+        "min": 536870900,
+        "max": 536870900
+      },
+      {
+        "type": "http_request_count",
+        "samples": 0,
+        "min": null,
+        "max": null
+      },
+      {
+        "type": "http_latency",
+        "samples": 0,
+        "min": null,
+        "max": null
+      }
+    ],
+    "httpPlatformMetricSamples": 0,
+    "runtimeErrorLogsObserved": 0,
+    "runtimeErrorLogWindow": "2026-10-30T11:58:00Z to 2026-10-30T12:21:12Z"
   },
   "ranking": {
     "permanent": true,
@@ -156,7 +278,8 @@
     "all16TablesPopulatedLocalRestorePassed": true,
     "emptyPreMigrationRemoteSnapshotRestoredLocally": true,
     "wholeSupabaseClusterRestoreValidated": false,
-    "scheduledExportsConfigured": false
+    "scheduledExportsConfigured": false,
+    "emptyPreIndexRemoteSnapshotSavedPrivately": true
   },
   "automatedSuites": [
     {
@@ -165,13 +288,6 @@
       "signal": null,
       "seconds": 3,
       "output": "Notifications passed: warm-up and auction deadline windows, per-human deduplication, training completion, all preference opt-outs, five-language payload selection, deep-link IDs, concurrent worker claims, retry lease, expired events, category collapse, and invalid-token removal. APNs transport was simulated; no real notification was sent."
-    },
-    {
-      "name": "onboarding",
-      "code": 0,
-      "signal": null,
-      "seconds": 3,
-      "output": "Onboarding passed: real HTTP registration/recovery/logout; recovery rotation and session revocation; public/private isolation; 10 concurrent public joins; 90-second bot start; rename; Apple JWT signatures, nonce, expiry, code exchange, replay, encrypted tokens, reauthentication, deletion and revocation retry. Apple network calls used a local fake transport, not real credentials."
     },
     {
       "name": "client-commands",
@@ -188,6 +304,13 @@
       "output": "Production adapter contract passed: shared transaction lock, bound parameters, commit/rollback, client release, private-host validation, proxy headers, beta/production environment isolation and fail-closed startup without managed storage. No managed runtime connection or public deployment is claimed by this test."
     },
     {
+      "name": "onboarding",
+      "code": 0,
+      "signal": null,
+      "seconds": 4,
+      "output": "Onboarding passed: real HTTP registration/recovery/logout; recovery rotation and session revocation; public/private isolation; 10 concurrent public joins; 90-second bot start; rename; Apple JWT signatures, nonce, expiry, code exchange, replay, encrypted tokens, reauthentication, deletion and revocation retry. Apple network calls used a local fake transport, not real credentials."
+    },
+    {
       "name": "state-sync",
       "code": 0,
       "signal": null,
@@ -198,15 +321,8 @@
       "name": "online",
       "code": 0,
       "signal": null,
-      "seconds": 6,
-      "output": "Online passed: 10-agent/2-client limits and permanent third slot for exactly 250 diamonds, insufficient balance and duplicate debit protection, escrow/concurrent bids, atomic replacement, club exclusivity and voluntary agency offers, 28 nights (876 league + 165 European matches), 15 weekly newcomers, restart safety, privacy, real HTTP auth, command deduplication, chat/block/report/rate limits, signed commerce boundary, SSV signature and duplicate reward, season reset preserves gems, logout invalidates session."
-    },
-    {
-      "name": "online-player-mechanics",
-      "code": 0,
-      "signal": null,
       "seconds": 5,
-      "output": "Player mechanics passed: stable profile migration and six role-specific skills; physical traits and scouting privacy; actual match XP and rating impact; potential ceiling; validated sale prices and no minted coins; listing update/withdraw/expiry; reserved-client protection; confirmed release to one shared auction; unchanged identity; final-week placements settle before the last match and server strategy scores match previews; season deadline migration; authenticated HTTP trade, concurrent release/duplicate-request safety and account deletion cleanup."
+      "output": "Online passed: 10-agent/2-client limits and permanent third slot for exactly 250 diamonds, insufficient balance and duplicate debit protection, escrow/concurrent bids, atomic replacement, club exclusivity and voluntary agency offers, 28 nights (876 league + 165 European matches), 15 weekly newcomers, restart safety, privacy, real HTTP auth, command deduplication, chat/block/report/rate limits, signed commerce boundary, SSV signature and duplicate reward, season reset preserves gems, logout invalidates session."
     },
     {
       "name": "online-only",
@@ -230,6 +346,20 @@
       "output": "Boot scripts parse; recovery preserves existing account, purchase and historical save storage."
     },
     {
+      "name": "online-player-mechanics",
+      "code": 0,
+      "signal": null,
+      "seconds": 6,
+      "output": "Player mechanics passed: stable profile migration and six role-specific skills; physical traits and scouting privacy; actual match XP and rating impact; potential ceiling; validated sale prices and no minted coins; listing update/withdraw/expiry; reserved-client protection; confirmed release to one shared auction; unchanged identity; final-week placements settle before the last match and server strategy scores match previews; season deadline migration; authenticated HTTP trade, concurrent release/duplicate-request safety and account deletion cleanup."
+    },
+    {
+      "name": "jsx-bindings",
+      "code": 0,
+      "signal": null,
+      "seconds": 1,
+      "output": "JSX component bindings passed: 87 files."
+    },
+    {
       "name": "online-pass",
       "code": 0,
       "signal": null,
@@ -237,31 +367,17 @@
       "output": "Season pass passed: exact 28-tier rewards, 5-language-ready DTOs, Paris/DST missions, real action XP, duplicate claims and signed receipt boundary, Premium/Plus, escrow-safe refunds and reversal, late purchase credit, day-20 skips, badge/sticker ownership, final reward window, season reset and legacy rights."
     },
     {
-      "name": "jsx-bindings",
-      "code": 0,
-      "signal": null,
-      "seconds": 1,
-      "output": "JSX component bindings passed: 86 files."
-    },
-    {
-      "name": "commerce",
-      "code": 0,
-      "signal": null,
-      "seconds": 61,
-      "output": "UI delivery races: gameplay and career switches during first commit and rebased save passed.\nCommerce: invalid identities, 1000 receipts/replay, product binding, atomic persistence, cross-slot duplicates, no-ads, pending delivery stale autosaves, simulated quota failure, forged import isolation and invalid import passed."
-    },
-    {
       "name": "rankings",
       "code": 0,
       "signal": null,
-      "seconds": 2,
+      "seconds": 1,
       "output": "Ranking passed: durable cumulative season points, rank scale, exactly-once attribution, bots/short/overlapping seasons excluded, global/country/region filters, private profile, safe query inputs, country cooldown, history, career summary and cycle reward deduplication."
     },
     {
       "name": "career-extras",
       "code": 0,
       "signal": null,
-      "seconds": 3,
+      "seconds": 2,
       "output": "Career extras passed: permanent server-earned Game Center IDs, tutorial without economic rewards, visible owned cosmetics, finished-season departure preserving career/gems, no repeated departure, public league visibility retained on reset."
     },
     {
@@ -283,7 +399,28 @@
       "code": 0,
       "signal": null,
       "seconds": 1,
-      "output": "Online localization passed: 626 explicit messages in five languages, placeholders, dynamic reward/sticker/mission keys and Home/Market/Profile/Player/Chat/Pass/BadgeEditor React renders."
+      "output": "Online localization passed: 647 explicit messages in five languages, placeholders, dynamic reward/sticker/mission keys and Home/Market/Profile/Player/Chat/Pass/BadgeEditor React renders."
+    },
+    {
+      "name": "client-resilience",
+      "code": 0,
+      "signal": null,
+      "seconds": 0,
+      "output": "Client resilience passed: 90s cold / 15s warm deadlines, visible slow-network state, overlap cleanup, no automatic write replay, ranking refresh only when visible and foreground event throttling. Timers and transport are simulated."
+    },
+    {
+      "name": "ledger-ui",
+      "code": 0,
+      "signal": null,
+      "seconds": 1,
+      "output": "Ledger UI passed: server-owned balance 53, reserved bid 20, available 33, settled income/expense only, rival privacy, no state mutation, five languages and empty/no-league states."
+    },
+    {
+      "name": "commerce",
+      "code": 0,
+      "signal": null,
+      "seconds": 15,
+      "output": "UI delivery races: gameplay and career switches during first commit and rebased save passed.\nCommerce: invalid identities, 1000 receipts/replay, product binding, atomic persistence, cross-slot duplicates, no-ads, pending delivery stale autosaves, simulated quota failure, forged import isolation and invalid import passed."
     }
   ],
   "interface": {
@@ -296,7 +433,7 @@
     "remainingReason": "Mac locked again; App Store Connect login explicitly deferred by the user.",
     "latestStoreGateAndGameCenterButtonInteractiveReview": false,
     "latestStoreGateSSRRegressionPassed": true,
-    "messagesPerLanguage": 626,
+    "messagesPerLanguage": 647,
     "languages": [
       "fr",
       "en",
@@ -304,7 +441,8 @@
       "it",
       "ru"
     ],
-    "jsxFiles": 86
+    "jsxFiles": 87,
+    "latestNetworkAndLedgerInteractiveReview": false
   },
   "notValidated": [
     "Signed installed iPhone and final distribution provisioning",
@@ -316,14 +454,120 @@
     "AdMob real test-device request and configured consent",
     "Cold Render wake-up and continuous evening availability",
     "Final new screens Russian 320px and keyboard on actual iPhone",
-    "Production load, alerting and populated remote disaster recovery",
-    "App Store Connect products/privacy/age rating/review account and submission"
+    "App Store Connect products/privacy/age rating/review account and submission",
+    "Production load, alerting, HTTP Render health setting and populated remote disaster recovery"
   ],
   "optionalRecommendationsNotImplemented": [
     "Grouped public league starts and friend reservations",
     "Friendly matches",
     "Sound and haptics",
-    "Complete visible economic transaction statement",
     "External product analytics and retention funnel"
-  ]
+  ],
+  "phoneFollowup": {
+    "scope": [
+      "visible coin ledger and reservations",
+      "automatic visible ranking refresh",
+      "cold connection deadline and wait indicator"
+    ],
+    "regressionSuites": 8,
+    "httpsProbe": {
+      "checkedAt": "2026-10-30T11:46:14.469Z",
+      "elapsedMs": 13619,
+      "status": 200,
+      "ok": true,
+      "mode": "managed-postgres",
+      "stage": "staging"
+    },
+    "coldWakeInferredFromLatency": false,
+    "coldDeadlineMs": 90000,
+    "warmDeadlineMs": 15000,
+    "automaticWriteRetries": false,
+    "macLocked": true,
+    "appleConfigurationChanged": false,
+    "paidHostingEnabled": false
+  },
+  "dependencyAudits": {
+    "all": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "dependencies": {
+        "prod": 226,
+        "dev": 5,
+        "optional": 54,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 283
+      }
+    },
+    "server": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "dependencies": {
+        "prod": 64,
+        "dev": 0,
+        "optional": 1,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 64
+      }
+    }
+  },
+  "assetDecoding": {
+    "decodedImages": 20,
+    "parsedSvgAssets": 35,
+    "validFontHeaders": 0,
+    "icon1024Rgb": true,
+    "parsedFonts": [
+      {
+        "path": "assets/Anton-Regular-DDTWnLuj.ttf",
+        "font": [
+          "Anton",
+          "Regular"
+        ]
+      },
+      {
+        "path": "assets/BarlowSemiCondensed-Medium-B-GaN-11.ttf",
+        "font": [
+          "Barlow Semi Condensed",
+          "Medium"
+        ]
+      },
+      {
+        "path": "assets/BarlowSemiCondensed-SemiBold-DrVP5hUr.ttf",
+        "font": [
+          "Barlow Semi Condensed",
+          "SemiBold"
+        ]
+      },
+      {
+        "path": "assets/RobotoCondensed-BR5DqaBH.ttf",
+        "font": [
+          "Roboto Condensed",
+          "Regular"
+        ]
+      }
+    ]
+  },
+  "finalMacVisualAccess": "Blocked: Mac locked",
+  "nativeScopeCorrection": {
+    "reason": "Public App Store 2.5 lists iPhone only, iOS 17 minimum; align reconstructed target and approved portrait UI.",
+    "source": "https://apps.apple.com/fr/app/football-agent-simulator/id6767189801",
+    "deviceFamily": [
+      1
+    ],
+    "minimumOS": "17.0",
+    "orientation": "portrait"
+  }
 }

@@ -102,3 +102,9 @@ create index if not exists season_points_account on agentfc_online.season_points
 create index if not exists season_points_ended on agentfc_online.season_points(ended_at);
 alter table agentfc_online.season_points enable row level security;
 revoke all on agentfc_online.season_points from public;
+-- Cover account lookups and foreign-key checks when a session/account is revoked.
+create index if not exists sessions_account on agentfc_online.sessions(account_id);
+create index if not exists purchases_account on agentfc_online.purchases(account_id);
+create index if not exists ad_intents_account on agentfc_online.ad_intents(account_id);
+create index if not exists global_awards_account on agentfc_online.global_awards(account_id);
+create index if not exists support_tickets_account_created on agentfc_online.support_tickets(account_id,created_at desc);

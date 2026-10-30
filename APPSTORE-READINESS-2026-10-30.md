@@ -15,7 +15,7 @@ L’utilisateur a choisi de se reconnecter à App Store Connect plus tard. Aucun
 - Dix agents ; lancement public avec bots après 90 s et au moins un humain, privé avec au moins deux humains. Bots identifiables.
 - Tutoriel d’essai jouable en quatre étapes : prospect, entraînement, club, résultat. Il reste séparé de la compétition, sans crédit de pièces, diamant, client ou point. Sa fin est mémorisée sur le compte.
 - Sortie d’une ligue terminée après la fenêtre de récompenses, pour choisir la suivante en conservant carrière, diamants et droits. Reset d’une ligue publique conserve sa visibilité publique.
-- Français, anglais, espagnol, italien et russe : **626 messages explicites**, variables contrôlées et rendus React testés.
+- Français, anglais, espagnol, italien et russe : **647 messages explicites**, variables contrôlées et rendus React testés.
 
 ### Classement mondial, grandes zones et pays
 
@@ -39,7 +39,7 @@ Le classement de ligue est conservé. Un classement de **carrière permanent** e
 - Protection contre un double crédit, les saisons anormalement courtes et les saisons qui chevauchent une période déjà récompensée pour le compte.
 - Pays facultatif, choisi dans le profil, sans GPS ; grande zone dérivée côté serveur du référentiel Unicode CLDR. Changement de pays limité à une fois tous les 28 jours.
 - Présence publique volontaire. Un compte masqué conserve ses points ; aucune donnée de connexion ou de portefeuille n’est exposée dans les lignes publiques.
-- Pagination de 50 agents, place personnelle retrouvable au-delà de la première page, total et filtres validés. Or/argent/bronze pour le podium, surbrillance de sa propre agence.
+- Pagination de 50 agents, place personnelle retrouvable au-delà de la première page, total et filtres validés. Actualisation quand l’écran est visible, au retour après au moins 30 s, après un gain de points de carrière ou via le bouton Actualiser. Or/argent/bronze pour le podium, surbrillance de sa propre agence.
 - Les cinq succès Game Center existants sont désormais alimentés par les victoires de championnat validées par le serveur. Un bouton dans Réglages permet l’authentification et la reprise de la file native ; cette partie nécessite encore un essai Apple sur appareil signé. Le classement de carrière est hébergé par notre serveur, indépendamment de Game Center.
 
 Ce barème est la première règle implémentée pour la bêta. Il récompense la place finale ; les points de match de la ligue ne sont pas recopiés directement dans la carrière.
@@ -71,7 +71,7 @@ Les achats, propriétaires, fonds réservés, attributs, résultats et points so
 
 Le service Render utilise encore son contrôle de santé **TCP par défaut**. Le Blueprint et Docker prévoient `/api/online/health`, mais le réglage HTTP de la plateforme reste à appliquer dans le Dashboard. Les en-têtes de proxy sont ignorés (`AGENTFC_TRUST_PROXY_HOPS=0`) tant que la chaîne d’entrée n’est pas vérifiée. Avant montée en charge, vérifier cette chaîne et l’effet des limites d’authentification partagées derrière l’entrée Render.
 
-L’offre gratuite se met en veille après 15 minutes sans trafic et peut prendre environ une minute à redémarrer. Cela peut retarder le calcul du soir et les notifications. Le client possède actuellement un délai réseau de 15 s : un premier accès après veille peut donc nécessiter Réessayer. Aucun maintien artificiel en éveil n’a été ajouté. Une disponibilité continue doit être choisie et testée avant la sortie publique. [Limites officielles Render Free](https://render.com/docs/free).
+L’offre gratuite se met en veille après 15 minutes sans trafic et peut prendre environ une minute à redémarrer. Cela peut retarder le calcul du soir et les notifications. Le client attend désormais jusqu’à 90 s lors de la première connexion ou après une longue inactivité, puis 15 s quand le serveur a répondu récemment. Un message apparaît après quatre secondes d’attente ; aucune écriture n’est réessayée automatiquement. Un contrôle HTTPS réel a répondu en 13 619 ms, sans preuve indépendante qu’il s’agissait d’un redémarrage à froid. Aucun maintien artificiel en éveil n’a été ajouté. Une disponibilité continue doit être choisie et testée avant la sortie publique. [Limites officielles Render Free](https://render.com/docs/free).
 
 ### Sauvegarde et données
 
@@ -81,11 +81,11 @@ Cet export concerne le schéma du jeu. Il ne représente pas une sauvegarde comp
 
 Après retrait des seuls comptes de QA : **zéro compte, zéro ligue et zéro résultat de carrière distant**. Les deux faux résultats utilisés pour vérifier les requêtes du classement ont été supprimés. La partie locale existante n’a pas été déplacée ou effacée. Les autres projets Supabase et services Render n’ont pas été modifiés.
 
-Taille finale mesurée : tables du jeu **696 320 octets** ; base complète **11 810 483 octets**. Cette base vide après QA ne permet pas d’estimer le nombre de joueurs supportés. Les mesures antérieures d’un état de saison (~38 ko au départ, ~0,93 Mo en fin de saison) restent des mesures locales, pas une capacité de production. Le verrou partagé reste adapté au pilote à mesurer ; il faudra le répartir par ligue si les attentes augmentent.
+Taille finale mesurée : tables du jeu **794 624 octets** ; base complète **11 925 171 octets**. Cette base vide après QA ne permet pas d’estimer le nombre de joueurs supportés. Les mesures antérieures d’un état de saison (~38 ko au départ, ~0,93 Mo en fin de saison) restent des mesures locales, pas une capacité de production. Le verrou partagé reste adapté au pilote à mesurer ; il faudra le répartir par ligue si les attentes augmentent.
 
 ## Vérifications exécutées
 
-**18 suites automatisées distinctes passent**, plus les contrôles du build. Les cinq suites antérieures encore pertinentes et les treize suites de régression finales sont conservées dans le fichier de validation.
+**20 suites automatisées distinctes passent**, plus les contrôles du build. Les vingt suites ont toutes été relancées sur le code actuel lors du dernier contrôle. Les résultats individuels et leur portée sont conservés dans le fichier de validation.
 
 | Contrôle | Résultat et portée |
 | --- | --- |
@@ -99,12 +99,13 @@ Taille finale mesurée : tables du jeu **696 320 octets** ; base complète **11 
 | Classement | Cumul durable, attribution unique, protections temporelles, bots, confidentialité, filtres, pagination de 58 profils et historique |
 | Parcours de carrière | Tutoriel sans récompense économique, cosmétiques possédés, sortie de saison, conservation des droits et succès Game Center autorisés |
 | Boutique UI | Achat Apple/pass bloqué lorsque désactivé ; palier gratuit et place à 250 diamants accessibles avec des fonds déjà acquis |
-| Réseau | Reprise de commande après coupure/500, 304 sur état inchangé, isolation des révisions compte/ligue |
+| Réseau | Reprise de commande après coupure/500, 304, délais froid/chaud, attente lisible, nettoyage des requêtes simultanées et absence de répétition automatique des écritures |
+| Relevé des pièces | Solde serveur 53, réservation 20, disponible 33 ; seulement les dépenses réglées et revenus personnels, confidentialité, cinq langues et états vides |
 | Sauvegarde | Restauration vide et peuplée, intégrité compte/solde/carrière, refus d’une base occupée ou d’un schéma inconnu |
-| Traductions / React | 626 messages dans cinq langues, variables, rendus des écrans principaux, 86 fichiers JSX contrôlés |
+| Traductions / React | 647 messages dans cinq langues, variables, rendus des écrans principaux, 87 fichiers JSX contrôlés |
 | Web et paquet natif | **77 fichiers SHA-256**, graphe en ligne uniquement, mêmes empreintes dans `dist`, le projet iOS et l’app compilée |
-| iPhone | **Release générique réussie, sans signature, Xcode 27.2 / SDK iOS 27.2**, sur le dernier paquet web |
-| Simulateur | Service CoreSimulator toujours indisponible ; aucun parcours de jeu exécuté dans le simulateur pendant ce passage |
+| iPhone | **Archive Release réussie, sans signature, Xcode 27.2 / SDK iOS 27.2**, iPhone uniquement, iOS 17 minimum, portrait ; dernier paquet web vérifié |
+| Simulateur | Compilation Debug générique réussie sur le projet final ; CoreSimulator ne répond pas à l’appel borné de 15 s, donc aucun parcours exécuté |
 
 ### Preuves sur le serveur public
 
@@ -118,7 +119,7 @@ Mesure courte sur serveur chaud : **50 requêtes d’état, concurrence 5, 50 r�
 
 Safari natif a permis de vérifier l’accueil, la connexion classique, le tutoriel complet sans changement de solde, l’activation volontaire du classement, le choix France, le verrou de changement de pays et les vues Monde / Europe / France. Le classement affiche correctement podium et agence personnelle à 390 × 844 et sur écran large ; les doublons de carte personnelle et les libellés singuliers ont été corrigés.
 
-Le passage en russe a été observé. **Le dernier contrôle complet des nouvelles interfaces à 320 px n’a pas été achevé**, car le Mac s’est reverrouillé ; les derniers changements de boutique et le bouton Game Center ont été vérifiés par rendu React et compilation, sans nouvelle passe visuelle interactive. L’ancienne interface avait déjà été contrôlée à 320 px, ce qui ne remplace pas ce contrôle final.
+Le passage en russe a été observé. **Le dernier contrôle complet des nouvelles interfaces à 320 px n’a pas été achevé**, car le Mac s’est reverrouillé ; les derniers changements de boutique, le bouton Game Center, le relevé de pièces et l’attente réseau ont été vérifiés par tests et compilation, sans nouvelle passe visuelle interactive. L’ancienne interface avait déjà été contrôlée à 320 px, ce qui ne remplace pas ce contrôle final.
 
 L’accès au navigateur intégré de Work reste désactivé dans les réglages de l’utilisateur. Safari natif a été utilisé avec son autorisation après déverrouillage ; aucun réglage de sécurité de Work n’a été modifié.
 
@@ -156,7 +157,7 @@ Les anciens consommables ne prouvent pas un solde restant. Ne pas recréditer to
 
 Métadonnées mises à jour en cinq langues avec le classement, statut brouillon et limites de longueur contrôlées. Vérifier confidentialité, âge, chat, SDK/manifestes et contact d’assistance. Prévoir une modération suivie, pas seulement un filtre. Les captures finales doivent venir du build signé. Préparer un compte classique de démonstration et une ligue de validation préremplie avec accès rapide aux enchères, matchs et pass ; serveur disponible durant la revue. [Consignes Apple](https://developer.apple.com/app-store/review/guidelines/).
 
-Le contrôle automatique reste volontairement **rouge sur quatre points** : environnement Production, Apple, APNs, StoreKit. Ressources, API publique, origine iOS, PostgreSQL géré, icône, entitlements et bundle ID passent. Ce contrôle ne remplace pas les essais physiques.
+Le contrôle automatique reste volontairement **rouge sur quatre points** : environnement Production, Apple, APNs, StoreKit. Les nouveaux contrôles de cible iPhone/iOS 17 et de portrait passent également. Ressources, API publique, origine iOS, PostgreSQL géré, icône, entitlements et bundle ID passent. Ce contrôle ne remplace pas les essais physiques.
 
 ## Suite produit recommandée
 
@@ -166,17 +167,33 @@ Déjà ajoutés : tutoriel d’essai, partage d’invitation, fin de saison avec
 
 1. **Regrouper les humains.** Mesurer la part de ligues avec plusieurs vrais joueurs. Le départ à 90 s reste la règle actuelle ; départs regroupés, place réservée à un ami et remplacement de bot avant la première soirée restent des propositions, non implémentées.
 2. **Rendez-vous du soir.** Suivre le premier match vu et le retour J1/J7. Ajouter ensuite célébrations courtes, sons et haptiques désactivables. Aucun nouveau moteur de matchs amicaux n’a été ajouté.
-3. **Compréhension de l’économie.** Ajouter un relevé lisible des dépenses/réservations/revenus et une aide contextuelle aux clubs indisponibles. Le serveur conserve déjà les mouvements ; une page de relevé complète reste à faire.
+3. **Compréhension de l’économie.** Le bouton des pièces ouvre désormais un relevé des 40 derniers mouvements de la saison, avec soldes total/disponible/réservé et explication des réservations. Reste à affiner l’aide contextuelle aux clubs indisponibles à partir des retours de bêta.
 4. **Boutique.** Mesurer ouverture, achat réussi, échec, remboursement et utilisation réelle des cosmétiques. Les avantages payants sans plafond et les pièces premium du pass restent conformes au choix utilisateur ; surveiller le découragement des rivaux avant de changer cette règle.
 5. **Instrumentation.** Aucun service d’analytics ni compte de surveillance externe n’a été installé. Définir les événements de parcours, puis les intégrer avec une collecte proportionnée ; les logs HTTP actuels ne mesurent pas la rétention.
 6. **Dernière finition visuelle.** Reprendre les nouveaux écrans en russe à 320 px, puis sur un petit iPhone signé ; vérifier clavier/chat, masque de l’icône, textes longs et aperçus cosmétiques. Aucune nouvelle DA ou illustration n’est nécessaire.
+
+
+## Dernier contrôle complémentaire
+
+Deux corrections appliquées après inspection :
+
+- **Cinq index de compte** ajoutés à la base et au schéma source : sessions, achats, intentions publicitaires, récompenses globales et assistance. Le diagnostic de clés étrangères sans index a disparu. Les six informations « index inutilisé » restantes sont cohérentes avec une base de bêta vide ; aucun index n’a été supprimé sur ce seul motif. RLS et droits privés inchangés. [Diagnostic Supabase](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys).
+- **Périmètre natif corrigé** : la fiche publiée indique iPhone uniquement et iOS 17 minimum. Les réglages par défaut du projet recréé activaient aussi iPad et iOS 15. La version préparée reprend désormais iPhone/iOS 17 et le portrait des maquettes ; le contrôle de sortie surveille ces réglages. [Fiche Apple vérifiée](https://apps.apple.com/fr/app/football-agent-simulator/id6767189801).
+
+Le parcours HTTPS a également vérifié la suppression de comptes classiques de QA : mauvais mot de passe refusé, sessions révoquées, ancienne connexion impossible et reprise des mandats par les bots. Les traces pseudonymes de QA et la ligue ont ensuite été retirées de manière ciblée ; zéro compte et zéro ligue confirmés. Aucun achat ni message externe réel effectué.
+
+Les audits npm complets du projet et du serveur ne signalent **aucune vulnérabilité connue** au moment de ce contrôle. Ils ne couvrent pas à eux seuls les SDK Swift ni toutes les vulnérabilités possibles du jeu. Les 20 images et 35 SVG du paquet ont été décodés/parsés ; les quatre polices sont lisibles et leurs licences sont présentes. L’icône est bien un PNG RGB 1024 × 1024. Cinq manifestes de confidentialité sont présents dans l’archive : jeu, Capacitor, Cordova, Google Mobile Ads et User Messaging Platform. Les déclarations finales de confidentialité restent à rapprocher des SDK et usages réellement activés.
+
+Mesures Render disponibles sur la fenêtre contrôlée : pic mémoire 345 849 860 octets pour une limite de 536 870 900 ; pic CPU 0,00649 pour une limite de 0,15. Ces observations sous le faible trafic de QA ne constituent pas une capacité de production. Les séries HTTP de la plateforme sont vides : aucune latence p95 Render n’en est déduite. Aucun log de niveau erreur observé entre 11 h 58 et 12 h 21 UTC.
+
+La fiche publique 2.5 présente encore deux langues, une classification 4+ et les anciennes déclarations de confidentialité : les réglages de la 2.6 devront être actualisés dans App Store Connect. Le prix public actuel du Pack Joueur est 2,49 € ; le déblocage reste fixé à 250 diamants selon le dernier choix validé, sans le présenter comme un achat à 5,99 €. Aucun prix Apple n’a été modifié. Les prix effectivement proposés par l’app continueront à venir de StoreKit. [Fiche actuelle](https://apps.apple.com/fr/app/football-agent-simulator/id6767189801).
 
 ## Commandes et fichiers utiles
 
 - `npm run ios:beta` : construit et synchronise le paquet vers Render staging.
 - `VITE_AGENTFC_API_URL=https://agentfc-online-beta.onrender.com npm run check:appstore` : expose les blocages actuels ; sortie 1 attendue.
 - `npm run ios:release` : garde la barrière de sortie Production.
-- `npm run test:rankings`, `test:career-extras`, `test:backup`, `test:store-ui` : nouveaux contrôles.
+- `npm run test:rankings`, `test:career-extras`, `test:backup`, `test:store-ui`, `test:client-resilience`, `test:ledger-ui` : nouveaux contrôles.
 - `npm run test:online`, `test:online-players`, `test:online-pass`, `test:onboarding`, `test:notifications`, `test:state-sync`, `test:client-commands`, `test:production`, `test:online-locales`, `test:online-only`, `test:ads`, `test:boot`, `test:jsx`, `test:commerce`, `test:build` : autres validations.
 - [État machine des vérifications](release/appstore/validation-2026-10-30.json).
 - [Métadonnées App Store — brouillon](release/appstore/metadata-draft.json).
