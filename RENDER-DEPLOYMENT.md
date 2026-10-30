@@ -4,7 +4,8 @@ Le fichier `render.yaml` prépare **un seul service web Docker** :
 
 - Nom : `agentfc-online-beta`.
 - Région : Francfort, à proximité du PostgreSQL Supabase situé à Paris.
-- Instance : `0.5c-512mb`, une seule instance, tarif affiché de **7 $/mois**, hors taxes et dépassements.
+- Instance : **`free` pour les tests**, à la demande de l’utilisateur. Aucun passage payant automatique. L’option continue à 7 $/mois précédemment envisagée n’est pas demandée par cette configuration.
+- L’offre gratuite peut se mettre en veille après 15 minutes sans trafic ; les tâches de matchs et notifications peuvent être retardées pendant cette veille. Elle sert à la bêta, pas à garantir les horaires de la version publique. Les quotas gratuits Render restent applicables.
 - Aucun PostgreSQL Render, disque payant, worker séparé ou aperçu automatique n’est demandé.
 - Déploiements automatiques désactivés : une modification du dépôt ne redémarre pas la bêta sans action explicite.
 - Mode bêta, transactions StoreKit Production refusées et commerce désactivé ; publicités récompensées désactivées.
@@ -16,7 +17,7 @@ Ce fichier est une configuration, **pas la preuve qu’un service Render est cr�
 
 - Compte Render connecté ; workspace **My Workspace** (`tea-d76eg06slomc738h1mj0`) confirmé par l’utilisateur.
 - Code serveur publié sur la branche dédiée [`codex/agentfc-server-beta`](https://github.com/Fixi0/AgentGame/tree/codex/agentfc-server-beta). La branche `main` et les services existants n’ont pas été modifiés.
-- La demande de création du service a été refusée par Render : **HTTP 402, `billing_suspended`**. La liste des services après cette tentative ne contient aucun Agent FC. Aucun déploiement public ni build Docker distant n’a donc été exécuté.
+- La demande payante initiale, puis la tentative explicite avec **`plan: free`**, ont toutes deux été refusées par Render : **HTTP 402, `billing_suspended`**. La liste vérifiée après l’essai gratuit ne contient aucun Agent FC. Aucun déploiement public ni build Docker distant n’a donc été exécuté.
 - Action nécessaire sur téléphone : ouvrir [Billing](https://dashboard.render.com/billing) dans My Workspace et lever le blocage indiqué par Render. Ne pas reprendre ou modifier les autres applications pour contourner cette erreur.
 - Supabase : projet `xyzvooefdyotbqkiluuc`, pooler confirmé `aws-1-eu-west-3.pooler.supabase.com:5432`. Connexion TLS avec chaîne et nom d’hôte vérifiés grâce au certificat public officiel Supabase.
 - Le rôle dédié `agentfc_beta_runtime` possède les opérations de données sur les 15 tables privées du jeu, avec des politiques RLS réservées à ce rôle. Aucun accès au schéma Auth ; `anon` et `authenticated` n’ont pas accès au schéma du jeu. Aucun avertissement de sécurité Supabase après la migration.

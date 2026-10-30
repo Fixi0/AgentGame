@@ -1,12 +1,11 @@
 # Agent FC beta only. The private Supabase connection must be supplied in Render.
-# One paid web service; no Render database, disk, worker or preview is created.
+# Free test service; no Render database, disk, worker or preview is created.
 services:
   - type: web
     name: agentfc-online-beta
     runtime: docker
     region: frankfurt
-    plan: 0.5c-512mb
-    numInstances: 1
+    plan: free
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/online/health
