@@ -1,0 +1,33 @@
+# Agent FC beta only. The private Supabase connection must be supplied in Render.
+# One paid web service; no Render database, disk, worker or preview is created.
+services:
+  - type: web
+    name: agentfc-online-beta
+    runtime: docker
+    region: frankfurt
+    plan: 0.5c-512mb
+    numInstances: 1
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/online/health
+    autoDeployTrigger: "off"
+    maxShutdownDelaySeconds: 60
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AGENTFC_DEPLOY_STAGE
+        value: staging
+      - key: AGENTFC_BIND_HOST
+        value: 0.0.0.0
+      - key: AGENTFC_ALLOWED_ORIGINS
+        value: capacitor://localhost
+      - key: AGENTFC_TRUST_PROXY_HOPS
+        value: "0"
+      - key: AGENTFC_DATABASE_URL
+        sync: false
+      - key: AGENTFC_APPLE_ENVIRONMENT
+        value: Sandbox
+      - key: AGENTFC_COMMERCE_ENABLED
+        value: "false"
+      - key: AGENTFC_ADMOB_SSV_ENABLED
+        value: "false"

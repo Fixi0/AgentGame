@@ -1,0 +1,17 @@
+node_modules
+dist*
+ios
+android
+.git
+.env*
+**/.env*
+*.p8
+**/*.p8
+*.p12
+**/*.p12
+*.mobileprovision
+**/*.mobileprovision
+audit*
+design
+exports
+build
